@@ -14,7 +14,7 @@
 | B-K-N2 | B 包 Kimi 初审 N 类（档同上） | `--project` 同名异义（账本条目名 vs 项目目录） | closed | 已文档化（ds-call-v2.mjs 头注+02 §9 注记：--project=账本条目名，配置装载恒从 cwd） |
 | C-K-N1 | C 包 Kimi 终审 N 类（档=2026-09-10_skill-audit-c-re2-kimi-out.md；裁决承转=交接书 §1 快照「已裁有意设计不修」，交接书全路径见 A-dsN-1 行） | SKILL.md description 触发词冗长 | won't-fix | 维持原裁：触发词覆盖=召回优先，长度换加载命中率。裁决主体同 A-dsN-1（非本轮自裁） |
 | BC-ds-2nd | B/C 包 deepseek 复审缺席（交接书 §1 快照第 4 条） | deepseek 二轮未走（条件同域已落实） | closed | 已由优化战役 W5 六派发补齐（deepseek 审 A'/B'/C' 三区，档=Synapse scripts/audits/2026-09-10_w5-*-ds-out.md）——本轮闭环 |
-| HOST-node25 | 优化战役 W2 执行事件+回炉轮 1 复核 | 宿主 Node 25.2.1 下 ds-call-v2 路径**退出阶段** libuv 断言崩溃（0xC0000409, uv_handle_closing, async.c:76）——输出与落账已完成 | won't-fix | 定性（回炉轮 1 修正为或然并存）：裸 fetch 单请求 Node 25 不复现（实验档=w5 终裁档 §Node25 对照）——崩溃=Node 25 libuv 敏感性×ds-call-v2 路径特定形态（长响应/重试循环）组合，「纯环境缺陷」与「代码触发面」不可分。接受风险=跟踪上限到此；缓解=外部派发一律 Node 24（SKILL.md 派发节注记）；**若 Node 24 后续同崩则本项重开升级排查** |
+| HOST-node25 | 优化战役 W2 执行事件+回炉轮 1 复核 | 宿主 Node 25.2.1 下 ds-call-v2 路径**退出阶段** libuv 断言崩溃（0xC0000409, uv_handle_closing, async.c:76）——输出与落账已完成 | won't-fix | 定性（回炉轮 1 修正为或然并存）：裸 fetch 单请求 Node 25 不复现（实验档=w5 终裁档 §Node25 对照）——崩溃=Node 25 libuv 敏感性×ds-call-v2 路径特定形态（长响应/重试循环）组合，「纯环境缺陷」与「代码触发面」不可分。接受风险=跟踪上限到此；缓解=外部派发一律 Node 24（SKILL.md 派发节注记）；**若 Node 24 后续同崩则本项重开升级排查**（重开触发=人工发现，无常驻机检=已接受监控盲区） |
 | W5-A-W4 | W5 回炉轮 1 登记（Kimi-W4） | R5 演练行永久留在技能根流水（历史事件不删） | won't-fix | 流水=追加式运行记录（历史件禁改写同款语义），演练行带 mocked 上下文可甄别；不清洗 |
 
 ## 残留快照对账表（交接书 §1.3 → 本册编号；「静默消失」证伪位）
@@ -39,6 +39,7 @@
   ds-W3：裸 fetch 对照实验后放弃「纯环境缺陷」超证据定性）；增残留
   快照对账表（Kimi-W-1/ds-W4：§1.3 全集对账，零静默消失）；BC-ds-2nd
   闭环（W5 六派发完成）；三态纯度修正（Kimi-N-1：open→W5 移入处置列）。
-- 2026-09-10 立册（优化战役 W4）：承接交接书 §1.3 残留快照全量登记并
-  清算——A-dsN-1/C-K-N1 won't-fix 显式化、B-K-N1/N2 closed 闭证、
-  BC-ds-2nd 转 W5 闭环、HOST-node25 新登记。
+- 2026-09-10 立册（优化战役 W4）：承接交接书 §1.3 残留快照全量登记。
+- 2026-09-10 立册日清算补记（与上行同期，分行纯追加）：A-dsN-1/C-K-N1
+  won't-fix 显式化、B-K-N1/N2 closed 闭证、BC-ds-2nd 转 W5 闭环、
+  HOST-node25 新登记。

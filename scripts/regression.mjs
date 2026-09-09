@@ -173,7 +173,7 @@ if (want('R4')) {
   const passA = a.pass && cfgOk
   const ledgerPath = flag('--ledger') || join(projectDir, '.zcode', 'org-ledger.jsonl')
   const ledgerReq = (e) => {
-    if (!['ok', 'switch', 'exhaust'].includes(e.event)) return { __unknown__: true } // 账本侧未知 event 同样计坏行（终轮 A'-Kimi：防新增记账事件未同步 schema 即弱校验通过）
+    if (!['ok', 'switch', 'exhaust'].includes(e.event)) return ['__unknown_event__'] // 账本侧未知 event 同样计坏行（终轮 A'-Kimi：防新增记账事件未同步 schema 即弱校验通过）。返回数组——checkLines 以 for...of 逐字段消费，对象形态会 TypeError（终轮复核修正）
     return e.event === 'ok' ? [...LEDGER_REQUIRED, 'usage'] : LEDGER_REQUIRED
   }
   const b = checkLines('账本', ledgerPath, ledgerReq, 50)
