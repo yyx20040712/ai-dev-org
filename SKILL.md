@@ -48,6 +48,8 @@ node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]
 ```
 
 无 `--role` 报错；源装载双校验（uuid_prefix+entry_name）不符即 exit 3 无 fallback。
+（宿主 Node≥25 已知 libuv 退出阶段崩溃=RESIDUALS/HOST-node25——外部
+派发一律用 Node 24 跑；见「验证状态」节修订记。）
 运行流水=scripts/model-routing-log.jsonl（字段口径见 references/06 §5）；
 项目账本=.zcode/org-ledger.jsonl（行 schema：ts/project/event/role/tier/
 source/cfg_hash/usage?/outcome——tier 记法：外部岗取 org-config 枚举，
@@ -78,6 +80,10 @@ source/cfg_hash/usage?/outcome——tier 记法：外部岗取 org-config 枚举
 | 数据批 | 独立复算+专家追认（02 §6） |
 | 路线级设计 | 三段通道：拟定+对抗审核+主控终裁（02 §8.6） |
 | 已审面修改 | 该面随批重过——给首审档呈 diff，「改了就要再审」（08 §0 惯例） |
+| 纯配置变更批（org-config/路由/配给） | 按「已审面修改」处理：配置 diff+预期行为变化呈 auditor-readonly 复核（W5 审 B' 双源 B1） |
+| 收口/交付批 | 烤验证据随呈报包复核：各对抗位报告+health-scan RED=0+基线数字对账（W5 审 ds-B1） |
+
+**复合批取命中各行对抗位的并集**（一个批次踩多类=逐类全过，禁择一）。
 
 派发前自检三问：①本批命中表中哪些对抗位？②各位源可用且与实现者
 异构吗？③欠账清单有无本批必须补还项？收口前必跑
@@ -111,3 +117,12 @@ references/04；本技能自身的基线失败=设计审核链 5B/5W/3N 实录�
 scripts/audits/2026-09-10_org-skill-*）。新项目首场战役按 05 移植后
 做压力场景复测并回填本节。v1.0 冻结条件=首个适配场完整 LOOP 走通+
 派发器 v2 回归 R1~R6 全过（drafter 复用与项目切换的前置）。
+
+## 修订记
+
+- 2026-09-10 v1.1（优化战役，W5 全局三源审计回炉轮 1）：加载地图+09；
+  烤验触发表立节（W4）并按双源审计增「纯配置变更批/收口交付批」两行
+  +复合批并集注记；团队化边界段立节（W3）；派发命令清单+三新脚本
+  （init-defenses/regression/health-scan）；Node24 派发注记
+  （HOST-node25）。变更明细=技能仓库 git 提交链（W0~W4 五提交）+
+  回炉轮 1 提交；审计档=Synapse scripts/audits/2026-09-10_w5-*。

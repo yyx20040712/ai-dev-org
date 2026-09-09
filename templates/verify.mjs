@@ -1,7 +1,8 @@
 /**
  * 门禁聚合入口（npm-verify 型骨架）——ai-dev-org init-defenses 生成。
  * 语义：探测 package.json scripts，逐 gate 跑「存在者」；缺失=SKIP（骨架
- * 宽松模式）。CI 投产设 DEFENSES_STRICT=1：SKIP 升级为 FAIL，逼门禁齐装。
+ * 宽松模式）。**宽松模式不是门禁**——投产必须 DEFENSES_STRICT=1（CI
+ * 模板已设）：SKIP 升级为 FAIL，逼门禁齐装（W5 审 Kimi-W9 防假门禁）。
  * 用法：node scripts/verify.mjs   （退出码：0=全过；1=有 FAIL）
  */
 import { readFileSync, existsSync } from 'node:fs'
