@@ -42,6 +42,9 @@ node scripts/ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>]
 node scripts/org-config.mjs [resolve|hash|validate|--self-test]
 node scripts/skill-gc.mjs [--apply --delete-redirects|--delete-invalid]   # 技能目录盘点/清理（默认干跑；删除先归档可回滚；active 技能去留=用户裁决不机删）
 node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空白字符
+node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目防线日脚手架（05 §4）
+node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden] [--project <dir>]   # 自包含回归（06 §5 R 清单内化；R1 真实派发须 --r1）
+node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（欠账/同源/预算，RED=0 方可收口）
 ```
 
 无 `--role` 报错；源装载双校验（uuid_prefix+entry_name）不符即 exit 3 无 fallback。
@@ -65,6 +68,22 @@ source/cfg_hash/usage?/outcome——tier 记法：外部岗取 org-config 枚举
 - 换源时放宽任务书或 DoD ／ 源尽不记欠账假装审过
 - 子代理"已定档"却无欠账行 ／ ORG-SEG 段超预算未跑自检即派发
 - 本项目已有组织段时整抄通用 stub（双组织段=双源）
+
+## 烤验触发表（grillme 机关——派发前自检，未过不得收口）
+
+| 批次类型 | 强制对抗位（缺一=烤验未过） |
+|---|---|
+| 实现批 | 门一异构隔离审+门二实证终审（02 §2 步骤 6/7） |
+| 文档/制度批 | 轻量双审（02 §3） |
+| 数据批 | 独立复算+专家追认（02 §6） |
+| 路线级设计 | 三段通道：拟定+对抗审核+主控终裁（02 §8.6） |
+| 已审面修改 | 该面随批重过——给首审档呈 diff，「改了就要再审」（08 §0 惯例） |
+
+派发前自检三问：①本批命中表中哪些对抗位？②各位源可用且与实现者
+异构吗？③欠账清单有无本批必须补还项？收口前必跑
+`node scripts/health-scan.mjs --project <dir>`（RED=0 方可收口，
+三类告警细则=02 §10）。**主控简报中的关键假设须显式标注「假设」
+并请对抗位拷问——假设未被拷问=烤验未过。**
 
 ## 团队化边界与扩展位（显式化——不假装解决）
 
