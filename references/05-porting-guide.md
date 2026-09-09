@@ -44,8 +44,15 @@
 
 ## 4. 新项目落地 Checklist（首周）
 
+**双形态（2026-09-10 起防线脚手架自带）**：先跑
+`node <技能根>/scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]`
+——一条命令落地下述防线日五项的骨架（宪法骨架+ORG-SEG 段带预算自检联动/
+CI 骨架/门禁聚合入口/任务书六段模板/台账+org-delta 初始化/.gitignore 片段；
+幂等可重跑，重跑=逐项 SKIP），再按下表**逐项核对**——脚手架≠防线齐装，
+`[SKIP]` 行即缺口清单（已生成产物按 stack 有 verify 宽松/STRICT 双档）。
+
 ```
-防线日（先于一切业务码）：
+防线日（先于一切业务码；上命令已生成的项=核对，未生成项=手补）：
   [ ] git 基线+CI 骨架（哪怕只有 lint+test 两个 job）
   [ ] 宪法草稿（≤500 行：硬规则+否定式安全禁令+DoD+阅读顺序）
   [ ] 测试锁 manifest+只读属性脚本
@@ -82,3 +89,10 @@
   纯项目怪癖不回灌（入各项目宪法环境事实节）。
 - Synapse 首适配首行示例见该仓库 `.zcode/org-delta.jsonl`（2026-09-10
   ORG-SEG 插入+双派发器并存期）。
+
+## 修订记
+
+- 2026-09-10 v1.1：§4 首周清单改双形态（`scripts/init-defenses.mjs`
+  脚手架先行+逐项核对）——优化战役 W1 落地，实测三 stack
+  （npm-verify/pnpm-pygates/generic）各 7/7 + 幂等重跑全 SKIP（证据=
+  Synapse scripts/audits/2026-09-10_w1-init-defenses-test.raw.txt）。
