@@ -48,8 +48,8 @@ node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]
 ```
 
 无 `--role` 报错；源装载双校验（uuid_prefix+entry_name）不符即 exit 3 无 fallback。
-（宿主 Node≥25 已知 libuv 退出阶段崩溃=RESIDUALS/HOST-node25——外部
-派发一律用 Node 24 跑；见「验证状态」节修订记。）
+（宿主 Node 25.2.1（已证档）下 ds-call-v2 路径有 libuv 退出阶段崩溃=
+RESIDUALS/HOST-node25——外部派发一律用 Node 24 跑；见文末修订记。）
 运行流水=scripts/model-routing-log.jsonl（字段口径见 references/06 §5）；
 项目账本=.zcode/org-ledger.jsonl（行 schema：ts/project/event/role/tier/
 source/cfg_hash/usage?/outcome——tier 记法：外部岗取 org-config 枚举，
