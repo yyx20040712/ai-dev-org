@@ -1,0 +1,6 @@
+# 运行产物不入库（红线 5：断点保护只保技能件本身）
+scripts/model-routing-log.jsonl
+*.log
+node_modules/
+Thumbs.db
+Desktop.ini

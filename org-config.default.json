@@ -1,0 +1,51 @@
+{
+  "version": "1.0.0",
+  "ledger_path": ".zcode/org-ledger.jsonl",
+  "providers": {
+    "kimi-main": {
+      "uuid_prefix": "b2466f8b",
+      "entry_name": "Kimi",
+      "kind": "anthropic",
+      "billing": "enterprise",
+      "note": "K3 企业版主源"
+    },
+    "kimi-backup": {
+      "uuid_prefix": "5e1abd9d",
+      "entry_name": "zipoo",
+      "kind": "anthropic",
+      "billing": "second-quota",
+      "note": "同端点第二配额备源"
+    },
+    "deepseek": {
+      "uuid_prefix": "8ad55776",
+      "entry_name": "梁圣",
+      "kind": "openai",
+      "billing": "payg",
+      "note": "审计兜底（套餐外按量）"
+    }
+  },
+  "source_chain": ["kimi-main", "kimi-backup", "deepseek"],
+  "roles": {
+    "drafter": {
+      "source": "chain",
+      "tier": "prime",
+      "tier_note": "路线级设计拟定（长上下文+重推理档）"
+    },
+    "gate1-reviewer": {
+      "source": "chain",
+      "tier": "audit",
+      "tier_note": "门一隔离一审（与实现者异构对抗）"
+    },
+    "auditor-readonly": {
+      "source": "deepseek",
+      "tier": "debt-readonly",
+      "tier_note": "兜底审/源尽欠账只读审"
+    }
+  },
+  "ration_redlines": {
+    "kimi-main": {
+      "note": "必保面=路线级拟定+受锁面/安全面/跨模块接缝/数据批/迁移/回炉第二轮起/新依赖；可省面=≤3 文件小批/纯文档批。数字红线由项目覆盖件按订阅事实填。"
+    }
+  },
+  "exhaustion_fallback": "readonly-audit-debt"
+}

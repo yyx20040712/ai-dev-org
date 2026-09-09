@@ -1,0 +1,28 @@
+{
+  "registry_version": "1.1.0",
+  "base": "skill_root",
+  "path_note": "各角色档案相对路径一律相对技能根（~/.zcode/skills/ai-dev-org/）解析；缺文件=装载失败 exit 3（无跳过）",
+  "roles": {
+    "gate1-reviewer": {
+      "sys_prompt_file": "scripts/roles/gate1-reviewer.md",
+      "dod_file": "scripts/roles/gate1-reviewer.dod.md",
+      "package_template": "self-contained-diff",
+      "default_source": "chain",
+      "role_version": "1.0.0"
+    },
+    "drafter": {
+      "sys_prompt_file": "scripts/roles/drafter.md",
+      "dod_file": "scripts/roles/drafter.dod.md",
+      "package_template": "self-contained-brief",
+      "default_source": "chain",
+      "role_version": "1.1.0"
+    },
+    "auditor-readonly": {
+      "sys_prompt_file": "scripts/roles/auditor-readonly.md",
+      "dod_file": "scripts/roles/auditor-readonly.dod.md",
+      "package_template": "self-contained-package",
+      "default_source": "deepseek",
+      "role_version": "1.0.0"
+    }
+  }
+}
