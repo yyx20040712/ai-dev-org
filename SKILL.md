@@ -24,7 +24,7 @@ description: Use when 用户提出开发/实现/修复/重构/批次/战役/开�
 | 门二 | 会话内子代理 | 意图档位+欠账记账（异构优先） |
 | 审核者 auditor-readonly | 派发器 `--role auditor-readonly` | debt-readonly（兜底/欠账只读审） |
 | SRE 诊断岗 sre-diagnostic | 会话内只读子代理 | 取证/冻结提取/e2e 红 triage；禁写禁臆断 |
-| 设计岗 design-reviewer | 会话内图像通道 | 意图档位 session:multimodal-exp+欠账记账（宿主可配模型则按其配置入口执行）；方向级决策留用户 |
+| 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look） | 意图档位 session:multimodal-exp+欠账记账（宿主可配模型则按其配置入口执行；外呼标准流程=scripts/glm-look.mjs GLM-5.3-Flash 多模态——07 设计岗卡）；方向级决策留用户 |
 
 （岗位编制=8；人类用户=裁决位不计入编制——同 references/06 §1/07 §1 表注。）
 
@@ -45,6 +45,7 @@ node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空
 node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目防线日脚手架（05 §4）
 node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden] [--project <dir>]   # 自包含回归（06 §5 R 清单内化；R1 真实派发须 --r1）
 node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（欠账/同源/预算，RED=0 方可收口）
+node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md]   # 设计岗外呼看图（GLM-5.3-Flash 多模态——07 设计岗卡标准流程；max_tokens≥8000 自动倍升防 thinking 耗额假成功）
 ```
 
 无 `--role` 报错；源装载双校验（uuid_prefix+entry_name）不符即 exit 3 无 fallback。
@@ -124,6 +125,12 @@ drafter 复用与项目侧切换资格即时生效，项目切换走各仓 [lock
 
 ## 修订记
 
+- 2026-09-10 v1.1 补遗③（用户指示）：设计岗外呼看图标准流程入册——
+  `scripts/glm-look.mjs`（GLM-5.3-Flash 多模态，宿主 config anthropic
+  端点自发现+流水入同账本 channel=glm-look）；纪律四条=max_tokens≥8000
+  且零正文自动倍升（thinking 段耗额坑——低档=假成功）/判据先行禁裸问/
+  报告溯源头+流水可指认/方向级决策仍留用户。真源=07 设计岗卡；首次
+  实战档=WaterPrint C 批需求采证（.workflow/c-analysis/）。
 - 2026-09-10 v1.1 补遗（用户 Ruling）：①v1.0 冻结生效（四项裁决，
   见「验证状态」节）；②02 §8.6 三段通道新增第 0 步「社区实践调研
   前置」——较大模块技术路线选择，主控（GLM）先调研社区实践

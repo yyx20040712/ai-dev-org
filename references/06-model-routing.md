@@ -22,7 +22,7 @@
 | 门二 | 会话内子代理 | 意图档位+欠账记账（异构优先） | 只审不跑；预设立场 |
 | 审核者 `auditor-readonly` | 外部派发器 `--role auditor-readonly` | `tier=debt-readonly`（兜底/欠账只读审） | 改写；实现 |
 | SRE 诊断岗 `sre-diagnostic` | 会话内只读子代理 | 不定档（结论直接喂票面时升档） | 写文件；无机器证据定性 |
-| 设计岗 `design-reviewer` | 会话内图像通道 | 意图档位 `session:multimodal-exp`（体验套餐低档为**意图声明**——实际路由受 §6 无 model 参数限制，落环境限制欠账行；图像分析通道若宿主可配模型则按其配置入口执行并如实记档） | 视觉方向级决策（留用户）；通道缺失臆断 |
+| 设计岗 `design-reviewer` | 会话内图像通道（外呼位=`scripts/glm-look.mjs`——GLM-5.3-Flash 多模态，标准流程见 07 设计岗卡） | 意图档位 `session:multimodal-exp`（体验套餐低档为**意图声明**——实际路由受 §6 无 model 参数限制，落环境限制欠账行；图像分析通道若宿主可配模型则按其配置入口执行并如实记档——glm-look 外呼=该条款落地形态，流水入同账本 channel=glm-look） | 视觉方向级决策（留用户）；通道缺失臆断 |
 | 人类用户 | —— | Ruling 裁决/解锁重锁/套餐外授权 | ——（不可下放） |
 
 > 表注：岗位编制=8 岗（主控/拟定者/实现者/门一/门二/审核者/SRE 诊断/设计）；
@@ -121,6 +121,8 @@
 - 2026-09-10 v1.1：增设 SRE 诊断岗 sre-diagnostic（只读排查升格）与
   设计岗 design-reviewer（视觉判读条款升格为岗）——均会话内岗，不入
   注册表/org-config roles，角色卡与系统提示模板见 references/07 §4。
+- 2026-09-10 补遗②：设计岗条款行增 glm-look 外呼位注记（GLM-5.3-Flash
+  多模态看图标准流程——07 设计岗卡为真源；用户指示入册）。
 - 2026-09-10 v2.0（ai-dev-org）：自 loop-engineering references/06
   v1.1 改写——供应商事实全部抽出至 org-config；新增派发器 v2 角色
   档案化条款与记账字段；会话内子代理欠账升格为账本强制输出项

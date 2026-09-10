@@ -100,9 +100,33 @@ verify 真退出码亲验）；账本单写者。
   证据仍按门二条款亲验复核——体验档位让路于判断力密度。
 - **锚点**：⑤b/⑤c/⑤f 条款族；F-A8 幽灵块人审裁决（p2/p7 页缘空=量测
   伪影——判读须区分真缺陷与量测伪影）。
+- **外呼看图标准流程（glm-look，2026-09-10 入册——用户指示）**：会话内
+  图像通道不可用/需留档复评/批量采证时，经 `scripts/glm-look.mjs` 外呼
+  GLM-5.3-Flash 多模态看图（宿主 config 带 key 的 anthropic 端点，偏好
+  序=bigmodel 直连→z.ai/zcode plan；不入 org-config——会话内岗不动
+  注册表先例）：
+  ```
+  node scripts/glm-look.mjs --prompt <判据/任务书.md> <图1.png> [图2…] [-o 报告.md]
+  node scripts/glm-look.mjs --list-sources
+  ```
+  纪律四条：①**max_tokens 起步 8000 禁降档**——GLM-5.3-Flash 思考段
+  耗 completion 配额，2000 档实测全耗 thinking 零正文（假成功），8000
+  亦偶发耗尽——脚本对「零正文+stop_reason=max_tokens」**自动倍升重试**
+  （8000→16000→32000 至多 3 轮），3 轮后仍零正文才报错；②判据先行——
+  --prompt 文件=逐问题核对表/判读任务书（岗位系统提示模板同款精神），
+  禁无判据裸问「好不好看」；③报告落 -o 带溯源头（source/model/tokens/
+  时间）+流水入 model-routing-log.jsonl（role_id=design-reviewer,
+  channel=glm-look）——判读证据可指认；④视觉方向级决策仍留用户——本
+  通道只产判读证据。工程注记：网络瞬断自动重试（5s 退避×2）；退出用
+  process.exitCode 自然退出（Node 25 libuv 退出阶段断言规避——
+  HOST-node25 同族面）。首次实战档=WaterPrint C 批需求采证
+  （.workflow/c-analysis/，四图判读报告+通道坑实录）。
 
 ## 5. 修订记
 
+- 2026-09-10 补遗②：设计岗卡增「外呼看图标准流程（glm-look）」条款
+  ——GLM-5.3-Flash 多模态外呼通道+thinking 耗额坑纪律四条（用户指示
+  入册；scripts/glm-look.mjs 实测三轮：发现/零正文自愈/全通+流水落账）。
 - 2026-09-10 补设：SRE 诊断岗（只读排查升格）+设计岗（视觉判读自路由
   条款升格为岗）——用户裁决"现在补一下"；均会话内岗，不动派发器/注册表
   /org-config（角色即数据原则的会话内形态）。
