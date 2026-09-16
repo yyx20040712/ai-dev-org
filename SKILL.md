@@ -76,8 +76,9 @@ model=`<provider-uuid>/<model-key>`；上游枚举值=假绑定禁用；空 tool
 message）零外部模型代号与 AI 指称，审档默认归宿=仓外档案区。
 
 运行流水=`scripts/model-routing-log.jsonl`（字段口径见 references/06 §5）；
-项目账本=`.zcode/org-ledger.jsonl`（行 schema：ts/project/event/role/
-tier/source/cfg_hash/usage?/outcome）。tier 记法：外部岗取 org-config
+项目账本=`.zcode/org-ledger.jsonl`（行 schema **单源=references/02 §9**——
+本件与模板一律持指针，禁内联字段清单，A3；regression R7 正向校验）。
+tier 记法：外部岗取 org-config
 枚举，会话内岗记 `session:<描述>`（见 references/07 §4）。
 
 （scripts/ 路径相对技能根=本文件所在目录；zcode 加载本技能时附基目录。）

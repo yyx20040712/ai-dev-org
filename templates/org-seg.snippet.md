@@ -6,6 +6,7 @@
 - 外部派发=`ds-call-v2.mjs --role <id>`（角色档案化，路径相对技能根）；
   供应商事实唯一真相源=org-config（项目覆盖件 .zcode/org-config.json）；
   组织差异回灌=.zcode/org-delta.jsonl（技能 05 §6 协议）。
-- 成本账本=.zcode/org-ledger.jsonl（行 schema 见技能 SKILL.md 派发节）；
+- 成本账本=.zcode/org-ledger.jsonl（行 schema **单源=技能 references/02 §9**
+  ——SKILL.md 与本件均持指针，禁内联字段清单，A3）；
   收口前跑技能 `scripts/health-scan.mjs`（欠账/同源/预算三类告警）。
 <!-- ORG-SEG:END -->

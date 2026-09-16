@@ -244,6 +244,13 @@ anthropic 格式未适配）。
   （枚举：prime/audit/debt-readonly）；**会话内岗与欠账行**按
   references/07 §4 记 `session:<档位描述>`（欠账行=`session:环境限制统一档`）；
   外部派发器自动追加 ok/switch/exhaust，人工动作类由主控补记。
+  **指针化纪律（A3，2026-09-16 v1.6 批）**：本节为行 schema **唯一真相源**
+  ——SKILL.md 派发节与 templates/org-seg.snippet.md 只许持「单源=02 §9」
+  指针、禁内联字段清单（regression R7 正向校验：指针存在且唯一指向本节，
+  内联枚举串=WARN 级反例）；**字段顺序为契约一部分，勿变**；**所有新增
+  写入者一律带 schema_version**——含主控会话手记行（ruling/doc-health/
+  stopped 等人工事件同落 v2 形态；无 schema_version 的存量行=旧版本形态，
+  R4 按旧版跳过并计数，不追认不改写）。
 - 会话内子代理岗（实现者/门二）简报首行写**意图档位**；收口时欠账行
   如实记「环境限制统一档」（无 model 参数环境不得伪装已定档）。
 - **§8.4 接管注记（C 包终审 ds-B2'）**：§8.4「多模态任务→体验套餐优先」

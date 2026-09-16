@@ -194,6 +194,24 @@ if (want('R4')) {
   record('R4', passA && b.pass, `${a.detail}；${b.detail}`)
 }
 
+// ═══ R7：账本 schema 指针正向校验（A3——SKILL.md/snippet 禁内联字段清单；v1.6 批 kimi-W1） ═══
+if (want('R7')) {
+  let ok = true; const det = []
+  const targets = [
+    ['SKILL.md', join(SKILL_ROOT, 'SKILL.md')],
+    ['org-seg.snippet', join(SKILL_ROOT, 'templates', 'org-seg.snippet.md')],
+  ]
+  for (const [name, p] of targets) {
+    const txt = readFileSync(p, 'utf8')
+    // 正向判据：存在「单源=…02 §9」指针（允许加粗/等号变体）
+    const hasPtr = /行 schema\s*\*{0,2}单源=?\*{0,2}[^。]*02\s*§9/.test(txt)
+    // 反例判据（内联枚举串出现即指针化失守）
+    const inline = /ts\/project\/event|ts,project,event/.test(txt)
+    if (!hasPtr || inline) { ok = false; det.push(`${name}:指针${hasPtr ? '✓' : '✗'}${inline ? '/内联清单✗' : ''}`) } else det.push(`${name}:✓`)
+  }
+  record('R7', ok, `账本 schema 指针唯一指向 02 §9 ${det.join(' ')}`)
+}
+
 // ═══ R1'3：语义抽样（真实派发，--r1 显式触发） ═══
 if (wantR1) {
   const CASES = [
