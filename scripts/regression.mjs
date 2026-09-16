@@ -23,6 +23,7 @@ import { spawnSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { SKILL_ROOT, readJson, loadOrgConfig, cliFlag } from './org-config.mjs'
+import { ensureWithinRoot } from './ds-call-v2.mjs' // b6：包含性校验单源消费（另一落点=ds-call-v2 loadRole，同步演进）
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
 const GOLDEN_DIR = join(SCRIPTS, 'roles', '.golden')
@@ -41,11 +42,15 @@ const recordSkip = (id, detail) => { results.push({ id, pass: true, notrun: true
 const node = () => [process.execPath]
 
 // ── 角色装载（与 ds-call-v2.mjs loadRole 同构——锚定注释：两处须同步演进；
-//    交叉验证路（R2'b）用派发器 --dry-run 真实装载兜住此处复制件的漂移） ──
+//    交叉验证路（R2'b）用派发器 --dry-run 真实装载兜住此处复制件的漂移；
+//    b6（2026-09-16）：sys_prompt_file 包含性校验两落点同步演进——本处消费
+//    ds-call-v2 ensureWithinRoot 单源（越界抛 ConfigError→exit 3，兜底经
+//    import 链 uncaughtException handler 生效：[fatal] 一行+classifyExitCode） ──
 function loadRoleAssembled(roleId) {
   const registry = readJson(join(SCRIPTS, 'roles', 'registry.json'))
   const def = registry.roles[roleId]
   if (!def) throw new Error(`未知角色: ${roleId}`)
+  ensureWithinRoot(SKILL_ROOT, join(SKILL_ROOT, def.sys_prompt_file))
   const sysPrompt = readFileSync(join(SKILL_ROOT, def.sys_prompt_file), 'utf8')
   const dod = def.dod_file ? readFileSync(join(SKILL_ROOT, def.dod_file), 'utf8') : ''
   const assembled = (def.dod_file ? sysPrompt.trimEnd() + '\n\n' + dod.trim() : sysPrompt.trimEnd()) + '\n'

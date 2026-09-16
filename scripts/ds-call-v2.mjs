@@ -40,7 +40,7 @@
  *   node ds-call-v2.mjs --list-roles | --list-sources
  */
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
-import { join, dirname, resolve, isAbsolute, basename } from 'node:path'
+import { join, dirname, resolve, isAbsolute, relative, basename } from 'node:path'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { request as httpRequest } from 'node:http'
@@ -71,6 +71,21 @@ export class ConfigError extends Error {
  *  export 纯函数供 R10 向量。 */
 export function classifyExitCode(e) {
   return typeof e?.exitCode === 'number' && Number.isInteger(e.exitCode) && e.exitCode >= 1 && e.exitCode <= 255 ? e.exitCode : 1
+}
+
+/** sys_prompt_file 包含性校验（evolve 批 b6，2026-09-16，P-2 预裁决）：
+ *  registry 声明路径 resolve 后须落在 root 内——path.relative 结果恰 '..' 或
+ *  首段 '..'（涵盖 ..\ 与 ../ 两种分隔形态）或绝对路径形态（跨盘符时
+ *  path.relative 产绝对串）=越界拒绝抛 ConfigError（exit 3+stderr 点名越界
+ *  路径）——纵深防御定性维持，当前 registry 无越界=不可达守卫（行为变化
+ *  申报 P-6③）。export 纯函数供 R10 向量。
+ *  两落点同步演进纪律：本函数+regression.mjs loadRoleAssembled（两处注释互指）。 */
+export function ensureWithinRoot(root, abs) {
+  const rel = relative(resolve(root), resolve(abs))
+  if (rel !== '' && (isAbsolute(rel) || rel.split(/[\\/]/)[0] === '..')) {
+    throw new ConfigError(`路径越界: ${abs}（registry 声明路径须在 ${root} 内——包含性校验拒绝，exit 3）`)
+  }
+  return resolve(abs)
 }
 
 // 顶层兜底（ds-N3）：未捕获异常→一行错误（无堆栈噪声）；退出码=classifyExitCode
@@ -125,9 +140,13 @@ function loadRole(roleId, merged) {
   }
   let sysPrompt, dod
   try {
+    ensureWithinRoot(SKILL_ROOT, join(SKILL_ROOT, def.sys_prompt_file)) // b6：包含性校验（越界=ConfigError exit 3；另一落点=regression loadRoleAssembled，同步演进）
     sysPrompt = readFileSync(join(SKILL_ROOT, def.sys_prompt_file), 'utf8')
     dod = def.dod_file ? readFileSync(join(SKILL_ROOT, def.dod_file), 'utf8') : ''
-  } catch (e) { throw new ConfigError(`角色档案装载失败（registry 声明 ${def.sys_prompt_file}${def.dod_file ? '/' + def.dod_file : ''}）: ${e.message}`) }
+  } catch (e) {
+    if (e instanceof ConfigError) throw e // 校验错直抛（不吞成装载失败文案）
+    throw new ConfigError(`角色档案装载失败（registry 声明 ${def.sys_prompt_file}${def.dod_file ? '/' + def.dod_file : ''}）: ${e.message}`)
+  }
   const sig = createHash('sha256').update(sysPrompt + '\n---DOD---\n' + dod).digest('hex').slice(0, 8)
   return { id: roleId, def, sysPrompt: sysPrompt.trimEnd(), dod: dod.trim(), sig, version: def.role_version }
 }
