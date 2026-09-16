@@ -56,10 +56,28 @@ const NO_RETRY = (s) => s === 400 || s === 401 || s === 403 || s === 404
 const SCRUB_RE = /(Bearer\s+)?[A-Za-z0-9_-]{24,}/g // 日志脱敏：长 token 形态一律掩码（K-N2）
 const scrub = (s) => String(s).replace(SCRUB_RE, '<redacted>')
 
-// 顶层兜底（ds-N3）：未捕获异常→一行错误（无堆栈噪声）；JSON/配置类=exit 3，其余=exit 1
+// ── 退出码分类（evolve 批 b2，2026-09-16）：类型化错误带 exitCode 属性替换
+// 消息正则兜底（英文 locale 下 fs/系统错误消息不含中文关键词致配置装载类
+// 误判 exit 1 的修误分类面；判据源=06 §5.8 退出码总表——3=配置/装载错，
+// 1=用法/未知，2=exhaust 链内专用，4=输出写失败显式路径） ──
+export class ConfigError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'ConfigError'
+    this.exitCode = 3
+  }
+}
+/** 未捕获错误的退出码判定：有 exitCode 属性用属性，无=1（用法/未知）。
+ *  export 纯函数供 R10 向量。 */
+export function classifyExitCode(e) {
+  return typeof e?.exitCode === 'number' && Number.isInteger(e.exitCode) && e.exitCode >= 1 && e.exitCode <= 255 ? e.exitCode : 1
+}
+
+// 顶层兜底（ds-N3）：未捕获异常→一行错误（无堆栈噪声）；退出码=classifyExitCode
+// 类型化判定（b2：消息正则兜底已删——ConfigError=3，其余=1）
 process.on('uncaughtException', (e) => {
   console.error(`[fatal] ${scrub(e.message)}`)
-  process.exit(/JSON|配置|registry|org-config/.test(e.message) ? 3 : 1)
+  process.exit(classifyExitCode(e))
 })
 
 // ── Node 版本守卫（P3-1/W-12）：HOST-node25 libuv 退出阶段崩溃面 ──
@@ -96,14 +114,20 @@ function makeSafeAppend() {
 
 // ── 角色装载（注册表路径相对技能根）+ org-config 角色键交叉校验 ──
 function loadRole(roleId, merged) {
-  const registry = readJson(REGISTRY_PATH)
+  // b2：装载类失败抛 ConfigError（exit 3，06 §5.8）——英文 locale 系统消息
+  // 不含中文关键词，原正则兜底会误判 exit 1
+  let registry
+  try { registry = readJson(REGISTRY_PATH) } catch (e) { throw new ConfigError(`registry 装载失败（${REGISTRY_PATH}）: ${e.message}`) }
   const def = registry.roles[roleId]
-  if (!def) throw new Error(`未知角色: ${roleId}（可用角色见 --list-roles）`)
+  if (!def) throw new Error(`未知角色: ${roleId}（可用角色见 --list-roles）`) // 用法错=1（06 §5.8）
   for (const key of Object.keys(merged.roles || {})) {
     if (!registry.roles[key]) exitConfig(`配置错误：org-config 声明了注册表不存在的角色 ${key}（死配置守卫）`)
   }
-  const sysPrompt = readFileSync(join(SKILL_ROOT, def.sys_prompt_file), 'utf8')
-  const dod = def.dod_file ? readFileSync(join(SKILL_ROOT, def.dod_file), 'utf8') : ''
+  let sysPrompt, dod
+  try {
+    sysPrompt = readFileSync(join(SKILL_ROOT, def.sys_prompt_file), 'utf8')
+    dod = def.dod_file ? readFileSync(join(SKILL_ROOT, def.dod_file), 'utf8') : ''
+  } catch (e) { throw new ConfigError(`角色档案装载失败（registry 声明 ${def.sys_prompt_file}${def.dod_file ? '/' + def.dod_file : ''}）: ${e.message}`) }
   const sig = createHash('sha256').update(sysPrompt + '\n---DOD---\n' + dod).digest('hex').slice(0, 8)
   return { id: roleId, def, sysPrompt: sysPrompt.trimEnd(), dod: dod.trim(), sig, version: def.role_version }
 }
@@ -279,153 +303,161 @@ async function callSource(src, prompt, system, logger, mock) {
   throw new Error('unreachable')
 }
 
-// ── CLI ──
-const argv = process.argv.slice(2)
-const flag = (name) => {
-  const i = argv.indexOf(name)
-  return i >= 0 ? argv[i + 1] : null
-}
-const roleId = flag('--role')
-const onlyAlias = flag('--source')
-const projectName = flag('--project') || basename(process.cwd())
-const mockSpec = flag('--mock-source')
-const listRoles = argv.includes('--list-roles')
-const listSources = argv.includes('--list-sources')
-const dryRun = argv.includes('--dry-run')
-const positional = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--role' && argv[i - 1] !== '--source' && argv[i - 1] !== '--project' && argv[i - 1] !== '--mock-source')
-
-const registry = readJson(REGISTRY_PATH)
-const { merged } = loadOrgConfig(process.cwd())
-nodeVersionGuard(merged)
-const rawLedger = merged.ledger_path || '.zcode/org-ledger.jsonl'
-const ledgerPath = isAbsolute(rawLedger) ? rawLedger : join(process.cwd(), rawLedger)
-// 注：--project=账本条目名；配置装载恒从 cwd。死配置守卫（org-config 角色↔registry
-// 交叉）仅在派发路径 loadRole 生效，org-config validate 不做注册表交叉。
-
-if (listRoles) {
-  console.log('角色注册表（registry_version=' + registry.registry_version + '；路径相对技能根；源路由=org-config 优先/registry 兜底）：')
-  for (const [id, def] of Object.entries(registry.roles)) {
-    const rc = merged.roles?.[id] || {}
-    console.log(`  ${id} | source=${rc.source ?? def.default_source}${rc.source ? '（org-config）' : '（registry 兜底）'} tier=${rc.tier || '?'} | ${def.sys_prompt_file}`)
+// ── CLI（isMain guard=evolve 批 b2，范式 org-config.mjs：import 消费纯函数
+//     （classifyExitCode/ensureWithinRoot，R10 向量）时零副作用） ──
+async function cliMain() {
+  const argv = process.argv.slice(2)
+  const flag = (name) => {
+    const i = argv.indexOf(name)
+    return i >= 0 ? argv[i + 1] : null
   }
-  process.exit(0)
-}
+  const roleId = flag('--role')
+  const onlyAlias = flag('--source')
+  const projectName = flag('--project') || basename(process.cwd())
+  const mockSpec = flag('--mock-source')
+  const listRoles = argv.includes('--list-roles')
+  const listSources = argv.includes('--list-sources')
+  const dryRun = argv.includes('--dry-run')
+  const positional = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--role' && argv[i - 1] !== '--source' && argv[i - 1] !== '--project' && argv[i - 1] !== '--mock-source')
 
-const hostCfg = readHostConfig()
-const sources = loadSources(merged, hostCfg)
-if (listSources) {
-  console.log(`源序（org-config source_chain；cfg:${cfgHash(merged)}）：`)
-  sources.forEach((s, i) => console.log(`  ${i + 1}. ${s.alias} | ${s.modelName} | ${s.kind} @ ${s.baseURL} | ${s.note}`))
-  process.exit(0)
-}
+  const registry = readJson(REGISTRY_PATH)
+  let merged // b2：配置装载类失败抛 ConfigError（exit 3）——英文 locale 消息不含关键词，原正则兜底误判 exit 1
+  try { ({ merged } = loadOrgConfig(process.cwd())) } catch (e) { throw new ConfigError(`org-config 装载失败: ${e.message}`) }
+  nodeVersionGuard(merged)
+  const rawLedger = merged.ledger_path || '.zcode/org-ledger.jsonl'
+  const ledgerPath = isAbsolute(rawLedger) ? rawLedger : join(process.cwd(), rawLedger)
+  // 注：--project=账本条目名；配置装载恒从 cwd。死配置守卫（org-config 角色↔registry
+  // 交叉）仅在派发路径 loadRole 生效，org-config validate 不做注册表交叉。
 
-if (!roleId) {
-  console.error('错误：--role 必填（v1 内嵌系统提示已废止）。可用角色：')
-  Object.keys(registry.roles).forEach((id) => console.error('  ' + id))
-  console.error('用法: node ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>] [--dry-run] [--mock-source <alias>:<status>] <prompt文件> [输出文件]')
-  process.exit(1)
-}
-const role = loadRole(roleId, merged)
-const system = role.dod ? role.sysPrompt + '\n\n' + role.dod : role.sysPrompt
-const routeSource = merged.roles?.[roleId]?.source ?? role.def.default_source // org-config 优先（K-B1）
+  if (listRoles) {
+    console.log('角色注册表（registry_version=' + registry.registry_version + '；路径相对技能根；源路由=org-config 优先/registry 兜底）：')
+    for (const [id, def] of Object.entries(registry.roles)) {
+      const rc = merged.roles?.[id] || {}
+      console.log(`  ${id} | source=${rc.source ?? def.default_source}${rc.source ? '（org-config）' : '（registry 兜底）'} tier=${rc.tier || '?'} | ${def.sys_prompt_file}`)
+    }
+    process.exit(0)
+  }
 
-const promptPath = positional[0]
-const outPath = positional[1]
-if (!promptPath) {
-  console.error('用法: node ds-call-v2.mjs --role <id> [...] <prompt文件> [输出文件]')
-  process.exit(1)
-}
-const prompt = readFileSync(promptPath, 'utf8')
+  let hostCfg // b2：宿主配置装载失败=配置类 ConfigError（exit 3）
+  try { hostCfg = readHostConfig() } catch (e) { throw new ConfigError(`宿主配置装载失败（~/.zcode/v2/config.json）: ${e.message}`) }
+  const sources = loadSources(merged, hostCfg)
+  if (listSources) {
+    console.log(`源序（org-config source_chain；cfg:${cfgHash(merged)}）：`)
+    sources.forEach((s, i) => console.log(`  ${i + 1}. ${s.alias} | ${s.modelName} | ${s.kind} @ ${s.baseURL} | ${s.note}`))
+    process.exit(0)
+  }
 
-const chain = onlyAlias ? sources.filter((s) => s.alias === onlyAlias) : routeSource === 'chain' ? sources : sources.filter((s) => s.alias === routeSource)
-if (chain.length === 0) {
-  console.error(onlyAlias ? `未知或不可用源: ${onlyAlias}` : `角色 ${roleId} 路由源 ${routeSource} 不可用`)
-  process.exit(1)
-}
+  if (!roleId) {
+    console.error('错误：--role 必填（v1 内嵌系统提示已废止）。可用角色：')
+    Object.keys(registry.roles).forEach((id) => console.error('  ' + id))
+    console.error('用法: node ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>] [--dry-run] [--mock-source <alias>:<status>] <prompt文件> [输出文件]')
+    process.exit(1)
+  }
+  const role = loadRole(roleId, merged)
+  const system = role.dod ? role.sysPrompt + '\n\n' + role.dod : role.sysPrompt
+  const routeSource = merged.roles?.[roleId]?.source ?? role.def.default_source // org-config 优先（K-B1）
 
-const mock = mockSpec
-  ? Object.fromEntries(
-      (mockSpec || '')
-        .split(',')
-        .map((part) => /^([^:]+):(\d+)$/.exec(part?.trim()))
-        .filter(Boolean)
-        .map((m) => [m[1], Number(m[2])]),
+  const promptPath = positional[0]
+  const outPath = positional[1]
+  if (!promptPath) {
+    console.error('用法: node ds-call-v2.mjs --role <id> [...] <prompt文件> [输出文件]')
+    process.exit(1)
+  }
+  const prompt = readFileSync(promptPath, 'utf8')
+
+  const chain = onlyAlias ? sources.filter((s) => s.alias === onlyAlias) : routeSource === 'chain' ? sources : sources.filter((s) => s.alias === routeSource)
+  if (chain.length === 0) {
+    console.error(onlyAlias ? `未知或不可用源: ${onlyAlias}` : `角色 ${roleId} 路由源 ${routeSource} 不可用`)
+    process.exit(1)
+  }
+
+  const mock = mockSpec
+    ? Object.fromEntries(
+        (mockSpec || '')
+          .split(',')
+          .map((part) => /^([^:]+):(\d+)$/.exec(part?.trim()))
+          .filter(Boolean)
+          .map((m) => [m[1], Number(m[2])]),
+      )
+    : null
+  if (mockSpec && (!mock || Object.keys(mock).length === 0)) throw new Error('--mock-source 需要 <alias>:<status>（可逗号并列多点，形如 kimi-main:429,deepseek:500）')
+  if (mock)
+    for (const [alias, status] of Object.entries(mock)) {
+      if (!chain.some((s) => s.alias === alias)) exitConfig(`--mock-source 的 alias ${alias} 不在本次链 ${chain.map((s) => s.alias).join('→')} 内（防演练静默真调）`)
+      if (status < 400 || status > 599) exitConfig(`--mock-source 的 status 须在 [400,599]（故障注入语义；无成功路径）`)
+    }
+
+  const logger = makeLogger(role, merged, projectName, ledgerPath, !!mock, makeFinishClassifier(merged.finish_vocab))
+  if (dryRun) {
+    console.log(
+      JSON.stringify(
+        {
+          runId,
+          role: { id: role.id, version: role.version, sig: role.sig, sys_prompt: role.sysPrompt, dod: role.dod, assembled_system: system },
+          chain: chain.map((s) => s.alias),
+          route_source: routeSource,
+          sources: chain.map((s) => ({ alias: s.alias, url: buildRequest(s, prompt, system).url, model: s.modelName, kind: s.kind })),
+          routing_log: LOG_PATH,
+          ledger: ledgerPath,
+          cfg_hash: cfgHash(merged),
+          mock: mock,
+        },
+        null,
+        2,
+      ),
     )
-  : null
-if (mockSpec && (!mock || Object.keys(mock).length === 0)) throw new Error('--mock-source 需要 <alias>:<status>（可逗号并列多点，形如 kimi-main:429,deepseek:500）')
-if (mock)
-  for (const [alias, status] of Object.entries(mock)) {
-    if (!chain.some((s) => s.alias === alias)) exitConfig(`--mock-source 的 alias ${alias} 不在本次链 ${chain.map((s) => s.alias).join('→')} 内（防演练静默真调）`)
-    if (status < 400 || status > 599) exitConfig(`--mock-source 的 status 须在 [400,599]（故障注入语义；无成功路径）`)
+    process.exit(0)
   }
 
-const logger = makeLogger(role, merged, projectName, ledgerPath, !!mock, makeFinishClassifier(merged.finish_vocab))
-if (dryRun) {
-  console.log(
-    JSON.stringify(
-      {
-        runId,
-        role: { id: role.id, version: role.version, sig: role.sig, sys_prompt: role.sysPrompt, dod: role.dod, assembled_system: system },
-        chain: chain.map((s) => s.alias),
-        route_source: routeSource,
-        sources: chain.map((s) => ({ alias: s.alias, url: buildRequest(s, prompt, system).url, model: s.modelName, kind: s.kind })),
-        routing_log: LOG_PATH,
-        ledger: ledgerPath,
-        cfg_hash: cfgHash(merged),
-        mock: mock,
-      },
-      null,
-      2,
-    ),
-  )
-  process.exit(0)
-}
-
-// 账本目录先建（K-B2/ds-B2）——置于只读分支之后，零副作用命令不建目录（W-1）
-try {
-  mkdirSync(dirname(ledgerPath), { recursive: true })
-} catch (e) {
-  exitConfig(`账本目录创建失败 ${dirname(ledgerPath)}: ${e.message}`)
-}
-
-let switches = 0
-const paygOf = (alias) => merged.providers?.[alias]?.billing === 'payg'
-if (paygOf(chain[0].alias)) console.error(`[payg] 首源 ${chain[0].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁：换源不放宽任务书，但禁止静默烧钱）`)
-for (let i = 0; i < chain.length; i++) {
-  const s = chain[i]
-  const srcMocked = !!(mock && mock[s.alias] !== undefined) // mock 标志贯穿 switch/exhaust 行（v1.6 批 C2：attempt 行有而 exhaust 行漏——log-triage --health 曾把演练 429 计入真实失效出假换源推荐）
-  console.error(`[routing] run=${runId} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} 尝试源 ${i + 1}/${chain.length}: ${s.alias}(${s.modelName})`)
-  let result
+  // 账本目录先建（K-B2/ds-B2）——置于只读分支之后，零副作用命令不建目录（W-1）
   try {
-    result = await callSource(s, prompt, system, logger, mock)
+    mkdirSync(dirname(ledgerPath), { recursive: true })
   } catch (e) {
-    // P0-4 真因 2：网络级失败（fetch failed）无 HTTP 状态码——显式写 null，
-    // 保字段存在（R4 schema 要求 statusCode；缺字段=坏行）。
-    const statusCode = e.statusCode ?? null
-    if (i === chain.length - 1) {
-      logger.routing('exhaust', { chain: chain.map((x) => x.alias).join('→'), error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
-      logger.ledger('exhaust', { source: chain.map((x) => x.alias).join('→'), outcome: 'exhaust-debt（同源审计欠账，主控回退只读审）' })
-      console.error(`[routing] 全源尽(${chain.map((x) => x.alias).join('→')}): ${scrub(e.message)}——主控按「同源审计欠账」处置`)
-      process.exit(2)
-    }
-    switches++
-    if (paygOf(chain[i + 1].alias)) console.error(`[payg] 换源至 ${chain[i + 1].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁）`)
-    logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked, payg: paygOf(chain[i + 1].alias) || undefined })
-    logger.ledger('switch', { source: s.alias, outcome: scrub(e.message).slice(0, 200) })
-    console.error(`[routing] 换源 ${s.alias} → ${chain[i + 1].alias}: ${scrub(e.message).slice(0, 200)}`)
-    continue
+    exitConfig(`账本目录创建失败 ${dirname(ledgerPath)}: ${e.message}`)
   }
-  // 输出写入在远程调用与重试语义之外（ds-W5：本地 IO 失败不触发换源/重复调用）
-  const header = `[routing]: run=${runId} source=${s.alias} model=${s.modelName} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} switches=${switches} usage=in=${result.usage.in ?? '?'},out=${result.usage.out ?? '?'} latency=${result.latencyMs}ms (by ds-call-v2 链)\n\n`
-  const body = header + result.text
-  console.log(body) // 先出 stdout（W-2：输出文件写失败时正文已在标准流，产物不丢）
-  if (outPath) {
+
+  let switches = 0
+  const paygOf = (alias) => merged.providers?.[alias]?.billing === 'payg'
+  if (paygOf(chain[0].alias)) console.error(`[payg] 首源 ${chain[0].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁：换源不放宽任务书，但禁止静默烧钱）`)
+  for (let i = 0; i < chain.length; i++) {
+    const s = chain[i]
+    const srcMocked = !!(mock && mock[s.alias] !== undefined) // mock 标志贯穿 switch/exhaust 行（v1.6 批 C2：attempt 行有而 exhaust 行漏——log-triage --health 曾把演练 429 计入真实失效出假换源推荐）
+    console.error(`[routing] run=${runId} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} 尝试源 ${i + 1}/${chain.length}: ${s.alias}(${s.modelName})`)
+    let result
     try {
-      writeFileSync(outPath, body, 'utf8')
+      result = await callSource(s, prompt, system, logger, mock)
     } catch (e) {
-      console.error(`[out-warn] 输出文件写失败（正文已输出 stdout，可手工重定向保全；**响应已成功且已落账——主控禁据本码重试，防重复计费**）: ${e.message}`)
-      process.exit(4) // 4=本地 IO 错误（区别于 1=用法错误；stdout 已出正文即不得重试——ds-W1 终裁）
+      // P0-4 真因 2：网络级失败（fetch failed）无 HTTP 状态码——显式写 null，
+      // 保字段存在（R4 schema 要求 statusCode；缺字段=坏行）。
+      const statusCode = e.statusCode ?? null
+      if (i === chain.length - 1) {
+        logger.routing('exhaust', { chain: chain.map((x) => x.alias).join('→'), error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
+        logger.ledger('exhaust', { source: chain.map((x) => x.alias).join('→'), outcome: 'exhaust-debt（同源审计欠账，主控回退只读审）' })
+        console.error(`[routing] 全源尽(${chain.map((x) => x.alias).join('→')}): ${scrub(e.message)}——主控按「同源审计欠账」处置`)
+        process.exit(2)
+      }
+      switches++
+      if (paygOf(chain[i + 1].alias)) console.error(`[payg] 换源至 ${chain[i + 1].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁）`)
+      logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked, payg: paygOf(chain[i + 1].alias) || undefined })
+      logger.ledger('switch', { source: s.alias, outcome: scrub(e.message).slice(0, 200) })
+      console.error(`[routing] 换源 ${s.alias} → ${chain[i + 1].alias}: ${scrub(e.message).slice(0, 200)}`)
+      continue
     }
+    // 输出写入在远程调用与重试语义之外（ds-W5：本地 IO 失败不触发换源/重复调用）
+    const header = `[routing]: run=${runId} source=${s.alias} model=${s.modelName} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} switches=${switches} usage=in=${result.usage.in ?? '?'},out=${result.usage.out ?? '?'} latency=${result.latencyMs}ms (by ds-call-v2 链)\n\n`
+    const body = header + result.text
+    console.log(body) // 先出 stdout（W-2：输出文件写失败时正文已在标准流，产物不丢）
+    if (outPath) {
+      try {
+        writeFileSync(outPath, body, 'utf8')
+      } catch (e) {
+        console.error(`[out-warn] 输出文件写失败（正文已输出 stdout，可手工重定向保全；**响应已成功且已落账——主控禁据本码重试，防重复计费**）: ${e.message}`)
+        process.exit(4) // 4=本地 IO 错误（区别于 1=用法错误；stdout 已出正文即不得重试——ds-W1 终裁）
+      }
+    }
+    process.exit(0)
   }
-  process.exit(0)
 }
+const isMain =
+  process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
+if (isMain) await cliMain()
