@@ -35,7 +35,7 @@ const BODY_LIMIT_BYTES = 2000
 
 if (APPLY && !DEL_REDIRECTS && !DEL_INVALID) {
   console.error('--apply 须与 --delete-redirects 和/或 --delete-invalid 同用（防误删）')
-  process.exit(2)
+  process.exit(1) // 用法错=1（退出码总表=06 §5.8；2=派发器 exhaust 专用——v1.6 批统一）
 }
 
 function classify(dir) {

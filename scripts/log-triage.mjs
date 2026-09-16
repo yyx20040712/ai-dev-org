@@ -22,18 +22,14 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
-import { loadOrgConfig, cfgHash } from './org-config.mjs'
+import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile } from './org-config.mjs'
 
 const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CLI_LOG_DIR = join(homedir(), '.zcode', 'cli', 'log')
 const AGENTS_DIR = join(homedir(), '.zcode', 'cli', 'agents')
 const ROUTING_LOG = join(SKILL_ROOT, 'scripts', 'model-routing-log.jsonl')
 
-const readJsonl = (p) => {
-  if (!existsSync(p)) return []
-  return readFileSync(p, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean)
-    .map((l, i) => { try { return JSON.parse(l) } catch { return { unparseable: `行${i + 1}: ${l.slice(0, 60)}` } } })
-}
+const readJsonl = readJsonlFile // 行读取器单源（org-config 导出——v1.6 批 P2-3 收敛）
 
 // ── 供应商别名解析：providerId(或 uuid) → org-config alias ──
 const buildAliasMap = (providers) => {
@@ -194,7 +190,7 @@ const pct = (arr, p) => { if (!arr.length) return 0; const s = [...arr].sort((a,
 
 // ── 主流程 ──
 const argv = process.argv.slice(2)
-const flag = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
+const flag = (n) => cliFlag(argv, n) // 单源（org-config 导出——v1.6 批 P2-3）
 const now = new Date()
 const hours = Number(flag('--hours') || 0)
 const dateStr = flag('--date') || (hours > 0 ? null : now.toISOString().slice(0, 10))
@@ -202,6 +198,10 @@ const sinceTs = hours > 0 ? new Date(now.getTime() - hours * 3600_000).toISOStri
 
 const { merged } = loadOrgConfig(SKILL_ROOT)
 const aliasMap = buildAliasMap(merged.providers)
+if (!merged.finish_vocab?.complete?.length || !merged.finish_vocab?.truncation?.length) {
+  console.error('[config] org-config finish_vocab 缺 complete/truncation 词表（词表单源纪律 06 §0——v1.6 批收紧，无脚本内兜底）')
+  process.exit(3)
+}
 
 // 自检（--self-test）：fixture 级断言，全量聚合计入退出码（v1.6 批——原仅末 fixture 计=假 PASS 面）
 if (argv.includes('--self-test')) {
@@ -292,10 +292,9 @@ if (argv.includes('--self-test')) {
       byRoleSource[k].calls++; byRoleSource[k].in += u.inputTokens || 0; byRoleSource[k].out += u.outputTokens || 0
     }
     for (const [k, v] of Object.entries(byRoleSource).sort()) W(`   ${k.replace('|', ' @ ')}: calls=${v.calls} in=${v.in} out=${v.out}\n`)
-    // ⑦ finish 终态派生（保守口径）
-    const fv = (merged.finish_vocab || {})
-    const completeSet = new Set(fv.complete || ['end_turn', 'stop', 'stop_sequence'])
-    const truncSet = new Set(fv.truncation || ['max_tokens', 'length'])
+    // ⑦ finish 终态派生（保守口径——词表已装载守卫，无兜底数组）
+    const completeSet = new Set(merged.finish_vocab.complete)
+    const truncSet = new Set(merged.finish_vocab.truncation)
     W(`-- ⑦ 子代理 finish 终态派生（词表=org-config finish_vocab；未知终态=非完整·保守口径）：\n`)
     for (const m of metas) {
       const net = subagentNet[m.childSessionId]

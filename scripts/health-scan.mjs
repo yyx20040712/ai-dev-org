@@ -12,12 +12,12 @@
  *   INFO：各源用量汇总
  * 用法：node scripts/health-scan.mjs [--project <dir>] [--ledger <path>]
  *       [--window N] [--budget <alias>:<maxOutTokens>[,…]] [--self-test]
- * 退出码：0=无 RED；1=有 RED；3=配置错误/自检失败。
+ * 退出码：0=无 RED；1=有 RED 或自检失败；3=配置错。总表=references/06 §5.8。
  */
 import { readFileSync, existsSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { SKILL_ROOT, loadOrgConfig, cfgHash } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cfgHash, readJsonlFile } from './org-config.mjs'
 
 const normPath = (p) => {
   let s = String(p || '').replace(/[\\/]+/g, '/').replace(/\/+$/, '')
@@ -185,10 +185,8 @@ const { merged } = loadOrgConfig(projectDir)
 if (argv.includes('--self-test')) process.exit(selfTest(merged) ? 0 : 1)
 
 const LOG_PATH = join(SKILL_ROOT, 'scripts', 'model-routing-log.jsonl')
-const readLines = (path) => {
-  if (!existsSync(path)) return null
-  return readFileSync(path, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean).map((l, i) => { try { return JSON.parse(l) } catch { return { unparseable: `行${i + 1}: ${l.slice(0, 80)}` } } })
-}
+// 读行器收敛=org-config readJsonlFile 单源（v1.6 批 P2-3）；保留原「缺失=null」语义（下游 FAIL 分支依赖）
+const readLines = (p) => (existsSync(p) ? readJsonlFile(p) : null)
 const ledger = readLines(ledgerPath)
 if (!existsSync(LOG_PATH)) { console.error(`FAIL 流水不存在 ${LOG_PATH}——先跑一次派发或回归演练`); process.exit(3) }
 if (!ledger) { console.error(`FAIL 账本不存在 ${ledgerPath}（--project/--ledger 指定）`); process.exit(3) }

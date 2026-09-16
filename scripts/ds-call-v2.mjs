@@ -163,8 +163,11 @@ function parseResponse(src, data) {
 // ── 截断判定（W-3 白名单反转 + W-4 词表住 org-config，脚本零硬编码） ──
 // 仅 complete 词表内视为完整终态；truncation 及一切未知终态=非完整（审计岗按假成功处置）。
 function makeFinishClassifier(vocab) {
-  const complete = new Set(vocab?.complete || ['end_turn', 'stop', 'stop_sequence'])
-  const truncation = new Set(vocab?.truncation || ['max_tokens', 'length'])
+  // 词表单源=org-config finish_vocab（v1.6 批 P2-4 收紧：无兜底数组——缺表=配置错即拒跑，
+  // 原「脚本内硬编码兜底」与 06 §0 自我声明相悖）
+  const complete = new Set(vocab?.complete || [])
+  const truncation = new Set(vocab?.truncation || [])
+  if (complete.size === 0 || truncation.size === 0) { console.error('[config] org-config finish_vocab 缺 complete/truncation 词表（词表单源纪律，06 §0）'); process.exit(3) }
   return (finish) => {
     if (finish == null) return { cls: 'unknown', truncated: true } // 无终态信息=不可判为完整（保守）
     if (complete.has(finish)) return { cls: 'complete', truncated: false }
@@ -218,6 +221,7 @@ function postJson(url, headers, body, timeoutMs) {
       (res) => {
         const chunks = []
         res.on('data', (c) => chunks.push(c))
+        res.on('error', reject) // 响应中途断流防挂起（v1.6 批 P2-4：原仅挂 req 侧，断流要等 20min 超时）
         res.on('end', () => {
           const text = Buffer.concat(chunks).toString('utf8')
           resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, text: async () => text, json: async () => JSON.parse(text) })

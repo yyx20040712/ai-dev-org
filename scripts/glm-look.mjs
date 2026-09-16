@@ -171,17 +171,17 @@ async function main() {
   }
   if (!CHANNELS.has(channel)) {
     console.error(`[glm-look] 未知通道 ${channel}（合法面 glm|ds）`);
-    return 2;
+    return 1; // 用法错=1（退出码总表=06 §5.8；2=派发器 exhaust 专用——v1.6 批统一）
   }
   if (!promptFile || images.length === 0) {
     usage();
-    return 2;
+    return 1;
   }
   if (!Number.isFinite(maxTokens) || maxTokens < MIN_MAX_TOKENS) {
     console.error(`[glm-look] max_tokens=${maxTokens} 低于 ${MIN_MAX_TOKENS} 下限——` +
       "推理段（glm thinking/ds reasoning）耗 completion 配额，低档实测零正文输出（假成功）。" +
       `如确需更多额度请 ≥${MIN_MAX_TOKENS}。`);
-    return 2;
+    return 1;
   }
   const sources = discoverSources(channel);
   if (sources.length === 0) {

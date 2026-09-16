@@ -4,7 +4,7 @@
  * 数组整体替换；显式 null=删除该键。
  * 规范化哈希：递归键排序+剔除 null/undefined（对象键值与数组元素皆剔，
  * 顺序保留）+紧凑 JSON.stringify 后 sha256 前 12 位——与键序/空白无关。
- * 退出码：3=配置校验失败（区别于派发器源尽 exhaust=2）；1=用法错误。
+ * 退出码：0=成功；1=用法错误/自检失败；3=配置校验失败（区别于派发器源尽 exhaust=2）。总表=references/06 §5.8。
  * 用法：
  *   node org-config.mjs [--project <dir>] resolve   # 打印合并后配置
  *   node org-config.mjs [--project <dir>] hash      # 打印 cfg:<hash12>
@@ -80,6 +80,15 @@ export function loadOrgConfig(projectDir) {
 /** 读宿主配置（单点封装，供派发器与校验共用——K-W3 单次读入）。 */
 export function readHostConfig() {
   return readJson(join(homedir(), '.zcode', 'v2', 'config.json'))
+}
+
+/** 跨脚本共享小件（v1.6 批 P2-3 收敛：多份逐字复制→单源导出；
+ * ds-call-v2 依「分发单元自包含」判据豁免（裁决档 W7）——其内副本注释指向此处）。 */
+export function cliFlag(argv, name) { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null }
+export function readJsonlFile(p) {
+  if (!existsSync(p)) return []
+  return readFileSync(p, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean)
+    .map((l, i) => { try { return JSON.parse(l) } catch { return { unparseable: `行${i + 1}: ${l.slice(0, 60)}` } } })
 }
 
 /** 与宿主 config.json 交叉校验：uuid 前缀+条目名双命中。返回错误数组（空=通过）。

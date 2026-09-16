@@ -18,7 +18,7 @@
  *
  * 用法：node scripts/check-hardcode.mjs [--root <技能根>] [--strict] [--agents <dir>]
  *       [--whitelist <path>] [--self-test]
- * 退出码：0=无命中/WARN；1=有命中且 --strict；3=配置错误/自检失败。
+ * 退出码：0=无命中/WARN；1=--strict 命中或自检失败；3=配置错；5=降级运行（宿主配置/白名单损坏——显式留痕不静默；总表=references/06 §5.8）。
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -29,6 +29,7 @@ const argv = process.argv.slice(2)
 const flag = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
 const root = flag('--root') || SKILL_ROOT
 const strict = argv.includes('--strict')
+let DEGRADED = false // 降级运行位（宿主配置/白名单损坏——显式留痕退出码 5，v1.6 批 P2-2：原静默吞错=strict 下假 RED/非 strict 假绿）
 const agentsDir = argv.includes('--agents') ? (flag('--agents') || join(homedir(), '.zcode', 'agents')) : null
 const whitelistPath = flag('--whitelist') || join(SKILL_ROOT, 'scripts', 'hardcode-whitelist.json')
 const HOST_CFG = join(homedir(), '.zcode', 'v2', 'config.json')
@@ -58,7 +59,7 @@ export function deriveHostModelTerms(hostCfgPath = HOST_CFG) {
   const terms = []
   if (!existsSync(hostCfgPath)) return terms
   let cfg
-  try { cfg = JSON.parse(readFileSync(hostCfgPath, 'utf8')) } catch { return terms }
+  try { cfg = JSON.parse(readFileSync(hostCfgPath, 'utf8').replace(/^\uFEFF/, '')) } catch (e) { console.error(`[degraded] 宿主配置不可读（${e.message}）——扫描降级为通用语法形态（漏检面=供应商词表），退出码 5`); DEGRADED = true; return terms }
   const seen = new Set()
   for (const p of Object.values(cfg.provider || {})) {
     for (const mk of Object.keys(p.models || {})) {
@@ -81,7 +82,7 @@ export function stripFrontmatter(text) {
 
 export function loadWhitelist(path = whitelistPath) {
   if (!existsSync(path)) return []
-  try { return JSON.parse(readFileSync(path, 'utf8')).entries || [] } catch { return [] }
+  try { return JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, '')).entries || [] } catch (e) { console.error(`[degraded] 白名单件不可读（${e.message}）——按零豁免执行（可能假 WARN），退出码 5`); DEGRADED = true; return [] }
 }
 
 /** 白名单规则匹配（B-1 修复：增 file_prefix 锚定——契约行豁免不得外溢到普通行）。 */
@@ -115,7 +116,7 @@ function listMd(dir) {
     if (e.name.startsWith('.') || e.name === '_archive' || e.name === 'scripts' || e.name === 'templates') continue
     const p = join(dir, e.name)
     if (e.isDirectory()) out.push(...listMd(p))
-    else if (e.name.endsWith('.md') && !e.name.startsWith('2026-')) out.push(p) // 排除审计档（历史件）
+    else if (e.name.endsWith('.md') && !/^\d{4}-\d{2}-\d{2}_/.test(e.name)) out.push(p) // 排除日期前缀审计档（历史件——形态判定；v1.6 批：原 '2026-' 年份硬编码 2027 即失效）
   }
   return out
 }
@@ -185,4 +186,4 @@ const W = process.stdout.write.bind(process.stdout)
 for (const h of effective) W(`[WARN] ${h.file}:${h.line} ${h.kind} 命中「${h.match}」——供应商 live 事实不得写入 .md 正文（06 §0/08 §1）；改指针化（指向 org-config）或登记白名单（scripts/hardcode-whitelist.json）\n`)
 if (all.length - effective.length) W(`[info] 白名单豁免 ${all.length - effective.length} 处（${whitelist.length} 条规则）\n`)
 console.log(`check-hardcode 汇总：扫 ${files.length} 个 .md${agentsFiles ? ` + agents 目录 ${agentsFiles} 个 ops-*.md（frontmatter 已剥离）` : ''}，命中 ${effective.length} 处（白名单豁免 ${all.length - effective.length}；词表=org-config ${deriveTerms(merged).length} 条+宿主注册表 ${hostTerms.length} 条）${strict && effective.length ? '——strict：按 RED 处置，不得收口' : '（WARN 级——升格判据待定，W-6）'}`)
-process.exit(strict && effective.length ? 1 : 0)
+process.exit(strict && effective.length ? 1 : DEGRADED ? 5 : 0) // 退出码总表=references/06 §5.8

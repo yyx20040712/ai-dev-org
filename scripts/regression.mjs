@@ -21,13 +21,13 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { SKILL_ROOT, readJson, loadOrgConfig } from './org-config.mjs'
+import { SKILL_ROOT, readJson, loadOrgConfig, cliFlag } from './org-config.mjs'
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
 const GOLDEN_DIR = join(SCRIPTS, 'roles', '.golden')
 const LOG_PATH = join(SCRIPTS, 'model-routing-log.jsonl')
 const argv = process.argv.slice(2)
-const flag = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
+const flag = (n) => cliFlag(argv, n) // 单源（org-config 导出——v1.6 批 P2-3 收敛）
 const only = flag('--only') ? flag('--only').split(',').map((s) => s.trim().toUpperCase()) : null
 const wantR1 = argv.includes('--r1')
 const updateGolden = argv.includes('--update-golden')
@@ -142,13 +142,14 @@ if (want('R4')) {
   // 主控人工补记事件（ORG-11）：02 §9/05 §6/08 §4 要求入账的人工事件类型——
   // 旧 ledgerReq 仅认派发器三事件，致"照规范记账=R4 FAIL"的规范↔实现矛盾
   // （P0-4 同类病）。人工事件恒用 LEDGER_REQUIRED 基字段（无 usage，非派发产出）。
-  const MANUAL_EVENTS = ['porting-delta', 'doc-health', 'ruling', 'constitution-overrun', 'escaped-defect']
-  const checkLines = (label, path, required, tailN) => {
+  const MANUAL_EVENTS = ['porting-delta', 'doc-health', 'ruling', 'constitution-overrun', 'escaped-defect', 'stopped'] // stopped=接续演练/被杀岗手记（v1.6 批补登——原未登记致坏行误报）
+  const checkLines = (label, path, required, tailN, opts = {}) => {
     if (!existsSync(path)) return { pass: false, detail: `${label}:文件不存在 ${path}` }
     const ls = readFileSync(path, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean).slice(-tailN)
     let bad = 0, skipped = 0, unknown = 0, foreign = 0, kinds = {}
     for (const l of ls) {
       let e; try { e = JSON.parse(l) } catch { bad++; continue }
+      if (opts.skipIf && opts.skipIf(e)) { skipped++; continue }
       // 他源写入行（P0-4 真因 1）：glm-look.mjs 等非派发器写入者落同流水，行 schema
       // 自带 channel 标记且无 dispatcher_version——按他源 schema 计「外来行」而非坏行
       // （写入者 glm-look.mjs 属 WIP 锁定集，统一 schema 登记残留，见 RESIDUALS）。
@@ -190,7 +191,11 @@ if (want('R4')) {
     // schema v2 新字段：仅对已带 schema_version 的行要求（历史 v1 行豁免——禁改写/不追认，08 §3）
     return e.schema_version !== undefined ? [...base, ...(LEDGER_V2[e.event] || [])] : base
   }
-  const b = checkLines('账本', ledgerPath, ledgerReq, 50)
+  const b = checkLines('账本', ledgerPath, ledgerReq, 50, {
+    // 无 schema_version 的存量行=旧版本形态（含 v1.5 批会话手记行）——按 02 §9 指针化纪律：
+    // 跳过并计数（不追认不改写，08 §3）；新写入者（含主控手记行）一律带 schema_version 落 v2 形态
+    skipIf: (e) => e.schema_version === undefined,
+  })
   record('R4', passA && b.pass, `${a.detail}；${b.detail}`)
 }
 
@@ -244,7 +249,7 @@ if (wantR1) {
     for (const src of SOURCES) {
       const pf = join(tmp, c.id + '.txt')
       writeFileSync(pf, c.prompt, 'utf8')
-      const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--source', src, '--project', tmp, pf, pf + '.' + src + '.out'], { encoding: 'utf8', cwd: tmp, timeout: 600_000 })
+      const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--source', src, '--project', tmp, pf, pf + '.' + src + '.out'], { encoding: 'utf8', cwd: tmp, timeout: 1_260_000 }) // >派发器 20min 调用上限+余量（v1.6 批：原 10min 会先杀合法长推理误报 FAIL）
       const out = r.status === 0 ? readFileSync(pf + '.' + src + '.out', 'utf8') : ''
       verdicts[src] = /判定\s*[:：]\s*PASS/i.test(out) ? 'PASS' : /判定\s*[:：]\s*FAIL/i.test(out) ? 'FAIL' : `UNPARSEABLE(exit=${r.status})`
       if (verdicts[src] === 'UNPARSEABLE') allPass = false
