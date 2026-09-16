@@ -57,7 +57,7 @@ export function modelVariants(name) {
 /** 从宿主供应商注册表派生实配模型名词表（B-1；词表数据源=host config，脚本零硬编码）。 */
 export function deriveHostModelTerms(hostCfgPath = HOST_CFG) {
   const terms = []
-  if (!existsSync(hostCfgPath)) return terms
+  if (!existsSync(hostCfgPath)) { console.error('[degraded] 宿主配置不存在——扫描降级为通用语法形态（漏检面=供应商词表，与损坏同面），退出码 5（终审 W4：原静默返回空词表）'); DEGRADED = true; return terms }
   let cfg
   try { cfg = JSON.parse(readFileSync(hostCfgPath, 'utf8').replace(/^\uFEFF/, '')) } catch (e) { console.error(`[degraded] 宿主配置不可读（${e.message}）——扫描降级为通用语法形态（漏检面=供应商词表），退出码 5`); DEGRADED = true; return terms }
   const seen = new Set()
@@ -186,4 +186,4 @@ const W = process.stdout.write.bind(process.stdout)
 for (const h of effective) W(`[WARN] ${h.file}:${h.line} ${h.kind} 命中「${h.match}」——供应商 live 事实不得写入 .md 正文（06 §0/08 §1）；改指针化（指向 org-config）或登记白名单（scripts/hardcode-whitelist.json）\n`)
 if (all.length - effective.length) W(`[info] 白名单豁免 ${all.length - effective.length} 处（${whitelist.length} 条规则）\n`)
 console.log(`check-hardcode 汇总：扫 ${files.length} 个 .md${agentsFiles ? ` + agents 目录 ${agentsFiles} 个 ops-*.md（frontmatter 已剥离）` : ''}，命中 ${effective.length} 处（白名单豁免 ${all.length - effective.length}；词表=org-config ${deriveTerms(merged).length} 条+宿主注册表 ${hostTerms.length} 条）${strict && effective.length ? '——strict：按 RED 处置，不得收口' : '（WARN 级——升格判据待定，W-6）'}`)
-process.exit(strict && effective.length ? 1 : DEGRADED ? 5 : 0) // 退出码总表=references/06 §5.8
+process.exit(strict && effective.length ? (DEGRADED ? 5 : 1) : DEGRADED ? 5 : 0) // 降级信号优先于 strict 命中（终审 W4：勿让 1 吞 5）；总表=references/06 §5.8

@@ -95,14 +95,15 @@ function harvestCliLog(lines, aliasMap, sinceTs) {
     if (ev === 'model.request.failed') reqFailed.push({ key: `${d.sessionId || ''}|${(d.timestamp || '').slice(0, 19)}`, d })
   }
   const netFailKeys = new Set(netFailRaw.map((d) => `${d.sessionId || ''}|${(d.timestamp || '').slice(0, 19)}`))
+  let deduped = 0
   for (const { key, d } of reqFailed) {
-    if (netFailKeys.has(key)) continue
+    if (netFailKeys.has(key)) { deduped++; continue }
     const c = d.context
     const alias = aliasOf(c.providerId, aliasMap)
     const cls = classifyError({ statusCode: c.providerCode, reason: c.reason, statusMessage: c.statusMessage, providerMessage: c.providerMessage, durationMs: d.durationMs })
     bump(alias).err[cls] = (bump(alias).err[cls] || 0) + 1
   }
-  return { perProvider, subagentNet }
+  return { perProvider, subagentNet, deduped }
 }
 
 // ── 外链路（model-routing-log）收割 ──
@@ -138,8 +139,8 @@ export function countRealFailures(exhaustLists) {
   return { quota, window504, mockN }
 }
 export function recommendHealth(cnt, sh = {}) {
-  const K1 = sh.gate1_primary_subagent || '链首选源'
-  const K2 = sh.gate1_secondary_subagent || '备源'
+  const K1 = sh.primary || '链首选源'
+  const K2 = sh.secondary || '备源'
   if (cnt.quota > 0) return { rec: K2, why: `窗口内检出额度类失效 ×${cnt.quota}——换源有效（备源=不同配额池）` }
   if (cnt.window504 > 0) return { rec: `${K1}（不换源）`, why: `窗口内检出 504 窗口类 ×${cnt.window504}——双源同端点共模换源无效；处置=审包瘦身/流式化（批档 subagent-plan 05 §九纠偏②）` }
   return { rec: K1, why: '窗口内双源零额度/窗口类失效——按链首选源' }
@@ -227,7 +228,7 @@ if (argv.includes('--self-test')) {
     { ts: '2026-09-16T09:00:00Z', runId: 'r1', event: 'exhaust', statusCode: 504, error: 'HTTP 504' },
   ]
   const accCnt = countRealFailures(harvestRouting(accRows, null).exhaust)
-  const accRec = recommendHealth(accCnt, { gate1_primary_subagent: 'k1', gate1_secondary_subagent: 'k2' })
+  const accRec = recommendHealth(accCnt, { primary: 'k1', secondary: 'k2' })
   t('验收断言：mock429×4 不计入（mockN=4/quota=0/window=1）', accCnt.mockN === 4 && accCnt.quota === 0 && accCnt.window504 === 1)
   t('验收断言：推荐=k1 不换源（当日实陷回归——原输出假推荐 k2）', accRec.rec.includes('k1') && accRec.rec.includes('不换源'))
   // 全角括号兜底回归（实陷：全角（mock）漏配）
@@ -239,7 +240,7 @@ if (argv.includes('--self-test')) {
   // 收割两账（--hours 无日期时目录守卫：CLI 日志目录缺失=空集不崩——v1.6 批）
   const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-2) : [])
   const cliLines = logFiles.flatMap(f => readJsonl(join(CLI_LOG_DIR, f)))
-  const { perProvider, subagentNet } = harvestCliLog(cliLines, aliasMap, sinceTs)
+  const { perProvider, subagentNet, deduped } = harvestCliLog(cliLines, aliasMap, sinceTs)
   const routing = harvestRouting(readJsonl(ROUTING_LOG), sinceTs)
   const metas = harvestAgents(sinceTs)
   const metasAll = harvestAgents(null) // 全时段 metadata 单次收割复用（原三重全量遍历——v1.6 批收敛）
@@ -252,7 +253,12 @@ if (argv.includes('--self-test')) {
     // ── A'③ 源健康检查：分诊 + 推荐（结构参数=org-config source_health，v1.6 批去硬编码别名） ──
     const sh = merged.source_health || {}
     const dual = (sh.dual_groups && sh.dual_groups[0]) || []
+    const subOf = sh.gate1_subagent_of || {}
+    // 启动校验（终审 auditor-W2）：dual 组别名不在 providers 声明面=配置漂移，显式报错勿静默
+    const unknownAliases = dual.filter((a) => !merged.providers?.[a])
+    if (unknownAliases.length) console.error(`[config] source_health.dual_groups 引用了 providers 未声明的别名：${unknownAliases.join(', ')}——推荐将按未映射回退，请修 org-config`)
     W(`== 源健康检查（窗口=${dateStr || `近 ${hours}h`}，cfg:${cfgHash(merged)}）==\n`)
+    if (deduped) W(`（request.failed 同秒剔重 ×${deduped}——终审 N2 暴露面，人工判读置信度用）\n`)
     for (const [alias, st] of Object.entries(perProvider)) {
       W(`[${alias}] ok=${st.ok} err=${JSON.stringify(st.err)} lat p50/p95=${pct(st.lat, .5)}/${pct(st.lat, .95)}ms attempts=${JSON.stringify(st.attempts)}\n`)
     }
@@ -263,7 +269,7 @@ if (argv.includes('--self-test')) {
     const cnt = countRealFailures(routing.exhaust)
     if (cnt.mockN) W(`   （另检出 mock 演练行 ×${cnt.mockN}——R5 换源演练注入，不构成真实源健康信号）\n`)
     if (!Object.keys(routing.exhaust).length) W(`   （窗口内无 exhaust 事件）\n`)
-    const { rec, why } = recommendHealth(cnt, sh)
+    const { rec, why } = recommendHealth(cnt, { primary: subOf[dual[0]], secondary: subOf[dual[1]] })
     W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}（双源组=${dual.join('↔') || '未配置'}）\n`)
   } else {
     // ── B-0 全量分诊 ──

@@ -55,18 +55,20 @@
     "dual_groups": [
       ["kimi-main", "kimi-backup"]
     ],
-    "gate1_primary_subagent": "ops-gate1-k1",
-    "gate1_secondary_subagent": "ops-gate1-k2",
-    "note": "log-triage --health 换源推荐的结构参数：双源分组与门一双子代理名（v1.6 批 P1-B——脚本禁硬编码别名，A3/06 §0；别名变更只改本件）"
+    "gate1_subagent_of": {
+      "kimi-main": "ops-gate1-k1",
+      "kimi-backup": "ops-gate1-k2"
+    },
+    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件"
   },
   "vision_channels": {
     "glm": { "model": "GLM-5.3-Flash", "endpoint_contains": "/anthropic", "prefer_hosts": ["open.bigmodel.cn", "z.ai", "zcode"] },
     "ds": { "model": "deepseek-flash", "endpoint_contains": "deepseek" },
-    "note": "设计岗外呼看图双通道（glm-look.mjs）的模型名/端点甄别子串/偏好序——v1.6 批 P0-B d 预裁 A：独立分区不动 roles 注册表（07 §4「会话内岗不动注册表」先例保持）；供应商事实住本件（06 §0），脚本零硬编码；宿主 config 仍为端点与 key 事实源；prefer_hosts=数组序即偏好序，未命中者殿后按宿主 config 序"
+    "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数。字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）。通道命中=模型名∧端点子串双条件（通道互斥由模型名区分，聚合网关代发他厂模型属配置面可改）。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实（模型名/偏好序/端点形态）住本件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。项目覆盖件无须复制本分区（深合并未提及沿用默认件）。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑"
   },
   "hardcode_scan": {
     "forbidden_terms": [],
-    "note": "P0-3 check-hardcode 的额外扫描名单（正则字面量）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内；供应商 live 事实（端点/实配名）在宿主 config 而不在本件，故默认空——项目覆盖件可加自有禁词。"
+    "note": "check-hardcode 的额外扫描名单（正则字面量，扫 .md 正文）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。事实分层（同 vision_channels.note，终审 auditor-B 统一口径）：身份/甄别类供应商事实住本件（providers/vision_channels/source_health），连接/密钥类住宿主 config，.md 正文禁一切 live 事实——实配模型名词表由 check-hardcode 从宿主注册表实时派生，故本名单默认空；项目覆盖件可加自有禁词"
   },
   "roles": {
     "drafter": {

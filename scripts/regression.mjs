@@ -188,13 +188,14 @@ if (want('R4')) {
     if (!['ok', 'switch', 'exhaust', ...MANUAL_EVENTS].includes(e.event)) return ['__unknown_event__'] // 账本侧未知 event 同样计坏行（终轮 A'-Kimi：防新增记账事件未同步 schema 即弱校验通过）。返回数组——checkLines 以 for...of 逐字段消费，对象形态会 TypeError（终轮复核修正）
     if (MANUAL_EVENTS.includes(e.event)) return LEDGER_REQUIRED // 主控人工补记（无 usage/mocked/truncated——非派发产出）
     const base = e.event === 'ok' ? [...LEDGER_REQUIRED, 'usage'] : LEDGER_REQUIRED
-    // schema v2 新字段：仅对已带 schema_version 的行要求（历史 v1 行豁免——禁改写/不追认，08 §3）
-    return e.schema_version !== undefined ? [...base, ...(LEDGER_V2[e.event] || [])] : base
+    // v1.6 终审 W1：v2 字段恒要求——无 schema_version 的新行（截止时点后）会因缺字段直接计坏；
+    // 截止前存量行由 checkLines 的 skipIf 跳过（原条件分支成死代码，已删）
+    return [...base, ...(LEDGER_V2[e.event] || [])]
   }
   const b = checkLines('账本', ledgerPath, ledgerReq, 50, {
-    // 无 schema_version 的存量行=旧版本形态（含 v1.5 批会话手记行）——按 02 §9 指针化纪律：
-    // 跳过并计数（不追认不改写，08 §3）；新写入者（含主控手记行）一律带 schema_version 落 v2 形态
-    skipIf: (e) => e.schema_version === undefined,
+    // 无 schema_version 且早于纪律生效时点（2026-09-16T12:00Z）的存量行=旧版本形态——跳过计数
+    // （不追认不改写，08 §3）；时点后新增行漏带 schema_version 不再跳过=因缺字段计坏 FAIL（终审 W1 闸门）
+    skipIf: (e) => e.schema_version === undefined && String(e.ts || '') < '2026-09-16T12:00:00Z',
   })
   record('R4', passA && b.pass, `${a.detail}；${b.detail}`)
 }
@@ -210,8 +211,8 @@ if (want('R7')) {
     const txt = readFileSync(p, 'utf8')
     // 正向判据：存在「单源=…02 §9」指针（允许加粗/等号变体）
     const hasPtr = /行 schema\s*\*{0,2}单源=?\*{0,2}[^。]*02\s*§9/.test(txt)
-    // 反例判据（内联枚举串出现即指针化失守）
-    const inline = /ts\/project\/event|ts,project,event/.test(txt)
+    // 反例判据（内联枚举串出现即指针化失守；终审 N4 扩形态：顿号/逗号/空白枚举均命中）
+    const inline = /ts[\/、,，\s]+project[\/、,，\s]+event/.test(txt)
     if (!hasPtr || inline) { ok = false; det.push(`${name}:指针${hasPtr ? '✓' : '✗'}${inline ? '/内联清单✗' : ''}`) } else det.push(`${name}:✓`)
   }
   record('R7', ok, `账本 schema 指针唯一指向 02 §9 ${det.join(' ')}`)

@@ -99,11 +99,12 @@ function discoverSources(channel) {
     found.push({ pid, model: realModel, base, key: opts.apiKey });
   }
   if (Array.isArray(preferHosts) && preferHosts.length) {
-    // 偏好序=prefer_hosts 数组序（命中靠前者优），同档与未命中者按宿主 config 序
+    // 偏好序=prefer_hosts 数组序（命中靠前者优）；未命中段按 pid 字典序定序——
+    // 勿依赖宿主 config 对象键序（RFC 8259 无保序保证，终审 W5）
     const rank = (s) => { const i = preferHosts.findIndex((h) => s.base.includes(h)); return i === -1 ? preferHosts.length : i }
-    return found.sort((a, b) => rank(a) - rank(b))
+    return found.sort((a, b) => rank(a) - rank(b) || a.pid.localeCompare(b.pid))
   }
-  return found;
+  return found.sort((a, b) => a.pid.localeCompare(b.pid));
 }
 
 /** 响应归一（通道异构面收口）：texts/hasText/finish/usage 四元。 */
@@ -141,6 +142,12 @@ function usage() {
 
 async function main() {
   const argv = process.argv.slice(2);
+  // finish_vocab 拒跑守卫（终审 W3：缺词表=配置错——同批 ds-call-v2/log-triage 已立此纪律，
+  // 原可选链静默兜底致 completeFinishes 空集、truncated 恒 true 的静默假数据面）
+  if (!ORG_CFG.finish_vocab?.complete?.length || !ORG_CFG.finish_vocab?.truncation?.length) {
+    console.error("[config] org-config finish_vocab 缺 complete/truncation 词表（词表单源纪律 06 §0）——拒跑（exit 3）");
+    return 3;
+  }
   if (argv.includes("--list-sources")) {
     for (const ch of CHANNELS) {
       const sources = discoverSources(ch);
@@ -279,7 +286,7 @@ async function main() {
   const usageInfo = norm.usage;
   // truncated 派生布尔（finish 白名单反转——仅 complete 词表命中=完整，其余含未知=截断；
   // 词表单源=org-config finish_vocab，闭残留册 glm-look-truncation-field）
-  const completeFinishes = new Set(ORG_CFG.finish_vocab?.complete || []);
+  const completeFinishes = new Set(ORG_CFG.finish_vocab.complete);
   const truncatedFlag = !completeFinishes.has(norm.finish);
   logEvent("ok", {
     runId, channel, source: src.pid, model: src.model,

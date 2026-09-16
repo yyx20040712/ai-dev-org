@@ -410,7 +410,7 @@ for (let i = 0; i < chain.length; i++) {
     }
     switches++
     if (paygOf(chain[i + 1].alias)) console.error(`[payg] 换源至 ${chain[i + 1].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁）`)
-    logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
+    logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked, payg: paygOf(chain[i + 1].alias) || undefined })
     logger.ledger('switch', { source: s.alias, outcome: scrub(e.message).slice(0, 200) })
     console.error(`[routing] 换源 ${s.alias} → ${chain[i + 1].alias}: ${scrub(e.message).slice(0, 200)}`)
     continue
