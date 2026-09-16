@@ -19,7 +19,13 @@
 //     ds reasoning）耗 completion 配额——低档实测全耗推理零正文输出
 //     （2026-09-10 WaterPrint C 批采证实录）——**零正文+截断终态时
 //     自动倍升重试**（8000→16000→32000，至多 3 轮），低档静默=假成功；
-//   - key 零泄露（任何输出不含 apiKey）；
+//   - key 零泄露（任何输出不含 apiKey）——代码级保障=scrub 脱敏，错误体/
+//     错误串/流水全过 SCRUB_RE（v1.6 批 P0-B b：原仅口头声明）；
+//   - 单次调用上限 20 分钟（AbortSignal.timeout=唯一超时源——对齐派发器
+//     06 §5.7 传输纪律；v1.6 批 P0-B a：原 fetch 无超时可无限挂起）；
+//     4xx（429 除外）立断不重试（对齐派发器 NO_RETRY；429/5xx 保留退避重试）；
+//   - ok 流水行带 truncated 派生布尔（finish 白名单反转口径，词表=org-config
+//     finish_vocab——闭残留册 glm-look-truncation-field）；
 //   - 视觉方向级决策仍留用户——本通道只产判读证据；
 //   - 退出码经 process.exitCode 自然退出（Node 25 libuv 退出阶段
 //     async.c 断言规避——HOST-node25 同族面，勿用 process.exit 急退）。
@@ -34,13 +40,20 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
+import { loadOrgConfig } from "./org-config.mjs";
 
-const SCRIPT_DIR = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url)); // 规范解析（percent-decode）——原 URL pathname 手拼在含空格/中文路径下必坏（v1.6 批 P0-B e）
 const ROUTING_LOG = path.join(SCRIPT_DIR, "model-routing-log.jsonl");
 const CONFIG = path.join(os.homedir(), ".zcode", "v2", "config.json");
 const MODEL = "GLM-5.3-Flash";
 const DS_MODEL = "deepseek-flash";
 const MIN_MAX_TOKENS = 8000;
+const CALL_TIMEOUT_MS = 20 * 60_000; // 单次调用上限=对齐派发器（06 §5.7）
+/** 脱敏（受控复制自 ds-call-v2.mjs——A3 受控双源：字面量由 regression R9
+ * 对账钉同步；升格共享模块=未来分发重构时再裁，裁决档 W7 统一判据）。 */
+const SCRUB_RE = /(Bearer\s+)?[A-Za-z0-9_-]{24,}/g // 日志脱敏：长 token 形态一律掩码（K-N2）
+const scrub = (s) => String(s).replace(SCRUB_RE, '<redacted>')
 /** 通道枚举（glm=anthropic 格式 / ds=OpenAI 格式 image_url——载荷与
  * 端点异构，纪律面共用）。 */
 const CHANNELS = new Set(["glm", "ds"]);
@@ -67,7 +80,7 @@ function logEvent(event, fields) {
 }
 
 function discoverSources(channel) {
-  const cfg = JSON.parse(fs.readFileSync(CONFIG, "utf-8"));
+  const cfg = JSON.parse(fs.readFileSync(CONFIG, "utf-8").replace(/^\uFEFF/, "")); // BOM 剥离（对齐 org-config.readJson——v1.6 批 P2）
   const found = [];
   for (const [pid, prov] of Object.entries(cfg.provider || {})) {
     const opts = prov.options || {};
@@ -227,7 +240,9 @@ async function main() {
       messages: [{ role: "user", content }],
     });
     logEvent("attempt", { runId, channel, source: src.pid, model: src.model, images: images.length, promptBytes: body.length, maxTokens: attemptTokens });
-    // 网络级瞬断重试（fetch failed/connection reset——实测偶发，5s 退避×2）
+    // 网络级瞬断重试（fetch failed/connection reset——实测偶发，5s 退避×2）；
+    // 立断类=非 429 的 4xx（对齐派发器 NO_RETRY）与超时（TimeoutError——20min 已超长再试无意义）；
+    // 429/5xx 保留退避重试（对齐派发器 RETRYABLE 语义——v1.6 批 P0-B c/W11）
     resp = null;
     for (let netTry = 1; netTry <= 3 && resp === null; netTry += 1) {
       try {
@@ -238,21 +253,26 @@ async function main() {
         } else {
           headers["authorization"] = `Bearer ${src.key}`;
         }
-        const r = await fetch(url, { method: "POST", headers, body });
+        const r = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(CALL_TIMEOUT_MS) });
+        if (!r.ok) {
+          const errBody = await r.text().catch(() => "");
+          const err = new Error(`HTTP ${r.status}: ${scrub(errBody).slice(0, 300)}`);
+          if (r.status >= 400 && r.status < 500 && r.status !== 429) err.noretry = true;
+          throw err;
+        }
         resp = await r.json();
-        if (!r.ok) throw new Error(`HTTP ${r.status}: ${JSON.stringify(resp).slice(0, 300)}`);
       } catch (err) {
-        if (netTry === 3) {
-          logEvent("fail", { runId, channel, source: src.pid, model: src.model, error: String(err).slice(0, 200) });
-          console.error(`[${channelTag(channel)}] 调用失败（3 次网络重试后）: ${err.message}`);
+        const noretry = err.noretry === true || err.name === "TimeoutError" || err.name === "AbortError";
+        if (netTry === 3 || noretry) {
+          logEvent("fail", { runId, channel, source: src.pid, model: src.model, error: scrub(String(err)).slice(0, 200) });
+          console.error(`[${channelTag(channel)}] 调用失败（${noretry ? "立断类（4xx 非 429/超时）" : "3 次网络重试后"}）: ${scrub(err.message)}`);
           return 1;
         }
-        console.error(`[${channelTag(channel)}] 网络瞬断重试 ${netTry}/2（${err.message}）——5s 退避`);
+        console.error(`[${channelTag(channel)}] 网络瞬断重试 ${netTry}/2（${scrub(err.message)}）——5s 退避`);
         await new Promise((resolve) => setTimeout(resolve, 5000));
         resp = null;
       }
     }
-    if (resp === null) continue;
     norm = normalizeResponse(resp, channel);
     const truncFlag = channel === "glm" ? "max_tokens" : "length";
     if (norm.hasText || norm.finish !== truncFlag) break;
@@ -264,12 +284,18 @@ async function main() {
     return 1;
   }
   const usageInfo = norm.usage;
+  // truncated 派生布尔（finish 白名单反转——仅 complete 词表命中=完整，其余含未知=截断；
+  // 词表单源=org-config finish_vocab，闭残留册 glm-look-truncation-field）
+  const { merged } = loadOrgConfig(SCRIPT_DIR ? path.join(SCRIPT_DIR, "..") : process.cwd());
+  const completeFinishes = new Set(merged.finish_vocab?.complete || []);
+  const truncatedFlag = !completeFinishes.has(norm.finish);
   logEvent("ok", {
     runId, channel, source: src.pid, model: src.model,
     usage: { in: usageInfo.input_tokens, out: usageInfo.output_tokens },
-    latencyMs: Date.now() - started, finish: norm.finish, images: images.length,
+    latencyMs: Date.now() - started, finish: norm.finish, truncated: truncatedFlag, images: images.length,
     maxTokens: attemptTokens,
   });
+  if (truncatedFlag) console.error(`[${channelTag(channel)}] 注意：finish=${norm.finish} 非完整终态（truncated=true 已落流水）——报告可能不完整`);
   if (!norm.hasText) {
     console.error(`[${channelTag(channel)}] 响应零正文（finish=${norm.finish}）——` +
       `推理段耗尽配额面：3 轮倍升后仍零正文，手动 --max-tokens ≥${attemptTokens} 重试或减小图量。`);

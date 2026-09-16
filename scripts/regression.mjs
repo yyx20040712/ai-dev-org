@@ -220,6 +220,15 @@ if (want('R8')) {
   record('R8', r.status === 0 && hasAcc, `exit=${r.status} 自检含验收断言=${out.includes('验收断言')}${r.status !== 0 ? `（输出尾：${out.slice(-160)}）` : ''}`)
 }
 
+// ═══ R9：scrub 受控复制对账（A3 受控双源——glm-look 复制体须与 ds-call-v2 源字面量一致；v1.6 批 P0-B b②/W7 判据②） ═══
+if (want('R9')) {
+  const re = /const SCRUB_RE = (.+?) \/\/ [^\n]*\nconst scrub = (.+?);?\n/ // 分号可选（源体 ASI 风格无尾分号——对账对象=正则与函数体字面量）
+  const a = re.exec(readFileSync(join(SCRIPTS, 'ds-call-v2.mjs'), 'utf8'))
+  const b = re.exec(readFileSync(join(SCRIPTS, 'glm-look.mjs'), 'utf8'))
+  const ok = !!a && !!b && a[1] === b[1] && a[2] === b[2]
+  record('R9', ok, `scrub 复制体与源字面量一致=${ok}${!ok ? '（改其一须同步另一——受控复制纪律，裁决档 W7）' : ''}`)
+}
+
 // ═══ R1'3：语义抽样（真实派发，--r1 显式触发） ═══
 if (wantR1) {
   const CASES = [
