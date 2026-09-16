@@ -15,8 +15,8 @@
  *   --health：源健康检查（A'③）——按供应商五类分诊 → k1/k2 推荐+分类处置建议
  *     （额度类→换源；504 窗口类→不换源、瘦身——zipoo 同端点共模，05 §九纠偏②）
  * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--self-test]
- * 退出码：0=正常；1=发现 RED 级事项（静默回退检出）或自检断言失败（全 fixture 聚合——v1.6 批）
- *       或非法 --date（格式/语义校验拒——stderr 一行用法错，evolve-E2 b3）；3=配置错。
+ * 退出码口径单源=references/06 §5.8（RED 检出/自检失败/非法 --date 用法拒
+ * 均属总表 1 类；此处不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
  * 纪律：finish 词表与供应商别名住 org-config（禁硬编码，A3/06 §0）；自然退出（HOST-node25 规避）。
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs'

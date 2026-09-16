@@ -12,7 +12,8 @@
  *   INFO：各源用量汇总
  * 用法：node scripts/health-scan.mjs [--project <dir>] [--ledger <path>]
  *       [--window N] [--budget <alias>:<maxOutTokens>[,…]] [--self-test]
- * 退出码：0=无 RED；1=有 RED 或自检失败；3=配置错。总表=references/06 §5.8。
+ * 退出码口径单源=references/06 §5.8（此处不复写数字=语义映射，防双源漂移
+ * ——evolve 批 b8 指针化）。
  */
 import { readFileSync, existsSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'

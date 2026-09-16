@@ -5,8 +5,8 @@
  * 用法：
  *   node scripts/init-defenses.mjs --target <目录> --stack <npm-verify|pnpm-pygates|generic>
  *        [--project <项目名>] [--yes] [--dry-run]
- * 退出码（同技能约定 3-2-1-4 的本地件子集）：3=配置错误（目标不存在/
- *   stack 枚举外/技能件缺失）；1=用法错误或预算自检 FAIL（已回滚）。
+ * 退出码口径单源=references/06 §5.8；本件特有：预算自检 FAIL 先回滚再退
+ *   （exit 1）——此处不复写数字=语义映射，防双源漂移（evolve 批 b8 指针化）。
  * 覆盖安全：一切写入=「不存在则创建」；须确认的修改仅一处=AGENTS.md
  *   追加 ORG-SEG 段——须 --yes 或 TTY 交互确认，否则 SKIP（.gitignore
  *   幂等片段追加不须确认：含标记即跳过，重复内容不会写入）。

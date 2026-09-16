@@ -4,7 +4,8 @@
  * 数组整体替换；显式 null=删除该键。
  * 规范化哈希：递归键排序+剔除 null/undefined（对象键值与数组元素皆剔，
  * 顺序保留）+紧凑 JSON.stringify 后 sha256 前 12 位——与键序/空白无关。
- * 退出码：0=成功；1=用法错误/自检失败；3=配置校验失败（区别于派发器源尽 exhaust=2）。总表=references/06 §5.8。
+ * 退出码口径单源=references/06 §5.8（此处不复写数字=语义映射，防双源漂移
+ * ——evolve 批 b8 指针化）。
  * 用法：
  *   node org-config.mjs [--project <dir>] resolve   # 打印合并后配置
  *   node org-config.mjs [--project <dir>] hash      # 打印 cfg:<hash12>

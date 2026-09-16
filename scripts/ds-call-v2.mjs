@@ -11,9 +11,9 @@
  *  - 宿主配置单次读入共用；find 未命中/字段缺失给 alias 级错误（K-W3）。
  *  - JSON 读取剥 BOM（ds-N2）；日志 error 文本脱敏 Bearer/api-key 形态（K-N2）；
  *    ledger_path 支持绝对路径（K-N3）。
- *  - 退出码：3=配置级错误（uuid/name 校验、registry↔org-config 角色交叉失败、
- *    配置 JSON 损坏）；2=源尽 exhaust；4=本地 IO 错误（输出写失败——响应已
- *    成功已落账，主控禁重试）；1=用法错误。
+ *  - 退出码口径单源=references/06 §5.8（exit 2=exhaust 系本件专用行、
+ *    4=输出写失败时响应已落账主控禁重试——均总表既有语义，此处不复写
+ *    数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
  *  - --mock-source 支持逗号并列多点（如 kimi-main:429,deepseek:500）——
  *    全链注入=零成本 exhaust 演练；部分注入则后续源为真实调用（成本自担）。
  *  - v1/v2 禁混用于同一工单=主控流程纪律（单一调用者+事件字段 dispatcher_version

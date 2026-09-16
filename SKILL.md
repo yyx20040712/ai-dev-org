@@ -50,7 +50,7 @@ node scripts/skill-gc.mjs [--apply --delete-redirects|--delete-invalid]   # 技�
 node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空白字符
 node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目防线日脚手架（05 §4）
 node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden] [--project <dir>]   # 自包含回归（06 §5 R 清单内化；R1 真实派发须 --r1）
-node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（欠账/同源/预算，RED=0 方可收口）
+node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（RED=0 方可收口；告警分类单源=02 §10）
 node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊（B-0）：cli/log+派发器流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查（A'③）出 k1/k2 派发推荐（额度类→换源；504 窗口类→不换源瘦身）
 node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点甄别=org-config vision_channels 分区+--list-sources；单次调用 20min 上限、非429的4xx立断、scrub 脱敏；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
 ```
@@ -87,7 +87,7 @@ tier 记法：外部岗取 org-config
 
 ## 加载地图（references/，按需读勿全量）
 
-01 原理 A~E 五组 ｜ 02 管道 12 步+任务书六段+回炉+数据专轨+适配注记 ｜
+01 原理 A~E 五组 ｜ 02 管道 12 步+任务书七段+回炉+数据专轨+适配注记 ｜
 03 机器强制 ｜ 04 教训库 WP/SY/MG/ORG 四系 ｜ 05 移植指南+差异回灌协议 ｜
 06 模型路由+换源状态机+派发器 v2 ｜ 07 角色卡终表+主控 PM 四子模式 ｜
 08 文档群治理（事实分层/指针化手册/历史件红线/体检/产出入仓纪律） ｜
@@ -121,7 +121,7 @@ tier 记法：外部岗取 org-config
 派发前自检三问：①本批命中表中哪些对抗位？②各位源可用且与实现者
 异构吗？③欠账清单有无本批必须补还项？收口前必跑
 `node scripts/health-scan.mjs --project <dir>`（RED=0 方可收口，
-三类告警细则=02 §10）。**主控简报中的关键假设须显式标注「假设」并请
+告警分类细则=02 §10）。**主控简报中的关键假设须显式标注「假设」并请
 对抗位拷问——假设未被拷问=烤验未过。**
 
 ## 团队化边界与扩展位（显式化——不假装解决）
@@ -152,7 +152,8 @@ references/04）；本技能自身的基线失败实录=设计审核链 5B/5W/3N
 v1.0 已冻结（用户裁决 2026-09-10，四项裁决原文见 Synapse 项目仓
 scripts/audits/2026-09-10_w2-freeze-evidence.md 与
 2026-09-10_w5-final-ruling.md）。
-冻结条件=首个适配场完整 LOOP 走通 + 派发器 v2 回归 R1~R6 全过；drafter
+冻结条件=首个适配场完整 LOOP 走通 + 派发器 v2 回归全项过（R 项清单单源=
+`scripts/regression.mjs` 现行项集合）；drafter
 复用与项目侧切换资格随冻结即时生效，项目切换走各仓 [locked-change]。
 新项目首场战役按 05 移植后做压力场景复测并回填本节。
 

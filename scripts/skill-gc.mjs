@@ -17,7 +17,8 @@
  * 用法：
  *   node skill-gc.mjs [--root <dir>] [--json]                    # 盘点+可回收估算（干跑）
  *   node skill-gc.mjs --apply --delete-redirects [--delete-invalid]  # 归档+清理
- * 退出码：0=正常；1=参数误用或归档事务失败；2=--apply 未指定删除类。
+ * 退出码口径单源=references/06 §5.8（v1.6 统一后本件无总表外特有语义；
+ * 此处不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
  */
 import { readdirSync, readFileSync, statSync, renameSync, mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'

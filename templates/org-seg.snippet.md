@@ -8,5 +8,5 @@
   组织差异回灌=.zcode/org-delta.jsonl（技能 05 §6 协议）。
 - 成本账本=.zcode/org-ledger.jsonl（行 schema **单源=技能 references/02 §9**
   ——SKILL.md 与本件均持指针，禁内联字段清单，A3）；
-  收口前跑技能 `scripts/health-scan.mjs`（欠账/同源/预算三类告警）。
+  收口前跑技能 `scripts/health-scan.mjs`（RED=0 方可收口；告警分类单源=技能 references/02 §10）。
 <!-- ORG-SEG:END -->

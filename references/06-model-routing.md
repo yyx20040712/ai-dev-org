@@ -87,16 +87,12 @@
   schema 见 SKILL.md 派发节与 02 §9，两账各用各的 schema，勿混）；
   输出首行 `[routing]: run=… role=<id>@<sig> cfg=<hash> …`。
 - 源装载校验：org-config `providers.<alias>.uuid_prefix`+`entry_name` 与
-  宿主 `~/.zcode/v2/config.json` 条目双校验，不一致即 **exit 3**（配置级；
-  2 保留给源尽 exhaust，1=用法，4=本地 IO）并输出 alias/期望/实际三元组，
+  宿主 `~/.zcode/v2/config.json` 条目双校验，不一致即 **exit 3**（语义与
+  全退出码总表=本件 §5.8——本节不复写）并输出 alias/期望/实际三元组，
   无任何 fallback。
-- 回归前置（R1~R6 全过方启用 drafter 复用与项目切换；清单内联）：
-  - [ ] R1 取首个适配场历史门一任务包 3 件（含 1 件曾判 FAIL），v1 与 v2 `--role gate1-reviewer` 各跑一遍
-  - [ ] R2 v1 内嵌系统提示与角色档案字节级等价（--dry-run 结构化 JSON 的 sys_prompt 段比对；技能落地时已机检 PASS 96B=96B）
-  - [ ] R3 输出判定结论（PASS/FAIL 方向）3/3 一致；措辞差异人工过目不涉结论
-  - [ ] R4 routing log 扩展字段齐全且 cfg 哈希与 org-config hash 输出一致
-  - [ ] R5 换源演练：mock 注入（--mock-source，全链注入=零成本 exhaust 演练）验证链序走完且事件互斥落账
-  - [ ] R6 全部通过后，方允许 `--role drafter` 复用拟定者岗与项目侧切换（locked-change）。
+- 回归前置（全部 R 项过方启用 drafter 复用与项目切换）：R 项清单单源=
+  `scripts/regression.mjs` 现行项集合（--only 可选项）——本节不复写清单，
+  防双源计数腐化（evolve 批 b8 指针化）。
 
 ### 5.7 传输层与超时（v2.2.1 补遗，2026-09-16；来源=F-TESTREF-00 门一补审 5 轮 17 attempt 排障+本机双臂探针实证）
 

@@ -18,7 +18,8 @@
  *
  * 用法：node scripts/check-hardcode.mjs [--root <技能根>] [--strict] [--agents <dir>]
  *       [--whitelist <path>] [--self-test]
- * 退出码：0=无命中/WARN；1=--strict 命中或自检失败；3=配置错；5=降级运行（宿主配置/白名单损坏——显式留痕不静默；总表=references/06 §5.8）。
+ * 退出码口径单源=references/06 §5.8（5=降级运行系总表本件专属行，此处
+ * 不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
  */
 import { readFileSync, existsSync, readdirSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { join, relative } from 'node:path'
