@@ -254,6 +254,10 @@ if (want('R9')) {
 //   ③纯函数向量（子进程向量脚本承载 import——未实现态 CLI 副作用不触主进程）：
 //     splitEndpoint≥3 例 / classifyExitCode 三类（配置→3/用法→1/未知→1）≥3 例 /
 //     ensureWithinRoot 三负例（恰 ..、..\、../ 三输入形态）+2 正例。
+//   ④ B1 回炉向量（evolve-rework r1，2026-09-16）：registry 装载错误面端到端——
+//     坏 JSON 与 roles:null 两形态均须 exit 3（06 §5.8 配置/装载错类；红态=
+//     裸 readJson/裸取 registry.roles[roleId] 抛普通异常→classifyExitCode 无
+//     exitCode 属性判 1=未申报回退，门一出件 B1）。
 //   本块一切 spawnSync 带 timeout+killSignal（秒级 mock 路径 60s 量级）。
 if (want('R10')) {
   let ok = true
@@ -374,6 +378,32 @@ process.exit(fails === 0 ? 0 : 1)
   } else {
     ok = false
     det.push('②mock往返:跳过（splitEndpoint 未导出=b1 传输层未落，env 钩子未就位——跑则触真实宿主源发现）')
+  }
+  // ④ B1 回炉向量：registry 装载错误面端到端（备份-注入-跑-还原，try/finally
+  //   保还原；注入窗内本进程顺序执行无并发读者——R2/R5 等已跑毕，R1 默认 SKIP）。
+  {
+    const REG = join(SCRIPTS, 'roles', 'registry.json')
+    const backup = readFileSync(REG, 'utf8')
+    const b1Prompt = join(r10tmp, 'b1-prompt.txt')
+    writeFileSync(b1Prompt, 'B1 vector: registry load-error face', 'utf8')
+    let b1Ok = true
+    const b1Det = []
+    try {
+      writeFileSync(REG, '{ 坏 JSON（B1 注入）', 'utf8')
+      const rBad = r10Spawn([join(SCRIPTS, 'ds-call-v2.mjs'), '--list-roles'], { cwd: SKILL_ROOT })
+      const badFatal = (rBad.stderr || '').includes('[fatal]')
+      b1Ok &&= rBad.status === 3 && badFatal
+      b1Det.push(`坏JSON→exit=${rBad.status}(期3)/[fatal]=${badFatal}`)
+      writeFileSync(REG, JSON.stringify({ registry_version: 'rework-b1', roles: null }), 'utf8')
+      const rNull = r10Spawn([join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--dry-run', b1Prompt], { cwd: SKILL_ROOT })
+      const nullFatal = (rNull.stderr || '').includes('[fatal]')
+      b1Ok &&= rNull.status === 3 && nullFatal
+      b1Det.push(`roles:null→exit=${rNull.status}(期3)/[fatal]=${nullFatal}`)
+    } finally {
+      writeFileSync(REG, backup, 'utf8')
+    }
+    if (!b1Ok) ok = false
+    det.push(`④B1向量(registry错误面):${b1Ok ? '全过' : '✗'} ${b1Det.join('；')}`)
   }
   if (!keepTmp) rmSync(r10tmp, { recursive: true, force: true })
   record('R10', ok, `b1/b2/b6 回归面——${det.join('；')}`)

@@ -133,6 +133,10 @@ function loadRole(roleId, merged) {
   // 不含中文关键词，原正则兜底会误判 exit 1
   let registry
   try { registry = readJson(REGISTRY_PATH) } catch (e) { throw new ConfigError(`registry 装载失败（${REGISTRY_PATH}）: ${e.message}`) }
+  // 回炉 B1：roles 为 null/非对象形态时裸取 registry.roles[roleId]=TypeError→
+  // uncaughtException 无 exitCode 属性=exit 1（未申报回退）——改校验 ConfigError
+  if (registry.roles === null || typeof registry.roles !== 'object')
+    throw new ConfigError(`registry.roles 形态损坏（${REGISTRY_PATH}）: 须为对象，现=${registry.roles === null ? 'null' : typeof registry.roles}`)
   const def = registry.roles[roleId]
   if (!def) throw new Error(`未知角色: ${roleId}（可用角色见 --list-roles）`) // 用法错=1（06 §5.8）
   for (const key of Object.keys(merged.roles || {})) {
@@ -339,7 +343,12 @@ async function cliMain() {
   const dryRun = argv.includes('--dry-run')
   const positional = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--role' && argv[i - 1] !== '--source' && argv[i - 1] !== '--project' && argv[i - 1] !== '--mock-source')
 
-  const registry = readJson(REGISTRY_PATH)
+  // 回炉 B1：顶层装载点同律包 ConfigError（与 loadRole 内包装同型）——原裸调用
+  // 在一切路径先执行，坏/缺 registry.json 抛普通 SyntaxError→uncaughtException
+  // 无 exitCode 属性=exit 1，而 06 §5.8 判配置/装载错=3（未申报回退；E1 §4 表
+  // 漏此 throw 点，勘误见回炉报告）。
+  let registry
+  try { registry = readJson(REGISTRY_PATH) } catch (e) { throw new ConfigError(`registry 装载失败（${REGISTRY_PATH}）: ${e.message}`) }
   let merged // b2：配置装载类失败抛 ConfigError（exit 3）——英文 locale 消息不含关键词，原正则兜底误判 exit 1
   try { ({ merged } = loadOrgConfig(process.cwd())) } catch (e) { throw new ConfigError(`org-config 装载失败: ${e.message}`) }
   nodeVersionGuard(merged)
