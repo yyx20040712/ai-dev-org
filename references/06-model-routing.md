@@ -7,8 +7,8 @@
 > 哈希=递归键排序+剔 null+紧凑序列化的 sha256 前 12 位，工具
 > `scripts/org-config.mjs hash`）。本件与 SKILL.md 均不含任何具体
 > 端点/套餐数字。
-> 母本=loop-engineering references/06 v1.1（归档于 `_archive/
-> loop-engineering-archive-2026-09/`）；依据链=用户四次 Ruling
+> 母本=loop-engineering references/06 v1.1（归档于 `~/.zcode/skills/_archive/
+> loop-engineering-archive-2026-09/`——路径相对 skills 根）；依据链=用户四次 Ruling
 >（2026-09-02，扩展派发器/实现面禁 deepseek/审计面放行/三段通道）。
 
 ## 1. 分工总表（岗位×通道×档位语义）

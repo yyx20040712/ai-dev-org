@@ -1,6 +1,8 @@
 # 01 · 核心原理
 
-> 四组 16 条。每条给出：内容 / 机器化形态 / 实证锚点（括注来源项目：WP=WaterPrint，SY=Synapse）。
+> 五组（A 防线/B 规约/C 验证/D 治理/E 组织）；条数单源=`scripts/.golden/
+> doc-counts.json`（check-anchors 对账，正文不落数字——A3 防双源）。
+> 每条给出：内容 / 机器化形态 / 实证锚点（括注来源项目：WP=WaterPrint，SY=Synapse）。
 > 无实证的原理不收入；机检有误伤的原理要写明校准记录。
 
 ## 第零性原理：一切决策可审计

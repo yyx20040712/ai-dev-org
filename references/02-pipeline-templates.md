@@ -294,7 +294,7 @@ anthropic 格式未适配）。
   - ③预算超限（RED，给了阈值时）：`--budget <alias>:<maxOutTokens>`
     各源累计 out 超阈即红；无阈值时输出各源用量汇总（INFO）；
   - ⑤设计链同源（WARN，2026-09-14，W-8 降级待归因）：同日同 project
-    的 drafter 与 auditor-readonly 同源——06 §8.6 三段通道要求异构；
+    的 drafter 与 auditor-readonly 同源——02 §8.6 三段通道要求异构；
   - **WARN 类**（不阻断，但摘要强制回显计数——W-1 升格条件）：cfg 漂移；
     ok 缺 usage；`in=0 而 out>0`（缓存未计）；单源占比超
     `thresholds.source_share_warn`；

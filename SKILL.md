@@ -13,7 +13,8 @@ description: Use when 用户提出开发/实现/修复/重构/批次/战役/开�
 
 用户只对接一个岗位：主控。其余岗位一律由主控调用（铁律见
 references/06 §2）。本技能是 loop-engineering 的升级替代件（组织视图与
-管道视图合并，旧件已归档于 `_archive/`）。
+管道视图合并，旧件已归档于 `~/.zcode/skills/_archive/
+loop-engineering-archive-2026-09/`——路径相对 skills 根，非技能根）。
 
 ## 岗位速查（终表见 references/07）
 
@@ -44,6 +45,7 @@ node scripts/ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>]
      <prompt文件> [输出文件]        # --role 必填（v1 内嵌提示已废止）
 node scripts/org-config.mjs [resolve|hash|validate|--self-test]
 node scripts/check-hardcode.mjs [--strict]   # .md 正文供应商 live 事实扫描（名单从 org-config 派生；命中=WARN，--strict 按 RED 退 1）
+node scripts/check-anchors.mjs [--update|--strict]   # 08 §4 文档腐化体检机检化：NN §M 断锚+路径存在性+01/04 条目计数 vs doc-counts golden（WARN 试点校准期；计数失守=FAIL；--update=重冻结随批提交）
 node scripts/skill-gc.mjs [--apply --delete-redirects|--delete-invalid]   # 技能目录盘点/清理（默认干跑；删除先归档可回滚；active 技能去留=用户裁决不机删）
 node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空白字符
 node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目防线日脚手架（05 §4）
@@ -85,11 +87,13 @@ tier 记法：外部岗取 org-config
 
 ## 加载地图（references/，按需读勿全量）
 
-01 原理 16+3 条 ｜ 02 管道 12 步+任务书六段+回炉+数据专轨+适配注记 ｜
-03 机器强制 ｜ 04 教训库 25+4 条 ｜ 05 移植指南+差异回灌协议 ｜
+01 原理 A~E 五组 ｜ 02 管道 12 步+任务书六段+回炉+数据专轨+适配注记 ｜
+03 机器强制 ｜ 04 教训库 WP/SY/MG/ORG 四系 ｜ 05 移植指南+差异回灌协议 ｜
 06 模型路由+换源状态机+派发器 v2 ｜ 07 角色卡终表+主控 PM 四子模式 ｜
 08 文档群治理（事实分层/指针化手册/历史件红线/体检/产出入仓纪律） ｜
 09 产品文档编制面（需求五问/手册骨架/API 锚定生成物/tech-writer 子模式）
+（01/04 条数单源=`scripts/.golden/doc-counts.json`，check-anchors 对账，
+正文不落数字——A3 防双源）
 
 ## 红旗（出现即停）
 
@@ -108,7 +112,7 @@ tier 记法：外部岗取 org-config
 | 文档/制度批 | 轻量双审（02 §3） |
 | 数据批 | 独立复算 + 专家追认（02 §6） |
 | 路线级设计 | 三段通道：拟定 + 对抗审核 + 主控终裁（02 §8.6） |
-| 已审面修改 | 该面随批重过——给首审档呈 diff，「改了就要再审」（08 §0 惯例） |
+| 已审面修改 | 该面随批重过——给首审档呈 diff，「改了就要再审」（08 §7 惯例） |
 | 纯配置变更批（org-config/路由/配给） | 按「已审面修改」处理：配置 diff+预期行为变化呈 auditor-readonly 复核（W5 审 B' 双源 B1） |
 | 收口/交付批 | 烤验证据随呈报包复核：各对抗位报告 + health-scan RED=0 + 基线数字对账（W5 审 ds-B1）+ 入仓工件污染面零命中（08 §6——项目仓门禁+命名过目） |
 
@@ -143,10 +147,11 @@ tier 记法：外部岗取 org-config
 
 内容锚定 Synapse/WaterPrint 双项目实战事故与教训库（锚点格式见
 references/04）；本技能自身的基线失败实录=设计审核链 5B/5W/3N
-（scripts/audits/2026-09-10_org-skill-*）。
+（Synapse 项目仓 scripts/audits/2026-09-10_org-skill-*）。
 
-v1.0 已冻结（用户裁决 2026-09-10，四项裁决原文见 scripts/audits/
-2026-09-10_w2-freeze-evidence.md 与 2026-09-10_w5-final-ruling.md）。
+v1.0 已冻结（用户裁决 2026-09-10，四项裁决原文见 Synapse 项目仓
+scripts/audits/2026-09-10_w2-freeze-evidence.md 与
+2026-09-10_w5-final-ruling.md）。
 冻结条件=首个适配场完整 LOOP 走通 + 派发器 v2 回归 R1~R6 全过；drafter
 复用与项目侧切换资格随冻结即时生效，项目切换走各仓 [locked-change]。
 新项目首场战役按 05 移植后做压力场景复测并回填本节。

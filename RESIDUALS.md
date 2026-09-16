@@ -36,7 +36,7 @@
 
 | 编号 | 来源 | 内容 | 状态 | 处置 |
 |---|---|---|---|---|
-| glm-look-streaming | 05 §七增补一指认的登记缺口（B-1 承接补登） | 06 §5.7 声称「流式化登记 RESIDUALS」而本册原无该条——登记缺口补正：流式化（anthropic SSE）根治网关非流式窗口截断，未实现 | open | B-2 批承接（ds-call-v2 与 glm-look 各自独立实现，承 W-3）；504 专项处置已定（载荷超窗不盲重试） |
+| glm-look-streaming | 批档 subagent-plan 05-ruling §七增补一指认的登记缺口（B-1 承接补登） | 06 §5.7 声称「流式化登记 RESIDUALS」而本册原无该条——登记缺口补正：流式化（anthropic SSE）根治网关非流式窗口截断，未实现 | open | B-2 批承接（ds-call-v2 与 glm-look 各自独立实现，承 W-3）；504 专项处置已定（载荷超窗不盲重试） |
 | 02-§8-model-terms | B-1 check-hardcode 词表扩容实扫 | references/02 §8 额度经济学节含模型名安排性提及约 20 处（母本继承配置性条款层）——白名单过渡豁免，非指针化 | open | 白名单 13 条规则承接（reason 注明过渡）；指针化=后续文档批；§8.5 分面放行语义仍有效 |
 | empty-tools-invalid | A'① probe-k 实证（08-exec-log §二） | 子代理 frontmatter `tools: []`=**泄漏全工具面**（真实发生 tool.call Read 读出金丝雀文件）——空数组被当"无限制"而非"无工具" | closed | 已按交接预案处置：ops-gate1-k1/k2 退 `tools: Read`+双墙声明（物理墙+协议墙）；环境事实入 06 §6 补遗 |
 | agents-profile-session-fixed | A 批验证观察（metadata profileSnapshot） | 代理档案=会话启动时快照——会话中改文件对已启动会话无效（k1/k2 以旧 tools:[] 快照跑完验证批） | won't-fix | 宿主行为（无热加载既有结论的同族面）；纪律=改代理文件后须新会话验证，已写入 06 §6 补遗 |

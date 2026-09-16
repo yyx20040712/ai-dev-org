@@ -144,7 +144,7 @@ verify 真退出码亲验）；账本单写者。
 |---|---|---|---|
 | 实现者 | ops-executor | 读+写+Bash | E2 白名单墙（简报白名单即行动面） |
 | SRE 诊断 | ops-diagnostics | 真只读（Read/Glob/Grep） | 物理只读墙 |
-| 门二·实证部 | ops-probe | 读+写+Bash | E2 协议墙（如实声明，非工具面强制——05 §一 B-1 终裁） |
+| 门二·实证部 | ops-probe | 读+写+Bash | E2 协议墙（如实声明，非工具面强制——批档 subagent-plan 05-ruling §一 B-1 终裁） |
 | 门二·裁决部 | ops-adjudicator | 只读 | E2 证据包墙（异构裁决位） |
 | 门一·源A | ops-gate1-k1 | Read | 物理（仅 Read）+协议（禁读任何文件，输入即包）双墙 |
 | 门一·源B | ops-gate1-k2 | 同上 | 同上（Kimi 双源，健康检查择源） |
@@ -155,7 +155,7 @@ verify 真退出码亲验）；账本单写者。
 （杀岗→日志归因→额度类换源继任/窗口类同源瘦身/无工具岗同包重跑）=批档
 E:/zcode_md/fix/subagent-plan-2026-09-16/09-continuation-runbook.md（主控
 runbook 真源，后续批迁技能侧）。拟定者/审核者迁移=下轮；设计岗双位
-（ops-vision/ops-draw）=B-6 批（05 §十）。
+（ops-vision/ops-draw）=B-6 批（批档 subagent-plan 05-ruling §十）。
 
 ## 5. 修订记
 
