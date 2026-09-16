@@ -98,12 +98,16 @@ export function validateProviders(cfg, hostCfg) {
   const entries = Object.entries(hc.provider || {})
   const errors = []
   for (const [alias, def] of Object.entries(cfg.providers || {})) {
+    if (def == null || typeof def !== 'object') {
+      errors.push(`providers.${alias} 值为 ${def === null ? 'null' : typeof def}——须为对象（uuid_prefix/entry_name）；null/非对象条目=配置损坏（evolve-E2 b4 守卫：原裸取 uuid_prefix 即 TypeError 崩溃）`)
+      continue
+    }
     const hit = entries.find(([id, p]) => id.startsWith(def.uuid_prefix) && p && p.name === def.entry_name)
     if (!hit) {
       const near = entries.find(([id]) => id.startsWith(def.uuid_prefix))
       errors.push(
         `源校验失败 alias=${alias} 期望 uuid前缀=${def.uuid_prefix} name=${def.entry_name} ` +
-          `实际=${near ? near[0] + '(name=' + near[1].name + ')' : '无该前缀条目'}（未入链的声明源亦须双校验通过）`,
+          `实际=${near ? near[0] + '(name=' + (near[1]?.name ?? 'null') + ')' : '无该前缀条目'}（未入链的声明源亦须双校验通过）`,
       )
     }
   }
@@ -131,8 +135,8 @@ if (isMain) {
   const cmd = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--project')
 
   if (selfTest) {
-    let fails = 0
-    const t = (name, cond) => (console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`), cond || fails++)
+    let fails = 0, n = 0
+    const t = (name, cond) => (n++, console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`), cond || fails++)
     const base = { a: { x: 1, y: 2 }, b: [1, 2], c: 3 }
     t('对象逐字段覆盖+未提及沿用', JSON.stringify(deepMerge(base, { a: { x: 9 } })) === JSON.stringify({ a: { x: 9, y: 2 }, b: [1, 2], c: 3 }))
     t('数组整体替换', JSON.stringify(deepMerge(base, { b: [3] }).b) === '[3]')
@@ -141,7 +145,14 @@ if (isMain) {
     t('哈希键序无关', cfgHash({ x: 1, y: { b: 2, a: 3 } }) === cfgHash({ y: { a: 3, b: 2 }, x: 1 }))
     t('哈希剔 null（对象键）', cfgHash({ x: 1, y: null }) === cfgHash({ x: 1 }))
     t('哈希剔 null（数组元素，顺序保留）', cfgHash({ s: ['a', null, 'b'] }) === cfgHash({ s: ['a', 'b'] }) && cfgHash({ s: ['b', 'a'] }) !== cfgHash({ s: ['a', 'b'] }))
-    console.log(fails === 0 ? 'self-test 全过（7 向量）' : `self-test ${fails} 项失败`)
+    // b4 向量（evolve-E2）：null provider 守卫——validateProviders 不崩+明确校验错误行+近邻提示 null 宿主条目安全
+    const vpHost = { provider: { 'b4null-0000': null, 'b4live-9999': { name: 'LIVE-ENTRY' } } }
+    let vpErr = null
+    try { vpErr = validateProviders({ providers: { dead: null, live: { uuid_prefix: 'b4live', entry_name: 'LIVE-ENTRY' }, nearnull: { uuid_prefix: 'b4null', entry_name: 'X' } } }, vpHost) } catch (e) { vpErr = `THREW:${e.message}` }
+    t('b4 null provider→校验错误行（不崩）', Array.isArray(vpErr) && vpErr.some((e) => e.includes('providers.dead') && e.includes('null')))
+    t('b4 近邻提示 null 宿主条目不崩（near?.[1]?.name）', Array.isArray(vpErr) && vpErr.some((e) => e.includes('alias=nearnull') && e.includes('name=null')))
+    t('b4 健康源不受 null 条目影响（live 双校验通过不出错行）', Array.isArray(vpErr) && !vpErr.some((e) => e.includes('alias=live 期望')))
+    console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
   }
 

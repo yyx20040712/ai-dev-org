@@ -20,9 +20,9 @@
  *       [--whitelist <path>] [--self-test]
  * 退出码：0=无命中/WARN；1=--strict 命中或自检失败；3=配置错；5=降级运行（宿主配置/白名单损坏——显式留痕不静默；总表=references/06 §5.8）。
  */
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, writeFileSync, mkdtempSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { SKILL_ROOT, loadOrgConfig } from './org-config.mjs'
 
 const argv = process.argv.slice(2)
@@ -62,6 +62,7 @@ export function deriveHostModelTerms(hostCfgPath = HOST_CFG) {
   try { cfg = JSON.parse(readFileSync(hostCfgPath, 'utf8').replace(/^\uFEFF/, '')) } catch (e) { console.error(`[degraded] 宿主配置不可读（${e.message}）——扫描降级为通用语法形态（漏检面=供应商词表），退出码 5`); DEGRADED = true; return terms }
   const seen = new Set()
   for (const p of Object.values(cfg.provider || {})) {
+    if (!p || typeof p !== 'object') { console.error('[degraded] 宿主配置 provider 含 null/非对象条目——该条目词表跳过、其余源继续扫（漏检面=该条目模型名），退出码 5（evolve-E2 b4：原 null 条目 TypeError 崩溃）'); DEGRADED = true; continue }
     for (const mk of Object.keys(p.models || {})) {
       if (seen.has(mk)) continue
       seen.add(mk)
@@ -158,6 +159,19 @@ function selfTest() {
   t('contains-only 规则反例（不含串行不豁免）', scanText({ relPath: 'references/z.md', text: '调用 api.deepseek.com', merged, whitelist: wlCo, extraTerms: termsDs }).every((h) => !h.whitelisted))
   // r4 审核 W 终项：contains-only 规则专用正例（含串行豁免·任意文件）
   t('contains-only 规则正例（含串行豁免·任意文件）', scanText({ relPath: 'references/z.md', text: 'api.deepseek.com 事故叙述', merged, whitelist: wlCo, extraTerms: termsDs }).every((h) => h.whitelisted))
+  // b4 向量（evolve-E2）：null provider 宿主条目→降级行（stderr 留痕）+其余源词表继续派生（exit 5 语义族，不崩溃）
+  let hmTerms = null, hmErr = null, hmDegraded = false
+  const hmBuf = []
+  const hmOrigErr = console.error
+  try {
+    const d = mkdtempSync(join(tmpdir(), 'hc-b4-'))
+    const f = join(d, 'host.json')
+    writeFileSync(f, JSON.stringify({ provider: { dead: null, live: { models: { 'B4Guard-Model': {} } } } }), 'utf8')
+    console.error = (...a) => hmBuf.push(a.join(' '))
+    hmTerms = deriveHostModelTerms(f)
+  } catch (e) { hmErr = e.message } finally { console.error = hmOrigErr }
+  hmDegraded = hmBuf.some((s) => s.includes('[degraded]') && s.includes('null'))
+  t('b4 null provider→降级行+其余源词表继续派生（不崩）', hmErr === null && Array.isArray(hmTerms) && hmTerms.length === 1 && hmTerms[0].name.includes('B4Guard-Model') && hmDegraded)
   const fail = cases.filter((x) => !x.c)
   for (const x of cases) console.log(`${x.c ? 'PASS' : 'FAIL'} ${x.n}${x.d ? ' — ' + x.d : ''}`)
   console.log(`check-hardcode 自检：${cases.length - fail.length}/${cases.length} 过`)

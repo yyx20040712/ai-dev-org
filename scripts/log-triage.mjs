@@ -64,7 +64,7 @@ const inWindow = (t, sinceMs, untilMs) => t === null ? true : !((sinceMs != null
 const buildAliasMap = (providers) => {
   const m = new Map()
   for (const [alias, p] of Object.entries(providers || {})) {
-    if (p.uuid_prefix) m.set(p.uuid_prefix, alias)
+    if (p?.uuid_prefix) m.set(p.uuid_prefix, alias) // null provider 条目跳过（evolve-E2 b4 守卫——原裸取即 TypeError 崩溃）
   }
   return m
 }
@@ -286,6 +286,10 @@ if (argv.includes('--self-test')) {
   ]
   const rtOutB3 = wB3 ? harvestRouting(rtRowsB3, wB3.sinceMs, wB3.untilMs) : null
   t('b3 窗口行过滤：UTC 09-16 窗内两行留（含上海 09-17 02:00 行）/次 UTC 零点起弃', !!rtOutB3 && Object.values(rtOutB3.exhaust).flat().length === 2 && !Object.values(rtOutB3.exhaust).flat().some((e) => e.runId === 'out-next-day'))
+  // b4 向量（evolve-E2）：null provider→buildAliasMap 不崩（null 条目跳过、其余映射保留）
+  let amMap = null, amErr = null
+  try { amMap = buildAliasMap({ dead: null, live: { uuid_prefix: 'b4-live-' } }) } catch (e) { amErr = e.message }
+  t('b4 null provider→buildAliasMap 不崩（null 条目跳过/其余映射保留）', amErr === null && amMap instanceof Map && amMap.size === 1 && amMap.get('b4-live-') === 'live')
   console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
   process.exitCode = stFails === 0 ? 0 : 1
 } else {
