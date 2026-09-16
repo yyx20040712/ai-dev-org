@@ -53,6 +53,8 @@
 | entropy-4state | 主控全面评审+裁决档 §2 kimi-W4 | W5-A-W4 行出现三态外第四态「已修订」——本册三态纯度破口 | closed | W5-A-W4 状态归 closed+行内勘误注记；**supersedes 口径本行建立**：后续新行取代旧行判断时在新行处置列写「supersedes: <旧行编号>」，被取代行不参与终态统计（人工对账与机检同口径） |
 | archive-distribution-trigger | 裁决档 §2 kimi-N2 | _archive 引用改绝对路径（`~/.zcode/skills/_archive/…`）依赖本机技能目录形态 | won't-fix | 显式不修+触发器：一旦引入技能分发/同步机制，_archive 引用策略随批重评（触发=分发机制落地批） |
 | runbook-external-source | 主控全面评审（清偿计划 P1-A d） | 子代理失败接续 runbook 真源在技能外（E:/zcode_md/fix/subagent-plan-2026-09-16/09 号件）——技能自包含缺口 | open | 本批登记；迁移入技能 references=后续批（与 subagent-plan 批收尾协调，非本批范围） |
+| check-anchors-calibration | 终审门一 N1 | 试点固有盲点：标题索引正则不含全角冒号形态；扫描面未含 scripts/roles/*.dod.md（其内恰有 02 §3 指引）；PROJECT_NAMES 点名豁免=白名单漂移面；自检 head 断言恒真未拷打解析逻辑 | open | 全部于 check-anchors 升 --strict 前置批处置（升级前置条件=连续两轮零误报+本行闭环，裁决档 ds-W6） |
+| r1-deepseek-format-flake | 主控 R1 三跑实证 | deepseek 侧间歇把「判定」耗在推理通道、可见正文格式漂移（3 跑 1 遇 UNPARSEABLE）——容错解析（判定\|verdict\|裸 PASS/FAIL）已收敛大半，重跑即绿 | open | 低优先：根治=CASE 提示词强化或固定输出形态采样；遇抖动处置=重跑 R1 留证（勿静默改判） |
 
 修订记同步见本册末节 2026-09-16 行。
 
@@ -95,6 +97,16 @@
   迁 CHANGELOG.md、references/07 操作段指针化+补遗三、loop-defenses/
   loop-retrospective 死链修复（loop-engineering→本技能 references）、
   白名单收缩 4→2 条（均历史豁免）。批档=E:/zcode_md/fix/skills-优化批-2026-09-15/。
+- 2026-09-16 维护熵清偿战役（v1.6）：新增登记 6 条（synapse-md-expand/
+  entropy-4state 已闭/archive-distribution-trigger won't-fix/runbook-external-source/
+  check-anchors-calibration/r1-deepseek-format-flake）；闭环 1 条
+  （glm-look-truncation-field——ok 行 truncated 派生布尔落地）；W5-A-W4
+  三态归一勘误。终审=门一 PASS（B=0/W=4 全吸纳）+auditor 有条件放行
+  （B=1/W=7 吸纳 6 驳 1——W6 深合并语义）；cfg 漂移 WARN（54f08fbf→
+  a26f710a）处置=本战役 b7/b9 配置落地+auditor 配置面复核+终裁（投放面
+  重盘：kimi-main 当日真实调用 ok/err 健康、deepseek payg 已加显式告警
+  门禁、vision 双通道 --list-sources 实证可用）。批档=scripts/audits/
+  2026-09-16_entropy-*；明细=CHANGELOG v1.6 条。
 - 2026-09-16 子代理绑定批（A+A'+B-0+B-1）：新增登记 7 条（glm-look-streaming
   补登/02-§8-model-terms/empty-tools-invalid 已处置/agents-profile-session-fixed
   won't-fix/PostToolUse-livefire/adjudicator-tail-order/subagent-shell-gt-truncation）；

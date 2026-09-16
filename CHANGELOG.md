@@ -4,6 +4,64 @@
 > 逐字保留，此后新增版本只在本件追加）。SKILL.md 只保留最近一条摘要
 > 与本件指针。历史条目属过程记录，按 references/08 §3 红线不再改写。
 
+## 2026-09-16 v1.6（维护熵清偿战役——全面评审→双源对抗审→终裁→八批实施→终审回炉）
+
+- **战役过程**：主控全面评审（脚本 10+文档 9，结论=设计 A/工程 B+/维护 C+，
+  维护熵集中在 A3 双源失守/锚点契约/元治理三面）→ 清偿计划 v1.0 送双源
+  对抗审（gate1-reviewer@kimi-main + @deepseek，均 FAIL/B=4，四阻断收敛：
+  schema 对账先行、mock 过滤带验收断言、退出码先查调用面、07 先例并入
+  裁决包）→ 主控终裁 v1.1 八批次（档=scripts/audits/2026-09-16_entropy-*，
+  含裁决档与双审原文）→ b0-b8 分笔实施（九笔 commit）→ 终审双发（门一
+  全量代码 diff 73KB 审 + auditor 配置面复核）→ b9 回炉全吸纳。
+- **b1-b3 治理面**：RESIDUALS 三态归一（第四态勘误）+supersedes 口径+4 新行；
+  08 §1 闭环撤注；02 §3 审级统一口径（[B|W|N] 定义单源，两 DoD 改指针）；
+  门一 DoD 增 ≤4000 字产出预算（golden 重冻结）；**账本 schema 单源化**——
+  SKILL.md/snippet 删 v1 内联清单改指针（单源=02 §9）+regression R7 正向
+  校验；**锚点清扫**——06 §8.6 笔误修正（真源=02 §8.6）/「改了就要再审」
+  惯例正式登记 08 §7（原引 §0 断锚）/_archive 三处绝对路径消歧/外部批档
+  引用消歧（subagent-plan 05-ruling）/计数去数字化；**新脚本
+  check-anchors.mjs**（断锚+路径+计数三面 WARN 试点，doc-counts golden
+  对账，首校准轮零误报）。
+- **b4-b5 可信度面**：log-triage mock 甄别根修——派发器 switch/exhaust 行
+  补 `mocked` 贯穿+全角（mock）兜底（当日实陷：--health 曾把 4 笔演练
+  429 计为真实额度失效，假推荐换源——修后实跑翻转为「k1 不换源」）；
+  `_dup` 空设计删除（同秒键真去重+剔重计数暴露）；自检全 fixture 聚合；
+  **验收断言入 R8**（mock429×4+真实504⇒不换源，FAIL 即阻断）。glm-look
+  传输纪律对齐派发器 v2.2.1：AbortSignal 20min 唯一超时源、非 429 的
+  4xx/超时立断、scrub 脱敏受控复制（R9 字面量对账钉同步）、fileURLToPath
+  根治路径 hack、死代码清除、BOM 剥离、ok 行 truncated 派生布尔（闭
+  glm-look-truncation-field 残留）。
+- **b7-b8 配置与卫生**：org-config 新增 **source_health**（dual_groups+
+  gate1_subagent_of 显式映射+--health 启动别名校验）与 **vision_channels**
+  分区（**预裁 A 申报**——独立分区不触碰 roles 注册表，07「会话内岗不动
+  注册表」先例保持；事实分层统一口径：身份/甄别类供应商事实住本件，
+  连接/密钥类住宿主 config）；glm-look 全配置驱动（模型/端点/偏好序零
+  硬编码，--list-sources 等价实证）；派发器 payg 显式告警（链首/换源双
+  点位+switch 行机读位）；**06 §5.8 退出码总表**立单源+迁移注记（四头注
+  改真、glm-look/skill-gc 的 2 冲突清偿）；finish 词表收紧（缺表=exit 3
+  拒跑，三脚本同律，删双份兜底硬编码）；check-hardcode 静默吞错→降级
+  留痕（exit 5，缺失面同覆）+年份硬编码→日期形态判定；postJson 补
+  res.on('error')；R1 超时对齐 20min 上限；R4 手记行契约（stopped 事件
+  登记+截止时点闸门：2026-09-16T12Z 后漏带 schema_version 的新行必计坏）；
+  readJsonlFile/cliFlag 收敛 org-config 单源导出。
+- **b9 终审回炉**：门一（kimi-main，run=20260916130256-eely，PASS，B=0/
+  W=4/N=4）——W2 R1 容错（commit bded344 早于终审 diff 快照时点，D1
+  复验已闭环）、W3 glm-look 词表拒跑、W1 R4 截止闸门+死分支删、W4 降级
+  缺失面+5 优先于 1、N2 剔重计数、N3 迁移注记、N4 R7 反例扩形态，全
+  吸纳；auditor（deepseek，run=20260916130257-58s9，有条件放行，B=1/
+  W=7/N=4）——B 同件互斥口径按事实分层统一、W1 映射键化、W2 启动校验、
+  W3/W4 字段契约与双条件命中声明、W5 pid 定序、N3 payg 机读位，全吸纳；
+  **W6 驳回**（覆盖件无须复制分区——深合并语义「未提及沿用默认件」为
+  org-config 自检向量 1 既定行为）。
+- **验证终态**：自检 5/5（log-triage 12 向量含验收断言）；regression
+  7/7+R1 双源语义抽样 3/3（解析容错三形态）；门禁三扫零命中
+  （check-hardcode 0/白名单 33，check-anchors WARN×0 FAIL×0，health-scan
+  RED=0/WARN×3 均在册或有处置）；新机检 check-anchors+R7/R8/R9 入役。
+  cfg 哈希 54f08fbf90c5→a26f710a540d（source_health/vision_channels 落地）。
+- **未吸纳转残留**：check-anchors 校准面（全角冒号/dod 扫描面/点名豁免
+  漂移）与 R1 deepseek 格式抖动（3 跑 2 绿，重跑即绿）——均登记 RESIDUALS
+  v1.6 节，处置时点=check-anchors 升 strict 前置批。
+
 ## 2026-09-16 v1.5（子代理绑定批 A+A'+B-0+B-1——交接书 07-handoff §三管道全量）
 
 - **A 批**：四绑定子代理入役 `~/.zcode/agents/`（ops-executor=GLM 最高档

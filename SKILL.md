@@ -158,10 +158,12 @@ scripts/audits/2026-09-10_w2-freeze-evidence.md 与
 
 ## 修订记
 
-- 2026-09-16 v1.4（防截断入册+产出入仓纪律批）：派发防截断根修入册
-  （ds-call-v2 v2.2.1 的传输层/20min/审包瘦身/产出预算——06 §5.7
-  补遗+04 ORG-12/13+任务书模板纪律段；脚本本体已由 F-TESTREF-00 批
-  落地，本批补齐文档面）；立产出入仓面纪律（08 §6——入项目仓工件
-  零模型代号/AI 指称+审档归宿仓外+commit 同面；红旗与烤验表挂载）；
-  review-ai-code 痕迹回流操作化（姊妹技能同批）。明细与此前版本
-  （v1.0~v1.3）见 `CHANGELOG.md`。
+- 2026-09-16 v1.6（维护熵清偿战役）：全面评审→清偿计划送双源对抗审（均
+  FAIL/B=4 收敛）→终裁 v1.1 八批次→b0-b9 实施→终审（门一 PASS+auditor
+  有条件放行）回炉闭环。核心：账本 schema/退出码总表/审级口径/finish 词表/
+  锚点体检五面单源化（02 §9/06 §5.8/02 §3/org-config/check-anchors+R7）；
+  log-triage mock 假信号根修（验收断言入 R8）；glm-look 传输纪律对齐+
+  vision_channels 配置收编（**预裁 A 申报**：独立分区不动 roles 注册表，
+  07 先例保持）+payg 显式告警。验证终态：自检 5/5、regression 7/7+R1 3/3、
+  门禁三扫零命中、health-scan RED=0。裁决链与明细=CHANGELOG.md v1.6 条+
+  scripts/audits/2026-09-16_entropy-*（审包/双审原文/终裁档/终审双出件）。
