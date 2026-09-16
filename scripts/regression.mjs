@@ -1,5 +1,6 @@
 /**
- * 技能自包含回归（ai-dev-org v1.0 冻结前置——06 §5 R1~R6 的内化执行件）：
+ * 技能自包含回归（ai-dev-org v1.0 冻结前置——06 §5 的内化执行件；
+ * R 清单单源=本脚本 --only 可选项集合，此处不复写清单——evolve-E2 b5 指针化）：
  *   R2'=系统提示 golden 字节自比对（golden 冻结于 scripts/roles/.golden/，
  *       双路验证：档案文件装载 vs golden、派发器 --dry-run assembled_system
  *       vs golden——勾连真实装载路径，防 regression 自身装载逻辑漂移）；
@@ -89,7 +90,8 @@ if (want('R2')) {
   writeFileSync(promptFile, 'noop', 'utf8')
   let bOk = true, bDetail = []
   for (const id of roleIds) {
-    const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', id, '--dry-run', promptFile], { encoding: 'utf8', cwd: tmp })
+    // 秒级 mock 路径超时=实测 max×5 取整 5s（evolve-E2 b5 实测推导表见 audits/evolve-e2-log；下同）
+    const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', id, '--dry-run', promptFile], { encoding: 'utf8', cwd: tmp, timeout: 5_000, killSignal: 'SIGKILL' })
     if (r.status !== 0) { bOk = false; bDetail.push(`${id}:dry-run exit=${r.status}`); continue }
     let dry
     try { dry = JSON.parse(r.stdout) } catch { bOk = false; bDetail.push(`${id}:dry-run stdout 非 JSON`); continue }
@@ -114,7 +116,7 @@ if (want('R5')) {
   const chainLen = (merged.source_chain || []).length
   const expAttempt = 4 * chainLen, expSwitch = chainLen - 1
   // cwd=tmp：账本随派发器 cwd 落 tmp/.zcode/（--project 仅是条目名，不改变落点）
-  const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--mock-source', (merged.source_chain || []).map((a) => `${a}:429`).join(','), '--project', 'r5-drill', promptFile], { encoding: 'utf8', cwd: tmp })
+  const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--mock-source', (merged.source_chain || []).map((a) => `${a}:429`).join(','), '--project', 'r5-drill', promptFile], { encoding: 'utf8', cwd: tmp, timeout: 5_000, killSignal: 'SIGKILL' })
   const exitOk = r.status === 2
   const stderrOk = (r.stderr || '').includes('全源尽')
   const lines = existsSync(LOG_PATH) ? readFileSync(LOG_PATH, 'utf8').split('\n').filter(Boolean) : []
@@ -179,7 +181,7 @@ if (want('R4')) {
   let cfgOk = false, cfgDetail = 'cfg哈希=流水缺失（R4 FAIL）'
   if (existsSync(LOG_PATH)) {
     const latestCfgHash = [...readFileSync(LOG_PATH, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean)].reverse().find((l) => { try { return JSON.parse(l).org_config_hash } catch { return false } })
-    const h = spawnSync(node()[0], [join(SCRIPTS, 'org-config.mjs'), 'hash'], { encoding: 'utf8', cwd: process.cwd() })
+    const h = spawnSync(node()[0], [join(SCRIPTS, 'org-config.mjs'), 'hash'], { encoding: 'utf8', cwd: process.cwd(), timeout: 5_000, killSignal: 'SIGKILL' })
     if (h.status !== 0 || !h.stdout.trim()) cfgDetail = `cfg哈希=org-config hash 子进程失败（exit=${h.status}）`
     else {
       const live = h.stdout.trim()
@@ -226,7 +228,7 @@ if (want('R7')) {
 
 // ═══ R8：log-triage 自检聚合+--health 验收断言（v1.6 批 C2——mock 过滤假信号回归钉） ═══
 if (want('R8')) {
-  const r = spawnSync(node()[0], [join(SCRIPTS, 'log-triage.mjs'), '--self-test'], { encoding: 'utf8', cwd: SKILL_ROOT })
+  const r = spawnSync(node()[0], [join(SCRIPTS, 'log-triage.mjs'), '--self-test'], { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 5_000, killSignal: 'SIGKILL' })
   const out = (r.stdout || '') + (r.stderr || '')
   const hasAcc = out.includes('验收断言') && out.includes('全过')
   record('R8', r.status === 0 && hasAcc, `exit=${r.status} 自检含验收断言=${out.includes('验收断言')}${r.status !== 0 ? `（输出尾：${out.slice(-160)}）` : ''}`)
@@ -393,7 +395,7 @@ if (wantR1) {
     for (const src of SOURCES) {
       const pf = join(tmp, c.id + '.txt')
       writeFileSync(pf, c.prompt, 'utf8')
-      const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--source', src, '--project', tmp, pf, pf + '.' + src + '.out'], { encoding: 'utf8', cwd: tmp, timeout: 1_260_000 }) // >派发器 20min 调用上限+余量（v1.6 批：原 10min 会先杀合法长推理误报 FAIL）
+      const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--source', src, '--project', tmp, pf, pf + '.' + src + '.out'], { encoding: 'utf8', cwd: tmp, timeout: 5_400_000, killSignal: 'SIGKILL' }) // R1 超时=单源推导 4×20min（链长 4×派发器 CALL_TIMEOUT_MS）+35s 开销=4,835,000ms，+裕量取 90min（5,400,000ms∈C5 机检窗 [4,835,000, 7,200,000]；evolve-E2 b5——原 1,260,000 低于派生值，合法最坏链会被先杀误报 FAIL；v1.6 批史：原 10min 同病）
       const out = r.status === 0 ? readFileSync(pf + '.' + src + '.out', 'utf8') : ''
       // 格式容错解析（v1.6 批：deepseek 偶发把「判定:」耗在推理通道、可见正文用 Verdict:/裸 PASS-FAIL——
       // 语义不变仍取方向；S2 干净样例不会被 FAIL 误配（模型方向错才会）
