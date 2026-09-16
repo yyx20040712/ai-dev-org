@@ -15,7 +15,7 @@
 | C-K-N1 | C 包 Kimi 终审 N 类（档=2026-09-10_skill-audit-c-re2-kimi-out.md；裁决承转=交接书 §1 快照「已裁有意设计不修」，交接书全路径见 A-dsN-1 行） | SKILL.md description 触发词冗长 | won't-fix | 维持原裁：触发词覆盖=召回优先，长度换加载命中率。裁决主体同 A-dsN-1（非本轮自裁） |
 | BC-ds-2nd | B/C 包 deepseek 复审缺席（交接书 §1 快照第 4 条） | deepseek 二轮未走（条件同域已落实） | closed | 已由优化战役 W5 六派发补齐（deepseek 审 A'/B'/C' 三区，档=Synapse scripts/audits/2026-09-10_w5-*-ds-out.md）——本轮闭环 |
 | HOST-node25 | 优化战役 W2 执行事件+回炉轮 1 复核 | 宿主 Node 25.2.1 下 ds-call-v2 路径**退出阶段** libuv 断言崩溃（0xC0000409, uv_handle_closing, async.c:76）——输出与落账已完成 | won't-fix | 定性（回炉轮 1 修正为或然并存）：裸 fetch 单请求 Node 25 不复现（实验档=w5 终裁档 §Node25 对照）——崩溃=Node 25 libuv 敏感性×ds-call-v2 路径特定形态（长响应/重试循环）组合，「纯环境缺陷」与「代码触发面」不可分。接受风险=跟踪上限到此；缓解=外部派发一律 Node 24（SKILL.md 派发节注记）；**若 Node 24 后续同崩则本项重开升级排查**（重开触发=人工发现，无常驻机检=已接受监控盲区）。**2026-09-14 部分闭环**：ds-call-v2 v2.2.0 增 Node 版本守卫（受禁主版本住 org-config `supported_node.forbid_major`，脚本零硬编码路径，W-12）——「人工发现」升级为「启动即告警」；仍不阻断（崩溃仅在退出阶段且落账已完成） |
-| W5-A-W4 | W5 回炉轮 1 登记（Kimi-W4） | R5 演练行永久留在技能根流水（历史事件不删） | **已修订（2026-09-14）** | 原裁"带 mocked 上下文可甄别、不清洗"**被证伪**：甄别是给人看的，health-scan 按 project 精确匹配不识别 mock，致技能根收口门禁永久 RED（实测 RED ×1，P0-1）。新处置=①源头：ds-call-v2 账本行写 `mocked:true`（W-2）；②判据：health-scan 跳过 mocked 行 + 临时演练项目（os.tmpdir() 前缀）；③`glm-look` 章节修订行补记。历史行不改写（08 §3），仍留流水 |
+| W5-A-W4 | W5 回炉轮 1 登记（Kimi-W4） | R5 演练行永久留在技能根流水（历史事件不删） | closed（2026-09-16 三态归一） | 原裁"带 mocked 上下文可甄别、不清洗"**被证伪**：甄别是给人看的，health-scan 按 project 精确匹配不识别 mock，致技能根收口门禁永久 RED（实测 RED ×1，P0-1）。新处置=①源头：ds-call-v2 账本行写 `mocked:true`（W-2）；②判据：health-scan 跳过 mocked 行 + 临时演练项目（os.tmpdir() 前缀）；③`glm-look` 章节修订行补记。历史行不改写（08 §3），仍留流水。**2026-09-16 勘误（v1.6 批）**：原状态「已修订（2026-09-14）」为三态外第四态，违本册三态纯度（裁决档 §2 kimi-W4）——按语义归 closed（处置已落地即 closed；后续修订动作一律另起新行，见新登记 entropy-4state 行的 supersedes 口径） |
 
 ## 2026-09-14 优化批新登记（Kimi 异源对抗审核后）
 
@@ -44,6 +44,15 @@
 | adjudicator-tail-order | A 批首部署验证（08-exec-log §三） | ops-adjudicator 报告在 LEDGER-CLAIM 尾栏后附加 1 行路径说明——「末两行=机读尾栏」契约未严格保持 | open | 轻微（尾栏存在且格式正确，grep 可命中）；下轮代理文件批收紧措辞（「尾栏后禁再有任何行」），不单独返工 |
 | subagent-shell-gt-truncation | A'④ 接续演练实录（fixture-probe2） | 子代理 Bash 层 `node -e "...>..."` 参数中 `>` 被截断（收到后半丢失，SyntaxError）——传参层环境缺陷 | open | E2 简报纪律：含 `>` 的命令改脚本文件载体（演练中 ops-probe 已自适应 item*.js 载体并如实记录）；根因定位留后续 |
 | killed-agent-metadata-gap | 收口账本补记（2026-09-16） | 被 TaskStop 杀死的子代理 metadata.json **不落 profileSnapshot.model/createdAt**——log-triage ③ 静默回退检测对被杀岗无声明值可核（须回退到派发简报人工对质） | open | B-0 观测盲区登记；处置=接续演练场景以简报契约为声明源+主控人工核对；机检化（从编排会话派发记录回填声明值）留后续批 |
+
+## 2026-09-16 维护熵清偿批新登记（v1.6 战役；批档=scripts/audits/2026-09-16_entropy-*）
+
+| 编号 | 来源 | 内容 | 状态 | 处置 |
+|---|---|---|---|---|
+| synapse-md-expand | 08 §6 补正（08 §6 声称已登记实未登记——全面评审+双源审一致指认） | Synapse md 面门禁扩面（存量 562+ 件处置）另立批次 | open | 08 §6 的登记声称本批补正（本行即其登记）；扩面实施=独立批，属 Synapse 项目仓非本技能范围 |
+| entropy-4state | 主控全面评审+裁决档 §2 kimi-W4 | W5-A-W4 行出现三态外第四态「已修订」——本册三态纯度破口 | closed | W5-A-W4 状态归 closed+行内勘误注记；**supersedes 口径本行建立**：后续新行取代旧行判断时在新行处置列写「supersedes: <旧行编号>」，被取代行不参与终态统计（人工对账与机检同口径） |
+| archive-distribution-trigger | 裁决档 §2 kimi-N2 | _archive 引用改绝对路径（`~/.zcode/skills/_archive/…`）依赖本机技能目录形态 | won't-fix | 显式不修+触发器：一旦引入技能分发/同步机制，_archive 引用策略随批重评（触发=分发机制落地批） |
+| runbook-external-source | 主控全面评审（清偿计划 P1-A d） | 子代理失败接续 runbook 真源在技能外（E:/zcode_md/fix/subagent-plan-2026-09-16/09 号件）——技能自包含缺口 | open | 本批登记；迁移入技能 references=后续批（与 subagent-plan 批收尾协调，非本批范围） |
 
 修订记同步见本册末节 2026-09-16 行。
 
