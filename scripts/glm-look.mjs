@@ -29,12 +29,10 @@
 //   - 视觉方向级决策仍留用户——本通道只产判读证据；
 //   - 退出码经 process.exitCode 自然退出（Node 25 libuv 退出阶段
 //     async.c 断言规避——HOST-node25 同族面，勿用 process.exit 急退）。
-// 源发现: 宿主 config（~/.zcode/v2/config.json）——glm 通道扫含
-//   GLM-5.3-Flash 且带 key 的 anthropic 端点（偏好序=open.bigmodel.cn
-//   直连 → z.ai/zcode plan → 其余）；ds 通道扫含 deepseek-flash 且带
-//   key 的 deepseek 端点（2026-09-11 识图实证：acceptance 弹窗截图
-//   标题/按钮文案准确读出）。命中即用（与 ds_review.py 同精神，
-//   不入 org-config——会话内岗不动注册表先例）。
+// 源发现: 宿主 config（~/.zcode/v2/config.json）提供端点与 key；通道的模型名/
+//   端点甄别子串/偏好序=org-config `vision_channels` 分区（v1.6 批预裁 A——
+//   供应商事实住 org-config，06 §0；独立分区不动 roles 注册表，07 §4
+//   「会话内岗不动注册表」先例保持；2026-09-11 ds 通道识图实证可用）。
 
 import fs from "node:fs";
 import os from "node:os";
@@ -44,12 +42,16 @@ import { fileURLToPath } from "node:url";
 import { loadOrgConfig } from "./org-config.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url)); // 规范解析（percent-decode）——原 URL pathname 手拼在含空格/中文路径下必坏（v1.6 批 P0-B e）
+const SKILL_ROOT = path.join(SCRIPT_DIR, "..");
 const ROUTING_LOG = path.join(SCRIPT_DIR, "model-routing-log.jsonl");
 const CONFIG = path.join(os.homedir(), ".zcode", "v2", "config.json");
-const MODEL = "GLM-5.3-Flash";
-const DS_MODEL = "deepseek-flash";
 const MIN_MAX_TOKENS = 8000;
 const CALL_TIMEOUT_MS = 20 * 60_000; // 单次调用上限=对齐派发器（06 §5.7）
+// 通道甄别参数单源=org-config vision_channels（v1.6 批 P0-B d 预裁 A）；
+// 通道未声明=无源返回（禁脚本兜底硬编码——06 §0）
+const { merged: ORG_CFG } = loadOrgConfig(SKILL_ROOT);
+const VISION = ORG_CFG.vision_channels || {};
+const chCfg = (ch) => VISION[ch] || {};
 /** 脱敏（受控复制自 ds-call-v2.mjs——A3 受控双源：字面量由 regression R9
  * 对账钉同步；升格共享模块=未来分发重构时再裁，裁决档 W7 统一判据）。 */
 const SCRUB_RE = /(Bearer\s+)?[A-Za-z0-9_-]{24,}/g // 日志脱敏：长 token 形态一律掩码（K-N2）
@@ -80,6 +82,8 @@ function logEvent(event, fields) {
 }
 
 function discoverSources(channel) {
+  const { model, endpoint_contains: endpointContains, prefer_hosts: preferHosts } = chCfg(channel);
+  if (!model || !endpointContains) return [] // 通道未在 org-config vision_channels 声明=无源（禁脚本兜底）
   const cfg = JSON.parse(fs.readFileSync(CONFIG, "utf-8").replace(/^\uFEFF/, "")); // BOM 剥离（对齐 org-config.readJson——v1.6 批 P2）
   const found = [];
   for (const [pid, prov] of Object.entries(cfg.provider || {})) {
@@ -87,30 +91,19 @@ function discoverSources(channel) {
     if (!opts.apiKey || !opts.baseURL) continue;
     const base = String(opts.baseURL).replace(/\/$/, "");
     const models = prov.models || {};
-    if (channel === "glm") {
-      const modelKey = Object.keys(models).find((k) => k === MODEL);
-      if (!modelKey) continue;
-      const spec = models[modelKey];
-      const realModel = spec && typeof spec === "object" && spec.name ? spec.name : modelKey;
-      if (!/\/anthropic\/?$/.test(base) && !base.includes("/anthropic")) continue;
-      found.push({ pid, model: realModel, base, key: opts.apiKey });
-    } else {
-      const modelKey = Object.keys(models).find((k) => k === DS_MODEL);
-      if (!modelKey) continue;
-      if (!base.includes("deepseek")) continue;
-      const spec = models[modelKey];
-      const realModel = spec && typeof spec === "object" && spec.name ? spec.name : modelKey;
-      found.push({ pid, model: realModel, base, key: opts.apiKey });
-    }
+    const modelKey = Object.keys(models).find((k) => k === model);
+    if (!modelKey) continue;
+    if (!base.includes(endpointContains)) continue;
+    const spec = models[modelKey];
+    const realModel = spec && typeof spec === "object" && spec.name ? spec.name : modelKey;
+    found.push({ pid, model: realModel, base, key: opts.apiKey });
   }
-  if (channel === "glm") {
-    // 偏好序：bigmodel 直连 > z.ai/zcode plan > 其余；各档内 config 序
-    const rank = (s) =>
-      s.base.includes("open.bigmodel.cn") ? 0 :
-      s.base.includes("z.ai") || s.base.includes("zcode") ? 1 : 2;
-    return found.sort((a, b) => rank(a) - rank(b));
+  if (Array.isArray(preferHosts) && preferHosts.length) {
+    // 偏好序=prefer_hosts 数组序（命中靠前者优），同档与未命中者按宿主 config 序
+    const rank = (s) => { const i = preferHosts.findIndex((h) => s.base.includes(h)); return i === -1 ? preferHosts.length : i }
+    return found.sort((a, b) => rank(a) - rank(b))
   }
-  return found; // ds 单源族——config 序即偏好序
+  return found;
 }
 
 /** 响应归一（通道异构面收口）：texts/hasText/finish/usage 四元。 */
@@ -142,7 +135,7 @@ function normalizeResponse(resp, channel) {
 function usage() {
   console.error(`用法: node scripts/glm-look.mjs --prompt <提示词文件.md> <图1.png> [图2.png …] [-o 报告.md] [--channel glm|ds]
       node scripts/glm-look.mjs --list-sources
-通道: glm=GLM-5.3-Flash（缺省，anthropic 格式）/ ds=deepseek-flash（OpenAI image_url 格式）
+通道: glm（缺省，anthropic 格式）/ ds（OpenAI image_url 格式）——模型/端点甄别=org-config vision_channels（实配以 --list-sources 为准）
 纪律: max_tokens 缺省 ${MIN_MAX_TOKENS} 禁降档（推理段耗额坑——低档=零正文假成功）`);
 }
 
@@ -286,8 +279,7 @@ async function main() {
   const usageInfo = norm.usage;
   // truncated 派生布尔（finish 白名单反转——仅 complete 词表命中=完整，其余含未知=截断；
   // 词表单源=org-config finish_vocab，闭残留册 glm-look-truncation-field）
-  const { merged } = loadOrgConfig(SCRIPT_DIR ? path.join(SCRIPT_DIR, "..") : process.cwd());
-  const completeFinishes = new Set(merged.finish_vocab?.complete || []);
+  const completeFinishes = new Set(ORG_CFG.finish_vocab?.complete || []);
   const truncatedFlag = !completeFinishes.has(norm.finish);
   logEvent("ok", {
     runId, channel, source: src.pid, model: src.model,

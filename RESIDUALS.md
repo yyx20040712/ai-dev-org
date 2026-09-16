@@ -28,7 +28,7 @@
 | findings-parser | Kimi 审核 W-7 / 主控 | 审计岗 DoD 已强制机读尾栏 `FINDINGS: B= W= N= VERDICT=`（本次落 gate1/auditor 两份 DoD），但**解析器未实现**——账本 `findings` 字段与误报率（P2-1/health-scan ⑤ 之 RED 面）仍缺 | open | 本次只落 DoD 与格式契约（W-7 要求先定义机读格式再入账）；解析器+误报率判据=下一批（Kimi N-1 已裁不自动倍升，先 RED 暴露） |
 | check-hardcode-promotion | 主控 P0-3 / Kimi W-6 | check-hardcode.mjs 现 WARN 级；「审查通过后升 RED」缺判据/时点/责任人（W-6 指为愿望式升档） | open | 待定升格判据：白名单稳定 N 个收口且误报=0 则升 `--strict`；本次已留 `--strict` 开关与自检 |
 | skillmd-scriptlist-sync | 主控 | SKILL.md §派发与自检 脚本清单未列 `check-hardcode.mjs`、health-scan ④⑤ 新增告警类 | **closed（2026-09-15 入口治理批）** | 脚本清单已补登 check-hardcode.mjs；④⑤ 告警类说明以 02 §10 指针承接（清单行内不展开细则） |
-| glm-look-truncation-field | 主控（P0-2 同族面） | glm-look.mjs 落流水的 ok 行**无 `truncated` 字段**，health-scan ④ 仅查账本——视觉通道的截断（含倍升耗尽后）不进入 RED 面 | open | 与 glm-look-schema 同批处置（写入者 WIP 锁定）；当前 glm-look 自身有倍升+报错兜底，风险可接受，但须在统一行 schema 时补 `truncated` |
+| glm-look-truncation-field | 主控（P0-2 同族面） | glm-look.mjs 落流水的 ok 行**无 `truncated` 字段**，health-scan ④ 仅查账本——视觉通道的截断（含倍升耗尽后）不进入 RED 面 | closed（2026-09-16 v1.6 批） | 已落：ok 行带 `truncated` 派生布尔（finish 白名单反转，词表=org-config finish_vocab）+stderr 非完整终态告警；通道字段差异（role_id/channel 形态）与统一行 schema 面仍由 glm-look-schema 行承载（open） |
 | manual-event-consumers | 主控（ORG-11 修复后） | regression 已接受 MANUAL_EVENTS（porting-delta/doc-health/ruling/constitution-overrun/escaped-defect），但 health-scan **不读**这些事件（如 doc-health 不影响判定）；且 escaped-defect 尚无写入者 | open | P1（留用户裁决）落地时一并接线：escaped-defect 写入者 + health-scan 逃逸率统计（残留 findings-parser 同批） |
 | preexisting-wip-baseline | 主控（开工体检） | 开工时已有 4 文件未提交改动（SKILL.md/06/07/glm-look.mjs，含 2026-09-11 双通道补遗）——本次优化批的差异须与用户 WIP 区分 | open | 冻结档=scripts/audits/2026-09-14_preexisting-dirty-baseline.diff（464 行）+四文件 sha256；本次改动不触碰该 4 件（硬约束 3） |
 

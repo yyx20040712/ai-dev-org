@@ -59,6 +59,11 @@
     "gate1_secondary_subagent": "ops-gate1-k2",
     "note": "log-triage --health 换源推荐的结构参数：双源分组与门一双子代理名（v1.6 批 P1-B——脚本禁硬编码别名，A3/06 §0；别名变更只改本件）"
   },
+  "vision_channels": {
+    "glm": { "model": "GLM-5.3-Flash", "endpoint_contains": "/anthropic", "prefer_hosts": ["open.bigmodel.cn", "z.ai", "zcode"] },
+    "ds": { "model": "deepseek-flash", "endpoint_contains": "deepseek" },
+    "note": "设计岗外呼看图双通道（glm-look.mjs）的模型名/端点甄别子串/偏好序——v1.6 批 P0-B d 预裁 A：独立分区不动 roles 注册表（07 §4「会话内岗不动注册表」先例保持）；供应商事实住本件（06 §0），脚本零硬编码；宿主 config 仍为端点与 key 事实源；prefer_hosts=数组序即偏好序，未命中者殿后按宿主 config 序"
+  },
   "hardcode_scan": {
     "forbidden_terms": [],
     "note": "P0-3 check-hardcode 的额外扫描名单（正则字面量）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内；供应商 live 事实（端点/实配名）在宿主 config 而不在本件，故默认空——项目覆盖件可加自有禁词。"

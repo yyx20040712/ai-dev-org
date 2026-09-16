@@ -27,7 +27,7 @@ loop-engineering-archive-2026-09/`——路径相对 skills 根，非技能根�
 | 门二 | 会话内子代理 | 意图档位+欠账记账（异构优先） |
 | 审核者 auditor-readonly | 派发器 `--role auditor-readonly` | debt-readonly（兜底/欠账只读审） |
 | SRE 诊断岗 sre-diagnostic | 会话内只读子代理 | 取证/冻结提取/e2e 红 triage；禁写禁臆断 |
-| 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look） | 意图档位 session:multimodal-exp+欠账记账；宿主可配模型则按其配置入口执行；外呼标准流程=`scripts/glm-look.mjs` 双通道看图（通道/模型/端点见 org-config 与 07 设计岗卡）；方向级决策留用户 |
+| 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look） | 意图档位 session:multimodal-exp+欠账记账；宿主可配模型则按其配置入口执行；外呼标准流程=`scripts/glm-look.mjs` 双通道看图（通道/模型/端点甄别=org-config `vision_channels` 分区，不动 roles 注册表——细则见 07 设计岗卡）；方向级决策留用户 |
 
 （岗位编制=8；人类用户=裁决位，不计入编制——同 references/06 §1、
 07 §1 表注。）
@@ -52,7 +52,7 @@ node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pyg
 node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden] [--project <dir>]   # 自包含回归（06 §5 R 清单内化；R1 真实派发须 --r1）
 node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（欠账/同源/预算，RED=0 方可收口）
 node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊（B-0）：cli/log+派发器流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查（A'③）出 k1/k2 派发推荐（额度类→换源；504 窗口类→不换源瘦身）
-node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点=org-config+--list-sources；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
+node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点甄别=org-config vision_channels 分区+--list-sources；单次调用 20min 上限、非429的4xx立断、scrub 脱敏；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
 ```
 
 **子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗）**：文本岗/

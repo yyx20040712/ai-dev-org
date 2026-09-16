@@ -385,6 +385,8 @@ try {
 }
 
 let switches = 0
+const paygOf = (alias) => merged.providers?.[alias]?.billing === 'payg'
+if (paygOf(chain[0].alias)) console.error(`[payg] 首源 ${chain[0].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁：换源不放宽任务书，但禁止静默烧钱）`)
 for (let i = 0; i < chain.length; i++) {
   const s = chain[i]
   const srcMocked = !!(mock && mock[s.alias] !== undefined) // mock 标志贯穿 switch/exhaust 行（v1.6 批 C2：attempt 行有而 exhaust 行漏——log-triage --health 曾把演练 429 计入真实失效出假换源推荐）
@@ -403,6 +405,7 @@ for (let i = 0; i < chain.length; i++) {
       process.exit(2)
     }
     switches++
+    if (paygOf(chain[i + 1].alias)) console.error(`[payg] 换源至 ${chain[i + 1].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁）`)
     logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
     logger.ledger('switch', { source: s.alias, outcome: scrub(e.message).slice(0, 200) })
     console.error(`[routing] 换源 ${s.alias} → ${chain[i + 1].alias}: ${scrub(e.message).slice(0, 200)}`)
