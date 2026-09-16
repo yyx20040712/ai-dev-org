@@ -139,6 +139,12 @@
 glm-look 用法错 2→1；skill-gc 参数错 2→1；四脚本自检失败（头注旧称=3）
 实为 1；org-config 缺 finish_vocab 等词表=新增 3 类拒跑（ds-call-v2/
 log-triage/glm-look 三处同律）；check-hardcode 新增 5=降级运行。
+**v1.7（evolve 批）**：log-triage 非法 --date 静默空窗→exit 1（用法错，
+窗口并增次 UTC 零点上界）；ds-call-v2 英文 locale 配置装载类未捕获异常
+exit 1→3（类型化分类替换消息正则）；registry 文件路径越界新增 exit 3
+拒绝（纵深防御，当前不可达）；null provider 三路径 TypeError 崩溃→
+org-config/ds-call-v2 exit 3+明确消息、check-hardcode 降级 exit 5 继续扫。
+本批起各脚本头注一律仅持「口径单源=本表」指针（九件复写块清偿，C1 机检）。
 
 ## 6. 会话内子代理定档限制与欠账（诚实记账）
 

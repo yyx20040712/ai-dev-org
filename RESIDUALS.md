@@ -37,7 +37,7 @@
 | 编号 | 来源 | 内容 | 状态 | 处置 |
 |---|---|---|---|---|
 | glm-look-streaming | 批档 subagent-plan 05-ruling §七增补一指认的登记缺口（B-1 承接补登） | 06 §5.7 声称「流式化登记 RESIDUALS」而本册原无该条——登记缺口补正：流式化（anthropic SSE）根治网关非流式窗口截断，未实现 | open | B-2 批承接（ds-call-v2 与 glm-look 各自独立实现，承 W-3）；504 专项处置已定（载荷超窗不盲重试） |
-| 02-§8-model-terms | B-1 check-hardcode 词表扩容实扫 | references/02 §8 额度经济学节含模型名安排性提及约 20 处（母本继承配置性条款层）——白名单过渡豁免，非指针化 | open | 白名单 13 条规则承接（reason 注明过渡）；指针化=后续文档批；§8.5 分面放行语义仍有效 |
+| 02-§8-model-terms | B-1 check-hardcode 词表扩容实扫 | references/02 §8 额度经济学节含模型名安排性提及约 20 处（母本继承配置性条款层）——白名单过渡豁免，非指针化 | open | 白名单 13 条规则承接（reason 注明过渡）；指针化=后续文档批；§8.5 分面放行语义仍有效；承接批次=结构项专项批（evolve-struct-* 同批呈报） |
 | empty-tools-invalid | A'① probe-k 实证（08-exec-log §二） | 子代理 frontmatter `tools: []`=**泄漏全工具面**（真实发生 tool.call Read 读出金丝雀文件）——空数组被当"无限制"而非"无工具" | closed | 已按交接预案处置：ops-gate1-k1/k2 退 `tools: Read`+双墙声明（物理墙+协议墙）；环境事实入 06 §6 补遗 |
 | agents-profile-session-fixed | A 批验证观察（metadata profileSnapshot） | 代理档案=会话启动时快照——会话中改文件对已启动会话无效（k1/k2 以旧 tools:[] 快照跑完验证批） | won't-fix | 宿主行为（无热加载既有结论的同族面）；纪律=改代理文件后须新会话验证，已写入 06 §6 补遗 |
 | PostToolUse-livefire | B-0 观测面批 | zcode.cjs 内含 PostToolUse/PostToolUseFailure 执行器与 workspace_hooks 信任面（存在性已验），但实弹配置+触发验证未做 | open | 需机检强制（hook 拦截）的批次首场核对项；当前机检强制仍走 verify/health-scan 脚本路线 |
@@ -55,6 +55,39 @@
 | runbook-external-source | 主控全面评审（清偿计划 P1-A d） | 子代理失败接续 runbook 真源在技能外（E:/zcode_md/fix/subagent-plan-2026-09-16/09 号件）——技能自包含缺口 | open | 本批登记；迁移入技能 references=后续批（与 subagent-plan 批收尾协调，非本批范围） |
 | check-anchors-calibration | 终审门一 N1 | 试点固有盲点：标题索引正则不含全角冒号形态；扫描面未含 scripts/roles/*.dod.md（其内恰有 02 §3 指引）；PROJECT_NAMES 点名豁免=白名单漂移面；自检 head 断言恒真未拷打解析逻辑 | open | 全部于 check-anchors 升 --strict 前置批处置（升级前置条件=连续两轮零误报+本行闭环，裁决档 ds-W6） |
 | r1-deepseek-format-flake | 主控 R1 三跑实证 | deepseek 侧间歇把「判定」耗在推理通道、可见正文格式漂移（3 跑 1 遇 UNPARSEABLE）——容错解析（判定\|verdict\|裸 PASS/FAIL）已收敛大半，重跑即绿 | open | 低优先：根治=CASE 提示词强化或固定输出形态采样；遇抖动处置=重跑 R1 留证（勿静默改判） |
+
+## 2026-09-16 外部评审清偿战役新登记（evolve 批；批档=scripts/audits/2026-09-16_evolve-*）
+
+修复项=closed 单行制（新开即闭）；未修项=open 各自建行。修复明细与红→绿
+证据=E1/E2/E3 报告；行为变化四项+env 钩子申报=CHANGELOG v1.7 条。
+
+| 编号 | 来源 | 内容 | 状态 | 处置 |
+|---|---|---|---|---|
+| evolve-h1-transport | 外部评审清偿战役 evolve 批（档=scripts/audits/2026-09-16_evolve-*；实现=E1 b1） | glm-look 传输层 global fetch（undici 内建 headersTimeout≈300s=非流式长推理隐形截断）改 node:http(s) 直连+AbortSignal 唯一超时源+res.on('error')+isMain guard+纯函数 export；R10=结构断言+本地 mock 双通道往返+向量钉面 | closed | 已修（commit 9b6bac9）；三条不可实证残留拆行 evolve-b1-transportresidual |
+| evolve-h3-exitcode | 同上（实现=E1 b2） | ds-call-v2 退出码分类：uncaughtException 消息正则兜底（英文 locale 误分类面）改类型化 ConfigError+classifyExitCode（判据源=06 §5.8）+穷尽 throw 点清单化（E1 报告四节表） | closed | 已修（commit d3d7adc） |
+| evolve-m1-datewindow | 同上（实现=E2 b3） | log-triage --date 非法值原为静默空窗=假绿（勘误后事实：窗口字面值照跑零报错，非全量）——格式+UTC 分量回环语义校验拒（exit 1）+窗口 epoch 化 UTC 日界 | closed | 已修（commit 2c91ddd）；行为变化已入 CHANGELOG v1.7 申报① |
+| evolve-m3-nullguard | 同上（实现=E2 b4） | provider null 裸取三消费点（org-config validateProviders 双裸取/check-hardcode deriveHostModelTerms/log-triage buildAliasMap）TypeError 崩溃改校验错误行 exit 3/降级行 exit 5 族/跳过 | closed | 已修（commit 3f0c080）；同族第 4 消费点新发现拆行 evolve-glmlook-150-null |
+| evolve-h2-timeouts | 同上（实现=E2 b5） | regression 五处主流程 spawnSync 无超时看护（合法最坏链被外层挂起/误杀面）全带 timeout+killSignal：四处秒级 mock 路径 5,000ms；R1=5,400,000ms（单源推导 4×1,200,000+35,000=4,835,000+90min 裕量，∈裁决 C5 机检窗禁裁剪） | closed | 已修（commit 58fb979）；R1 零运行时实证拆行 evolve-r1-timeout-unverified |
+| evolve-b6-containment | 同上（实现=E1 b6） | sys_prompt_file 无包含性校验（registry 路径可指向技能根外）补 path.relative 判 .. 前缀/绝对形态=越界 exit 3；两落点同步（ds-call-v2 loadRole+regression loadRoleAssembled 单源 import 消费） | closed | 已修（commit 919f27a）；纵深防御定性维持（当前 registry 无越界=不可达守卫） |
+| evolve-b7-anchorblind | 同上（实现=E2 b7） | check-anchors 条目型引用（NN·XN）断锚盲区+单数字文档号形态不识别——扩面：登记表从 01/04 正文解析+两位文档号+自检 4→16 向量（原 head 断言恒真盲点）；01:157 唯一现存断锚改指 01·C2（P-4 终裁） | closed | 已修（commit 67a60e1）；扩面主扫 WARN×0/FAIL×0 零误报 |
+| evolve-b8-docrot | 同上（实现=E3 b8） | 文档计数/清单/头注腐化：「固定六段」族形态普查三分类处置+02 §4 单源根治「固定七段（1-6 段惯称『六段简报』）」+九件脚本头注退出码复写块指针化 06 §5.8+06 §5 R 清单与 SKILL 同族 R1~R6 断言指针化+01:166 补遗错字+04 头注计数去数字 | closed | 已修（commit b76efd7）；禁改面命中登记不修（references/05 两处、07 一处、task-brief 模板、init-defenses 三处——处置明细=E3 报告普查表；verify.mjs:6 与 check-constitution-budget:3 已各自拆行） |
+| evolve-b1-transportresidual | 外部评审清偿战役 evolve 批（计划 v3 b1 既定拆行） | b1 三面不可实证残留：①>300s 首字节面不可回归复现（undici 消除以 R10 结构断言承载=非注释行无 fetch 形态）；②Node25 退出阶段崩溃面不可实证（本战役零外派期）；③异端点传输语义面（glm 形 3xx/gzip 未实证——本地 mock 仅证拟真，非真实端点语义） | open | 替代验证=R10 结构断言+双通道 mock 往返；真外呼窗口（--r1 真实跑或设计岗首用）后回填核验 |
+| evolve-r1-timeout-unverified | 外部评审清偿战役 evolve 批（E2 移交） | R1 超时改动 5,400,000ms 零运行时实证（R1 SKIP=真实派发配给保护，改动未经真实长链跑过） | open | 替代验证=派生复算表（E2 报告）+门一 diff 审；触发器=下次 --r1 真实跑后核对（看护是否误杀/放行合法最坏链） |
+| evolve-m4-hardcode | 外部评审清偿战役 evolve 批（外部评审 M4） | 脚本内残留硬编码三处：ds-call-v2 max_tokens=32768/temperature=0.2（请求参数，非供应商事实面）；regression R1 SOURCES 源别名内联；check-anchors PROJECT_NAMES 项目名点名单 | open | 承接=下批 org-config 化（与 hardcode_scan/roles 分区协调） |
+| evolve-m6-runid | 外部评审清偿战役 evolve 批（外部评审 M6） | runId 随机后缀仅 4 字符（同秒/并发碰撞窗口）+账本 appendFileSync 多写入者行交错无锁+log-triage switch 统计单值覆盖（同 runId 多次 switch 只记末值） | open | 互指 A-dsN-1（runId=机器关联键定位维持）与 regression R5 区期望计数注释；处置=账本写入器专项批 |
+| evolve-m5-regenv | 外部评审清偿战役 evolve 批（外部评审 M5） | 回归 R2b/R5/R4 勾连宿主 config 双校验与源链装载（本机宿主注册表=隐式 fixture），跨环境（无同形宿主条目）不复现 | open | 设计取舍显式化：自包含回归以本机配置面为基线；跨环境移植按 05 §6 差异回灌协议处置，不追回 |
+| evolve-l3-sort | 外部评审清偿战役 evolve 批（外部评审低优先 L 类） | 清单类输出无显式排序键：check-hardcode/check-anchors 以 readdirSync 枚举序输出（跨平台/目录序不稳定——diff 对账与 --update 重冻结噪声面） | open | 低优先；处置=扫描输出前显式 sort（check-anchors 升 --strict 前置批一并） |
+| evolve-l4-flags | 同上 | CLI flag 解析=argv.indexOf 取下一位（cliFlag 单源导出）：flag 值缺失（取 undefined）或误吃下一 flag（如 --project --json 会把 --json 当值）不报错 | open | 低优先；处置=cliFlag 校验值非 flag 形态+值缺失=用法错 1（org-config 单点改全件受益） |
+| evolve-l5-frontmatter | 同上 | frontmatter 解析健壮性弱面：skill-gc description 多行/块形态歧义判 unknown 仅报告（块级边界未严格解析）；check-hardcode agents 扫描剥 frontmatter 对未闭合形态的边界行为未向量覆盖 | open | 低优先；处置=解析器专项或维持 unknown 保守口径（ds-B2 终裁「只报告不删」延续） |
+| evolve-l9-degrade | 同上 | 降级显式留痕口径未全件统一：check-hardcode 降级=exit 5 已立；log-triage 日志目录缺失/health-scan 账本缺失仍静默空输出（与 M1 静默空窗同族面） | open | 低优先；处置=「缺输入显式留痕」口径统一批（08 §4 文档腐化体检顺带核） |
+| evolve-glmlook-150-null | 外部评审清偿战役 evolve 批（E2 普查新发现，E2 报告六节表） | glm-look.mjs:150 discoverSources prov.options 对 null 宿主条目裸取（宿主原始 JSON 侧可达）——M3 族第 4 消费点 | open | E2 纪律登记不自修（glm-look=E1 已落面+超 E2 白名单）；处置=glm-look 下一修改批顺带（同 b4 形态：降级行+跳过） |
+| evolve-k2-silent | 外部评审清偿战役 evolve 批（源B 派发事件） | k2 首派静默失败：无输出 5min/0 工具调用（重跑成功）——宿主侧通道事件，无本地可检信号 | open | 单次事件不升级；触发器=复发≥2 次升宿主排查批 |
+| evolve-samefamily | 外部评审清偿战役 evolve 批（裁决 C6 口径） | 计划双审源同族证据形态：源A/源B MODEL-SELF 同 model-key（同宿主实配模型键，具体串与 uuid 前缀对=b2466f8b…/5e1abd9d… 见批档 k1/k2 审出件——本册不落供应商 live 事实）——「异供应商」为未证假设，勿断言为已证事实 | open | 处置=轻量双审合规注记+按「同源记欠账」文化记欠账；宿主提供真异构备源时消账 |
+| evolve-verify-mjs-header | 外部评审清偿战役 evolve 批（E3 头注普查） | templates/verify.mjs:6 头注「（退出码：0=全过；1=有 FAIL）」数字=语义复写——随 init-defenses 分发到项目仓的模板骨架件 | open | 禁改面命中登记不修（templates/** 白名单外，本批仅 org-seg.snippet.md:11 扩权）；处置=init-defenses 模板升版批顺带指针化 |
+| evolve-ccb-weaktype | 外部评审清偿战役 evolve 批（E3 头注普查） | check-constitution-budget.mjs:3 头注「→ exit 1」弱同型复写（单退出码弱形态，非完整数字=语义表） | open | 登记不修（脚本不在本批白名单）；处置=下批脚本头注卫生批 |
+| evolve-struct-tables | 外部评审清偿战役 evolve 批（结构项——计划 v3 假设 4：本战役不实施只登记） | 岗位三表三写：SKILL.md 岗位速查/06 §1 分工总表/07 §1 编制表——内容重叠漂移面，须单源化+指针收敛 | open | 承接=结构项专项批（evolve-struct-* 同批呈报） |
+| evolve-struct-glossary | 同上 | 术语速查入口缺位（拟 00 件：跨 references 术语表/新手上手图——「惯称/口径」类术语散布定义无集中入口） | open | 承接=结构项专项批 |
+| evolve-struct-patchwrite | 同上 | 补丁式时序写作累积：「后节接管前节」注记链（02 §8.4 接管注记/06 §6 补遗等）散布各件，结构性收敛未做 | open | 承接=结构项专项批 |
 
 修订记同步见本册末节 2026-09-16 行。
 
@@ -113,3 +146,14 @@
   本批闭环事实（非残留）：跨供应商 model 绑定双源实证、六 ops-* 代理入役、
   log-triage.mjs 入 scripts/、check-hardcode 扩容（宿主词表+agents 扫描）。
   批档=E:/zcode_md/fix/subagent-plan-2026-09-16/（08-exec-log.md=执行档案）。
+- 2026-09-16 外部评审清偿战役（evolve 批，v1.7）：新增登记 25 条（closed 8=
+  本战役修复项单行制：evolve-h1-transport/evolve-h3-exitcode/evolve-m1-datewindow/
+  evolve-m3-nullguard/evolve-h2-timeouts/evolve-b6-containment/evolve-b7-anchorblind/
+  evolve-b8-docrot；open 17=evolve-b1-transportresidual 三面拆行+
+  evolve-r1-timeout-unverified+evolve-m4-hardcode+evolve-m5-regenv+evolve-m6-runid+
+  evolve-l3-sort/evolve-l4-flags/evolve-l5-frontmatter/evolve-l9-degrade+
+  evolve-glmlook-150-null+evolve-k2-silent+evolve-samefamily+
+  evolve-verify-mjs-header+evolve-ccb-weaktype+evolve-struct-tables/
+  evolve-struct-glossary/evolve-struct-patchwrite）；在册 02-§8-model-terms
+  补承接批次注（不重建）。批档=scripts/audits/2026-09-16_evolve-*；
+  明细=CHANGELOG v1.7 条+E1/E2/E3 报告。

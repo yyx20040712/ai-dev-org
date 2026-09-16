@@ -159,12 +159,15 @@ scripts/audits/2026-09-10_w2-freeze-evidence.md 与
 
 ## 修订记
 
-- 2026-09-16 v1.6（维护熵清偿战役）：全面评审→清偿计划送双源对抗审（均
-  FAIL/B=4 收敛）→终裁 v1.1 八批次→b0-b9 实施→终审（门一 PASS+auditor
-  有条件放行）回炉闭环。核心：账本 schema/退出码总表/审级口径/finish 词表/
-  锚点体检五面单源化（02 §9/06 §5.8/02 §3/org-config/check-anchors+R7）；
-  log-triage mock 假信号根修（验收断言入 R8）；glm-look 传输纪律对齐+
-  vision_channels 配置收编（**预裁 A 申报**：独立分区不动 roles 注册表，
-  07 先例保持）+payg 显式告警。验证终态：自检 5/5、regression 7/7+R1 3/3、
-  门禁三扫零命中、health-scan RED=0。裁决链与明细=CHANGELOG.md v1.6 条+
-  scripts/audits/2026-09-16_entropy-*（审包/双审原文/终裁档/终审双出件）。
+- 2026-09-16 v1.7（外部评审清偿战役 evolve 批）：外部全面评审（双异源探查+
+  人工复核）→清偿计划 v1-v3 双源两轮对抗审（k1/k2 均 FAIL 全吸纳）→裁决
+  有条件放行 C1-C6→E1/E2/E3 分批实施（b1-b9，七笔 commit）→门禁终态
+  （regression 8/8+R1 SKIP、三扫零命中、health-scan RED=0/WARN×2 基线
+  存量）。核心：glm-look 传输层 node:http(s) 直连+R10 回归面；ds-call-v2
+  退出码类型化；log-triage --date 语义校验+UTC 日界；provider null 守卫
+  三处；regression 五处超时看护；sys_prompt_file 包含性校验；check-anchors
+  NN·XN 扩面；文档腐化清偿（02 §4 固定七段单源/九件头注指针化 06 §5.8/
+  R 清单指针化）。行为变化四项+env 钩子申报与 06 §5.8 迁移注记=
+  CHANGELOG.md v1.7 条；登记面=RESIDUALS evolve 节（25 行）。批档=
+  scripts/audits/2026-09-16_evolve-*（全量历史=CHANGELOG.md，v1.6 及更早
+  条目在册不再复写）。

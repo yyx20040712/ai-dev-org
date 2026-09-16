@@ -4,6 +4,57 @@
 > 逐字保留，此后新增版本只在本件追加）。SKILL.md 只保留最近一条摘要
 > 与本件指针。历史条目属过程记录，按 references/08 §3 红线不再改写。
 
+## 2026-09-16 v1.7（外部评审清偿战役 evolve 批——外部全面评审→计划 v1-v3 双源对抗审→终裁有条件放行→E1/E2/E3 实施→门禁终态）
+
+- **战役过程**：外部全面评审（双异源探查+人工复核）确认 6 项代码级缺陷+
+  文档计数/清单/头注腐化+登记纯度问题→清偿计划 v1→源A（k1）对抗审 FAIL
+  （B1/W1-9/N1-8 全吸纳成 v2）→源B（k2）审 v2 FAIL（B1-3/W1-6/N1-9 全吸纳
+  成 v3）→裁决岗终裁有条件放行（C1 头注规则式穷举/C4 固定六段清零/C5 R1
+  机检窗/C6 同族证据形态等）→E1（b1+b2+b6+R10）/E2（b3+b4+b5+b7）/
+  E3（b8+b9）分批实施（七笔 commit，未 push）→门禁终态。
+- **代码修复（b1-b7）**：glm-look 传输层 fetch→node:http(s) 直连（AbortSignal
+  唯一超时源+isMain guard+纯函数 export+R10=结构断言+本地 mock 双通道往返
+  +向量）；ds-call-v2 退出码类型化（ConfigError/classifyExitCode，判据源=
+  06 §5.8，穷尽 throw 点清单化）；log-triage --date 格式+UTC 分量回环语义
+  校验+窗口 epoch 化 UTC 日界；provider null 守卫三消费点（org-config
+  校验错误 exit 3/check-hardcode 降级行 exit 5 族/log-triage 跳过）；
+  regression 五处 spawnSync 超时看护（R1=5,400,000ms=单源推导 4,835,000+
+  90min 裕量，∈C5 机检窗禁裁剪）；sys_prompt_file 包含性校验两落点；
+  check-anchors NN·XN 条目型断锚扩面+文档号两位数+自检 4→16 向量
+  （01:157 断锚改指 01·C2）。
+- **文档清偿（b8）**：「固定六段」族形态普查三分类处置——02 §4 单源根治
+  「固定七段（1-6 段惯称『六段简报』）」；SKILL:90 混合短语改「任务书七段」；
+  SKILL:53/:124 与模板 org-seg.snippet:11 告警三分类计数短语指针化（告警
+  分类单源=02 §10）；九件脚本头注退出码复写块规则式指针化 06 §5.8
+  （11 件穷举表=E3 报告；glm-look 无数字表排除；check-constitution-budget:3
+  与 templates/verify.mjs:6=禁改面登记不修）；06 §5 R 清单与 SKILL 同族
+  「R1~R6」断言指针化（R 项清单单源=regression.mjs 现行项集合）；01:166
+  补遗勘误；04 头注计数去数字（条数单源=doc-counts golden）。
+- **行为变化申报（四项，全部退出码面——存量调用方核对）**：①log-triage
+  --date 非法值：静默空窗→stderr 用法错+exit 1（并新增 [UTC 零点,次 UTC
+  零点) 上界）；②ds-call-v2 英文 locale 配置装载类未捕获异常：exit 1→3
+  （消息正则兜底删除，修误分类）；③registry 文件路径越界：新增 exit 3
+  拒绝路径（纵深防御，当前不可达）；④null provider：TypeError 崩溃→
+  校验错误（org-config/ds-call-v2 路径 exit 3+明确消息；check-hardcode
+  路径=降级行 exit 5 语义继续扫）。06 §5.8 迁移注记已补 v1.7 行。其余
+  外部契约（CLI 形态/schema/golden/退出码总表结构）零变化。
+- **内部测试设施申报**：glm-look env 钩子两枚（GLM_LOOK_HOST_CONFIG/
+  GLM_LOOK_LOG_DIR——R10 mock 往返指向本地端点与临时流水之必要实现；
+  缺省行为不变，prod 路径禁依赖）。
+- **登记面（b9）**：RESIDUALS 新增 25 行（closed 8=修复项单行制；open 17=
+  b1 三面不可实证残留/R1 超时未实证/M4 硬编码三处/M5 回归环境耦合/M6 runId
+  并发/L3/L4/L5/L9 低优先四项/glm-look:150 同族/k2 首派静默/双审源同族注记
+  （C6 口径：同 model-key 异 uuid 前缀，异供应商=未证假设）/verify.mjs:6/
+  ccb:3/结构项三件）+在册 02-§8-model-terms 补承接批次注（不重建）。
+  头注指针化=v1.6 批声称「各脚本头注一律指针到本表」未闭环的本批实证
+  闭环（九件复写块清零，机检 C1 断言化）。
+- **门禁终态**：regression 8/8（R1 SKIP 配给保护）+check-hardcode 命中 0
+  （豁免 33）+check-anchors WARN×0/FAIL×0+--self-test 16/16+health-scan
+  RED×0/WARN×2（基线存量不劣化）+新增 grep 断言 C1/C4 绿（「固定六段」
+  活文档面清零+头注「退出码：数字=语义」复写块清零；红→绿+变异红证×2）。
+  批档=scripts/audits/2026-09-16_evolve-*（简报/双审原文/计划 v1-v3/
+  E1-E3 报告与真退出码 log）。
+
 ## 2026-09-16 v1.6（维护熵清偿战役——全面评审→双源对抗审→终裁→八批实施→终审回炉）
 
 - **战役过程**：主控全面评审（脚本 10+文档 9，结论=设计 A/工程 B+/维护 C+，
