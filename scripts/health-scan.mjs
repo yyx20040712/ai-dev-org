@@ -7,7 +7,7 @@
  *     ②连续同源（窗口内审计 ok 全同源且跨≥3 日期批）
  *     ③预算超限（给了阈值且超）
  *   WARN（不阻断，但摘要强制回显计数——W-1 升格条件）：
- *     ⑤设计链同源（drafter 与 auditor 同源——06 §8.6；W-8 降级待归因）
+ *     ⑤设计链同源（drafter 与 auditor 同源——02 §8.6；W-8 降级待归因）
  *     cfg 漂移；ok 缺 usage / in=0 而 out>0（缓存未计）；单源占比超阈（配给红线）
  *   INFO：各源用量汇总
  * 用法：node scripts/health-scan.mjs [--project <dir>] [--ledger <path>]
@@ -101,7 +101,7 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
   }
   for (const [k, v] of Object.entries(sameChain)) {
     if (v.drafter && v['auditor-readonly'] && v.drafter === v['auditor-readonly'])
-      WARN.push(`设计链同源：${k} 的 drafter 与 auditor-readonly 同落 ${v.drafter}——06 §8.6 要求异构对抗（Kimi 拟定/deepseek 审核）；须换源或记欠账（W-8 降级：待归因完成再议 RED）`)
+      WARN.push(`设计链同源：${k} 的 drafter 与 auditor-readonly 同落 ${v.drafter}——02 §8.6 要求异构对抗（Kimi 拟定/deepseek 审核）；须换源或记欠账（W-8 降级：待归因完成再议 RED）`)
   }
 
   // ── ②b 数据质量 ──

@@ -18,10 +18,10 @@
  *
  * 用法：node scripts/check-hardcode.mjs [--root <技能根>] [--strict] [--agents <dir>]
  *       [--whitelist <path>] [--self-test]
- * 退出码口径单源=references/06 §5.8（5=降级运行系总表本件专属行，此处
- * 不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
+ * 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
+ * 指针化；回炉 r2 削 b8 残留碎片，降级行语义总表已载）。
  */
-import { readFileSync, existsSync, readdirSync, writeFileSync, mkdtempSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { SKILL_ROOT, loadOrgConfig } from './org-config.mjs'
@@ -164,13 +164,17 @@ function selfTest() {
   let hmTerms = null, hmErr = null, hmDegraded = false
   const hmBuf = []
   const hmOrigErr = console.error
+  let hmDir = null
   try {
-    const d = mkdtempSync(join(tmpdir(), 'hc-b4-'))
-    const f = join(d, 'host.json')
+    hmDir = mkdtempSync(join(tmpdir(), 'hc-b4-'))
+    const f = join(hmDir, 'host.json')
     writeFileSync(f, JSON.stringify({ provider: { dead: null, live: { models: { 'B4Guard-Model': {} } } } }), 'utf8')
     console.error = (...a) => hmBuf.push(a.join(' '))
     hmTerms = deriveHostModelTerms(f)
-  } catch (e) { hmErr = e.message } finally { console.error = hmOrigErr }
+  } catch (e) { hmErr = e.message } finally {
+    console.error = hmOrigErr
+    if (hmDir) rmSync(hmDir, { recursive: true, force: true }) // 回炉 N3：自检临时目录清理（参照 regression R10/R5 形态）
+  }
   hmDegraded = hmBuf.some((s) => s.includes('[degraded]') && s.includes('null'))
   t('b4 null provider→降级行+其余源词表继续派生（不崩）', hmErr === null && Array.isArray(hmTerms) && hmTerms.length === 1 && hmTerms[0].name.includes('B4Guard-Model') && hmDegraded)
   const fail = cases.filter((x) => !x.c)

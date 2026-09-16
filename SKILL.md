@@ -161,7 +161,7 @@ scripts/audits/2026-09-10_w2-freeze-evidence.md 与
 
 - 2026-09-16 v1.7（外部评审清偿战役 evolve 批）：外部全面评审（双异源探查+
   人工复核）→清偿计划 v1-v3 双源两轮对抗审（k1/k2 均 FAIL 全吸纳）→裁决
-  有条件放行 C1-C6→E1/E2/E3 分批实施（b1-b9，七笔 commit）→门禁终态
+  有条件放行 C1-C6→E1/E2/E3 分批实施（b1-b9，九笔 commit）→门禁终态
   （regression 8/8+R1 SKIP、三扫零命中、health-scan RED=0/WARN×2 基线
   存量）。核心：glm-look 传输层 node:http(s) 直连+R10 回归面；ds-call-v2
   退出码类型化；log-triage --date 语义校验+UTC 日界；provider null 守卫

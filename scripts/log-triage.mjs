@@ -15,8 +15,8 @@
  *   --health：源健康检查（A'③）——按供应商五类分诊 → k1/k2 推荐+分类处置建议
  *     （额度类→换源；504 窗口类→不换源、瘦身——zipoo 同端点共模，05 §九纠偏②）
  * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--self-test]
- * 退出码口径单源=references/06 §5.8（RED 检出/自检失败/非法 --date 用法拒
- * 均属总表 1 类；此处不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
+ * 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
+ * 指针化；回炉 r2 削 b8 残留碎片，本件各类退出均属总表既有类目）。
  * 纪律：finish 词表与供应商别名住 org-config（禁硬编码，A3/06 §0）；自然退出（HOST-node25 规避）。
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
@@ -218,160 +218,166 @@ function harvestAgents(sinceMs, untilMs) {
 
 const pct = (arr, p) => { if (!arr.length) return 0; const s = [...arr].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(s.length * p))] }
 
-// ── 主流程 ──
+// ── 主流程（N1 回炉 r2：包进 run()——--date 校验路径改 process.exitCode=1+return
+//    自然退出形态，对齐本件「自然退出（HOST-node25 规避）」纪律；return 须
+//    函数体承载，缩进重排语义零变化=ds-call-v2 cliMain 先例） ──
 const argv = process.argv.slice(2)
 const flag = (n) => cliFlag(argv, n) // 单源（org-config 导出——v1.6 批 P2-3）
 const now = new Date()
 const rawDate = flag('--date') || null
-if (rawDate && !isValidDateStr(rawDate)) {
-  console.error(`[usage] --date 非法值「${rawDate}」——须为真实存在的日期（YYYY-MM-DD，如 2026-09-16）；格式/语义校验拒，窗口日界=UTC（evolve-E2 b3——原静默空窗=假绿面）`)
-  process.exit(1)
-}
-const { hours, dateStr, sinceMs, untilMs } = resolveWindow({ argv, now }) // 窗口 epoch ms（--hours/--date 同路径；--date 日界=UTC）
+function run() {
+  if (rawDate && !isValidDateStr(rawDate)) {
+    console.error(`[usage] --date 非法值「${rawDate}」——须为真实存在的日期（YYYY-MM-DD，如 2026-09-16）；格式/语义校验拒，窗口日界=UTC（evolve-E2 b3——原静默空窗=假绿面）`)
+    process.exitCode = 1 // 用法错（口径单源=06 §5.8）——自然退出不强杀（N1 回炉）
+    return
+  }
+  const { hours, dateStr, sinceMs, untilMs } = resolveWindow({ argv, now }) // 窗口 epoch ms（--hours/--date 同路径；--date 日界=UTC）
 
-const { merged } = loadOrgConfig(SKILL_ROOT)
-const aliasMap = buildAliasMap(merged.providers)
-if (!merged.finish_vocab?.complete?.length || !merged.finish_vocab?.truncation?.length) {
-  console.error('[config] org-config finish_vocab 缺 complete/truncation 词表（词表单源纪律 06 §0——v1.6 批收紧，无脚本内兜底）')
-  process.exit(3)
-}
+  const { merged } = loadOrgConfig(SKILL_ROOT)
+  const aliasMap = buildAliasMap(merged.providers)
+  if (!merged.finish_vocab?.complete?.length || !merged.finish_vocab?.truncation?.length) {
+    console.error('[config] org-config finish_vocab 缺 complete/truncation 词表（词表单源纪律 06 §0——v1.6 批收紧，无脚本内兜底）')
+    process.exit(3)
+  }
 
-// 自检（--self-test）：fixture 级断言，全量聚合计入退出码（v1.6 批——原仅末 fixture 计=假 PASS 面）
-if (argv.includes('--self-test')) {
-  let stFails = 0
-  const t = (name, cond) => { console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`); if (!cond) stFails++ }
-  t('429→quota', classifyError({ statusCode: 429 }) === 'quota')
-  t('504→window', classifyError({ statusCode: 504 }) === 'window')
-  t('500→server', classifyError({ statusCode: 500 }) === 'server')
-  t('401→config', classifyError({ statusCode: 401 }) === 'config')
-  t('ECONNRESET→transport', classifyError({ statusMessage: 'fetch failed: ECONNRESET' }) === 'transport')
-  t('枚举值判定（sonnet 非 <uuid>/<model> 形态）', !VALID_MODEL_RE.test('sonnet'))
-  t('合法绑定形态（uuid/model）', VALID_MODEL_RE.test('8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash'))
-  t('合法绑定形态（builtin:model/key）', VALID_MODEL_RE.test('builtin:bigmodel-coding-plan/GLM-5.3'))
-  const fb = detectSilentFallback({
-    metas: [{ profileId: 'probe-b-x', childSessionId: 's1', profileSnapshot: { model: 'sonnet' } },
-            { profileId: 'probe-c-x', childSessionId: 's2', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash' } }],
-    subagentNet: { s2: { alias: 'deepseek', providerId: '8ad55776-2296-4f1a-bc46-05755c8f1300', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
-  })
-  t('probe-b 假绑定可被 ③ 抓出（RED+枚举）', fb.length === 1 && fb[0].level === 'RED' && fb[0].kind.includes('枚举'))
-  // 验收断言（裁决档 C2）：mock429×4 + 真实504×1 ⇒ 推荐=不换源
-  const accRows = [
-    ...[1, 2, 3, 4].map((i) => ({ ts: `2026-09-16T0${i}:00:00Z`, runId: `m${i}`, event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽', mocked: true })),
-    { ts: '2026-09-16T09:00:00Z', runId: 'r1', event: 'exhaust', statusCode: 504, error: 'HTTP 504' },
-  ]
-  const accCnt = countRealFailures(harvestRouting(accRows, null).exhaust)
-  const accRec = recommendHealth(accCnt, { primary: 'k1', secondary: 'k2' })
-  t('验收断言：mock429×4 不计入（mockN=4/quota=0/window=1）', accCnt.mockN === 4 && accCnt.quota === 0 && accCnt.window504 === 1)
-  t('验收断言：推荐=k1 不换源（当日实陷回归——原输出假推荐 k2）', accRec.rec.includes('k1') && accRec.rec.includes('不换源'))
-  // 全角括号兜底回归（实陷：全角（mock）漏配）
-  const fw = harvestRouting([{ ts: '2026-09-16T10:00:00Z', runId: 'fw', event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽（mock）' }], null).exhaust
-  t('全角（mock）兜底命中（不计入推荐）', Object.values(fw)[0][0].isMock === true)
-  // b3 向量（evolve-E2）：--date 格式+语义校验+窗口 epoch 化 UTC 日界（红态=函数未落→FAIL 行不崩）
-  t('b3 格式校验：非 YYYY-MM-DD 拒（foo/2026-9-16/空串）', typeof isValidDateStr === 'function' && !isValidDateStr('foo') && !isValidDateStr('2026-9-16') && !isValidDateStr(''))
-  t('b3 语义校验：坏月日拒（2026-13-45）', typeof isValidDateStr === 'function' && !isValidDateStr('2026-13-45'))
-  t('b3 语义校验：坏日拒（2026-02-30——本机 V8 ISO 解析日溢出回卷非 NaN，须分量回环判）', typeof isValidDateStr === 'function' && !isValidDateStr('2026-02-30'))
-  t('b3 语义校验：平年 2 月 29 拒（2025-02-29）', typeof isValidDateStr === 'function' && !isValidDateStr('2025-02-29'))
-  t('b3 语义校验：合法值过（2026-09-16/闰 2024-02-29/平年 2025-02-28）', typeof isValidDateStr === 'function' && isValidDateStr('2026-09-16') && isValidDateStr('2024-02-29') && isValidDateStr('2025-02-28'))
-  const wB3 = typeof resolveWindow === 'function' ? resolveWindow({ argv: ['--date', '2026-09-16'] }) : null
-  t('b3 窗口 epoch 化+UTC 日界（since=UTC 零点/until=次 UTC 零点）', !!wB3 && wB3.sinceMs === Date.UTC(2026, 8, 16) && wB3.untilMs === Date.UTC(2026, 8, 17))
-  const tSh0917 = Date.UTC(2026, 8, 16, 18) // =Asia/Shanghai（UTC+8）本地 2026-09-17 02:00
-  t('b3 UTC 日界：上海本地 09-17 02:00 行（=UTC 09-16 18:00）归 09-16 窗', !!wB3 && wB3.sinceMs <= tSh0917 && tSh0917 < wB3.untilMs)
-  const tSh0916 = Date.UTC(2026, 8, 15, 20) // =Asia/Shanghai 本地 2026-09-16 04:00
-  t('b3 UTC 日界（非本地零点）：上海本地 09-16 04:00 行（=UTC 09-15 20:00）不入 09-16 窗', !!wB3 && tSh0916 < wB3.sinceMs)
-  t('b3 --hours 同路径：epoch ms 回推（now 定锚 12:00Z−2h=10:00Z）', typeof resolveWindow === 'function' && resolveWindow({ argv: ['--hours', '2'], now: new Date(Date.UTC(2026, 8, 16, 12)) }).sinceMs === Date.UTC(2026, 8, 16, 10))
-  const rtRowsB3 = [
-    { ts: '2026-09-16T18:00:00.000Z', runId: 'sh-local-0917-0200', event: 'exhaust', statusCode: 504, error: 'x' },
-    { ts: '2026-09-16T23:59:59.999Z', runId: 'in-tail', event: 'exhaust', statusCode: 504, error: 'x' },
-    { ts: '2026-09-17T00:00:00.000Z', runId: 'out-next-day', event: 'exhaust', statusCode: 504, error: 'x' },
-  ]
-  const rtOutB3 = wB3 ? harvestRouting(rtRowsB3, wB3.sinceMs, wB3.untilMs) : null
-  t('b3 窗口行过滤：UTC 09-16 窗内两行留（含上海 09-17 02:00 行）/次 UTC 零点起弃', !!rtOutB3 && Object.values(rtOutB3.exhaust).flat().length === 2 && !Object.values(rtOutB3.exhaust).flat().some((e) => e.runId === 'out-next-day'))
-  // b4 向量（evolve-E2）：null provider→buildAliasMap 不崩（null 条目跳过、其余映射保留）
-  let amMap = null, amErr = null
-  try { amMap = buildAliasMap({ dead: null, live: { uuid_prefix: 'b4-live-' } }) } catch (e) { amErr = e.message }
-  t('b4 null provider→buildAliasMap 不崩（null 条目跳过/其余映射保留）', amErr === null && amMap instanceof Map && amMap.size === 1 && amMap.get('b4-live-') === 'live')
-  console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
-  process.exitCode = stFails === 0 ? 0 : 1
-} else {
-  // 收割两账（--hours 无日期时目录守卫：CLI 日志目录缺失=空集不崩——v1.6 批）
-  const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-2) : [])
-  const cliLines = logFiles.flatMap(f => readJsonl(join(CLI_LOG_DIR, f)))
-  const { perProvider, subagentNet, deduped } = harvestCliLog(cliLines, aliasMap, sinceMs, untilMs)
-  const routing = harvestRouting(readJsonl(ROUTING_LOG), sinceMs, untilMs)
-  const metas = harvestAgents(sinceMs, untilMs)
-  const metasAll = harvestAgents(null) // 全时段 metadata 单次收割复用（原三重全量遍历——v1.6 批收敛）
-  const W = process.stdout.write.bind(process.stdout)
-
-  // ③ 静默回退检测（全时段 metadata——历史探针也要盯）
-  const fallbacks = detectSilentFallback({ metas: metasAll, subagentNet })
-
-  if (argv.includes('--health')) {
-    // ── A'③ 源健康检查：分诊 + 推荐（结构参数=org-config source_health，v1.6 批去硬编码别名） ──
-    const sh = merged.source_health || {}
-    const dual = (sh.dual_groups && sh.dual_groups[0]) || []
-    const subOf = sh.gate1_subagent_of || {}
-    // 启动校验（终审 auditor-W2）：dual 组别名不在 providers 声明面=配置漂移，显式报错勿静默
-    const unknownAliases = dual.filter((a) => !merged.providers?.[a])
-    if (unknownAliases.length) console.error(`[config] source_health.dual_groups 引用了 providers 未声明的别名：${unknownAliases.join(', ')}——推荐将按未映射回退，请修 org-config`)
-    W(`== 源健康检查（窗口=${dateStr || `近 ${hours}h`}，cfg:${cfgHash(merged)}）==\n`)
-    if (deduped) W(`（request.failed 同秒剔重 ×${deduped}——终审 N2 暴露面，人工判读置信度用）\n`)
-    for (const [alias, st] of Object.entries(perProvider)) {
-      W(`[${alias}] ok=${st.ok} err=${JSON.stringify(st.err)} lat p50/p95=${pct(st.lat, .5)}/${pct(st.lat, .95)}ms attempts=${JSON.stringify(st.attempts)}\n`)
-    }
-    W(`-- 外链路（派发器）exhaust 明细：\n`)
-    for (const [src, list] of Object.entries(routing.exhaust)) {
-      for (const e of list) W(`   ${e.ts} ${src} statusCode=${e.statusCode} [${CLASS_NAMES[e.cls] || e.cls}] ${e.error}（run=${e.runId} role=${e.role}）${e.isMock ? '【mock 演练行，不计入推荐】' : ''}\n`)
-    }
-    const cnt = countRealFailures(routing.exhaust)
-    if (cnt.mockN) W(`   （另检出 mock 演练行 ×${cnt.mockN}——R5 换源演练注入，不构成真实源健康信号）\n`)
-    if (!Object.keys(routing.exhaust).length) W(`   （窗口内无 exhaust 事件）\n`)
-    const { rec, why } = recommendHealth(cnt, { primary: subOf[dual[0]], secondary: subOf[dual[1]] })
-    W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}（双源组=${dual.join('↔') || '未配置'}）\n`)
+  // 自检（--self-test）：fixture 级断言，全量聚合计入退出码（v1.6 批——原仅末 fixture 计=假 PASS 面）
+  if (argv.includes('--self-test')) {
+    let stFails = 0
+    const t = (name, cond) => { console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`); if (!cond) stFails++ }
+    t('429→quota', classifyError({ statusCode: 429 }) === 'quota')
+    t('504→window', classifyError({ statusCode: 504 }) === 'window')
+    t('500→server', classifyError({ statusCode: 500 }) === 'server')
+    t('401→config', classifyError({ statusCode: 401 }) === 'config')
+    t('ECONNRESET→transport', classifyError({ statusMessage: 'fetch failed: ECONNRESET' }) === 'transport')
+    t('枚举值判定（sonnet 非 <uuid>/<model> 形态）', !VALID_MODEL_RE.test('sonnet'))
+    t('合法绑定形态（uuid/model）', VALID_MODEL_RE.test('8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash'))
+    t('合法绑定形态（builtin:model/key）', VALID_MODEL_RE.test('builtin:bigmodel-coding-plan/GLM-5.3'))
+    const fb = detectSilentFallback({
+      metas: [{ profileId: 'probe-b-x', childSessionId: 's1', profileSnapshot: { model: 'sonnet' } },
+              { profileId: 'probe-c-x', childSessionId: 's2', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash' } }],
+      subagentNet: { s2: { alias: 'deepseek', providerId: '8ad55776-2296-4f1a-bc46-05755c8f1300', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
+    })
+    t('probe-b 假绑定可被 ③ 抓出（RED+枚举）', fb.length === 1 && fb[0].level === 'RED' && fb[0].kind.includes('枚举'))
+    // 验收断言（裁决档 C2）：mock429×4 + 真实504×1 ⇒ 推荐=不换源
+    const accRows = [
+      ...[1, 2, 3, 4].map((i) => ({ ts: `2026-09-16T0${i}:00:00Z`, runId: `m${i}`, event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽', mocked: true })),
+      { ts: '2026-09-16T09:00:00Z', runId: 'r1', event: 'exhaust', statusCode: 504, error: 'HTTP 504' },
+    ]
+    const accCnt = countRealFailures(harvestRouting(accRows, null).exhaust)
+    const accRec = recommendHealth(accCnt, { primary: 'k1', secondary: 'k2' })
+    t('验收断言：mock429×4 不计入（mockN=4/quota=0/window=1）', accCnt.mockN === 4 && accCnt.quota === 0 && accCnt.window504 === 1)
+    t('验收断言：推荐=k1 不换源（当日实陷回归——原输出假推荐 k2）', accRec.rec.includes('k1') && accRec.rec.includes('不换源'))
+    // 全角括号兜底回归（实陷：全角（mock）漏配）
+    const fw = harvestRouting([{ ts: '2026-09-16T10:00:00Z', runId: 'fw', event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽（mock）' }], null).exhaust
+    t('全角（mock）兜底命中（不计入推荐）', Object.values(fw)[0][0].isMock === true)
+    // b3 向量（evolve-E2）：--date 格式+语义校验+窗口 epoch 化 UTC 日界（红态=函数未落→FAIL 行不崩）
+    t('b3 格式校验：非 YYYY-MM-DD 拒（foo/2026-9-16/空串）', typeof isValidDateStr === 'function' && !isValidDateStr('foo') && !isValidDateStr('2026-9-16') && !isValidDateStr(''))
+    t('b3 语义校验：坏月日拒（2026-13-45）', typeof isValidDateStr === 'function' && !isValidDateStr('2026-13-45'))
+    t('b3 语义校验：坏日拒（2026-02-30——本机 V8 ISO 解析日溢出回卷非 NaN，须分量回环判）', typeof isValidDateStr === 'function' && !isValidDateStr('2026-02-30'))
+    t('b3 语义校验：平年 2 月 29 拒（2025-02-29）', typeof isValidDateStr === 'function' && !isValidDateStr('2025-02-29'))
+    t('b3 语义校验：合法值过（2026-09-16/闰 2024-02-29/平年 2025-02-28）', typeof isValidDateStr === 'function' && isValidDateStr('2026-09-16') && isValidDateStr('2024-02-29') && isValidDateStr('2025-02-28'))
+    const wB3 = typeof resolveWindow === 'function' ? resolveWindow({ argv: ['--date', '2026-09-16'] }) : null
+    t('b3 窗口 epoch 化+UTC 日界（since=UTC 零点/until=次 UTC 零点）', !!wB3 && wB3.sinceMs === Date.UTC(2026, 8, 16) && wB3.untilMs === Date.UTC(2026, 8, 17))
+    const tSh0917 = Date.UTC(2026, 8, 16, 18) // =Asia/Shanghai（UTC+8）本地 2026-09-17 02:00
+    t('b3 UTC 日界：上海本地 09-17 02:00 行（=UTC 09-16 18:00）归 09-16 窗', !!wB3 && wB3.sinceMs <= tSh0917 && tSh0917 < wB3.untilMs)
+    const tSh0916 = Date.UTC(2026, 8, 15, 20) // =Asia/Shanghai 本地 2026-09-16 04:00
+    t('b3 UTC 日界（非本地零点）：上海本地 09-16 04:00 行（=UTC 09-15 20:00）不入 09-16 窗', !!wB3 && tSh0916 < wB3.sinceMs)
+    t('b3 --hours 同路径：epoch ms 回推（now 定锚 12:00Z−2h=10:00Z）', typeof resolveWindow === 'function' && resolveWindow({ argv: ['--hours', '2'], now: new Date(Date.UTC(2026, 8, 16, 12)) }).sinceMs === Date.UTC(2026, 8, 16, 10))
+    const rtRowsB3 = [
+      { ts: '2026-09-16T18:00:00.000Z', runId: 'sh-local-0917-0200', event: 'exhaust', statusCode: 504, error: 'x' },
+      { ts: '2026-09-16T23:59:59.999Z', runId: 'in-tail', event: 'exhaust', statusCode: 504, error: 'x' },
+      { ts: '2026-09-17T00:00:00.000Z', runId: 'out-next-day', event: 'exhaust', statusCode: 504, error: 'x' },
+    ]
+    const rtOutB3 = wB3 ? harvestRouting(rtRowsB3, wB3.sinceMs, wB3.untilMs) : null
+    t('b3 窗口行过滤：UTC 09-16 窗内两行留（含上海 09-17 02:00 行）/次 UTC 零点起弃', !!rtOutB3 && Object.values(rtOutB3.exhaust).flat().length === 2 && !Object.values(rtOutB3.exhaust).flat().some((e) => e.runId === 'out-next-day'))
+    // b4 向量（evolve-E2）：null provider→buildAliasMap 不崩（null 条目跳过、其余映射保留）
+    let amMap = null, amErr = null
+    try { amMap = buildAliasMap({ dead: null, live: { uuid_prefix: 'b4-live-' } }) } catch (e) { amErr = e.message }
+    t('b4 null provider→buildAliasMap 不崩（null 条目跳过/其余映射保留）', amErr === null && amMap instanceof Map && amMap.size === 1 && amMap.get('b4-live-') === 'live')
+    console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
+    process.exitCode = stFails === 0 ? 0 : 1
   } else {
-    // ── B-0 全量分诊 ──
-    W(`== log-triage 分诊（内链路 ${logFiles.join(',')} ×${cliLines.length} 行 + 外链路流水；窗口=${dateStr || `近 ${hours}h`}）==\n`)
-    W(`-- ①⑤ 按供应商：ok/错误五类/时延/attempt 分布\n`)
-    for (const [alias, st] of Object.entries(perProvider)) {
-      const errs = Object.entries(st.err).map(([k, v]) => `${CLASS_NAMES[k]}×${v}`).join(' ') || '零错误'
-      W(`   [${alias}] ok=${st.ok} | ${errs} | lat p50/p95=${pct(st.lat, .5)}/${pct(st.lat, .95)}ms | attempts=${JSON.stringify(st.attempts)}\n`)
+    // 收割两账（--hours 无日期时目录守卫：CLI 日志目录缺失=空集不崩——v1.6 批）
+    const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-2) : [])
+    const cliLines = logFiles.flatMap(f => readJsonl(join(CLI_LOG_DIR, f)))
+    const { perProvider, subagentNet, deduped } = harvestCliLog(cliLines, aliasMap, sinceMs, untilMs)
+    const routing = harvestRouting(readJsonl(ROUTING_LOG), sinceMs, untilMs)
+    const metas = harvestAgents(sinceMs, untilMs)
+    const metasAll = harvestAgents(null) // 全时段 metadata 单次收割复用（原三重全量遍历——v1.6 批收敛）
+    const W = process.stdout.write.bind(process.stdout)
+
+    // ③ 静默回退检测（全时段 metadata——历史探针也要盯）
+    const fallbacks = detectSilentFallback({ metas: metasAll, subagentNet })
+
+    if (argv.includes('--health')) {
+      // ── A'③ 源健康检查：分诊 + 推荐（结构参数=org-config source_health，v1.6 批去硬编码别名） ──
+      const sh = merged.source_health || {}
+      const dual = (sh.dual_groups && sh.dual_groups[0]) || []
+      const subOf = sh.gate1_subagent_of || {}
+      // 启动校验（终审 auditor-W2）：dual 组别名不在 providers 声明面=配置漂移，显式报错勿静默
+      const unknownAliases = dual.filter((a) => !merged.providers?.[a])
+      if (unknownAliases.length) console.error(`[config] source_health.dual_groups 引用了 providers 未声明的别名：${unknownAliases.join(', ')}——推荐将按未映射回退，请修 org-config`)
+      W(`== 源健康检查（窗口=${dateStr || `近 ${hours}h`}，cfg:${cfgHash(merged)}）==\n`)
+      if (deduped) W(`（request.failed 同秒剔重 ×${deduped}——终审 N2 暴露面，人工判读置信度用）\n`)
+      for (const [alias, st] of Object.entries(perProvider)) {
+        W(`[${alias}] ok=${st.ok} err=${JSON.stringify(st.err)} lat p50/p95=${pct(st.lat, .5)}/${pct(st.lat, .95)}ms attempts=${JSON.stringify(st.attempts)}\n`)
+      }
+      W(`-- 外链路（派发器）exhaust 明细：\n`)
+      for (const [src, list] of Object.entries(routing.exhaust)) {
+        for (const e of list) W(`   ${e.ts} ${src} statusCode=${e.statusCode} [${CLASS_NAMES[e.cls] || e.cls}] ${e.error}（run=${e.runId} role=${e.role}）${e.isMock ? '【mock 演练行，不计入推荐】' : ''}\n`)
+      }
+      const cnt = countRealFailures(routing.exhaust)
+      if (cnt.mockN) W(`   （另检出 mock 演练行 ×${cnt.mockN}——R5 换源演练注入，不构成真实源健康信号）\n`)
+      if (!Object.keys(routing.exhaust).length) W(`   （窗口内无 exhaust 事件）\n`)
+      const { rec, why } = recommendHealth(cnt, { primary: subOf[dual[0]], secondary: subOf[dual[1]] })
+      W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}（双源组=${dual.join('↔') || '未配置'}）\n`)
+    } else {
+      // ── B-0 全量分诊 ──
+      W(`== log-triage 分诊（内链路 ${logFiles.join(',')} ×${cliLines.length} 行 + 外链路流水；窗口=${dateStr || `近 ${hours}h`}）==\n`)
+      W(`-- ①⑤ 按供应商：ok/错误五类/时延/attempt 分布\n`)
+      for (const [alias, st] of Object.entries(perProvider)) {
+        const errs = Object.entries(st.err).map(([k, v]) => `${CLASS_NAMES[k]}×${v}`).join(' ') || '零错误'
+        W(`   [${alias}] ok=${st.ok} | ${errs} | lat p50/p95=${pct(st.lat, .5)}/${pct(st.lat, .95)}ms | attempts=${JSON.stringify(st.attempts)}\n`)
+      }
+      W(`-- ② 外链路（派发器流水）attempt/ok/exhaust/switch 计数：\n`)
+      W(`   attempts=${JSON.stringify(routing.attempts)} ok=${JSON.stringify(routing.ok)}\n`)
+      for (const [src, list] of Object.entries(routing.exhaust)) for (const e of list) W(`   exhaust ${e.ts} ${src} ${e.statusCode}[${CLASS_NAMES[e.cls]}] ${e.error} run=${e.runId} role=${e.role}\n`)
+      // ③ 静默回退检测
+      W(`-- ③③ 静默回退检测（子代理声明绑定 vs 实际路由，metadata×${metasAll.length} 份）：\n`)
+      if (!fallbacks.length) W('   零检出（全部声明=实际，或无绑定岗）\n')
+      for (const f of fallbacks) W(`   [${f.level}] ${f.profile} ${f.sid?.slice(0, 30)}… 声明=${f.declared} 实际=${f.actual} —— ${f.kind}\n`)
+      // ⑥ 岗×源用量（双源分列——组定义=org-config source_health.dual_groups）
+      W(`-- ⑥ 岗×源用量汇总（子代理 metadata，org-ledger 补记数据源；双源分列）：\n`)
+      const byRoleSource = {} // 复合键 role|source（A4：原 byRole[role] 一级赋值从未被读，已删）
+      for (const m of metas) {
+        const role = m.profileId || '?'
+        const alias = subagentNet[m.childSessionId]?.alias || '(宿主默认)'
+        const u = m.usage || {}
+        const k = `${role}|${alias}`
+        byRoleSource[k] = byRoleSource[k] || { calls: 0, in: 0, out: 0 }
+        byRoleSource[k].calls++; byRoleSource[k].in += u.inputTokens || 0; byRoleSource[k].out += u.outputTokens || 0
+      }
+      for (const [k, v] of Object.entries(byRoleSource).sort()) W(`   ${k.replace('|', ' @ ')}: calls=${v.calls} in=${v.in} out=${v.out}\n`)
+      // ⑦ finish 终态派生（保守口径——词表已装载守卫，无兜底数组）
+      const completeSet = new Set(merged.finish_vocab.complete)
+      const truncSet = new Set(merged.finish_vocab.truncation)
+      W(`-- ⑦ 子代理 finish 终态派生（词表=org-config finish_vocab；未知终态=非完整·保守口径）：\n`)
+      for (const m of metas) {
+        const net = subagentNet[m.childSessionId]
+        const fin = net?.lastFinish
+        const stat = m.status
+        let verdict = '未知（无网络事件）'
+        if (completeSet.has(fin)) verdict = '完整'
+        else if (truncSet.has(fin)) verdict = '截断（truncation 词表命中）'
+        else if (fin) verdict = `非完整（finish=${fin}，保守口径）`
+        if (stat !== 'completed' || verdict !== '完整') W(`   [注意] ${m.profileId} status=${stat} finish=${fin ?? '-'} → ${verdict}\n`)
+      }
+      const clean = metas.filter(m => { const f = subagentNet[m.childSessionId]?.lastFinish; return m.status === 'completed' && completeSet.has(f) }).length
+      W(`   完整终态 ${clean}/${metas.length}（未列出者=完整）\n`)
+      // PostToolUse hook 机制验证（存在性口径）
+      W(`-- PostToolUse hook 机制：zcode.cjs 含 PostToolUse/PostToolUseFailure 执行器与 workspace_hooks 信任面（存在性已验）；实弹触发验证=后续批次（登记 RESIDUALS）\n`)
+      if (fallbacks.some(f => f.level === 'RED')) process.exitCode = 1
     }
-    W(`-- ② 外链路（派发器流水）attempt/ok/exhaust/switch 计数：\n`)
-    W(`   attempts=${JSON.stringify(routing.attempts)} ok=${JSON.stringify(routing.ok)}\n`)
-    for (const [src, list] of Object.entries(routing.exhaust)) for (const e of list) W(`   exhaust ${e.ts} ${src} ${e.statusCode}[${CLASS_NAMES[e.cls]}] ${e.error} run=${e.runId} role=${e.role}\n`)
-    // ③ 静默回退检测
-    W(`-- ③③ 静默回退检测（子代理声明绑定 vs 实际路由，metadata×${metasAll.length} 份）：\n`)
-    if (!fallbacks.length) W('   零检出（全部声明=实际，或无绑定岗）\n')
-    for (const f of fallbacks) W(`   [${f.level}] ${f.profile} ${f.sid?.slice(0, 30)}… 声明=${f.declared} 实际=${f.actual} —— ${f.kind}\n`)
-    // ⑥ 岗×源用量（双源分列——组定义=org-config source_health.dual_groups）
-    W(`-- ⑥ 岗×源用量汇总（子代理 metadata，org-ledger 补记数据源；双源分列）：\n`)
-    const byRoleSource = {} // 复合键 role|source（A4：原 byRole[role] 一级赋值从未被读，已删）
-    for (const m of metas) {
-      const role = m.profileId || '?'
-      const alias = subagentNet[m.childSessionId]?.alias || '(宿主默认)'
-      const u = m.usage || {}
-      const k = `${role}|${alias}`
-      byRoleSource[k] = byRoleSource[k] || { calls: 0, in: 0, out: 0 }
-      byRoleSource[k].calls++; byRoleSource[k].in += u.inputTokens || 0; byRoleSource[k].out += u.outputTokens || 0
-    }
-    for (const [k, v] of Object.entries(byRoleSource).sort()) W(`   ${k.replace('|', ' @ ')}: calls=${v.calls} in=${v.in} out=${v.out}\n`)
-    // ⑦ finish 终态派生（保守口径——词表已装载守卫，无兜底数组）
-    const completeSet = new Set(merged.finish_vocab.complete)
-    const truncSet = new Set(merged.finish_vocab.truncation)
-    W(`-- ⑦ 子代理 finish 终态派生（词表=org-config finish_vocab；未知终态=非完整·保守口径）：\n`)
-    for (const m of metas) {
-      const net = subagentNet[m.childSessionId]
-      const fin = net?.lastFinish
-      const stat = m.status
-      let verdict = '未知（无网络事件）'
-      if (completeSet.has(fin)) verdict = '完整'
-      else if (truncSet.has(fin)) verdict = '截断（truncation 词表命中）'
-      else if (fin) verdict = `非完整（finish=${fin}，保守口径）`
-      if (stat !== 'completed' || verdict !== '完整') W(`   [注意] ${m.profileId} status=${stat} finish=${fin ?? '-'} → ${verdict}\n`)
-    }
-    const clean = metas.filter(m => { const f = subagentNet[m.childSessionId]?.lastFinish; return m.status === 'completed' && completeSet.has(f) }).length
-    W(`   完整终态 ${clean}/${metas.length}（未列出者=完整）\n`)
-    // PostToolUse hook 机制验证（存在性口径）
-    W(`-- PostToolUse hook 机制：zcode.cjs 含 PostToolUse/PostToolUseFailure 执行器与 workspace_hooks 信任面（存在性已验）；实弹触发验证=后续批次（登记 RESIDUALS）\n`)
-    if (fallbacks.some(f => f.level === 'RED')) process.exitCode = 1
   }
 }
+run()

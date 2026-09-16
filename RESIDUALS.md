@@ -67,11 +67,11 @@
 | evolve-h3-exitcode | 同上（实现=E1 b2） | ds-call-v2 退出码分类：uncaughtException 消息正则兜底（英文 locale 误分类面）改类型化 ConfigError+classifyExitCode（判据源=06 §5.8）+穷尽 throw 点清单化（E1 报告四节表） | closed | 已修（commit d3d7adc） |
 | evolve-m1-datewindow | 同上（实现=E2 b3） | log-triage --date 非法值原为静默空窗=假绿（勘误后事实：窗口字面值照跑零报错，非全量）——格式+UTC 分量回环语义校验拒（exit 1）+窗口 epoch 化 UTC 日界 | closed | 已修（commit 2c91ddd）；行为变化已入 CHANGELOG v1.7 申报① |
 | evolve-m3-nullguard | 同上（实现=E2 b4） | provider null 裸取三消费点（org-config validateProviders 双裸取/check-hardcode deriveHostModelTerms/log-triage buildAliasMap）TypeError 崩溃改校验错误行 exit 3/降级行 exit 5 族/跳过 | closed | 已修（commit 3f0c080）；同族第 4 消费点新发现拆行 evolve-glmlook-150-null |
-| evolve-h2-timeouts | 同上（实现=E2 b5） | regression 五处主流程 spawnSync 无超时看护（合法最坏链被外层挂起/误杀面）全带 timeout+killSignal：四处秒级 mock 路径 5,000ms；R1=5,400,000ms（单源推导 4×1,200,000+35,000=4,835,000+90min 裕量，∈裁决 C5 机检窗禁裁剪） | closed | 已修（commit 58fb979）；R1 零运行时实证拆行 evolve-r1-timeout-unverified |
+| evolve-h2-timeouts | 同上（实现=E2 b5） | regression 五处主流程 spawnSync 无超时看护（合法最坏链被外层挂起/误杀面）全带 timeout+killSignal：四处秒级 mock 路径 5,000ms；R1=单源推导 4,835,000ms，×1.117 裕量取 90min（5,400,000ms）档（∈裁决 C5 机检窗禁裁剪） | closed | 已修（commit 58fb979）；R1 零运行时实证拆行 evolve-r1-timeout-unverified |
 | evolve-b6-containment | 同上（实现=E1 b6） | sys_prompt_file 无包含性校验（registry 路径可指向技能根外）补 path.relative 判 .. 前缀/绝对形态=越界 exit 3；两落点同步（ds-call-v2 loadRole+regression loadRoleAssembled 单源 import 消费） | closed | 已修（commit 919f27a）；纵深防御定性维持（当前 registry 无越界=不可达守卫） |
 | evolve-b7-anchorblind | 同上（实现=E2 b7） | check-anchors 条目型引用（NN·XN）断锚盲区+单数字文档号形态不识别——扩面：登记表从 01/04 正文解析+两位文档号+自检 4→16 向量（原 head 断言恒真盲点）；01:157 唯一现存断锚改指 01·C2（P-4 终裁） | closed | 已修（commit 67a60e1）；扩面主扫 WARN×0/FAIL×0 零误报 |
 | evolve-b8-docrot | 同上（实现=E3 b8） | 文档计数/清单/头注腐化：「固定六段」族形态普查三分类处置+02 §4 单源根治「固定七段（1-6 段惯称『六段简报』）」+九件脚本头注退出码复写块指针化 06 §5.8+06 §5 R 清单与 SKILL 同族 R1~R6 断言指针化+01:166 补遗错字+04 头注计数去数字 | closed | 已修（commit b76efd7）；禁改面命中登记不修（references/05 两处、07 一处、task-brief 模板、init-defenses 三处——处置明细=E3 报告普查表；verify.mjs:6 与 check-constitution-budget:3 已各自拆行） |
-| evolve-b1-transportresidual | 外部评审清偿战役 evolve 批（计划 v3 b1 既定拆行） | b1 三面不可实证残留：①>300s 首字节面不可回归复现（undici 消除以 R10 结构断言承载=非注释行无 fetch 形态）；②Node25 退出阶段崩溃面不可实证（本战役零外派期）；③异端点传输语义面（glm 形 3xx/gzip 未实证——本地 mock 仅证拟真，非真实端点语义） | open | 替代验证=R10 结构断言+双通道 mock 往返；真外呼窗口（--r1 真实跑或设计岗首用）后回填核验 |
+| evolve-b1-transportresidual | 外部评审清偿战役 evolve 批（计划 v3 b1 既定拆行） | b1 三面不可实证残留：①>300s 首字节面不可回归复现（undici 消除以 R10 结构断言承载=非注释行无 fetch 形态）；②Node25 退出阶段崩溃面不可实证（本战役零外派期）；③异端点传输语义面（glm 形 3xx/gzip 未实证——本地 mock 仅证拟真，非真实端点语义） | open | 替代验证=R10 结构断言+双通道 mock 往返；真外呼窗口（--r1 真实跑或设计岗首用）后回填核验；+R10 错误面无覆盖（mock 仅 200 happy path；非 2xx 体收割/AbortError 拒收/3xx 不跟随分派无向量）——承接=下批 R10 扩向量 |
 | evolve-r1-timeout-unverified | 外部评审清偿战役 evolve 批（E2 移交） | R1 超时改动 5,400,000ms 零运行时实证（R1 SKIP=真实派发配给保护，改动未经真实长链跑过） | open | 替代验证=派生复算表（E2 报告）+门一 diff 审；触发器=下次 --r1 真实跑后核对（看护是否误杀/放行合法最坏链） |
 | evolve-m4-hardcode | 外部评审清偿战役 evolve 批（外部评审 M4） | 脚本内残留硬编码三处：ds-call-v2 max_tokens=32768/temperature=0.2（请求参数，非供应商事实面）；regression R1 SOURCES 源别名内联；check-anchors PROJECT_NAMES 项目名点名单 | open | 承接=下批 org-config 化（与 hardcode_scan/roles 分区协调） |
 | evolve-m6-runid | 外部评审清偿战役 evolve 批（外部评审 M6） | runId 随机后缀仅 4 字符（同秒/并发碰撞窗口）+账本 appendFileSync 多写入者行交错无锁+log-triage switch 统计单值覆盖（同 runId 多次 switch 只记末值） | open | 互指 A-dsN-1（runId=机器关联键定位维持）与 regression R5 区期望计数注释；处置=账本写入器专项批 |
@@ -88,6 +88,7 @@
 | evolve-struct-tables | 外部评审清偿战役 evolve 批（结构项——计划 v3 假设 4：本战役不实施只登记） | 岗位三表三写：SKILL.md 岗位速查/06 §1 分工总表/07 §1 编制表——内容重叠漂移面，须单源化+指针收敛 | open | 承接=结构项专项批（evolve-struct-* 同批呈报） |
 | evolve-struct-glossary | 同上 | 术语速查入口缺位（拟 00 件：跨 references 术语表/新手上手图——「惯称/口径」类术语散布定义无集中入口） | open | 承接=结构项专项批 |
 | evolve-struct-patchwrite | 同上 | 补丁式时序写作累积：「后节接管前节」注记链（02 §8.4 接管注记/06 §6 补遗等）散布各件，结构性收敛未做 | open | 承接=结构项专项批 |
+| evolve-healthscan-86ref | 主控移交+b7 自检引出（evolve 批 check-anchors 自检实测发现 06 无 §8.6、真源在 02，未随批清偿） | health-scan.mjs 两处（:10/:104）「06 §8.6」断链引用（三段通道真源=references/02 §8.6） | closed | 已修（回炉 r2，2026-09-16）：两处改指 02 §8.6；断锚面随批复扫 WARN×0/FAIL×0 |
 
 修订记同步见本册末节 2026-09-16 行。
 
@@ -157,3 +158,8 @@
   evolve-struct-glossary/evolve-struct-patchwrite）；在册 02-§8-model-terms
   补承接批次注（不重建）。批档=scripts/audits/2026-09-16_evolve-*；
   明细=CHANGELOG v1.7 条+E1/E2/E3 报告。
+- 2026-09-16 回炉轮（evolve-rework r1/r2，门一出件全处置）：B1/W2 代码面+
+  W1/W3/N1-N4+主控移交文档面；本册变动=closed 新增 1 行（evolve-healthscan-86ref
+  ——主控移交+b7 自检引出，本轮回炉闭合）+evolve-b1-transportresidual 处置列
+  追加 R10 错误面承接注+evolve-h2-timeouts 行 R1 超时表述勘误（防加法误读）。
+  批档=scripts/audits/2026-09-16_evolve-rework-*。

@@ -11,8 +11,9 @@
  *       ~9k Kimi tokens，须 --r1 显式触发=配给保护）。
  * 用法：node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden]
  *       [--project <账本目录>] [--keep-tmp]
- * 退出码口径单源=references/06 §5.8；本件特有：R2b 派发器装载路异常
- *       计入 FAIL 汇总（exit 1），不单独 3（evolve 批 b8 指针化）。
+ * 退出码口径单源=references/06 §5.8；本件特有一句（R2b 派发器装载路异常
+ *       计入 FAIL 汇总、不单独退配置错——总表对回归件未载此聚合口径，
+ *       回炉 r2 保留呈终审）。
  * golden 更新=冻结动作：--update-golden 重生成后应随工作单元提交并在
  * 修订记登记（改系统提示≠错，错在未登记的静默漂移）。
  */

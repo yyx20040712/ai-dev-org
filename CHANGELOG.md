@@ -11,15 +11,15 @@
   （B1/W1-9/N1-8 全吸纳成 v2）→源B（k2）审 v2 FAIL（B1-3/W1-6/N1-9 全吸纳
   成 v3）→裁决岗终裁有条件放行（C1 头注规则式穷举/C4 固定六段清零/C5 R1
   机检窗/C6 同族证据形态等）→E1（b1+b2+b6+R10）/E2（b3+b4+b5+b7）/
-  E3（b8+b9）分批实施（七笔 commit，未 push）→门禁终态。
+  E3（b8+b9）分批实施（九笔 commit，未 push）→门禁终态。
 - **代码修复（b1-b7）**：glm-look 传输层 fetch→node:http(s) 直连（AbortSignal
   唯一超时源+isMain guard+纯函数 export+R10=结构断言+本地 mock 双通道往返
   +向量）；ds-call-v2 退出码类型化（ConfigError/classifyExitCode，判据源=
   06 §5.8，穷尽 throw 点清单化）；log-triage --date 格式+UTC 分量回环语义
   校验+窗口 epoch 化 UTC 日界；provider null 守卫三消费点（org-config
   校验错误 exit 3/check-hardcode 降级行 exit 5 族/log-triage 跳过）；
-  regression 五处 spawnSync 超时看护（R1=5,400,000ms=单源推导 4,835,000+
-  90min 裕量，∈C5 机检窗禁裁剪）；sys_prompt_file 包含性校验两落点；
+  regression 五处 spawnSync 超时看护（R1=单源推导 4,835,000ms，×1.117 裕量
+  取 90min（5,400,000ms）档，∈C5 机检窗禁裁剪）；sys_prompt_file 包含性校验两落点；
   check-anchors NN·XN 条目型断锚扩面+文档号两位数+自检 4→16 向量
   （01:157 断锚改指 01·C2）。
 - **文档清偿（b8）**：「固定六段」族形态普查三分类处置——02 §4 单源根治
@@ -54,6 +54,11 @@
   活文档面清零+头注「退出码：数字=语义」复写块清零；红→绿+变异红证×2）。
   批档=scripts/audits/2026-09-16_evolve-*（简报/双审原文/计划 v1-v3/
   E1-E3 报告与真退出码 log）。
+- **勘误注记（2026-09-16 回炉 r2 追加，08 §3 口径=勘误性最小修+注记留痕，
+  其余原文不改写）**：①本条「七笔 commit」系计数笔误，实为九笔（9b6bac9/
+  d3d7adc/919f27a/2c91ddd/3f0c080/58fb979/67a60e1/b76efd7/6edffa2），上文
+  已正；②R1 超时表述原「4,835,000 派生+90min 裕量」易读作加法，已改
+  「单源推导 4,835,000ms，×1.117 裕量取 90min（5,400,000ms）档」。
 
 ## 2026-09-16 v1.6（维护熵清偿战役——全面评审→双源对抗审→终裁→八批实施→终审回炉）
 

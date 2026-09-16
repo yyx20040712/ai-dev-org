@@ -12,8 +12,8 @@
 //      正文不落数字，golden 为唯一计数锚）
 // 级别：断锚/路径缺失=WARN（试点校准期——按裁决档 W6：全量 WARN 基线→误报分类，
 //   连续两轮零误报再议升 --strict）；计数不一致=FAIL（golden 冻结面失守，须 --update 重冻结随批提交）。
-// 退出码口径单源=references/06 §5.8（golden 缺失=3 属总表配置/装载错类；
-// 此处不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
+// 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
+// 指针化；回炉 r2 削 b8 残留碎片，golden 缺失语义总表已载）。
 // 用法：node scripts/check-anchors.mjs [--update] [--strict] [--self-test]
 //   --update    重生成 doc-counts.json（冻结动作：随工作单元提交+修订记登记，08 §7）
 //   --strict    WARN 亦退 1（升格开关，试点期不用）
