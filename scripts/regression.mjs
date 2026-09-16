@@ -19,8 +19,9 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { spawnSync } from 'node:child_process'
+import { spawnSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 import { SKILL_ROOT, readJson, loadOrgConfig, cliFlag } from './org-config.mjs'
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
@@ -233,6 +234,143 @@ if (want('R9')) {
   const b = re.exec(readFileSync(join(SCRIPTS, 'glm-look.mjs'), 'utf8'))
   const ok = !!a && !!b && a[1] === b[1] && a[2] === b[2]
   record('R9', ok, `scrub 复制体与源字面量一致=${ok}${!ok ? '（改其一须同步另一——受控复制纪律，裁决档 W7）' : ''}`)
+}
+
+// ═══ R10：b1/b2/b6 回归面汇总（evolve 批 E1 2026-09-16——R10 归属 b1，P-4 预裁决） ═══
+//   ①结构断言：glm-look.mjs 非注释行无 fetch( 调用形态+存在 node:http(s) import
+//     （注释剥离口径钉死：先剥 /*…*/ 块注释再跳过 // 整行注释；行内尾注不剔——
+//      代码半行仍在非注释行内受检）；
+//   ②本地 mock 双通道往返：起 node:http 本地 server 拟真双形（glm=/anthropic
+//     /v1/messages anthropic 形、ds=/deepseek /chat/completions openai 形各一轮），
+//     子进程驱动 glm-look，env 重定向钩子 GLM_LOOK_HOST_CONFIG/GLM_LOOK_LOG_DIR
+//     （内部测试设施，缺省行为不变）隔离宿主配置与真实流水落点——零真实外呼、
+//     零真实落账；断言 stdout 正文+流水 attempt/ok 行（ok 行含 truncated 派生布尔）；
+//   ③纯函数向量（子进程向量脚本承载 import——未实现态 CLI 副作用不触主进程）：
+//     splitEndpoint≥3 例 / classifyExitCode 三类（配置→3/用法→1/未知→1）≥3 例 /
+//     ensureWithinRoot 三负例（恰 ..、..\、../ 三输入形态）+2 正例。
+//   本块一切 spawnSync 带 timeout+killSignal（秒级 mock 路径 60s 量级）。
+if (want('R10')) {
+  let ok = true
+  const det = []
+  const r10Spawn = (args, opts = {}) => spawnSync(node()[0], args, { encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL', ...opts })
+  // 异步 spawn+超时看护（60s 量级+SIGKILL，与 spawnSync 看护等价）：mock 往返必须
+  // 异步——spawnSync 会冻结父进程事件循环，本进程内 mock server 无法应答
+  // （实测：子进程 TCP 已连而父进程 server 请求永不处理=挂到被杀）。
+  const r10SpawnAsync = (args, opts = {}) => new Promise((resolve) => {
+    const child = spawn(node()[0], args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, ...opts })
+    let stdout = '', stderr = ''
+    child.stdout.on('data', (c) => { stdout += c })
+    child.stderr.on('data', (c) => { stderr += c })
+    const timer = setTimeout(() => child.kill('SIGKILL'), 60_000)
+    child.on('error', () => { clearTimeout(timer); resolve({ status: null, signal: null, stdout, stderr }) })
+    child.on('close', (code, signal) => { clearTimeout(timer); resolve({ status: code, signal, stdout, stderr }) })
+  })
+  // ① 结构断言
+  {
+    const src = readFileSync(join(SCRIPTS, 'glm-look.mjs'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const codeLines = src.split('\n').filter((l) => !l.trim().startsWith('//'))
+    const fetchHit = codeLines.filter((l) => /\bfetch\s*\(/.test(l))
+    const hasHttpImport = /from\s+["']node:https?["']/.test(src)
+    if (fetchHit.length || !hasHttpImport) ok = false
+    det.push(`①结构断言:非注释行fetch命中=${fetchHit.length}${fetchHit.length ? `「${fetchHit[0].trim().slice(0, 50)}」` : ''} node:http(s)import=${hasHttpImport ? '✓' : '✗'}`)
+  }
+  // ③ 纯函数向量（两份向量脚本；红态函数未导出→FAIL 不崩）
+  const r10tmp = mkdtempSync(join(tmpdir(), 'r10-'))
+  const vecUrl = (f) => pathToFileURL(join(SCRIPTS, f)).href
+  const vecGlm = join(r10tmp, 'vec-glm.mjs')
+  writeFileSync(vecGlm, `import * as glmLook from ${JSON.stringify(vecUrl('glm-look.mjs'))}
+const { splitEndpoint } = glmLook
+let fails = 0
+const t = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++ }
+if (typeof splitEndpoint !== 'function') { console.log('FAIL splitEndpoint 未导出（b1 待实现）'); process.exit(1) }
+t('http 缺省端口 80', JSON.stringify(splitEndpoint('http://h.example/p')) === JSON.stringify({ protocol: 'http:', hostname: 'h.example', port: 80, path: '/p' }))
+t('https 显式端口 8443', splitEndpoint('https://h.example:8443/a?b=1').port === 8443)
+t('path 含 search 串', splitEndpoint('https://h.example/a?x=1&y=2').path === '/a?x=1&y=2')
+t('http 显式端口 3000', splitEndpoint('http://h:3000/x').port === 3000)
+console.log(fails === 0 ? 'R10VEC-ALL-PASS' : 'R10VEC-FAILS:' + fails)
+process.exit(fails === 0 ? 0 : 1)
+`, 'utf8')
+  const vecDs = join(r10tmp, 'vec-ds.mjs')
+  writeFileSync(vecDs, `import * as dsCall from ${JSON.stringify(vecUrl('ds-call-v2.mjs'))}
+import { join, dirname, resolve } from 'node:path'
+const { classifyExitCode, ConfigError, ensureWithinRoot } = dsCall
+let fails = 0
+const t = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++ }
+if (typeof classifyExitCode !== 'function' || typeof ConfigError !== 'function' || typeof ensureWithinRoot !== 'function') { console.log('FAIL 纯函数未导出（b2/b6 待实现）'); process.exit(1) }
+t('分类:配置 ConfigError→3', classifyExitCode(new ConfigError('配置错')) === 3)
+t('分类:用法 普通 Error→1', classifyExitCode(new Error('用法错')) === 1)
+t('分类:未知 非 Error 值→1', classifyExitCode('boom') === 1)
+t('分类:exitCode 属性直通(2)', classifyExitCode(Object.assign(new Error('x'), { exitCode: 2 })) === 2)
+t('ConfigError 实例 exitCode=3', new ConfigError('x').exitCode === 3)
+const root = resolve('r10-root-fixture')
+const throws3 = (fn) => { try { fn(); return false } catch (e) { return e.exitCode === 3 } }
+t('越界负例:恰 ..（root 兄弟）', throws3(() => ensureWithinRoot(root, dirname(root))))
+t('越界负例:..\\\\ 深层逃逸', throws3(() => ensureWithinRoot(root, join(root, '..', 'evil', 'x.txt'))))
+t('越界负例:../ 形态（混合分隔输入）', throws3(() => ensureWithinRoot(root, root + '/../evil/x.txt')))
+t('正例:root 内深层文件', ensureWithinRoot(root, join(root, 'roles', 'a.md')) === join(root, 'roles', 'a.md'))
+t('正例:root 自身', ensureWithinRoot(root, root) === root)
+console.log(fails === 0 ? 'R10VEC-ALL-PASS' : 'R10VEC-FAILS:' + fails)
+process.exit(fails === 0 ? 0 : 1)
+`, 'utf8')
+  const rGlm = r10Spawn([vecGlm])
+  const rDs = r10Spawn([vecDs])
+  const vecOk = rGlm.status === 0 && (rGlm.stdout || '').includes('R10VEC-ALL-PASS')
+  const vecDsOk = rDs.status === 0 && (rDs.stdout || '').includes('R10VEC-ALL-PASS')
+  if (!vecOk || !vecDsOk) ok = false
+  const vecFail = (r) => `FAIL(exit=${r.status} 「${((r.stdout || '') + '\n' + (r.stderr || '')).split('\n').filter((l) => l.startsWith('FAIL')).slice(0, 2).join('|')}」)`
+  det.push(`③向量:splitEndpoint=${vecOk ? '全过' : vecFail(rGlm)}/classify+ensure=${vecDsOk ? '全过' : vecFail(rDs)}`)
+  // ② 本地 mock 双通道往返（b1 传输层+env 钩子就位才跑——红态跳过防触真实宿主源发现）
+  if (vecOk) {
+    const { createServer } = await import('node:http')
+    const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+    const server = createServer((req, res) => {
+      const chunks = []
+      req.on('data', (c) => chunks.push(c))
+      req.on('end', () => {
+        const glmForm = req.url.includes('/anthropic') // 通道甄别=org-config endpoint_contains 同串拟真
+        const body = glmForm
+          ? { content: [{ type: 'text', text: 'MOCK-GLM-OK' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }
+          : { choices: [{ message: { content: 'MOCK-DS-OK' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify(body))
+      })
+    })
+    await new Promise((r) => server.listen(0, '127.0.0.1', r))
+    const port = server.address().port
+    const logDir = join(r10tmp, 'log')
+    mkdirSync(logDir, { recursive: true })
+    const hostCfgFile = join(r10tmp, 'host-config.json') // 拟真宿主配置（模型键/端点甄别子串与 org-config vision_channels 对齐）
+    writeFileSync(hostCfgFile, JSON.stringify({
+      provider: {
+        'mock-glm': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-mock-key-aaaaaaaaaaaaaaaaaaaa' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-ds': { options: { baseURL: `http://127.0.0.1:${port}/deepseek`, apiKey: 'r10-mock-key-bbbbbbbbbbbbbbbbbbbb' }, models: { 'deepseek-flash': { name: 'deepseek-flash' } } },
+      },
+    }), 'utf8')
+    const promptFile = join(r10tmp, 'prompt.md')
+    writeFileSync(promptFile, 'R10 mock 往返（本地拟真，零外部调用）', 'utf8')
+    const imgFile = join(r10tmp, 'img.png')
+    writeFileSync(imgFile, PNG_1PX)
+    const runLook = (channel) => r10SpawnAsync([join(SCRIPTS, 'glm-look.mjs'), '--prompt', promptFile, imgFile, '--channel', channel], {
+      env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgFile, GLM_LOOK_LOG_DIR: logDir },
+    })
+    const rg = await runLook('glm')
+    const rd = await runLook('ds')
+    const logFile = join(logDir, 'model-routing-log.jsonl')
+    const logLines = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
+    const chOf = (ch) => logLines.filter((e) => e.channel === ch)
+    const lookOk = (r, ch, text) => r.status === 0 && (r.stdout || '').includes(text) && chOf(ch).some((e) => e.event === 'attempt') && chOf(ch).some((e) => e.event === 'ok' && e.truncated === false)
+    const glmOk = lookOk(rg, 'glm-look', 'MOCK-GLM-OK')
+    const dsOk = lookOk(rd, 'ds-look', 'MOCK-DS-OK')
+    if (!glmOk || !dsOk) ok = false
+    const lookFail = (r) => `✗(exit=${r.status} stderr尾=${(r.stderr || '').slice(-140).replace(/\n/g, ' ')})`
+    det.push(`②mock往返:glm=${glmOk ? `✓(exit=${rg.status} 正文+流水attempt/ok行)` : lookFail(rg)}/ds=${dsOk ? `✓(exit=${rd.status})` : lookFail(rd)}`)
+    server.close()
+  } else {
+    ok = false
+    det.push('②mock往返:跳过（splitEndpoint 未导出=b1 传输层未落，env 钩子未就位——跑则触真实宿主源发现）')
+  }
+  if (!keepTmp) rmSync(r10tmp, { recursive: true, force: true })
+  record('R10', ok, `b1/b2/b6 回归面——${det.join('；')}`)
 }
 
 // ═══ R1'3：语义抽样（真实派发，--r1 显式触发） ═══

@@ -24,6 +24,10 @@
 //   - 单次调用上限 20 分钟（AbortSignal.timeout=唯一超时源——对齐派发器
 //     06 §5.7 传输纪律；v1.6 批 P0-B a：原 fetch 无超时可无限挂起）；
 //     4xx（429 除外）立断不重试（对齐派发器 NO_RETRY；429/5xx 保留退避重试）；
+//   - 传输层=node:http(s) 直连（evolve 批 b1，2026-09-16——镜像 ds-call-v2
+//     v2.2.1 postJson：弃 global fetch，undici 内建 headers/body 300s 默认会在
+//     非流式长推理期先掐；req 侧禁 setTimeout，不跟随 3xx，不设
+//     accept-encoding；R10 结构断言+mock 双通道往返钉此面）；
 //   - ok 流水行带 truncated 派生布尔（finish 白名单反转口径，词表=org-config
 //     finish_vocab——闭残留册 glm-look-truncation-field）；
 //   - 视觉方向级决策仍留用户——本通道只产判读证据；
@@ -38,20 +42,26 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 import { fileURLToPath } from "node:url";
 import { loadOrgConfig } from "./org-config.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url)); // 规范解析（percent-decode）——原 URL pathname 手拼在含空格/中文路径下必坏（v1.6 批 P0-B e）
 const SKILL_ROOT = path.join(SCRIPT_DIR, "..");
-const ROUTING_LOG = path.join(SCRIPT_DIR, "model-routing-log.jsonl");
-const CONFIG = path.join(os.homedir(), ".zcode", "v2", "config.json");
+// env 重定向钩子（evolve 批 b1 内部测试设施，R10 mock 往返用——缺省行为不变：
+// 不设 env 时落点/配置与原硬编码完全一致；prod 路径禁依赖）
+const ROUTING_LOG = path.join(process.env.GLM_LOOK_LOG_DIR || SCRIPT_DIR, "model-routing-log.jsonl");
+const CONFIG = process.env.GLM_LOOK_HOST_CONFIG || path.join(os.homedir(), ".zcode", "v2", "config.json");
 const MIN_MAX_TOKENS = 8000;
 const CALL_TIMEOUT_MS = 20 * 60_000; // 单次调用上限=对齐派发器（06 §5.7）
 // 通道甄别参数单源=org-config vision_channels（v1.6 批 P0-B d 预裁 A）；
 // 通道未声明=无源返回（禁脚本兜底硬编码——06 §0）
-const { merged: ORG_CFG } = loadOrgConfig(SKILL_ROOT);
-const VISION = ORG_CFG.vision_channels || {};
-const chCfg = (ch) => VISION[ch] || {};
+// 装载惰性单例（evolve 批 b1：isMain guard 后 import 消费纯函数零副作用——
+// R10 向量脚本 import splitEndpoint 不触配置装载）
+let _orgCfgCache = null;
+const orgCfg = () => { _orgCfgCache ??= loadOrgConfig(SKILL_ROOT).merged; return _orgCfgCache; };
+const chCfg = (ch) => (orgCfg().vision_channels || {})[ch];
 /** 脱敏（受控复制自 ds-call-v2.mjs——A3 受控双源：字面量由 regression R9
  * 对账钉同步；升格共享模块=未来分发重构时再裁，裁决档 W7 统一判据）。 */
 const SCRUB_RE = /(Bearer\s+)?[A-Za-z0-9_-]{24,}/g // 日志脱敏：长 token 形态一律掩码（K-N2）
@@ -59,6 +69,56 @@ const scrub = (s) => String(s).replace(SCRUB_RE, '<redacted>')
 /** 通道枚举（glm=anthropic 格式 / ds=OpenAI 格式 image_url——载荷与
  * 端点异构，纪律面共用）。 */
 const CHANNELS = new Set(["glm", "ds"]);
+
+/** URL 拆解为 node:http(s) request 选项三元组（纯函数，export 供 R10 向量）：
+ * 端口缺省按协议补（http=80/https=443），path=pathname+search。
+ * 传输层镜像源=ds-call-v2 v2.2.1 postJson（evolve 批 b1）。 */
+export function splitEndpoint(url) {
+  const u = new URL(url);
+  return {
+    protocol: u.protocol,
+    hostname: u.hostname,
+    port: u.port ? Number(u.port) : u.protocol === "http:" ? 80 : 443,
+    path: u.pathname + u.search,
+  };
+}
+
+/** POST 传输层=node:http(s) 直连（evolve 批 b1——镜像 ds-call-v2 v2.2.1：
+ * 弃 global fetch，undici 内建 headers/body 300s 默认会在非流式长推理期
+ * 先掐；signal=AbortSignal 唯一超时源（req 侧禁 setTimeout）；不跟随 3xx；
+ * 不设 accept-encoding；res.on('error') 防响应中途断流挂起）。 */
+function postJson(url, headers, body, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const ep = splitEndpoint(url);
+    const lib = ep.protocol === "http:" ? httpRequest : httpsRequest;
+    const req = lib(
+      {
+        hostname: ep.hostname,
+        port: ep.port,
+        path: ep.path,
+        method: "POST",
+        headers,
+        signal: AbortSignal.timeout(timeoutMs),
+      },
+      (res) => {
+        const chunks = [];
+        res.on("data", (c) => chunks.push(c));
+        res.on("error", reject);
+        res.on("end", () => {
+          const text = Buffer.concat(chunks).toString("utf8");
+          resolve({
+            status: res.statusCode,
+            ok: res.statusCode >= 200 && res.statusCode < 300,
+            text: async () => text,
+            json: async () => JSON.parse(text),
+          });
+        });
+      }
+    );
+    req.on("error", reject);
+    req.end(body);
+  });
+}
 
 function channelTag(channel) {
   return channel === "ds" ? "ds-look" : "glm-look";
@@ -142,6 +202,7 @@ function usage() {
 
 async function main() {
   const argv = process.argv.slice(2);
+  const ORG_CFG = orgCfg(); // 配置单例（顶层惰性装载——isMain 后 import 零副作用）
   // finish_vocab 拒跑守卫（终审 W3：缺词表=配置错——同批 ds-call-v2/log-triage 已立此纪律，
   // 原可选链静默兜底致 completeFinishes 空集、truncated 恒 true 的静默假数据面）
   if (!ORG_CFG.finish_vocab?.complete?.length || !ORG_CFG.finish_vocab?.truncation?.length) {
@@ -253,7 +314,7 @@ async function main() {
         } else {
           headers["authorization"] = `Bearer ${src.key}`;
         }
-        const r = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(CALL_TIMEOUT_MS) });
+        const r = await postJson(url, headers, body, CALL_TIMEOUT_MS);
         if (!r.ok) {
           const errBody = await r.text().catch(() => "");
           const err = new Error(`HTTP ${r.status}: ${scrub(errBody).slice(0, 300)}`);
@@ -312,4 +373,10 @@ async function main() {
   return 0;
 }
 
-process.exitCode = await main();
+// isMain guard（evolve 批 b1，范式=org-config.mjs:124-126）：import 消费纯函数
+// （splitEndpoint，R10 向量）时零副作用；CLI 体仅在直接执行时跑。
+const isMain =
+  process.argv[1] && path.resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase();
+if (isMain) {
+  process.exitCode = await main(); // 自然退出保持（Node 25 libuv 退出面——禁 process.exit 急退）
+}
