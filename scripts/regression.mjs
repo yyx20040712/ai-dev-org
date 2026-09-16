@@ -251,7 +251,10 @@ if (wantR1) {
       writeFileSync(pf, c.prompt, 'utf8')
       const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--source', src, '--project', tmp, pf, pf + '.' + src + '.out'], { encoding: 'utf8', cwd: tmp, timeout: 1_260_000 }) // >派发器 20min 调用上限+余量（v1.6 批：原 10min 会先杀合法长推理误报 FAIL）
       const out = r.status === 0 ? readFileSync(pf + '.' + src + '.out', 'utf8') : ''
-      verdicts[src] = /判定\s*[:：]\s*PASS/i.test(out) ? 'PASS' : /判定\s*[:：]\s*FAIL/i.test(out) ? 'FAIL' : `UNPARSEABLE(exit=${r.status})`
+      // 格式容错解析（v1.6 批：deepseek 偶发把「判定:」耗在推理通道、可见正文用 Verdict:/裸 PASS-FAIL——
+      // 语义不变仍取方向；S2 干净样例不会被 FAIL 误配（模型方向错才会）
+      const vm = /(?:判定|verdict)\s*[:：]\s*(PASS|FAIL)/i.exec(out) || /^\s*\*{0,2}(PASS|FAIL)\b/im.exec(out)
+      verdicts[src] = vm ? vm[1].toUpperCase() : `UNPARSEABLE(exit=${r.status})`
       if (verdicts[src] === 'UNPARSEABLE') allPass = false
     }
     const agree = verdicts['kimi-main'] === verdicts['deepseek'] && verdicts['kimi-main'] === c.expect
