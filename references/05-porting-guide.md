@@ -64,6 +64,19 @@ CI 骨架/门禁聚合入口/任务书六段模板/台账+org-delta 初始化/.g
   [ ] 第一次教训回流（哪怕只有一条：入教训库三段式）
 ```
 
+**收口前防线自检（2026-09-14 优化批增，P0 三条）**——新项目落地后、
+每次收口前逐项跑：
+```
+  [ ] node <技能根>/scripts/health-scan.mjs --project <项目根>   # RED=0 方可收口
+  [ ] node <技能根>/scripts/check-hardcode.mjs                   # 供应商 live 事实零硬编码
+  [ ] node <技能根>/scripts/health-scan.mjs --self-test           # 扫描器自检 9/9
+  [ ] node <技能根>/scripts/check-hardcode.mjs --self-test        # 扫描器自检 5/5
+  [ ] node <技能根>/scripts/regression.mjs --only R2,R4,R5        # 档案/记账/换源三面
+```
+判据速查：**截断的审计报告不算合格审计**（health-scan ④ RED，见 02 §10）；
+**演练行不得参与欠账判定**（源头写 `mocked:true`）；**声明必须有机检**
+（06 §0 零硬编码声明 ↔ check-hardcode）。
+
 ## 5. 与两项目源文档的关系
 
 - 本套是**整合视图**（快照 2026-08-27）；两项目各自的宪法/方法论是其领域的

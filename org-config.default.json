@@ -24,22 +24,58 @@
       "note": "审计兜底（套餐外按量）"
     }
   },
-  "source_chain": ["kimi-main", "kimi-backup", "deepseek"],
+  "source_chain": [
+    "kimi-main",
+    "kimi-backup",
+    "deepseek"
+  ],
+  "finish_vocab": {
+    "complete": [
+      "end_turn",
+      "stop",
+      "stop_sequence"
+    ],
+    "truncation": [
+      "max_tokens",
+      "length"
+    ],
+    "note": "W-3 白名单反转：仅 complete 视为完整终态；truncation 及一切未知终态=非完整（审计岗 RED）。词表住此处，脚本禁硬编码（A3/06 §0）。"
+  },
+  "supported_node": {
+    "forbid_major": [
+      25
+    ],
+    "note": "HOST-node25：宿主 Node 25.2.1 下 ds-call-v2 退出阶段 libuv 断言崩溃（残留册 HOST-node25）。外部派发用 Node 24。守卫读本项，脚本禁硬编码路径（W-12）。"
+  },
+  "thresholds": {
+    "source_share_warn": 0.6,
+    "source_share_note": "单源占比超此值=配给红线可能失守（P2-3；初始值 0.6，按实测两批后调整）"
+  },
+  "hardcode_scan": {
+    "forbidden_terms": [],
+    "note": "P0-3 check-hardcode 的额外扫描名单（正则字面量）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内；供应商 live 事实（端点/实配名）在宿主 config 而不在本件，故默认空——项目覆盖件可加自有禁词。"
+  },
   "roles": {
     "drafter": {
       "source": "chain",
       "tier": "prime",
-      "tier_note": "路线级设计拟定（长上下文+重推理档）"
+      "audit_surface": true,
+      "tier_note": "路线级设计拟定（长上下文+重推理档）",
+      "migration_note": "迁移期注记（2026-09-16 定档，下批迁）：现承载=外部派发器；目标承载=会话内子代理 ops-drafter-k1/k2（Kimi 双源）；迁移前派发器=后备/探针。roles.* 不删"
     },
     "gate1-reviewer": {
       "source": "chain",
       "tier": "audit",
-      "tier_note": "门一隔离一审（与实现者异构对抗）"
+      "audit_surface": true,
+      "tier_note": "门一隔离一审（与实现者异构对抗）",
+      "migration_note": "2026-09-16 A'批起迁移期双承载并存：主承载试点=会话内子代理 ops-gate1-k1/k2（frontmatter 绑定 Kimi 双源）；派发器=健康探针（log-triage --health）+后备通道，不拆除。roles.* 不删；health-scan audit_surface 判定以实际承载通道的记账源为准（迁移批逐岗改挂）"
     },
     "auditor-readonly": {
       "source": "deepseek",
       "tier": "debt-readonly",
-      "tier_note": "兜底审/源尽欠账只读审"
+      "audit_surface": true,
+      "tier_note": "兜底审/源尽欠账只读审",
+      "migration_note": "迁移期注记（2026-09-16 定档，下批迁）：现承载=外部派发器（deepseek 单源，按量无配额池）；目标承载=会话内子代理 ops-auditor；迁移前派发器=后备/探针。roles.* 不删"
     }
   },
   "ration_redlines": {

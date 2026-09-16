@@ -18,6 +18,19 @@
  *    全链注入=零成本 exhaust 演练；部分注入则后续源为真实调用（成本自担）。
  *  - v1/v2 禁混用于同一工单=主控流程纪律（单一调用者+事件字段 dispatcher_version
  *    可审计），不做代码级拦截（ds-W1 终裁）。
+ *  - v2.2.0（2026-09-14 优化批，Kimi 异源对抗审核后）：
+ *    ①账本 schema v2——增 runId（账本↔流水行级关联键，W-B2）/schema_version/
+ *      mocked（演练行源头甄别，W-2）/truncated（**派生布尔**，finish 唯一真相
+ *      源在流水，W-B2 裁决）；②截断判定=白名单反转（仅 finish_vocab.complete
+ *      完整，未知终态按非完整，W-3），词表住 org-config（脚本零硬编码）；
+ *    ③网络级失败显式写 statusCode:null（P0-4 真因 2，R4 schema）；
+ *    ④Node 版本守卫（P3-1/W-12，受禁主版本住 org-config）。
+ *  - v2.2.1（2026-09-16 用户指令：后台调用上限 10 分钟→20 分钟）：
+ *    ①CALL_TIMEOUT_MS=1_200_000；②传输层弃 global fetch（undici）——其内建
+ *    headersTimeout/bodyTimeout 默认 300s，非流式长推理（响应头到达前零字节）
+ *    会被它先于 AbortSignal 掐断（客户端侧中断=服务端记 499 家族）；改
+ *    node:http(s) 直连，唯一超时=CALL_TIMEOUT_MS（undici 包在技能目录亦不可
+ *    解析，故不采 setGlobalDispatcher 方案）。退避/重试/解析语义零变化。
  * v1 母本=Synapse scripts/audits/ds-call.mjs（受锁件独立服役）。请求构造/响应解析/
  * 退避策略与 v1 一致（429/5xx/网络错指数退避 3 次换源；400/401/403/404 立即换源；
  * 末次守卫抛真实状态码）。
@@ -30,9 +43,12 @@ import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join, dirname, resolve, isAbsolute, basename } from 'node:path'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, readHostConfig, readJson } from './org-config.mjs'
 
-const DISPATCHER_VERSION = '2.1.0'
+const DISPATCHER_VERSION = '2.2.1'
+const LEDGER_SCHEMA_VERSION = 2 // W-N5：账本行 schema 版本（新增字段 runId/mocked/truncated/schema_version）
 const LOG_PATH = join(dirname(fileURLToPath(import.meta.url)), 'model-routing-log.jsonl')
 const REGISTRY_PATH = join(SKILL_ROOT, 'scripts', 'roles', 'registry.json')
 const RETRYABLE = (s) => s === 429 || s >= 500
@@ -45,6 +61,18 @@ process.on('uncaughtException', (e) => {
   console.error(`[fatal] ${scrub(e.message)}`)
   process.exit(/JSON|配置|registry|org-config/.test(e.message) ? 3 : 1)
 })
+
+// ── Node 版本守卫（P3-1/W-12）：HOST-node25 libuv 退出阶段崩溃面 ──
+// 受支持版本区间与禁用主版本住 org-config（supported_node），脚本禁硬编码路径。
+function nodeVersionGuard(merged) {
+  const forbid = merged?.supported_node?.forbid_major
+  if (!Array.isArray(forbid) || forbid.length === 0) return
+  const major = Number(process.versions.node.split('.')[0])
+  if (forbid.includes(major)) {
+    console.error(`[node-guard] 当前 Node ${process.version} 主版本 ${major} 在 org-config supported_node.forbid_major 内——` +
+      `已知退出阶段 libuv 断言崩溃面（残留册 HOST-node25）。外部派发请改用受支持版本（如 Node 24）。本次继续执行，运行结果与落账已完成，崩溃仅发生在退出阶段。`)
+  }
+}
 
 const exitConfig = (msg) => {
   console.error(msg)
@@ -132,23 +160,75 @@ function parseResponse(src, data) {
   return { text, usage: { in: data.usage?.prompt_tokens, out: data.usage?.completion_tokens }, finish: data.choices?.[0]?.finish_reason }
 }
 
+// ── 截断判定（W-3 白名单反转 + W-4 词表住 org-config，脚本零硬编码） ──
+// 仅 complete 词表内视为完整终态；truncation 及一切未知终态=非完整（审计岗按假成功处置）。
+function makeFinishClassifier(vocab) {
+  const complete = new Set(vocab?.complete || ['end_turn', 'stop', 'stop_sequence'])
+  const truncation = new Set(vocab?.truncation || ['max_tokens', 'length'])
+  return (finish) => {
+    if (finish == null) return { cls: 'unknown', truncated: true } // 无终态信息=不可判为完整（保守）
+    if (complete.has(finish)) return { cls: 'complete', truncated: false }
+    if (truncation.has(finish)) return { cls: 'truncation', truncated: true }
+    return { cls: 'unknown', truncated: true } // 未知终态词=按非完整（W-3：防未知截断静默通过）
+  }
+}
+
 // ── 双落账：运行流水（含 attempt）+ 项目账本（仅 ok/switch/exhaust）；本地 IO 降级 ──
+// 账本 schema v2（W-N5）：增 runId（账本↔流水行级关联键，W-B2）/schema_version/
+// mocked（源头侧甄别演练行，W-2）/truncated（**派生布尔**——finish 唯一真相源在
+// 流水，账本只存判定结果，非双源，W-B2 明文裁决）。
 const runId = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 6)
-function makeLogger(role, merged, project, ledgerPath) {
+function makeLogger(role, merged, project, ledgerPath, isMock, classifyFinish) {
   const safeAppend = makeSafeAppend()
   const ctx = { role_id: role.id, role_version: role.version, role_sig: role.sig, dispatcher_version: DISPATCHER_VERSION, org_config_hash: cfgHash(merged) }
   return {
     ctx,
+    classifyFinish,
     routing: (event, fields) => safeAppend(LOG_PATH, JSON.stringify({ ts: new Date().toISOString(), runId, event, ...ctx, ...fields }) + '\n'),
     ledger: (event, fields) => {
       if (!['ok', 'switch', 'exhaust'].includes(event)) return
       const roleCfg = merged.roles?.[role.id] || {}
-      safeAppend(ledgerPath, JSON.stringify({ ts: new Date().toISOString(), project, event, role: role.id, tier: roleCfg.tier || 'unspecified', source: fields.source, cfg_hash: ctx.org_config_hash, usage: fields.usage, outcome: scrub(fields.outcome) }) + '\n')
+      // truncated 仅对 ok 行有意义（switch/exhaust 无产出，不记——防语义噪声）
+      const truncated = event === 'ok' ? classifyFinish(fields.finish).truncated : undefined
+      safeAppend(ledgerPath, JSON.stringify({ ts: new Date().toISOString(), schema_version: LEDGER_SCHEMA_VERSION, runId, project, event, role: role.id, tier: roleCfg.tier || 'unspecified', source: fields.source, cfg_hash: ctx.org_config_hash, usage: fields.usage, mocked: isMock || undefined, truncated, outcome: scrub(fields.outcome) }) + '\n')
     },
   }
 }
 
 // ── 单源调用：源内退避 3 次；attempt/ok 落账；switch/exhaust 由外层链记（互斥） ──
+
+// 客户端调用上限（v2.2.1 用户指令 2026-09-16）：10 分钟 → 20 分钟。
+const CALL_TIMEOUT_MS = 1_200_000
+
+// POST 传输层=node:http(s) 直连（弃 global fetch——undici 内建 headers/body
+// 300s 默认会在非流式长推理期先掐；见头注 v2.2.1）。signal 是唯一超时来源。
+function postJson(url, headers, body, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url)
+    const lib = u.protocol === 'http:' ? httpRequest : httpsRequest
+    const req = lib(
+      {
+        hostname: u.hostname,
+        port: u.port || (u.protocol === 'http:' ? 80 : 443),
+        path: u.pathname + u.search,
+        method: 'POST',
+        headers,
+        signal: AbortSignal.timeout(timeoutMs),
+      },
+      (res) => {
+        const chunks = []
+        res.on('data', (c) => chunks.push(c))
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8')
+          resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, text: async () => text, json: async () => JSON.parse(text) })
+        })
+      }
+    )
+    req.on('error', reject)
+    req.end(body)
+  })
+}
+
 async function callSource(src, prompt, system, logger, mock) {
   const mockedStatus = mock ? mock[src.alias] : undefined
   const mocked = mockedStatus !== undefined
@@ -159,7 +239,7 @@ async function callSource(src, prompt, system, logger, mock) {
     try {
       const res = mocked
         ? { status: mockedStatus, ok: mockedStatus < 400, text: async () => '[mock-source 故障注入]' }
-        : await fetch(req.url, { method: req.method, headers: req.headersReal, body: JSON.stringify(req.body), signal: AbortSignal.timeout(600_000) })
+        : await postJson(req.url, req.headersReal, JSON.stringify(req.body), CALL_TIMEOUT_MS)
       if (RETRYABLE(res.status)) {
         if (attempt === 3) throw Object.assign(new Error(`HTTP ${res.status} 退避 3 次耗尽${mocked ? '（mock）' : ''}`), { statusCode: res.status })
         const wait = mocked ? 0 : 5000 * 2 ** attempt
@@ -179,9 +259,12 @@ async function callSource(src, prompt, system, logger, mock) {
       const data = await res.json()
       const { text, usage, finish } = parseResponse(src, data)
       if (!text) throw Object.assign(new Error('空响应 finish=' + finish + ' usage=' + JSON.stringify(usage)), { fatal: true })
-      logger.routing('ok', { source: src.alias, model: src.modelName, usage, latencyMs: Date.now() - t0, finish })
-      logger.ledger('ok', { source: src.alias, usage, outcome: 'ok' })
-      return { text, usage, latencyMs: Date.now() - t0 }
+      const { cls, truncated } = logger.classifyFinish(finish)
+      // 截断=假成功（P0-2）：报告可能不完整而被当 ok 收下。显式告警，交收口 RED 处置。
+      if (truncated) console.error(`[truncation-warn] ${src.alias} 产出非完整终态 finish=${finish}（${cls}）——审计产出按假成功处置（回炉/换源），账本已记 truncated=true`)
+      logger.routing('ok', { source: src.alias, model: src.modelName, usage, latencyMs: Date.now() - t0, finish, finish_class: cls, truncated })
+      logger.ledger('ok', { source: src.alias, usage, finish, outcome: truncated ? `ok-truncated（finish=${finish}）` : 'ok' })
+      return { text, usage, latencyMs: Date.now() - t0, truncated }
     } catch (e) {
       if (e.fatal || attempt === 3) throw e // switch/exhaust 由外层按「是否真换源」记（互斥语义）
       const wait = mocked ? 0 : 5000 * 2 ** attempt
@@ -209,6 +292,7 @@ const positional = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== 
 
 const registry = readJson(REGISTRY_PATH)
 const { merged } = loadOrgConfig(process.cwd())
+nodeVersionGuard(merged)
 const rawLedger = merged.ledger_path || '.zcode/org-ledger.jsonl'
 const ledgerPath = isAbsolute(rawLedger) ? rawLedger : join(process.cwd(), rawLedger)
 // 注：--project=账本条目名；配置装载恒从 cwd。死配置守卫（org-config 角色↔registry
@@ -271,7 +355,7 @@ if (mock)
     if (status < 400 || status > 599) exitConfig(`--mock-source 的 status 须在 [400,599]（故障注入语义；无成功路径）`)
   }
 
-const logger = makeLogger(role, merged, projectName, ledgerPath)
+const logger = makeLogger(role, merged, projectName, ledgerPath, !!mock, makeFinishClassifier(merged.finish_vocab))
 if (dryRun) {
   console.log(
     JSON.stringify(
@@ -308,7 +392,9 @@ for (let i = 0; i < chain.length; i++) {
   try {
     result = await callSource(s, prompt, system, logger, mock)
   } catch (e) {
-    const statusCode = e.statusCode
+    // P0-4 真因 2：网络级失败（fetch failed）无 HTTP 状态码——显式写 null，
+    // 保字段存在（R4 schema 要求 statusCode；缺字段=坏行）。
+    const statusCode = e.statusCode ?? null
     if (i === chain.length - 1) {
       logger.routing('exhaust', { chain: chain.map((x) => x.alias).join('→'), error: scrub(e.message).slice(0, 300), statusCode })
       logger.ledger('exhaust', { source: chain.map((x) => x.alias).join('→'), outcome: 'exhaust-debt（同源审计欠账，主控回退只读审）' })

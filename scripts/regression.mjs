@@ -135,13 +135,24 @@ if (want('R4')) {
   if (!versionMatch) { console.error('FAIL R4 无法从 ds-call-v2.mjs 提取 DISPATCHER_VERSION（源码变更？）'); process.exit(3) }
   const CURRENT_DISPATCHER = versionMatch[1]
   const ROUTING_REQUIRED = { attempt: ['ts', 'runId', 'event', 'source', 'model', 'attempt', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], ok: ['ts', 'runId', 'event', 'source', 'model', 'usage', 'latencyMs', 'finish', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], switch: ['ts', 'runId', 'event', 'from', 'to', 'error', 'statusCode', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], exhaust: ['ts', 'runId', 'event', 'chain', 'error', 'statusCode', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'] }
+  // 账本 schema v2（2026-09-14）：增 schema_version/runId（行级关联键）/mocked；
+  // truncated 仅 ok 行有 → 列入 ok 必填（P0-2 截断假成功的机检前置）。
   const LEDGER_REQUIRED = ['ts', 'project', 'event', 'role', 'tier', 'source', 'cfg_hash', 'outcome']
+  const LEDGER_V2 = { ok: ['schema_version', 'runId', 'truncated'], switch: ['schema_version', 'runId'], exhaust: ['schema_version', 'runId'] }
+  // 主控人工补记事件（ORG-11）：02 §9/05 §6/08 §4 要求入账的人工事件类型——
+  // 旧 ledgerReq 仅认派发器三事件，致"照规范记账=R4 FAIL"的规范↔实现矛盾
+  // （P0-4 同类病）。人工事件恒用 LEDGER_REQUIRED 基字段（无 usage，非派发产出）。
+  const MANUAL_EVENTS = ['porting-delta', 'doc-health', 'ruling', 'constitution-overrun', 'escaped-defect']
   const checkLines = (label, path, required, tailN) => {
     if (!existsSync(path)) return { pass: false, detail: `${label}:文件不存在 ${path}` }
     const ls = readFileSync(path, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean).slice(-tailN)
-    let bad = 0, skipped = 0, unknown = 0, kinds = {}
+    let bad = 0, skipped = 0, unknown = 0, foreign = 0, kinds = {}
     for (const l of ls) {
       let e; try { e = JSON.parse(l) } catch { bad++; continue }
+      // 他源写入行（P0-4 真因 1）：glm-look.mjs 等非派发器写入者落同流水，行 schema
+      // 自带 channel 标记且无 dispatcher_version——按他源 schema 计「外来行」而非坏行
+      // （写入者 glm-look.mjs 属 WIP 锁定集，统一 schema 登记残留，见 RESIDUALS）。
+      if (e.channel !== undefined && e.dispatcher_version === undefined) { foreign++; continue }
       // 流水行：未知事件类型=坏行（schema 未登记即弱校验——ds-W5）；历史版本行按当时 schema 跳过=合法历史（禁改写）
       if (e.dispatcher_version !== undefined && e.dispatcher_version !== CURRENT_DISPATCHER) { skipped++; continue }
       const req = typeof required === 'function' ? required(e) : required
@@ -150,8 +161,8 @@ if (want('R4')) {
       if (e.event) kinds[e.event] = (kinds[e.event] || 0) + 1
     }
     // 全部行被跳过=校验域真空（升版后常量未提取成功即此形态）——显式 FAIL 防假 PASS（Kimi-B1 修法二）
-    if (skipped === ls.length && ls.length > 0) return { pass: false, detail: `${label}:尾${ls.length}行全部为旧版本行（校验域真空——若派发器已升版，先更新本脚本 schema）` }
-    return { pass: bad === 0, detail: `${label}:尾${ls.length}行坏${bad}行（含未知事件${unknown}）跳${skipped}行(旧版本) 事件分布=${JSON.stringify(kinds)}` }
+    if (skipped + foreign === ls.length && ls.length > 0) return { pass: false, detail: `${label}:尾${ls.length}行全部为旧版本/外来行（校验域真空——若派发器已升版，先更新本脚本 schema）` }
+    return { pass: bad === 0, detail: `${label}:尾${ls.length}行坏${bad}行（含未知事件${unknown}）跳${skipped}行(旧版本)外来${foreign}行(他源channel标记) 事件分布=${JSON.stringify(kinds)}` }
   }
   const routingReq = (e) => ROUTING_REQUIRED[e.event] || ['ts', 'runId', 'event']
   const a = checkLines('流水', LOG_PATH, routingReq, 100)
@@ -173,8 +184,11 @@ if (want('R4')) {
   const passA = a.pass && cfgOk
   const ledgerPath = flag('--ledger') || join(projectDir, '.zcode', 'org-ledger.jsonl')
   const ledgerReq = (e) => {
-    if (!['ok', 'switch', 'exhaust'].includes(e.event)) return ['__unknown_event__'] // 账本侧未知 event 同样计坏行（终轮 A'-Kimi：防新增记账事件未同步 schema 即弱校验通过）。返回数组——checkLines 以 for...of 逐字段消费，对象形态会 TypeError（终轮复核修正）
-    return e.event === 'ok' ? [...LEDGER_REQUIRED, 'usage'] : LEDGER_REQUIRED
+    if (!['ok', 'switch', 'exhaust', ...MANUAL_EVENTS].includes(e.event)) return ['__unknown_event__'] // 账本侧未知 event 同样计坏行（终轮 A'-Kimi：防新增记账事件未同步 schema 即弱校验通过）。返回数组——checkLines 以 for...of 逐字段消费，对象形态会 TypeError（终轮复核修正）
+    if (MANUAL_EVENTS.includes(e.event)) return LEDGER_REQUIRED // 主控人工补记（无 usage/mocked/truncated——非派发产出）
+    const base = e.event === 'ok' ? [...LEDGER_REQUIRED, 'usage'] : LEDGER_REQUIRED
+    // schema v2 新字段：仅对已带 schema_version 的行要求（历史 v1 行豁免——禁改写/不追认，08 §3）
+    return e.schema_version !== undefined ? [...base, ...(LEDGER_V2[e.event] || [])] : base
   }
   const b = checkLines('账本', ledgerPath, ledgerReq, 50)
   record('R4', passA && b.pass, `${a.detail}；${b.detail}`)

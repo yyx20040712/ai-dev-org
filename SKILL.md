@@ -7,11 +7,13 @@ description: Use when 用户提出开发/实现/修复/重构/批次/战役/开�
 
 ## 概述
 
-跨项目通用的「AI 软件开发公司」组织规范：岗位编制 × 模型路由 × 部门墙
-协议 × 成本纪律。第一性原理：执行者必然犯错——组织设计目标是让错误在
-合入前现形、每个决定可追溯。**用户只对接一个岗位（主控）**，其余岗位由
-主控单一调用（铁律见 references/06 §2）。本技能=loop-engineering 升级
-替代件（组织视图+管道视图合并，旧件已归档）。
+跨项目通用的「AI 软件开发公司」组织规范，四根支柱：岗位编制、模型路由、
+部门墙协议、成本纪律。第一性原理只有一条——执行者必然犯错，所以组织
+设计的目标是让错误在合入前现形、让每个决定可追溯。
+
+用户只对接一个岗位：主控。其余岗位一律由主控调用（铁律见
+references/06 §2）。本技能是 loop-engineering 的升级替代件（组织视图与
+管道视图合并，旧件已归档于 `_archive/`）。
 
 ## 岗位速查（终表见 references/07）
 
@@ -24,14 +26,15 @@ description: Use when 用户提出开发/实现/修复/重构/批次/战役/开�
 | 门二 | 会话内子代理 | 意图档位+欠账记账（异构优先） |
 | 审核者 auditor-readonly | 派发器 `--role auditor-readonly` | debt-readonly（兜底/欠账只读审） |
 | SRE 诊断岗 sre-diagnostic | 会话内只读子代理 | 取证/冻结提取/e2e 红 triage；禁写禁臆断 |
-| 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look） | 意图档位 session:multimodal-exp+欠账记账（宿主可配模型则按其配置入口执行；外呼标准流程=scripts/glm-look.mjs GLM-5.3-Flash 多模态——07 设计岗卡）；方向级决策留用户 |
+| 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look） | 意图档位 session:multimodal-exp+欠账记账；宿主可配模型则按其配置入口执行；外呼标准流程=`scripts/glm-look.mjs` 双通道看图（通道/模型/端点见 org-config 与 07 设计岗卡）；方向级决策留用户 |
 
-（岗位编制=8；人类用户=裁决位不计入编制——同 references/06 §1/07 §1 表注。）
+（岗位编制=8；人类用户=裁决位，不计入编制——同 references/06 §1、
+07 §1 表注。）
 
-供应商事实（源序/端点/套餐/配给）**一律看 org-config**（默认件+
-项目覆盖件 `.zcode/org-config.json`），本件零硬编码。会话内子代理无
-model 参数=环境限制：意图档位声明+「环境限制统一档」欠账是**账本强制
-输出项**，禁伪装已定档。
+供应商事实（源序、端点、套餐、配给）一律看 org-config（默认件 + 项目
+覆盖件 `.zcode/org-config.json`），本件零硬编码。会话内子代理没有
+model 参数属环境限制：如实按「意图档位声明 + 环境限制统一档」记欠账
+（账本强制输出项），禁止伪装已定档。
 
 ## 派发与自检（scripts/）
 
@@ -40,67 +43,91 @@ node scripts/ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>]
      [--dry-run|--list-roles|--list-sources] [--mock-source <alias>:<status>]
      <prompt文件> [输出文件]        # --role 必填（v1 内嵌提示已废止）
 node scripts/org-config.mjs [resolve|hash|validate|--self-test]
+node scripts/check-hardcode.mjs [--strict]   # .md 正文供应商 live 事实扫描（名单从 org-config 派生；命中=WARN，--strict 按 RED 退 1）
 node scripts/skill-gc.mjs [--apply --delete-redirects|--delete-invalid]   # 技能目录盘点/清理（默认干跑；删除先归档可回滚；active 技能去留=用户裁决不机删）
 node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空白字符
 node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目防线日脚手架（05 §4）
 node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden] [--project <dir>]   # 自包含回归（06 §5 R 清单内化；R1 真实派发须 --r1）
 node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（欠账/同源/预算，RED=0 方可收口）
-node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md]   # 设计岗外呼看图（GLM-5.3-Flash 多模态——07 设计岗卡标准流程；max_tokens≥8000 自动倍升防 thinking 耗额假成功）
+node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊（B-0）：cli/log+派发器流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查（A'③）出 k1/k2 派发推荐（额度类→换源；504 窗口类→不换源瘦身）
+node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点=org-config+--list-sources；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
 ```
 
-无 `--role` 报错；源装载双校验（uuid_prefix+entry_name）不符即 exit 3 无 fallback。
-（宿主 Node 25.2.1（已证档）下 ds-call-v2 路径有 libuv 退出阶段崩溃=
-RESIDUALS/HOST-node25——外部派发一律用 Node 24 跑；见文末修订记。）
-运行流水=scripts/model-routing-log.jsonl（字段口径见 references/06 §5）；
-项目账本=.zcode/org-ledger.jsonl（行 schema：ts/project/event/role/tier/
-source/cfg_hash/usage?/outcome——tier 记法：外部岗取 org-config 枚举，
-会话内岗记 session:<描述>，见 references/07 §4）。
-（下述 scripts/ 路径相对**技能根**=本文件所在目录，zcode 加载本技能时附基目录。）
+**子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗）**：文本岗/
+异构岗/门一双源已挂 `~/.zcode/agents/ops-*.md` 绑定子代理（frontmatter
+model=`<provider-uuid>/<model-key>`；上游枚举值=假绑定禁用；空 tools=
+泄漏全工具面禁用；代理档案会话启动快照无热加载——改档须新会话验证+
+`log-triage.mjs` 日志核对零回退）。外部派发器=健康探针+后备通道，
+不拆除（迁移期双承载，org-config roles.*.migration_note）。子代理失败
+接续纪律=杀岗→`log-triage.mjs --health` 归因→额度类换源继任（读进度
+落盘）/窗口类同源瘦身/无工具岗同包重跑（runbook 真源=批档 09 号件，
+后续批迁技能侧）。
+
+无 `--role` 报错；源装载双校验（uuid_prefix+entry_name）不符即 exit 3，
+无 fallback。宿主 Node 25（已证档）下 ds-call-v2 在退出阶段有 libuv
+断言崩溃（RESIDUALS/HOST-node25）——外部派发一律用 Node 24 跑，脚本
+启动时带版本守卫。**传输层与超时（v2.2.1，06 §5.7）**：node:http(s)
+直连（弃 global fetch——undici headersTimeout≈300s 是非流式长推理
+客户端侧隐形杀手）、signal=唯一超时源、后台调用上限 20 分钟（用户
+指令 2026-09-16）；499=客户端中断族——排障先三层分诊勿直断服务端宕。
+**审包纪律（ORG-12）**：审包体积=派发时效主变量——registry 巨行/
+宪法全文/methodology diff/变异 raw 附默认剔除，简报输出段设产出预算
+硬约束。**产出面纪律（08 §6）**：入项目仓工件（命名/内容/commit
+message）零外部模型代号与 AI 指称，审档默认归宿=仓外档案区。
+
+运行流水=`scripts/model-routing-log.jsonl`（字段口径见 references/06 §5）；
+项目账本=`.zcode/org-ledger.jsonl`（行 schema：ts/project/event/role/
+tier/source/cfg_hash/usage?/outcome）。tier 记法：外部岗取 org-config
+枚举，会话内岗记 `session:<描述>`（见 references/07 §4）。
+
+（scripts/ 路径相对技能根=本文件所在目录；zcode 加载本技能时附基目录。）
 
 ## 加载地图（references/，按需读勿全量）
 
 01 原理 16+3 条 ｜ 02 管道 12 步+任务书六段+回炉+数据专轨+适配注记 ｜
 03 机器强制 ｜ 04 教训库 25+4 条 ｜ 05 移植指南+差异回灌协议 ｜
 06 模型路由+换源状态机+派发器 v2 ｜ 07 角色卡终表+主控 PM 四子模式 ｜
-08 文档群治理（事实分层/指针化手册/历史件红线/体检） ｜
+08 文档群治理（事实分层/指针化手册/历史件红线/体检/产出入仓纪律） ｜
 09 产品文档编制面（需求五问/手册骨架/API 锚定生成物/tech-writer 子模式）
 
 ## 红旗（出现即停）
 
-- 跳过 intake 五问直接开工 ／ 给门一的包含任何仓库访问信息
+- 跳过 intake 五问直接开工 ／ 给门一的包里含任何仓库访问信息
 - 换源时放宽任务书或 DoD ／ 源尽不记欠账假装审过
-- 子代理"已定档"却无欠账行 ／ ORG-SEG 段超预算未跑自检即派发
+- 子代理「已定档」却无欠账行 ／ ORG-SEG 段超预算未跑自检即派发
 - 本项目已有组织段时整抄通用 stub（双组织段=双源）
+- 入项目仓工件带外部模型代号/AI 指称，或审档未中性化直接入仓
+  （产出面纪律=08 §6；项目仓门禁执法）
 
 ## 烤验触发表（grillme 机关——派发前自检，未过不得收口）
 
 | 批次类型 | 强制对抗位（缺一=烤验未过） |
 |---|---|
-| 实现批 | 门一异构隔离审+门二实证终审（02 §2 步骤 6/7） |
+| 实现批 | 门一异构隔离审 + 门二实证终审（02 §2 步骤 6/7） |
 | 文档/制度批 | 轻量双审（02 §3） |
-| 数据批 | 独立复算+专家追认（02 §6） |
-| 路线级设计 | 三段通道：拟定+对抗审核+主控终裁（02 §8.6） |
+| 数据批 | 独立复算 + 专家追认（02 §6） |
+| 路线级设计 | 三段通道：拟定 + 对抗审核 + 主控终裁（02 §8.6） |
 | 已审面修改 | 该面随批重过——给首审档呈 diff，「改了就要再审」（08 §0 惯例） |
 | 纯配置变更批（org-config/路由/配给） | 按「已审面修改」处理：配置 diff+预期行为变化呈 auditor-readonly 复核（W5 审 B' 双源 B1） |
-| 收口/交付批 | 烤验证据随呈报包复核：各对抗位报告+health-scan RED=0+基线数字对账（W5 审 ds-B1） |
+| 收口/交付批 | 烤验证据随呈报包复核：各对抗位报告 + health-scan RED=0 + 基线数字对账（W5 审 ds-B1）+ 入仓工件污染面零命中（08 §6——项目仓门禁+命名过目） |
 
-**复合批取命中各行对抗位的并集**（一个批次踩多类=逐类全过，禁择一）。
+复合批取命中各行对抗位的**并集**：一个批次踩多类，逐类全过，禁择一。
 
 派发前自检三问：①本批命中表中哪些对抗位？②各位源可用且与实现者
 异构吗？③欠账清单有无本批必须补还项？收口前必跑
 `node scripts/health-scan.mjs --project <dir>`（RED=0 方可收口，
-三类告警细则=02 §10）。**主控简报中的关键假设须显式标注「假设」
-并请对抗位拷问——假设未被拷问=烤验未过。**
+三类告警细则=02 §10）。**主控简报中的关键假设须显式标注「假设」并请
+对抗位拷问——假设未被拷问=烤验未过。**
 
 ## 团队化边界与扩展位（显式化——不假装解决）
 
-- 本技能编制=单人开发者+AI 组织（8 岗+人类用户裁决位）：主控单写
-  账本、单一 git 历史、单裁决通道——**未覆盖多人团队场景**（并行
-  PR 流/代码所有权分区/多主控协调/人人间评审）。
+- 本技能编制=单人开发者 + AI 组织（8 岗 + 人类用户裁决位）：主控单写
+  账本、单一 git 历史、单裁决通道——**未覆盖多人团队场景**（并行 PR
+  流、代码所有权分区、多主控协调、人人间评审）。
 - 团队化的两个已知扩展位（均为用户未来裁决位，现不实现）：①裁决
-  代表制——多人时谁握「用户裁决位」（代表制/分工分权）；②分支
-  模型——共享 main vs 短命 feature 分支+门审前置。触发条件=真实
-  多人协作出现，届时按 05 §6 差异回灌协议呈报设计案再动。
+  代表制——多人时谁握「用户裁决位」；②分支模型——共享 main 还是
+  短命 feature 分支+门审前置。触发条件=真实多人协作出现，届时按
+  05 §6 差异回灌协议呈报设计案再动。
 
 ## 常见借口对照
 
@@ -113,32 +140,22 @@ source/cfg_hash/usage?/outcome——tier 记法：外部岗取 org-config 枚举
 
 ## 验证状态
 
-内容锚定 Synapse/WaterPrint 双项目实战事故与 GREEN 史（锚点格式见
-references/04；本技能自身的基线失败=设计审核链 5B/5W/3N 实录，
-scripts/audits/2026-09-10_org-skill-*）。新项目首场战役按 05 移植后
-做压力场景复测并回填本节。v1.0 冻结条件=首个适配场完整 LOOP 走通+
-派发器 v2 回归 R1~R6 全过（drafter 复用与项目切换的前置）。
-**v1.0 已冻结**（用户裁决 2026-09-10：四项裁决=v1.0 冻结+R1 形态迁移
-认受+纪元口径认受+W5 放行定格——回归证据=Synapse scripts/audits/
-2026-09-10_w2-freeze-evidence.md 与 2026-09-10_w5-final-ruling.md；
-drafter 复用与项目侧切换资格即时生效，项目切换走各仓 [locked-change]）。
+内容锚定 Synapse/WaterPrint 双项目实战事故与教训库（锚点格式见
+references/04）；本技能自身的基线失败实录=设计审核链 5B/5W/3N
+（scripts/audits/2026-09-10_org-skill-*）。
+
+v1.0 已冻结（用户裁决 2026-09-10，四项裁决原文见 scripts/audits/
+2026-09-10_w2-freeze-evidence.md 与 2026-09-10_w5-final-ruling.md）。
+冻结条件=首个适配场完整 LOOP 走通 + 派发器 v2 回归 R1~R6 全过；drafter
+复用与项目侧切换资格随冻结即时生效，项目切换走各仓 [locked-change]。
+新项目首场战役按 05 移植后做压力场景复测并回填本节。
 
 ## 修订记
 
-- 2026-09-10 v1.1 补遗③（用户指示）：设计岗外呼看图标准流程入册——
-  `scripts/glm-look.mjs`（GLM-5.3-Flash 多模态，宿主 config anthropic
-  端点自发现+流水入同账本 channel=glm-look）；纪律四条=max_tokens≥8000
-  且零正文自动倍升（thinking 段耗额坑——低档=假成功）/判据先行禁裸问/
-  报告溯源头+流水可指认/方向级决策仍留用户。真源=07 设计岗卡；首次
-  实战档=WaterPrint C 批需求采证（.workflow/c-analysis/）。
-- 2026-09-10 v1.1 补遗（用户 Ruling）：①v1.0 冻结生效（四项裁决，
-  见「验证状态」节）；②02 §8.6 三段通道新增第 0 步「社区实践调研
-  前置」——较大模块技术路线选择，主控（GLM）先调研社区实践
-  （技术大佬/知名项目选型），调研结果随任务包作 Kimi 拟定参考输入，
-  不闭门造车即可。
-- 2026-09-10 v1.1（优化战役，W5 全局三源审计回炉轮 1）：加载地图+09；
-  烤验触发表立节（W4）并按双源审计增「纯配置变更批/收口交付批」两行
-  +复合批并集注记；团队化边界段立节（W3）；派发命令清单+三新脚本
-  （init-defenses/regression/health-scan）；Node24 派发注记
-  （HOST-node25）。变更明细=技能仓库 git 提交链（W0~W4 五提交）+
-  回炉轮 1 提交；审计档=Synapse scripts/audits/2026-09-10_w5-*。
+- 2026-09-16 v1.4（防截断入册+产出入仓纪律批）：派发防截断根修入册
+  （ds-call-v2 v2.2.1 的传输层/20min/审包瘦身/产出预算——06 §5.7
+  补遗+04 ORG-12/13+任务书模板纪律段；脚本本体已由 F-TESTREF-00 批
+  落地，本批补齐文档面）；立产出入仓面纪律（08 §6——入项目仓工件
+  零模型代号/AI 指称+审档归宿仓外+commit 同面；红旗与烤验表挂载）；
+  review-ai-code 痕迹回流操作化（姊妹技能同批）。明细与此前版本
+  （v1.0~v1.3）见 `CHANGELOG.md`。

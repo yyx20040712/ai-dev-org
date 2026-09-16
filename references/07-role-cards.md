@@ -100,18 +100,30 @@ verify 真退出码亲验）；账本单写者。
   证据仍按门二条款亲验复核——体验档位让路于判断力密度。
 - **锚点**：⑤b/⑤c/⑤f 条款族；F-A8 幽灵块人审裁决（p2/p7 页缘空=量测
   伪影——判读须区分真缺陷与量测伪影）。
-- **外呼看图标准流程（glm-look，2026-09-10 入册——用户指示）**：会话内
-  图像通道不可用/需留档复评/批量采证时，经 `scripts/glm-look.mjs` 外呼
-  GLM-5.3-Flash 多模态看图（宿主 config 带 key 的 anthropic 端点，偏好
-  序=bigmodel 直连→z.ai/zcode plan；不入 org-config——会话内岗不动
-  注册表先例）：
+- **外呼看图标准流程（glm-look 双通道，2026-09-10 入册+2026-09-11 ds
+  入列——两次用户指示）**：会话内图像通道不可用/需留档复评/批量采证
+  时，经 `scripts/glm-look.mjs` 外呼多模态看图——**双通道共担视觉
+  任务**：`--channel glm`（缺省；anthropic 格式，宿主 config 带 key
+  端点自发现）与 `--channel ds`（OpenAI image_url 格式；2026-09-11
+  识图实证可用：弹窗标题/按钮文案/页签与表头准确读出）。两通道的
+  实配模型、端点与偏好序一律以 `--list-sources` 输出为准，不写入
+  任何 .md 正文（08 §1：供应商路由事实住配置与脚本自述）；不入
+  org-config——会话内岗不动注册表先例。**视觉任务三段流定式
+  （2026-09-11 用户指示定式——常规与关键视觉面一律走满）**：
+  ①**判读**（glm 通道）依判据看图产出初判；
+  ②**审核提意见**（ds 通道）同图同判据独立判读——对
+  初判逐条复核+提异见（分歧点即证据焦点）；
+  ③**裁决**（glm 通道）汇同两轮（采纳/反驳/亲核——沿 D 一审→
+  R 轮处置同制），产终裁记录；视觉验收面（用户过目）不因本定式
+  免除——终裁仍是判读证据，方向级决策留用户：
   ```
-  node scripts/glm-look.mjs --prompt <判据/任务书.md> <图1.png> [图2…] [-o 报告.md]
-  node scripts/glm-look.mjs --list-sources
+  node scripts/glm-look.mjs --prompt <判据/任务书.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]
+  node scripts/glm-look.mjs --list-sources        # 两通道源一并列出
   ```
-  纪律四条：①**max_tokens 起步 8000 禁降档**——GLM-5.3-Flash 思考段
-  耗 completion 配额，2000 档实测全耗 thinking 零正文（假成功），8000
-  亦偶发耗尽——脚本对「零正文+stop_reason=max_tokens」**自动倍升重试**
+  纪律四条：①**max_tokens 起步 8000 禁降档（两通道同守）**——推理段
+  （glm thinking/ds reasoning）耗 completion 配额，2000 档实测全耗推理
+  零正文（假成功），8000 亦偶发耗尽——脚本对「零正文+截断终态
+  [glm=max_tokens/ds=length]」**自动倍升重试**
   （8000→16000→32000 至多 3 轮），3 轮后仍零正文才报错；②判据先行——
   --prompt 文件=逐问题核对表/判读任务书（岗位系统提示模板同款精神），
   禁无判据裸问「好不好看」；③报告落 -o 带溯源头（source/model/tokens/
@@ -122,7 +134,50 @@ verify 真退出码亲验）；账本单写者。
   HOST-node25 同族面）。首次实战档=WaterPrint C 批需求采证
   （.workflow/c-analysis/，四图判读报告+通道坑实录）。
 
+### §4 补遗（2026-09-16 子代理绑定批）：ops-* 绑定子代理现役名单
+
+> 岗位↔承载升级：下列岗位改挂**绑定子代理**（frontmatter model=供应商路由事实
+> 的合法配置形态，06 §6 补遗）；工具面墙与协议墙声明内嵌各代理文件正文。
+> 绑定值与源健康以 `log-triage.mjs --health` 输出为准（本表不抄值——08 §1）。
+
+| 岗位 | 代理（~/.zcode/agents/） | 工具面 | 墙 |
+|---|---|---|---|
+| 实现者 | ops-executor | 读+写+Bash | E2 白名单墙（简报白名单即行动面） |
+| SRE 诊断 | ops-diagnostics | 真只读（Read/Glob/Grep） | 物理只读墙 |
+| 门二·实证部 | ops-probe | 读+写+Bash | E2 协议墙（如实声明，非工具面强制——05 §一 B-1 终裁） |
+| 门二·裁决部 | ops-adjudicator | 只读 | E2 证据包墙（异构裁决位） |
+| 门一·源A | ops-gate1-k1 | Read | 物理（仅 Read）+协议（禁读任何文件，输入即包）双墙 |
+| 门一·源B | ops-gate1-k2 | 同上 | 同上（Kimi 双源，健康检查择源） |
+
+纪律四条：①model 禁上游枚举值（静默回退=假绑定，负面清单⑤）；②首部署/
+改档须新会话跑真实小任务+日志核对零回退（代理档案=会话启动快照，无热加载）；
+③报告末两行机读尾栏（MODEL-SELF + LEDGER-CLAIM / FINDINGS）；④接续纪律
+（杀岗→日志归因→额度类换源继任/窗口类同源瘦身/无工具岗同包重跑）=批档
+E:/zcode_md/fix/subagent-plan-2026-09-16/09-continuation-runbook.md（主控
+runbook 真源，后续批迁技能侧）。拟定者/审核者迁移=下轮；设计岗双位
+（ops-vision/ops-draw）=B-6 批（05 §十）。
+
 ## 5. 修订记
+
+- 2026-09-16 子代理绑定批：§4 增补「ops-* 绑定子代理现役名单」段（六代理
+  岗位↔承载↔墙对照+纪律四条+runbook 指针）；历史修订条按 08 §3 原样保留。
+  批档=E:/zcode_md/fix/subagent-plan-2026-09-16/08-exec-log.md。
+- 2026-09-15 补遗三（入口治理批——用户指示「优化本机的 AI 软件开发
+  技能」）：设计岗卡操作段的实配模型名/端点/偏好序指针化——改按
+  通道（glm/ds）描述，实配以 `--list-sources` 为准（残留册
+  glm-look-endpoints 闭环；历史修订条按 08 §3 原样保留，白名单收缩
+  为历史豁免）。
+- 2026-09-11 补遗：外呼看图标准流程扩双通道（用户指示「本机 deepseek
+  已可识图，与 GLM-5.3-Flash 一起承担视觉任务」）——glm-look.mjs 增
+  `--channel glm|ds`（ds=deepseek-flash，OpenAI image_url 载荷+
+  api.deepseek.com；流水 channel=ds-look）；纪律四条双通道同守（截断
+  终态通道化：glm=max_tokens/ds=length）；关键视觉面建议双通道交叉
+  互证。识图实证=WaterPrint acceptance 弹窗截图（标题/按钮/页签/表头
+  准确读出，流水在册）。
+- 2026-09-11 补遗二：视觉任务**三段流定式**（用户指示「以后的视觉
+  任务：GLM5.3flash+deepseek 审核提意见+GLM5.3flash 裁决」）——
+  ①glm 判读→②ds 审核提异见→③glm 终裁（D/R 制同构）；两轮报告均
+  -o 落档溯源，终裁记录分歧处置；视觉验收面照旧留用户。
 
 - 2026-09-10 补遗②：设计岗卡增「外呼看图标准流程（glm-look）」条款
   ——GLM-5.3-Flash 多模态外呼通道+thinking 耗额坑纪律四条（用户指示
