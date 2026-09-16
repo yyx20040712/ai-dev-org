@@ -15,7 +15,7 @@
  *   --health：源健康检查（A'③）——按供应商五类分诊 → k1/k2 推荐+分类处置建议
  *     （额度类→换源；504 窗口类→不换源、瘦身——zipoo 同端点共模，05 §九纠偏②）
  * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--self-test]
- * 退出码：0=正常；1=发现 RED 级事项（静默回退检出）；3=配置错/自检失败。
+ * 退出码：0=正常；1=发现 RED 级事项（静默回退检出）或自检断言失败（全 fixture 聚合——v1.6 批）；3=配置错。
  * 纪律：finish 词表与供应商别名住 org-config（禁硬编码，A3/06 §0）；自然退出（HOST-node25 规避）。
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
@@ -66,6 +66,8 @@ const CLASS_NAMES = { quota: '配额限流(429/403)', window: '网关窗口(504/
 function harvestCliLog(lines, aliasMap, sinceTs) {
   const perProvider = {}   // alias -> {ok, err:{class:n}, lat:[], attempts:{}}
   const subagentNet = {}   // sessionId -> {alias, modelId, lastFinish, fails}
+  const netFailRaw = []    // network.failed 原行（同秒判重键用——v1.6 批）
+  const reqFailed = []     // request.failed 候选（补一腿，同秒去重后计数——v1.6 批）
   const bump = (alias) => (perProvider[alias] ||= { ok: 0, err: {}, lat: [], attempts: {} })
   for (const d of lines) {
     if (d.unparseable || !d.context) continue
@@ -87,16 +89,22 @@ function harvestCliLog(lines, aliasMap, sinceTs) {
         const a = c.attempt || 1
         bump(alias).attempts[a] = (bump(alias).attempts[a] || 0) + 1
       } else {
+        netFailRaw.push(d)
         const cls = classifyError({ statusCode: c.providerCode, reason: c.reason, statusMessage: c.statusMessage || d.message, providerMessage: c.providerMessage, durationMs: d.durationMs })
         bump(alias).err[cls] = (bump(alias).err[cls] || 0) + 1
       }
     }
-    // request.failed 兜底（network 事件缺码时补一腿）
-    if (ev === 'model.request.failed' && !d._dup) {
-      const alias = aliasOf(c.providerId, aliasMap)
-      const cls = classifyError({ statusCode: c.providerCode, reason: c.reason, statusMessage: c.statusMessage, providerMessage: c.providerMessage, durationMs: d.durationMs })
-      bump(alias).err[cls] = (bump(alias).err[cls] || 0) + 1
-    }
+    // request.failed 兜底（network 事件缺码时补一腿）——原 _dup 标志从未赋值（空设计，A4 删除）；
+    // 判重键=sid|iso秒：同秒已有 network.failed 则不重复计数（v1.6 批 C2，防双计污染分诊/推荐）
+    if (ev === 'model.request.failed') reqFailed.push({ key: `${d.sessionId || ''}|${(d.timestamp || '').slice(0, 19)}`, d })
+  }
+  const netFailKeys = new Set(netFailRaw.map((d) => `${d.sessionId || ''}|${(d.timestamp || '').slice(0, 19)}`))
+  for (const { key, d } of reqFailed) {
+    if (netFailKeys.has(key)) continue
+    const c = d.context
+    const alias = aliasOf(c.providerId, aliasMap)
+    const cls = classifyError({ statusCode: c.providerCode, reason: c.reason, statusMessage: c.statusMessage, providerMessage: c.providerMessage, durationMs: d.durationMs })
+    bump(alias).err[cls] = (bump(alias).err[cls] || 0) + 1
   }
   return { perProvider, subagentNet }
 }
@@ -112,13 +120,33 @@ function harvestRouting(rows, sinceTs) {
     if (r.event === 'ok') out.ok[src] = (out.ok[src] || 0) + 1
     if (r.event === 'exhaust') {
       const cls = classifyError({ statusCode: r.statusCode, statusMessage: r.error, durationMs: r.latencyMs })
-      const isMock = r.mocked === true || /\(mock\)/i.test(String(r.error || '')) // 首选 dispatcher mocked 标志位（N-1：真实 429 无该标志不会误剔）；括号串匹配仅兜旧版行
+      const isMock = r.mocked === true || /[(（]\s*mock\s*[)）]/i.test(String(r.error || '')) // 首选 dispatcher mocked 标志位（v1.6 批起 switch/exhaust 行亦携带）；括号串兜底=半角/全角兼容（实陷：全角（mock）漏配致 --health 假信号）
       out.exhaust[src] = out.exhaust[src] || []
       out.exhaust[src].push({ ts: r.ts, statusCode: r.statusCode, cls, error: r.error, runId: r.runId, role: r.role_id, isMock })
     }
     if (r.event === 'switch') out.switch[r.runId] = { ts: r.ts, from: r.source, error: r.error }
   }
   return out
+}
+
+// ── --health 推荐面（纯函数，自检可注入——验收断言=裁决档 C2：mock429×4+真实504 ⇒ 不换源） ──
+export function countRealFailures(exhaustLists) {
+  let quota = 0, window504 = 0, mockN = 0
+  for (const list of Object.values(exhaustLists)) {
+    for (const e of list) {
+      if (e.isMock) { mockN++; continue }
+      if (e.cls === 'window') window504++
+      if (e.cls === 'quota') quota++
+    }
+  }
+  return { quota, window504, mockN }
+}
+export function recommendHealth(cnt, sh = {}) {
+  const K1 = sh.gate1_primary_subagent || '链首选源'
+  const K2 = sh.gate1_secondary_subagent || '备源'
+  if (cnt.quota > 0) return { rec: K2, why: `窗口内检出额度类失效 ×${cnt.quota}——换源有效（备源=不同配额池）` }
+  if (cnt.window504 > 0) return { rec: `${K1}（不换源）`, why: `窗口内检出 504 窗口类 ×${cnt.window504}——双源同端点共模换源无效；处置=审包瘦身/流式化（批档 subagent-plan 05 §九纠偏②）` }
+  return { rec: K1, why: '窗口内双源零额度/窗口类失效——按链首选源' }
 }
 
 // ── ③③ 静默回退检测：metadata 声明 vs 日志实际 ──
@@ -175,9 +203,10 @@ const sinceTs = hours > 0 ? new Date(now.getTime() - hours * 3600_000).toISOStri
 const { merged } = loadOrgConfig(SKILL_ROOT)
 const aliasMap = buildAliasMap(merged.providers)
 
-// 自检（--self-test）：fixture 级断言
+// 自检（--self-test）：fixture 级断言，全量聚合计入退出码（v1.6 批——原仅末 fixture 计=假 PASS 面）
 if (argv.includes('--self-test')) {
-  const t = (name, cond) => console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`)
+  let stFails = 0
+  const t = (name, cond) => { console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`); if (!cond) stFails++ }
   t('429→quota', classifyError({ statusCode: 429 }) === 'quota')
   t('504→window', classifyError({ statusCode: 504 }) === 'window')
   t('500→server', classifyError({ statusCode: 500 }) === 'server')
@@ -192,46 +221,50 @@ if (argv.includes('--self-test')) {
     subagentNet: { s2: { alias: 'deepseek', providerId: '8ad55776-2296-4f1a-bc46-05755c8f1300', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
   })
   t('probe-b 假绑定可被 ③ 抓出（RED+枚举）', fb.length === 1 && fb[0].level === 'RED' && fb[0].kind.includes('枚举'))
-  process.exitCode = fb.length === 1 ? 0 : 1
+  // 验收断言（裁决档 C2）：mock429×4 + 真实504×1 ⇒ 推荐=不换源
+  const accRows = [
+    ...[1, 2, 3, 4].map((i) => ({ ts: `2026-09-16T0${i}:00:00Z`, runId: `m${i}`, event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽', mocked: true })),
+    { ts: '2026-09-16T09:00:00Z', runId: 'r1', event: 'exhaust', statusCode: 504, error: 'HTTP 504' },
+  ]
+  const accCnt = countRealFailures(harvestRouting(accRows, null).exhaust)
+  const accRec = recommendHealth(accCnt, { gate1_primary_subagent: 'k1', gate1_secondary_subagent: 'k2' })
+  t('验收断言：mock429×4 不计入（mockN=4/quota=0/window=1）', accCnt.mockN === 4 && accCnt.quota === 0 && accCnt.window504 === 1)
+  t('验收断言：推荐=k1 不换源（当日实陷回归——原输出假推荐 k2）', accRec.rec.includes('k1') && accRec.rec.includes('不换源'))
+  // 全角括号兜底回归（实陷：全角（mock）漏配）
+  const fw = harvestRouting([{ ts: '2026-09-16T10:00:00Z', runId: 'fw', event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽（mock）' }], null).exhaust
+  t('全角（mock）兜底命中（不计入推荐）', Object.values(fw)[0][0].isMock === true)
+  console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
+  process.exitCode = stFails === 0 ? 0 : 1
 } else {
-  // 收割两账
-  const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-2)
+  // 收割两账（--hours 无日期时目录守卫：CLI 日志目录缺失=空集不崩——v1.6 批）
+  const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-2) : [])
   const cliLines = logFiles.flatMap(f => readJsonl(join(CLI_LOG_DIR, f)))
   const { perProvider, subagentNet } = harvestCliLog(cliLines, aliasMap, sinceTs)
   const routing = harvestRouting(readJsonl(ROUTING_LOG), sinceTs)
   const metas = harvestAgents(sinceTs)
+  const metasAll = harvestAgents(null) // 全时段 metadata 单次收割复用（原三重全量遍历——v1.6 批收敛）
   const W = process.stdout.write.bind(process.stdout)
 
   // ③ 静默回退检测（全时段 metadata——历史探针也要盯）
-  const fallbacks = detectSilentFallback({ metas: harvestAgents(null), subagentNet })
+  const fallbacks = detectSilentFallback({ metas: metasAll, subagentNet })
 
   if (argv.includes('--health')) {
-    // ── A'③ 源健康检查：kimi 双源分诊 + k1/k2 推荐 ──
+    // ── A'③ 源健康检查：分诊 + 推荐（结构参数=org-config source_health，v1.6 批去硬编码别名） ──
+    const sh = merged.source_health || {}
+    const dual = (sh.dual_groups && sh.dual_groups[0]) || []
     W(`== 源健康检查（窗口=${dateStr || `近 ${hours}h`}，cfg:${cfgHash(merged)}）==\n`)
-    const kimiClasses = { kimiMain: {}, kimiBackup: {} }
     for (const [alias, st] of Object.entries(perProvider)) {
       W(`[${alias}] ok=${st.ok} err=${JSON.stringify(st.err)} lat p50/p95=${pct(st.lat, .5)}/${pct(st.lat, .95)}ms attempts=${JSON.stringify(st.attempts)}\n`)
-      if (alias === 'kimi-main') kimiClasses.kimiMain = st.err
-      if (alias === 'kimi-backup') kimiClasses.kimiBackup = st.err
     }
     W(`-- 外链路（派发器）exhaust 明细：\n`)
-    let window504 = 0, quotaCls = 0, mockN = 0
     for (const [src, list] of Object.entries(routing.exhaust)) {
-      for (const e of list) {
-        W(`   ${e.ts} ${src} statusCode=${e.statusCode} [${CLASS_NAMES[e.cls] || e.cls}] ${e.error}（run=${e.runId} role=${e.role}）${e.isMock ? '【mock 演练行，不计入推荐】' : ''}\n`)
-        if (e.isMock) { mockN++; continue }
-        if (e.cls === 'window') window504++
-        if (e.cls === 'quota') quotaCls++
-      }
+      for (const e of list) W(`   ${e.ts} ${src} statusCode=${e.statusCode} [${CLASS_NAMES[e.cls] || e.cls}] ${e.error}（run=${e.runId} role=${e.role}）${e.isMock ? '【mock 演练行，不计入推荐】' : ''}\n`)
     }
-    if (mockN) W(`   （另检出 mock 演练行 ×${mockN}——R5 换源演练注入，不构成真实源健康信号）\n`)
+    const cnt = countRealFailures(routing.exhaust)
+    if (cnt.mockN) W(`   （另检出 mock 演练行 ×${cnt.mockN}——R5 换源演练注入，不构成真实源健康信号）\n`)
     if (!Object.keys(routing.exhaust).length) W(`   （窗口内无 exhaust 事件）\n`)
-    // 推荐（05 §九纠偏②：504=同端点共模不换源；额度类=换源）
-    let rec, why
-    if (quotaCls > 0) { rec = 'k2（ops-gate1-k2）'; why = `窗口内检出额度类失效 ×${quotaCls}——换源有效（zipoo=不同配额池）` }
-    else if (window504 > 0) { rec = 'k1（ops-gate1-k1，不换源）'; why = `窗口内检出 504 窗口类 ×${window504}——zipoo 与 kimi-main 同端点共模，换源无效；处置=审包瘦身/流式化（05 §九纠偏②）` }
-    else { rec = 'k1（ops-gate1-k1）'; why = '窗口内 kimi 双源零额度/窗口类失效——按链首选源' }
-    W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}\n`)
+    const { rec, why } = recommendHealth(cnt, sh)
+    W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}（双源组=${dual.join('↔') || '未配置'}）\n`)
   } else {
     // ── B-0 全量分诊 ──
     W(`== log-triage 分诊（内链路 ${logFiles.join(',')} ×${cliLines.length} 行 + 外链路流水；窗口=${dateStr || `近 ${hours}h`}）==\n`)
@@ -244,22 +277,21 @@ if (argv.includes('--self-test')) {
     W(`   attempts=${JSON.stringify(routing.attempts)} ok=${JSON.stringify(routing.ok)}\n`)
     for (const [src, list] of Object.entries(routing.exhaust)) for (const e of list) W(`   exhaust ${e.ts} ${src} ${e.statusCode}[${CLASS_NAMES[e.cls]}] ${e.error} run=${e.runId} role=${e.role}\n`)
     // ③ 静默回退检测
-    W(`-- ③③ 静默回退检测（子代理声明绑定 vs 实际路由，metadata×${harvestAgents(null).length} 份）：\n`)
+    W(`-- ③③ 静默回退检测（子代理声明绑定 vs 实际路由，metadata×${metasAll.length} 份）：\n`)
     if (!fallbacks.length) W('   零检出（全部声明=实际，或无绑定岗）\n')
     for (const f of fallbacks) W(`   [${f.level}] ${f.profile} ${f.sid?.slice(0, 30)}… 声明=${f.declared} 实际=${f.actual} —— ${f.kind}\n`)
-    // ⑥ 岗×源用量（Kimi 双源分列）
-    W(`-- ⑥ 岗×源用量汇总（子代理 metadata，org-ledger 补记数据源；Kimi 双源分列）：\n`)
-    const byRole = {}
+    // ⑥ 岗×源用量（双源分列——组定义=org-config source_health.dual_groups）
+    W(`-- ⑥ 岗×源用量汇总（子代理 metadata，org-ledger 补记数据源；双源分列）：\n`)
+    const byRoleSource = {} // 复合键 role|source（A4：原 byRole[role] 一级赋值从未被读，已删）
     for (const m of metas) {
       const role = m.profileId || '?'
       const alias = subagentNet[m.childSessionId]?.alias || '(宿主默认)'
       const u = m.usage || {}
-      byRole[role] ||= {}
       const k = `${role}|${alias}`
-      byRole[k] = byRole[k] || { calls: 0, in: 0, out: 0 }
-      byRole[k].calls++; byRole[k].in += u.inputTokens || 0; byRole[k].out += u.outputTokens || 0
+      byRoleSource[k] = byRoleSource[k] || { calls: 0, in: 0, out: 0 }
+      byRoleSource[k].calls++; byRoleSource[k].in += u.inputTokens || 0; byRoleSource[k].out += u.outputTokens || 0
     }
-    for (const [k, v] of Object.entries(byRole).sort()) W(`   ${k.replace('|', ' @ ')}: calls=${v.calls} in=${v.in} out=${v.out}\n`)
+    for (const [k, v] of Object.entries(byRoleSource).sort()) W(`   ${k.replace('|', ' @ ')}: calls=${v.calls} in=${v.in} out=${v.out}\n`)
     // ⑦ finish 终态派生（保守口径）
     const fv = (merged.finish_vocab || {})
     const completeSet = new Set(fv.complete || ['end_turn', 'stop', 'stop_sequence'])

@@ -51,6 +51,14 @@
     "source_share_warn": 0.6,
     "source_share_note": "单源占比超此值=配给红线可能失守（P2-3；初始值 0.6，按实测两批后调整）"
   },
+  "source_health": {
+    "dual_groups": [
+      ["kimi-main", "kimi-backup"]
+    ],
+    "gate1_primary_subagent": "ops-gate1-k1",
+    "gate1_secondary_subagent": "ops-gate1-k2",
+    "note": "log-triage --health 换源推荐的结构参数：双源分组与门一双子代理名（v1.6 批 P1-B——脚本禁硬编码别名，A3/06 §0；别名变更只改本件）"
+  },
   "hardcode_scan": {
     "forbidden_terms": [],
     "note": "P0-3 check-hardcode 的额外扫描名单（正则字面量）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内；供应商 live 事实（端点/实配名）在宿主 config 而不在本件，故默认空——项目覆盖件可加自有禁词。"

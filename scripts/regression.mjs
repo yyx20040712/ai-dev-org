@@ -212,6 +212,14 @@ if (want('R7')) {
   record('R7', ok, `账本 schema 指针唯一指向 02 §9 ${det.join(' ')}`)
 }
 
+// ═══ R8：log-triage 自检聚合+--health 验收断言（v1.6 批 C2——mock 过滤假信号回归钉） ═══
+if (want('R8')) {
+  const r = spawnSync(node()[0], [join(SCRIPTS, 'log-triage.mjs'), '--self-test'], { encoding: 'utf8', cwd: SKILL_ROOT })
+  const out = (r.stdout || '') + (r.stderr || '')
+  const hasAcc = out.includes('验收断言') && out.includes('全过')
+  record('R8', r.status === 0 && hasAcc, `exit=${r.status} 自检含验收断言=${out.includes('验收断言')}${r.status !== 0 ? `（输出尾：${out.slice(-160)}）` : ''}`)
+}
+
 // ═══ R1'3：语义抽样（真实派发，--r1 显式触发） ═══
 if (wantR1) {
   const CASES = [

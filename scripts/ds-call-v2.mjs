@@ -387,6 +387,7 @@ try {
 let switches = 0
 for (let i = 0; i < chain.length; i++) {
   const s = chain[i]
+  const srcMocked = !!(mock && mock[s.alias] !== undefined) // mock 标志贯穿 switch/exhaust 行（v1.6 批 C2：attempt 行有而 exhaust 行漏——log-triage --health 曾把演练 429 计入真实失效出假换源推荐）
   console.error(`[routing] run=${runId} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} 尝试源 ${i + 1}/${chain.length}: ${s.alias}(${s.modelName})`)
   let result
   try {
@@ -396,13 +397,13 @@ for (let i = 0; i < chain.length; i++) {
     // 保字段存在（R4 schema 要求 statusCode；缺字段=坏行）。
     const statusCode = e.statusCode ?? null
     if (i === chain.length - 1) {
-      logger.routing('exhaust', { chain: chain.map((x) => x.alias).join('→'), error: scrub(e.message).slice(0, 300), statusCode })
+      logger.routing('exhaust', { chain: chain.map((x) => x.alias).join('→'), error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
       logger.ledger('exhaust', { source: chain.map((x) => x.alias).join('→'), outcome: 'exhaust-debt（同源审计欠账，主控回退只读审）' })
       console.error(`[routing] 全源尽(${chain.map((x) => x.alias).join('→')}): ${scrub(e.message)}——主控按「同源审计欠账」处置`)
       process.exit(2)
     }
     switches++
-    logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode })
+    logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
     logger.ledger('switch', { source: s.alias, outcome: scrub(e.message).slice(0, 200) })
     console.error(`[routing] 换源 ${s.alias} → ${chain[i + 1].alias}: ${scrub(e.message).slice(0, 200)}`)
     continue
