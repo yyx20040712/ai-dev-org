@@ -89,6 +89,10 @@
 | evolve-struct-glossary | 同上 | 术语速查入口缺位（拟 00 件：跨 references 术语表/新手上手图——「惯称/口径」类术语散布定义无集中入口） | open | 承接=结构项专项批 |
 | evolve-struct-patchwrite | 同上 | 补丁式时序写作累积：「后节接管前节」注记链（02 §8.4 接管注记/06 §6 补遗等）散布各件，结构性收敛未做 | open | 承接=结构项专项批 |
 | evolve-healthscan-86ref | 主控移交+b7 自检引出（evolve 批 check-anchors 自检实测发现 06 无 §8.6、真源在 02，未随批清偿） | health-scan.mjs 两处（:10/:104）「06 §8.6」断链引用（三段通道真源=references/02 §8.6） | closed | 已修（回炉 r2，2026-09-16）：两处改指 02 §8.6；断锚面随批复扫 WARN×0/FAIL×0 |
+| evolve-listroles-rolesnull | 终审 D 裁（档=2026-09-16_evolve-ruling-final.md；门一复审 W1 首指） | ds-call-v2 cliMain `--list-roles`（:362 Object.entries）与 `--role` 缺省分支（:380 Object.keys）对 roles:null 无守卫——TypeError→exit 1≠06 §5.8 行 3（配置错=3）；同族 A3 病（回炉只修了 --role 派发路径） | open | 纵深防御/一致性 W 级（正常运维 registry 无 roles:null）；承接=下批：两分支前补守卫或抽公共断言+R10 增 `--list-roles×roles:null` 向量 |
+| evolve-probeb-testfixture | 终审 E 裁（门二黄项 A-1 归因；档=2026-09-16_evolve-gate2-evidence.md） | cli/agents/ 常驻 probe-b 合成路由探针 metadata（验证 06 §6 补遗负面清单⑤「枚举值=假绑定」；profileId=probe-b/自述 model field=upstream enum "sonnet"）——任何含 ③ 的 `--date` 分诊长期 exit 1，易误读为真 RED | open | 非缺陷（检测器按设计击发）；处置=清理该探针残留或建测试 fixture 白名单（log-triage ③ 豁免名单），避免收口门禁误判 |
+| evolve-gate2-samesource | 终审 F 裁（独立发现：agents/ops-probe.md:6 与 ops-executor.md:6 同绑定） | 门二实证岗与实现者同 model-key（builtin:bigmodel-coding-plan/GLM-5.3）——06 §7「审查者与实现者异构优先+同源记欠账」欠账未记 | open | 声明：本战役异构对抗由门一（k3）+裁决（deepseek-flash）承载，门二=机械重跑面（矩阵命令+退出码，无判断性结论）；欠账保留至宿主提供真异构实证岗或 ops-probe 改绑异源 |
+| evolve-p2-advisories | 终审 P2 建议（非阻断，三项打包） | ①C1 机检盲区：「exit N=」变体形态不在两式 grep 内（ds-call-v2:14 现存合规保留句即该形态）②plan 白名单「health-scan=仅头注指针化一行级」措辞与实际（+§8.6 笔误修正两处）不精确 ③ds-call-v2:14 保留句含已覆盖半句「exit 4=输出写失败时」可削 | open | 承接=下批小扫尾：C1 严式扩 `\bexit \d+=`/白名单措辞入 05 移植口径/保留句削半句 |
 
 修订记同步见本册末节 2026-09-16 行。
 
