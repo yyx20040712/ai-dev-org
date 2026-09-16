@@ -15,7 +15,8 @@
  *   --health：源健康检查（A'③）——按供应商五类分诊 → k1/k2 推荐+分类处置建议
  *     （额度类→换源；504 窗口类→不换源、瘦身——zipoo 同端点共模，05 §九纠偏②）
  * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--self-test]
- * 退出码：0=正常；1=发现 RED 级事项（静默回退检出）或自检断言失败（全 fixture 聚合——v1.6 批）；3=配置错。
+ * 退出码：0=正常；1=发现 RED 级事项（静默回退检出）或自检断言失败（全 fixture 聚合——v1.6 批）
+ *       或非法 --date（格式/语义校验拒——stderr 一行用法错，evolve-E2 b3）；3=配置错。
  * 纪律：finish 词表与供应商别名住 org-config（禁硬编码，A3/06 §0）；自然退出（HOST-node25 规避）。
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
@@ -30,6 +31,34 @@ const AGENTS_DIR = join(homedir(), '.zcode', 'cli', 'agents')
 const ROUTING_LOG = join(SKILL_ROOT, 'scripts', 'model-routing-log.jsonl')
 
 const readJsonl = readJsonlFile // 行读取器单源（org-config 导出——v1.6 批 P2-3 收敛）
+
+// ── b3（evolve-E2）：--date 校验+窗口 epoch 化（日界口径=UTC，与 CLI 日志文件名现状同口径） ──
+export const DATE_FMT_RE = /^\d{4}-\d{2}-\d{2}$/
+/** --date 合法性=格式+语义（真实存在的日期）。语义判据=UTC 分量回环：本机 V8
+ *  （Node 25）ISO 解析对日溢出回卷（2026-02-30→03-02）而非 NaN，仅判 Invalid/NaN
+ *  拒不住坏日向量——须回环比对年/月/日三分量（P-1 向量全过的必要实现）。 */
+export function isValidDateStr(s) {
+  if (typeof s !== 'string' || !DATE_FMT_RE.test(s)) return false
+  const [y, mo, d] = s.split('-').map(Number)
+  const t = new Date(`${s}T00:00:00Z`).getTime()
+  if (Number.isNaN(t)) return false
+  const dt = new Date(t)
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d
+}
+/** 窗口解析（纯函数，自检可注入）：--hours 与 --date 同走 epoch ms；
+ *  --date 窗=[UTC 零点, 次 UTC 零点)（撤回「本地零点」预案）；--hours 窗=[now−Nh, ∞) 无上界（原状）。 */
+export function resolveWindow({ argv, now = new Date() }) {
+  const hours = Number(cliFlag(argv, '--hours') || 0)
+  const dateArg = cliFlag(argv, '--date') || null
+  const dateStr = dateArg || (hours > 0 ? null : now.toISOString().slice(0, 10))
+  const dayStart = dateStr ? Date.parse(`${dateStr}T00:00:00Z`) : null
+  const sinceMs = hours > 0 ? now.getTime() - hours * 3600_000 : dayStart
+  const untilMs = hours > 0 || dayStart === null ? null : dayStart + 86_400_000
+  return { hours, dateStr, sinceMs, untilMs }
+}
+const tsMs = (x) => { const t = Date.parse(x); return Number.isNaN(t) ? null : t }
+/** 窗口过滤（epoch ms；不可解析/缺失时间戳行=保留，与原字符串比较口径的保守方向一致）。 */
+const inWindow = (t, sinceMs, untilMs) => t === null ? true : !((sinceMs != null && t < sinceMs) || (untilMs != null && t >= untilMs))
 
 // ── 供应商别名解析：providerId(或 uuid) → org-config alias ──
 const buildAliasMap = (providers) => {
@@ -59,7 +88,7 @@ export function classifyError({ statusCode, reason, statusMessage, providerMessa
 const CLASS_NAMES = { quota: '配额限流(429/403)', window: '网关窗口(504/超长时延)', server: '服务端过载(5xx)', transport: '传输层(网络错)', config: '配置错(400/401/404)', other: '未分类' }
 
 // ── 内链路（cli/log）事件收割 ──
-function harvestCliLog(lines, aliasMap, sinceTs) {
+function harvestCliLog(lines, aliasMap, sinceMs, untilMs) {
   const perProvider = {}   // alias -> {ok, err:{class:n}, lat:[], attempts:{}}
   const subagentNet = {}   // sessionId -> {alias, modelId, lastFinish, fails}
   const netFailRaw = []    // network.failed 原行（同秒判重键用——v1.6 批）
@@ -67,7 +96,7 @@ function harvestCliLog(lines, aliasMap, sinceTs) {
   const bump = (alias) => (perProvider[alias] ||= { ok: 0, err: {}, lat: [], attempts: {} })
   for (const d of lines) {
     if (d.unparseable || !d.context) continue
-    if (sinceTs && d.timestamp && d.timestamp < sinceTs) continue
+    if (!inWindow(tsMs(d.timestamp), sinceMs, untilMs)) continue
     const c = d.context
     const ev = d.event
     if (ev === 'model.network.completed' || ev === 'model.network.failed') {
@@ -107,11 +136,11 @@ function harvestCliLog(lines, aliasMap, sinceTs) {
 }
 
 // ── 外链路（model-routing-log）收割 ──
-function harvestRouting(rows, sinceTs) {
+function harvestRouting(rows, sinceMs, untilMs) {
   const out = { attempts: {}, ok: {}, exhaust: {}, switch: {} }
   for (const r of rows) {
     if (r.unparseable) continue
-    if (sinceTs && r.ts && r.ts < sinceTs) continue
+    if (!inWindow(tsMs(r.ts), sinceMs, untilMs)) continue
     const src = r.source || r.chain || '(链尽)'
     if (r.event === 'attempt') out.attempts[src] = (out.attempts[src] || 0) + 1
     if (r.event === 'ok') out.ok[src] = (out.ok[src] || 0) + 1
@@ -169,7 +198,7 @@ export function detectSilentFallback({ metas, subagentNet }) {
 }
 
 // ── ⑥⑦ 子代理面：metadata（用量+终态）──
-function harvestAgents(sinceTs) {
+function harvestAgents(sinceMs, untilMs) {
   const metas = []
   if (!existsSync(AGENTS_DIR)) return metas
   for (const sess of readdirSync(AGENTS_DIR)) {
@@ -178,8 +207,8 @@ function harvestAgents(sinceTs) {
       for (const ag of readdirSync(sdir)) {
         const mf = join(sdir, ag, 'metadata.json')
         if (!existsSync(mf)) continue
-        const m = JSON.parse(readFileSync(mf, 'utf8'))
-        if (sinceTs && m.createdAt && m.createdAt < sinceTs) continue
+      const m = JSON.parse(readFileSync(mf, 'utf8'))
+      if (!inWindow(tsMs(m.createdAt), sinceMs, untilMs)) continue
         metas.push(m)
       }
     } catch { /* 目录竞争态：跳过 */ }
@@ -193,9 +222,12 @@ const pct = (arr, p) => { if (!arr.length) return 0; const s = [...arr].sort((a,
 const argv = process.argv.slice(2)
 const flag = (n) => cliFlag(argv, n) // 单源（org-config 导出——v1.6 批 P2-3）
 const now = new Date()
-const hours = Number(flag('--hours') || 0)
-const dateStr = flag('--date') || (hours > 0 ? null : now.toISOString().slice(0, 10))
-const sinceTs = hours > 0 ? new Date(now.getTime() - hours * 3600_000).toISOString() : (dateStr ? `${dateStr}T00:00:00` : null)
+const rawDate = flag('--date') || null
+if (rawDate && !isValidDateStr(rawDate)) {
+  console.error(`[usage] --date 非法值「${rawDate}」——须为真实存在的日期（YYYY-MM-DD，如 2026-09-16）；格式/语义校验拒，窗口日界=UTC（evolve-E2 b3——原静默空窗=假绿面）`)
+  process.exit(1)
+}
+const { hours, dateStr, sinceMs, untilMs } = resolveWindow({ argv, now }) // 窗口 epoch ms（--hours/--date 同路径；--date 日界=UTC）
 
 const { merged } = loadOrgConfig(SKILL_ROOT)
 const aliasMap = buildAliasMap(merged.providers)
@@ -234,15 +266,35 @@ if (argv.includes('--self-test')) {
   // 全角括号兜底回归（实陷：全角（mock）漏配）
   const fw = harvestRouting([{ ts: '2026-09-16T10:00:00Z', runId: 'fw', event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽（mock）' }], null).exhaust
   t('全角（mock）兜底命中（不计入推荐）', Object.values(fw)[0][0].isMock === true)
+  // b3 向量（evolve-E2）：--date 格式+语义校验+窗口 epoch 化 UTC 日界（红态=函数未落→FAIL 行不崩）
+  t('b3 格式校验：非 YYYY-MM-DD 拒（foo/2026-9-16/空串）', typeof isValidDateStr === 'function' && !isValidDateStr('foo') && !isValidDateStr('2026-9-16') && !isValidDateStr(''))
+  t('b3 语义校验：坏月日拒（2026-13-45）', typeof isValidDateStr === 'function' && !isValidDateStr('2026-13-45'))
+  t('b3 语义校验：坏日拒（2026-02-30——本机 V8 ISO 解析日溢出回卷非 NaN，须分量回环判）', typeof isValidDateStr === 'function' && !isValidDateStr('2026-02-30'))
+  t('b3 语义校验：平年 2 月 29 拒（2025-02-29）', typeof isValidDateStr === 'function' && !isValidDateStr('2025-02-29'))
+  t('b3 语义校验：合法值过（2026-09-16/闰 2024-02-29/平年 2025-02-28）', typeof isValidDateStr === 'function' && isValidDateStr('2026-09-16') && isValidDateStr('2024-02-29') && isValidDateStr('2025-02-28'))
+  const wB3 = typeof resolveWindow === 'function' ? resolveWindow({ argv: ['--date', '2026-09-16'] }) : null
+  t('b3 窗口 epoch 化+UTC 日界（since=UTC 零点/until=次 UTC 零点）', !!wB3 && wB3.sinceMs === Date.UTC(2026, 8, 16) && wB3.untilMs === Date.UTC(2026, 8, 17))
+  const tSh0917 = Date.UTC(2026, 8, 16, 18) // =Asia/Shanghai（UTC+8）本地 2026-09-17 02:00
+  t('b3 UTC 日界：上海本地 09-17 02:00 行（=UTC 09-16 18:00）归 09-16 窗', !!wB3 && wB3.sinceMs <= tSh0917 && tSh0917 < wB3.untilMs)
+  const tSh0916 = Date.UTC(2026, 8, 15, 20) // =Asia/Shanghai 本地 2026-09-16 04:00
+  t('b3 UTC 日界（非本地零点）：上海本地 09-16 04:00 行（=UTC 09-15 20:00）不入 09-16 窗', !!wB3 && tSh0916 < wB3.sinceMs)
+  t('b3 --hours 同路径：epoch ms 回推（now 定锚 12:00Z−2h=10:00Z）', typeof resolveWindow === 'function' && resolveWindow({ argv: ['--hours', '2'], now: new Date(Date.UTC(2026, 8, 16, 12)) }).sinceMs === Date.UTC(2026, 8, 16, 10))
+  const rtRowsB3 = [
+    { ts: '2026-09-16T18:00:00.000Z', runId: 'sh-local-0917-0200', event: 'exhaust', statusCode: 504, error: 'x' },
+    { ts: '2026-09-16T23:59:59.999Z', runId: 'in-tail', event: 'exhaust', statusCode: 504, error: 'x' },
+    { ts: '2026-09-17T00:00:00.000Z', runId: 'out-next-day', event: 'exhaust', statusCode: 504, error: 'x' },
+  ]
+  const rtOutB3 = wB3 ? harvestRouting(rtRowsB3, wB3.sinceMs, wB3.untilMs) : null
+  t('b3 窗口行过滤：UTC 09-16 窗内两行留（含上海 09-17 02:00 行）/次 UTC 零点起弃', !!rtOutB3 && Object.values(rtOutB3.exhaust).flat().length === 2 && !Object.values(rtOutB3.exhaust).flat().some((e) => e.runId === 'out-next-day'))
   console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
   process.exitCode = stFails === 0 ? 0 : 1
 } else {
   // 收割两账（--hours 无日期时目录守卫：CLI 日志目录缺失=空集不崩——v1.6 批）
   const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-2) : [])
   const cliLines = logFiles.flatMap(f => readJsonl(join(CLI_LOG_DIR, f)))
-  const { perProvider, subagentNet, deduped } = harvestCliLog(cliLines, aliasMap, sinceTs)
-  const routing = harvestRouting(readJsonl(ROUTING_LOG), sinceTs)
-  const metas = harvestAgents(sinceTs)
+  const { perProvider, subagentNet, deduped } = harvestCliLog(cliLines, aliasMap, sinceMs, untilMs)
+  const routing = harvestRouting(readJsonl(ROUTING_LOG), sinceMs, untilMs)
+  const metas = harvestAgents(sinceMs, untilMs)
   const metasAll = harvestAgents(null) // 全时段 metadata 单次收割复用（原三重全量遍历——v1.6 批收敛）
   const W = process.stdout.write.bind(process.stdout)
 
