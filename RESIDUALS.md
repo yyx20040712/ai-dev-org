@@ -16,10 +16,15 @@
 | PostToolUse-livefire | hook 实弹触发验证 | 需机检强制（hook 拦截）的批次首场核对 |
 | killed-agent-metadata-gap | 被杀岗 metadata 无声明值可核 | 机检化（编排会话派发记录回填）后续批 |
 | check-anchors-calibration | 全角冒号形态/dod.md 扫描面/点名豁免漂移面 | check-anchors 升 --strict 决策前置批 |
-| selfiter-k1k2-reasoninglevel | 绑定子代理需会话级思考档位选择（当前会话缺失不可用） | 宿主提供会话级思考档位选择后复测 |
+| selfiter-k1k2-reasoninglevel | 绑定子代理派发缺档位声明即拒启（reasoning-level-missing）——根因已定位：宿主 model 串支持 `$档位` 后缀（zcode.cjs parseModelPickerValue/resolveProfileModelSelection 实证 2026-09-17），非 UI 选择器问题；七档案+六模板已补 `$max`，log-triage ③ 检测面已同步（$ 后缀剥除比对+account: 前缀族） | 新会话派发真实小任务+`log-triage` 核对零回退后闭合 |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
 
 ## 修订记
+
+- 2026-09-17 档位批：根因定位 selfiter-k1k2-reasoninglevel=宿主 model 串
+  `$档位` 后缀语法（非 UI 选择器）；六岗七档案+六模板统一 `$max`（含清偿
+  三件 GLM 岗契约尾栏残留的旧前缀串）；log-triage ③ 检测面同步（VALID_MODEL_RE
+  认 `$` 后缀+account: 前缀、比对剥档位，向量随批）。
 
 - 2026-09-17 v2.0.1 修复批：外部全局对抗审（主控承接分析+门一 Kimi 双源
   独立全局审双 PASS——绑定子代理通道受阻按 runbook 换外部派发器承载）清偿

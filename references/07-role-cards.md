@@ -154,7 +154,11 @@ verify 真退出码亲验）；账本单写者。
 | 门一·源A | ops-gate1-k1 | Read | 物理（仅 Read）+协议（禁读任何文件，输入即包）双墙 |
 | 门一·源B | ops-gate1-k2 | 同上 | 同上（Kimi 双源，健康检查择源） |
 
-纪律四条：①model 禁上游枚举值（静默回退=假绑定，负面清单⑤）；②首部署/
+纪律四条：①model 禁上游枚举值（静默回退=假绑定，负面清单⑤）；档位=model
+串 `$` 后缀显式声明（`provider/model-key$max` 形态——缺档位=宿主派发拒启
+reasoning-level-missing，2026-09-17 宿主代码实证 resolveProfileModelSelection/
+parseModelPickerValue，七档案与六模板已统一 `$max`，闭合验证=新会话真实小
+任务+log-triage 零回退）；②首部署/
 改档须新会话跑真实小任务+日志核对零回退（代理档案=会话启动快照，无热加载）；
 ③报告末两行机读尾栏（MODEL-SELF + LEDGER-CLAIM / FINDINGS）；④接续纪律
 （杀岗→日志归因→额度类换源继任/窗口类同源瘦身/无工具岗同包重跑）真源=
