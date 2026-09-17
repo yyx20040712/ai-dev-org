@@ -159,15 +159,16 @@ scripts/audits/2026-09-10_w2-freeze-evidence.md 与
 
 ## 修订记
 
-- 2026-09-16 v1.7（外部评审清偿战役 evolve 批）：外部全面评审（双异源探查+
-  人工复核）→清偿计划 v1-v3 双源两轮对抗审（k1/k2 均 FAIL 全吸纳）→裁决
-  有条件放行 C1-C6→E1/E2/E3 分批实施（b1-b9，九笔 commit）→门禁终态
-  （regression 8/8+R1 SKIP、三扫零命中、health-scan RED=0/WARN×2 基线
-  存量）。核心：glm-look 传输层 node:http(s) 直连+R10 回归面；ds-call-v2
-  退出码类型化；log-triage --date 语义校验+UTC 日界；provider null 守卫
-  三处；regression 五处超时看护；sys_prompt_file 包含性校验；check-anchors
-  NN·XN 扩面；文档腐化清偿（02 §4 固定七段单源/九件头注指针化 06 §5.8/
-  R 清单指针化）。行为变化四项+env 钩子申报与 06 §5.8 迁移注记=
-  CHANGELOG.md v1.7 条；登记面=RESIDUALS evolve 节（25 行）。批档=
-  scripts/audits/2026-09-16_evolve-*（全量历史=CHANGELOG.md，v1.6 及更早
-  条目在册不再复写）。
+- 2026-09-17 v1.7.1（自我迭代卫生批——外部评估驱动；全量条目=CHANGELOG.md
+  v1.7.1）：三清偿——①evolve 批 28 件批档入库（scripts/audits/，证据链
+  补版本化）；②RESIDUALS.md:94 三处实配模型名命中白名单行级豁免（08 §1
+  历史件豁免判例）+新增 `.githooks/pre-commit` 提交门禁（check-hardcode
+  --strict+check-anchors+org-config validate；1/3 阻断、5 降级留痕放行；
+  安装=`git config core.hooksPath .githooks`）——堵 v1.7 收口暴露的「扫描
+  先于尾笔编辑」流程洞（起草期实值误写即被新钩子拦截=门禁自证）；③R1
+  真实派发专项 1/1（双源方向一致性 3/3；残留册 evolve-r1-timeout-unverified
+  随批关闭）。实现链=ops-executor 三轮（两落点+回炉 2：strict 修订、
+  rc=5 留痕回显；变异红证双证）+同源轻量门审（B0/W1 随批闭合/N 全过，
+  配给内降级 02 §8.3）。门禁终态=regression 8/8+R1 专项 1/1+hardcode
+  命中 0（豁免 36/14）+anchors 0/0+health-scan RED=0/WARN×2（基线存量）。
+  批档=scripts/audits/2026-09-17_selfiter-impl-report.md。

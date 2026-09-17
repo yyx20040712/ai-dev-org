@@ -4,6 +4,37 @@
 > 逐字保留，此后新增版本只在本件追加）。SKILL.md 只保留最近一条摘要
 > 与本件指针。历史条目属过程记录，按 references/08 §3 红线不再改写。
 
+## 2026-09-17 v1.7.1（自我迭代卫生批——外部评估驱动：批档入库+提交面堵收口扫描流程洞+R1 运行时欠账清偿）
+
+- **背景（三项运维末端缺口，均主控实测坐实）**：①evolve 批批档（scripts/audits/
+  2026-09-16_evolve-* 与 evolve-ledger-* 三件，共 28 件）未入 git——证据链未
+  版本化，与本技能 C4「落盘才算证明」自相矛盾；②v1.7 收口尾笔（451fb08）自身
+  向 RESIDUALS.md:94 引入 3 处实配模型名命中（扫描跑在最后一批编辑之前=流程洞），
+  收口消息「三扫零新增」与 HEAD 实态不符（主控自抓自登，同 evolve-v17-erratum1
+  计数病族）；③R1 真实派发自 v1.0 冻结起零实跑（配给保护长期 SKIP）。
+- **清偿**：①批档全量入库；②RESIDUALS.md:94 行级白名单登记（08 §1 历史件
+  豁免判例；锚串=收口尾笔引用的完整实配 model-key 原文，实值住白名单 JSON
+  条目、正文不抄写——本条起草初版曾将该实值写入本件，被本批新装 strict
+  钩子当场拦截后改指针化措辞，门禁自证；锚串在 RESIDUALS.md 内 grep 计 1，
+  整行三命中一并覆盖）+新增 `.githooks/pre-commit` 提交门禁（check-hardcode
+  **--strict**+check-anchors+org-config validate 三快扫；退出码口径单源=
+  06 §5.8——1/3 阻断、5 降级留痕放行；安装=`git config core.hooksPath
+  .githooks`）——「收口零命中」从收口时点自觉变成提交面机检，堵死「扫描先于
+  尾笔编辑」类流程洞；③R1 专项 `--only R1 --r1 --keep-tmp`：双源判定方向
+  一致性 3/3 过（断言弱化/干净样例/占位残留三用例双源方向全对），宿主 Node
+  v25.2.1 下真实派发零退出崩溃（HOST-node25 退出面未触发）——残留册
+  evolve-r1-timeout-unverified 随批关闭（触发器条件已兑现）。
+- **行为变化申报**：安装钩子后本仓 git commit 新增阻断行为（strict 命中=
+  阻断提交；逃生口=登记白名单/指针化，显式可审计）；rc=5 降级场景放行但
+  回显 [degraded] 留痕行；非 strict 扫描口径不变（health-scan/收口语义照旧）。
+- **实现链**：ops-executor 三轮（两落点+回炉 2 轮：strict 修订、rc=5 留痕
+  回显；变异红证双证=实现者+主控独立复现，注入 live 事实→exit 1 阻断→
+  文件备份法还原 diff 空）；同源轻量门审（code-reviewer——可省面配给内
+  降级，02 §8.3）：B=0/W=1（随批回炉闭合）/N 全过，批档敏感串全量机检
+  零密钥实值；门禁终态=regression 8/8+R1 专项 1/1+check-hardcode 命中 0
+  （豁免 36/14）+check-anchors 0/0+health-scan RED=0/WARN×2（基线存量）。
+  档=scripts/audits/2026-09-17_selfiter-impl-report.md。
+
 ## 2026-09-16 v1.7（外部评审清偿战役 evolve 批——外部全面评审→计划 v1-v3 双源对抗审→终裁有条件放行→E1/E2/E3 实施→门禁终态）
 
 - **战役过程**：外部全面评审（双异源探查+人工复核）确认 6 项代码级缺陷+
