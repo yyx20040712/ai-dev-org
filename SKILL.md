@@ -16,21 +16,20 @@ references/06 §2）。本技能是 loop-engineering 的升级替代件（组织
 管道视图合并，旧件已归档于 `~/.zcode/skills/_archive/
 loop-engineering-archive-2026-09/`——路径相对 skills 根，非技能根）。
 
-## 岗位速查（终表见 references/07）
+## 岗位速查（全属性终表单源=references/07 §1——本表仅岗名×通道索引，禁增列）
 
-| 岗位 | 通道 | 档位/tier 记法 |
-|---|---|---|
-| 主控（+PM 子模式） | 主会话 | 会话宿主模型；唯一用户对接岗 |
-| 拟定者 drafter | 派发器 `--role drafter` | prime（路线级设计拟定，零仓库接触） |
-| 实现者 | 会话内子代理 | 意图档位+欠账记账（定档不可强制，见下） |
-| 门一 gate1-reviewer | 派发器 `--role gate1-reviewer` | audit（隔离一审，只喂自包含 diff 包） |
-| 门二 | 会话内子代理 | 意图档位+欠账记账（异构优先） |
-| 审核者 auditor-readonly | 派发器 `--role auditor-readonly` | debt-readonly（兜底/欠账只读审） |
-| SRE 诊断岗 sre-diagnostic | 会话内只读子代理 | 取证/冻结提取/e2e 红 triage；禁写禁臆断 |
-| 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look） | 意图档位 session:multimodal-exp+欠账记账；宿主可配模型则按其配置入口执行；外呼标准流程=`scripts/glm-look.mjs` 双通道看图（通道/模型/端点甄别=org-config `vision_channels` 分区，不动 roles 注册表——细则见 07 设计岗卡）；方向级决策留用户 |
+| 岗位 | 通道 |
+|---|---|
+| 主控（+PM 子模式） | 主会话（唯一用户对接岗） |
+| 拟定者 drafter | 派发器 `--role drafter` |
+| 实现者 | 会话内子代理 |
+| 门一 gate1-reviewer | 派发器 `--role gate1-reviewer` |
+| 门二 | 会话内子代理 |
+| 审核者 auditor-readonly | 派发器 `--role auditor-readonly` |
+| SRE 诊断岗 sre-diagnostic | 会话内只读子代理 |
+| 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look，细则=07 §4 设计岗卡） |
 
-（岗位编制=8；人类用户=裁决位，不计入编制——同 references/06 §1、
-07 §1 表注。）
+（编制表注/tier 记法/禁令/职责/交接物一律看 07 §1，本表不复制——v1.7.5 收敛。）
 
 供应商事实（源序、端点、套餐、配给）一律看 org-config（默认件 + 项目
 覆盖件 `.zcode/org-config.json`），本件零硬编码。会话内子代理没有
