@@ -199,3 +199,4 @@ EXECUTOR=model-field:＜值＞ 即机读证据（W-2 双印证非双源）；未
   scripts/audits/2026-09-10_org-skill-rulings.md）。
 - 2026-09-02 v1.0/v1.1：见归档件修订史（用户四次 Ruling 定稿）。
 - 2026-09-17 v2.4（m4 清偿批）：派发器请求参数/R1 源名单/anchors 豁免点名单收编 org-config（新分区 dispatch_request/regression_cfg/anchors_exempt）；缺段=exit 3 无静默回退。批档=scripts/audits/2026-09-17_m4-impl-report.md
+- 2026-09-17 v2.5（g3 三残留清偿批）：ds-call-v2 flag 解析收编 org-config cliFlag 单源（W7「分发单元自包含」副本豁免前提过时——主控预裁申报，门二 R-6 裁定成立）+用法错三校验（evolve-l4-flags 清偿；行为变化=缺值/重复/值形如 flag 统一 [用法错] exit 1，见 CHANGELOG v1.7.6 申报节）；deploy-check --install 增派生覆盖件动作③（deploy-hostfacts-split 清偿）。批档=scripts/audits/2026-09-17_g3-*

@@ -4,6 +4,13 @@
 > 逐字保留，此后新增版本只在本件追加）。v1.7.2 起 SKILL.md 不再保留
 > 任何修订记内联条（含最近一条摘要），版本面单源=本件。历史条目属过程记录，按 references/08 §3 红线不再改写。
 
+## 2026-09-17 v1.7.6（g3 三残留清偿批——cliFlag 用法错校验/新机首装派生覆盖件/术语 00 件）
+
+- **动机**：清偿在册三残留——evolve-l4-flags（cliFlag 单点修，消费点已积三处）/deploy-hostfacts-split（新机首装从宿主注册表派生 org-config 覆盖件——部署体验最后一块）/evolve-struct-glossary（术语速查 00 件——上手成本第一欠账）。
+- **变更**：b1 org-config cliFlag 三校验（同名 flag≥2 次/居末位缺值/值形如 flag=throw UsageError；缺席仍返 null；单 `-` 放行）+UsageError 导出+四消费点接线（org-config `--project`/log-triage `--hours --date`/regression `--only --project`/deploy-check `--agents-dir`）；ds-call-v2 本地 flag 副本收编单源 import——W7「分发单元自包含」豁免前提过时（该件已 import org-config 八标识符，主控预裁 P1 申报，门二 R-6 假设拷问裁定成立）。b2 deploy-check `--install` 增动作③宿主事实派生：deriveHostFacts 按 entry_name 唯一命中派生 uuid_prefix=id 前 8 字符（歧义不猜：零命中/≥2 命中均不写+DEPLOY §3 指引）；护栏=覆盖件已存在绝不覆盖/全命中且值同于默认件不写（防本机冗余件）/写盘带 note（用户配置域声明）+落盘回读复核；授权形态=仅显式 `--install`。b3 references/00-glossary.md 立件（索引件非真源——定义冲突以指针目标为准；七组 60 词条 9/10/10/10/7/9/5+新手上手图；check-anchors 扫描面 11→12 自证）+SKILL.md 加载地图首列联动。附带 R8 扩为三脚本自检套件（org-config/deploy-check/log-triage 各自 exit 0+「全过」，变异红证钉扩展防假绿）。
+- **行为变化申报**：原静默回退面收敛为 fail-fast（`[用法错]`+exit 1，06 §5.8 行 1 类目）——deploy-check `--agents-dir` 缺值不再回退默认目录；log-triage `--hours/--date` 缺值不再按 0/null 静默；regression `--only/--project` 同理；ds-call-v2 `--role/--source/--project/--mock-source` 缺值或重复（原仅首个生效，v1.7.4 门二 A-1 实证形态）统一用法错；org-config `--project` 缺值不再裸堆栈。`--install` 次序语义：坏覆盖件时 ④⑤ 先执行（不依赖 cfg）→③ 打印干净跳过行（真因+DEPLOY §3 指引）→终态仍 `[装载错]` exit 3（非 install 路径终态不变，门二实证矩阵 item5 真机注入核证）。门二 N 项六行登记见残留册（log-triage catch instanceof 过滤/`--flag=value` 形态立场/W1-r1「极端罕见可达」定性改述/异机写盘实证/glm-look 同族缝/00 件语义漂移体检）。
+- **机检面**：org-config 自检 10→17 向量/deploy-check 16→30/anchors 12 件 WARN 0/FAIL 0/hardcode 0 命中/health-scan RED=0 WARN=2（与基线同值）/cfg:20254429f008 全链不变（默认件零触碰）；门一三轮（首轮 PASS B=0/W=3/N=6→回炉轮 1 四项→复审 PASS B=0/W=1/N=3→轮 2 处方微修→微确认 PASS B=0/W=0/N=1，k1 全程 MODEL-SELF 自证 kimi-main 绑定零回退）；门二实证矩阵 8/8（ops-probe，坏覆盖件真机注入+变异抽钉零残留）+异构裁决放行（ops-adjudicator，跨供应商异构绑定位——实配以流水 model-field 为准，独立复算 R-1~R-4+无佐证断言点名表 12 条）；R1 真实派发抽样 3/3 双源方向一致（Node 24 跑，零退出崩溃——派发器收编后端到端实证，P0 欠账项直接消掉）。批档=scripts/audits/2026-09-17_g3-*（12 件）。W1 勘误统一口径=00 件实收 **60** 词条（首轮报告「59」为计数笔误，门一 W1 指认+回炉轮 1 勘误）。
+
 ## 2026-09-17 v1.7.5（岗位三表单源化批——文档/制度批：07 §1 唯一全属性终表+SKILL.md/06 §1 指针收敛）
 
 - **动机**：在册残留 evolve-struct-tables 三写漂移面——岗位三表三写

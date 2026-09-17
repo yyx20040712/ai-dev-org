@@ -77,7 +77,7 @@
 | evolve-m6-runid | 外部评审清偿战役 evolve 批（外部评审 M6） | runId 随机后缀仅 4 字符（同秒/并发碰撞窗口）+账本 appendFileSync 多写入者行交错无锁+log-triage switch 统计单值覆盖（同 runId 多次 switch 只记末值） | open | 互指 A-dsN-1（runId=机器关联键定位维持）与 regression R5 区期望计数注释；处置=账本写入器专项批 |
 | evolve-m5-regenv | 外部评审清偿战役 evolve 批（外部评审 M5） | 回归 R2b/R5/R4 勾连宿主 config 双校验与源链装载（本机宿主注册表=隐式 fixture），跨环境（无同形宿主条目）不复现 | open | 设计取舍显式化：自包含回归以本机配置面为基线；跨环境移植按 05 §6 差异回灌协议处置，不追回 |
 | evolve-l3-sort | 外部评审清偿战役 evolve 批（外部评审低优先 L 类） | 清单类输出无显式排序键：check-hardcode/check-anchors 以 readdirSync 枚举序输出（跨平台/目录序不稳定——diff 对账与 --update 重冻结噪声面） | open | 低优先；处置=扫描输出前显式 sort（check-anchors 升 --strict 前置批一并） |
-| evolve-l4-flags | 同上 | CLI flag 解析=argv.indexOf 取下一位（cliFlag 单源导出）：flag 值缺失（取 undefined）或误吃下一 flag（如 --project --json 会把 --json 当值）不报错；重复同名 flag 仅解析首个（v1.7.4 门二 A-1 实证：ds-call-v2 --mock-source 三点重复注射仅首点生效）；W-1 守卫后显式 undefined 值缝与原型链 `in` 缝=理论面（门一回炉复核 N-1/N-2，别名受控面现实不可达） | open | 低优先；处置=cliFlag 校验值非 flag 形态+值缺失=用法错 1+重复 flag=用法错 1（org-config 单点改全件受益——已积累消费点三处：deploy-check --agents-dir、ds-call-v2 --mock-source、本行 A-1 形态） |
+| evolve-l4-flags | 同上 | CLI flag 解析=argv.indexOf 取下一位（cliFlag 单源导出）：flag 值缺失（取 undefined）或误吃下一 flag（如 --project --json 会把 --json 当值）不报错；重复同名 flag 仅解析首个（v1.7.4 门二 A-1 实证：ds-call-v2 --mock-source 三点重复注射仅首点生效）；W-1 守卫后显式 undefined 值缝与原型链 `in` 缝=理论面（门一回炉复核 N-1/N-2，别名受控面现实不可达） | closed（2026-09-17 g3 批） | 已修（v1.7.6，commit d4ccedb）：cliFlag 三校验（重复/末位缺值/值形如 flag→UsageError→exit 1）+UsageError 单源导出+四消费点接线（org-config/log-triage/regression/deploy-check）+ds-call-v2 本地副本收编（W7 前提过时，主控预裁申报，门二 R-6 裁定成立）；边界外发现拆行 g3-cliflag-equals；批档=scripts/audits/2026-09-17_g3-impl-report.md |
 | evolve-l5-frontmatter | 同上 | frontmatter 解析健壮性弱面：skill-gc description 多行/块形态歧义判 unknown 仅报告（块级边界未严格解析）；check-hardcode agents 扫描剥 frontmatter 对未闭合形态的边界行为未向量覆盖 | open | 低优先；处置=解析器专项或维持 unknown 保守口径（ds-B2 终裁「只报告不删」延续） |
 | evolve-l9-degrade | 同上 | 降级显式留痕口径未全件统一：check-hardcode 降级=exit 5 已立；log-triage 日志目录缺失/health-scan 账本缺失仍静默空输出（与 M1 静默空窗同族面） | open | 低优先；处置=「缺输入显式留痕」口径统一批（08 §4 文档腐化体检顺带核） |
 | evolve-glmlook-150-null | 外部评审清偿战役 evolve 批（E2 普查新发现，E2 报告六节表） | glm-look.mjs:150 discoverSources prov.options 对 null 宿主条目裸取（宿主原始 JSON 侧可达）——M3 族第 4 消费点 | open | E2 纪律登记不自修（glm-look=E1 已落面+超 E2 白名单）；处置=glm-look 下一修改批顺带（同 b4 形态：降级行+跳过） |
@@ -86,7 +86,7 @@
 | evolve-verify-mjs-header | 外部评审清偿战役 evolve 批（E3 头注普查） | templates/verify.mjs:6 头注「（退出码：0=全过；1=有 FAIL）」数字=语义复写——随 init-defenses 分发到项目仓的模板骨架件 | open | 禁改面命中登记不修（templates/** 白名单外，本批仅 org-seg.snippet.md:11 扩权）；处置=init-defenses 模板升版批顺带指针化 |
 | evolve-ccb-weaktype | 外部评审清偿战役 evolve 批（E3 头注普查） | check-constitution-budget.mjs:3 头注「→ exit 1」弱同型复写（单退出码弱形态，非完整数字=语义表） | open | 登记不修（脚本不在本批白名单）；处置=下批脚本头注卫生批 |
 | evolve-struct-tables | 外部评审清偿战役 evolve 批（结构项——计划 v3 假设 4：本战役不实施只登记） | 岗位三表三写：SKILL.md 岗位速查/06 §1 分工总表/07 §1 编制表——内容重叠漂移面，须单源化+指针收敛 | closed | 已修（v1.7.5）：07 §1=唯一全属性终表（补主控不降档注记+主权声明）；SKILL.md 速查缩两列索引（禁增列）；06 §1 换指针块+路由域注记三条。零信息丢失=28 条清单范围内逐格事实盘点 grep 全过（初轮 23 条+门审交叉核补 2 格 5 短语后复跑；档=2026-09-17_struct-impl-report.md）。机检守卫未建——三表结构漂移暂靠 review（07 主权声明+SKILL 禁增列注记为规约锚）；升格条件=再现漂移即建 golden 行列数守卫 |
-| evolve-struct-glossary | 同上 | 术语速查入口缺位（拟 00 件：跨 references 术语表/新手上手图——「惯称/口径」类术语散布定义无集中入口） | open | 承接=结构项专项批 |
+| evolve-struct-glossary | 同上 | 术语速查入口缺位（拟 00 件：跨 references 术语表/新手上手图——「惯称/口径」类术语散布定义无集中入口） | closed（2026-09-17 g3 批） | 已修（v1.7.6，commit d4ccedb）：references/00-glossary.md 立件（索引件非真源——定义冲突以指针目标为准；七组 60 词条+新手上手图；check-anchors 扫描面 11→12 自证）；语义漂移体检面拆行 g3-glossary-drift |
 | evolve-struct-patchwrite | 同上 | 补丁式时序写作累积：「后节接管前节」注记链（02 §8.4 接管注记/06 §6 补遗等）散布各件，结构性收敛未做 | open | 承接=结构项专项批 |
 | evolve-healthscan-86ref | 主控移交+b7 自检引出（evolve 批 check-anchors 自检实测发现 06 无 §8.6、真源在 02，未随批清偿） | health-scan.mjs 两处（:10/:104）「06 §8.6」断链引用（三段通道真源=references/02 §8.6） | closed | 已修（回炉 r2，2026-09-16）：两处改指 02 §8.6；断锚面随批复扫 WARN×0/FAIL×0 |
 | evolve-listroles-rolesnull | 终审 D 裁（档=2026-09-16_evolve-ruling-final.md；门一复审 W1 首指） | ds-call-v2 cliMain `--list-roles`（:362 Object.entries）与 `--role` 缺省分支（:380 Object.keys）对 roles:null 无守卫——TypeError→exit 1≠06 §5.8 行 3（配置错=3）；同族 A3 病（回炉只修了 --role 派发路径） | open | 纵深防御/一致性 W 级（正常运维 registry 无 roles:null）；承接=下批：两分支前补守卫或抽公共断言+R10 增 `--list-roles×roles:null` 向量 |
@@ -100,9 +100,24 @@
 
 | 编号 | 来源 | 内容 | 状态 | 处置 |
 |---|---|---|---|---|
-| deploy-hostfacts-split | 部署能力批（v1.7.3） | org-config.default.json 仍内嵌本机供应商事实（uuid_prefix/entry_name）——新机若宿主注册表不同形须手改默认件；更优形态=新机首装脚手架从宿主注册表派生项目覆盖件（deploy-check --install 扩展位） | open | 承接=下批；裁决面=供应商事实属用户配置域，自动改写须显式授权 |
+| deploy-hostfacts-split | 部署能力批（v1.7.3） | org-config.default.json 仍内嵌本机供应商事实（uuid_prefix/entry_name）——新机若宿主注册表不同形须手改默认件；更优形态=新机首装脚手架从宿主注册表派生项目覆盖件（deploy-check --install 扩展位） | closed（2026-09-17 g3 批） | 已修（v1.7.6，commit d4ccedb）：deploy-check --install 增动作③=deriveHostFacts 从宿主注册表派生项目覆盖件（entry_name 唯一命中/歧义不猜/已存在绝不覆盖/全一致不写防冗余/写盘带 note+落盘回读；授权形态=仅显式 --install 承载「自动改写须显式授权」裁决面）；真机写盘路径待异机实证拆行 g3-deploy-writereal；批档=g3-impl-report |
 
 修订记同步见本册末节 2026-09-17 行。
+
+## 2026-09-17 g3 三残留清偿批新登记（v1.7.6；批档=scripts/audits/2026-09-17_g3-*）
+
+修复项=closed 于上表三行（evolve-l4-flags/deploy-hostfacts-split/evolve-struct-glossary）；本节=门二终审裁决（scripts/audits/2026-09-17_g3-ruling-final.md，VERDICT=放行）N 项+实现者疑虑登记。
+
+| 编号 | 来源 | 内容 | 状态 | 处置 |
+|---|---|---|---|---|
+| g3-logtriage-catch | 门二 N1′（裁决档 §1.1/③P1④） | log-triage run() 整体 try/catch 无 instanceof UsageError 过滤——run() 内非用法错内部错会被改写标 [用法错]（诊断面小回归：标签错、无堆栈；退出码仍 1 失败仍可见） | open | 下批卫生面：加 instanceof 过滤+核对 run() 可抛面；**升 W 触发条件=实证 run() 可抛非 UsageError**（裁决档 R-5 点名表第 3 条） |
+| g3-cliflag-equals | 门二 N2（R-2 边界外发现） | `--flag=value` 等号形态不被 cliFlag 支持→判缺席返 null→消费点静默回退，与 fail-fast 意图相左；③类（值形如 flag）缺真机实录（仅向量面） | open | 下批：cliFlag 对 `=` 形态作明确立场（支持或拒绝并写进各件用法行）+补③类真机实录一条 |
+| g3-w1r1-wording | 门二 N3（R-3） | W1-r1 修复定性「当前不可达」过强——宿主 config 内容为字面 null（合法 JSON）时不抛错直接返 null=极端罕见但可达；deploy-check 注释内同措辞待改述 | open | 下批随 g3-logtriage-catch 卫生批一并改述+核对 readJson 返回值语义归档 |
+| g3-deploy-writereal | 门二 N4（P2⑧）+实现报告⑧#2 | b2 派生**写盘**路径仅 fixture 向量+回读复核证明（本机=全一致不写形态）；异机首装真机跑（唯一命中+漂移→写盘）待真实异构环境 | open | 触发器=下次新机部署首跑 --install；DEPLOY.md §3 已明示护栏与手工回退路 |
+| g3-glmlook-flags | 实现报告⑧#1（P3 点名观察项） | glm-look.mjs :231-236 自研 argv 循环解析有同族缺值/误吃 flag 缝（非 cliFlag 消费点，l4 残留原文未点名） | open | 下轮 glm-look 修改批顺带（与 evolve-glmlook-150-null 同承接面） |
+| g3-glossary-drift | 门二 N5 后半+实现报告⑧#4 | 00 件词条与指针目标的**语义**漂移无机检（锚存在性已由 check-anchors 覆盖，语义面空白） | open | 纳入 08 §4 定期体检执行面（战役收口随查）；暂不改机检 |
+
+修订记同步见本册末节 2026-09-17 g3 行。
 
 ## 残留快照对账表（交接书 §1.3 → 本册编号；「静默消失」证伪位）
 
@@ -179,3 +194,10 @@
   open）；本批交付=templates/agents/ 六件版本化+scripts/deploy-check.mjs+
   DEPLOY.md+SKILL.md 加载地图一行。批档=scripts/audits/
   2026-09-17_deploy-impl-report.md。
+- 2026-09-17 g3 三残留清偿批（v1.7.6）：上表三行翻 closed
+  （evolve-l4-flags/deploy-hostfacts-split/evolve-struct-glossary，
+  commit d4ccedb）；新增登记 6 条（g3-logtriage-catch/g3-cliflag-equals/
+  g3-w1r1-wording/g3-deploy-writereal/g3-glmlook-flags/g3-glossary-drift
+  ——门二裁决 N 项+实现者疑虑）；R1 真实派发抽样 3/3 过（Node 24 跑，
+  零退出崩溃，欠账消）。批档=scripts/audits/2026-09-17_g3-*（12 件）；
+  明细=CHANGELOG v1.7.6 条。
