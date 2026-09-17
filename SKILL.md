@@ -95,6 +95,8 @@ tier 记法：外部岗取 org-config
 （01/04 条数单源=`scripts/.golden/doc-counts.json`，check-anchors 对账，
 正文不落数字——A3 防双源）
 
+档案件（按需查、勿随技能常载）：版本史/冻结存档=CHANGELOG.md ｜ 残留欠账=RESIDUALS.md ｜ 历史批档=scripts/audits/。
+
 ## 红旗（出现即停）
 
 - 跳过 intake 五问直接开工 ／ 给门一的包里含任何仓库访问信息
@@ -143,32 +145,9 @@ tier 记法：外部岗取 org-config
 | "子代理大概用了对的模型" | 无 model 参数=环境限制，如实记欠账 |
 | "部门墙灵活一点效率高" | 喂什么=岗位边界，灵活化=在册红线（01·E2） |
 
-## 验证状态
+## 版本与状态（v1.7.2 起指针化——正文不再内联）
 
-内容锚定 Synapse/WaterPrint 双项目实战事故与教训库（锚点格式见
-references/04）；本技能自身的基线失败实录=设计审核链 5B/5W/3N
-（Synapse 项目仓 scripts/audits/2026-09-10_org-skill-*）。
-
-v1.0 已冻结（用户裁决 2026-09-10，四项裁决原文见 Synapse 项目仓
-scripts/audits/2026-09-10_w2-freeze-evidence.md 与
-2026-09-10_w5-final-ruling.md）。
-冻结条件=首个适配场完整 LOOP 走通 + 派发器 v2 回归全项过（R 项清单单源=
-`scripts/regression.mjs` 现行项集合）；drafter
-复用与项目侧切换资格随冻结即时生效，项目切换走各仓 [locked-change]。
-新项目首场战役按 05 移植后做压力场景复测并回填本节。
-
-## 修订记
-
-- 2026-09-17 v1.7.1（自我迭代卫生批——外部评估驱动；全量条目=CHANGELOG.md
-  v1.7.1）：三清偿——①evolve 批 28 件批档入库（scripts/audits/，证据链
-  补版本化）；②RESIDUALS.md:94 三处实配模型名命中白名单行级豁免（08 §1
-  历史件豁免判例）+新增 `.githooks/pre-commit` 提交门禁（check-hardcode
-  --strict+check-anchors+org-config validate；1/3 阻断、5 降级留痕放行；
-  安装=`git config core.hooksPath .githooks`）——堵 v1.7 收口暴露的「扫描
-  先于尾笔编辑」流程洞（起草期实值误写即被新钩子拦截=门禁自证）；③R1
-  真实派发专项 1/1（双源方向一致性 3/3；残留册 evolve-r1-timeout-unverified
-  随批关闭）。实现链=ops-executor 三轮（两落点+回炉 2：strict 修订、
-  rc=5 留痕回显；变异红证双证）+同源轻量门审（B0/W1 随批闭合/N 全过，
-  配给内降级 02 §8.3）。门禁终态=regression 8/8+R1 专项 1/1+hardcode
-  命中 0（豁免 36/14）+anchors 0/0+health-scan RED=0/WARN×2（基线存量）。
-  批档=scripts/audits/2026-09-17_selfiter-impl-report.md。
+- 版本史/各批修订记=CHANGELOG.md（单源）；v1.0 冻结（用户裁决
+  2026-09-10）的条件、资格与裁决档指针=CHANGELOG v1.7.2 迁入存档段。
+- 残留欠账=RESIDUALS.md（open/closed 单源）；批档=scripts/audits/。
+- 新项目首场战役按 05 移植后做压力场景复测，结果回填 CHANGELOG 对应条目。
