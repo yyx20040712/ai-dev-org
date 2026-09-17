@@ -219,12 +219,29 @@ export function recommendHealth(cnt, sh = {}) {
 // 显式思考档位声明——2026-09-17 宿主 zcode.cjs 实证 parseModelPickerValue；档位段
 // 仅格式校验不参与回退比对）；provider 段=uuid / builtin: / account: 三前缀族。
 const VALID_MODEL_RE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|builtin:[^\s/]+|account:[^\s/]+)\/[^\s/]+(?:\$[\w-]+)?$/
+/** 声明绑定值归一（纯函数，自检可注入）：旧格式 profileSnapshot.model 字符串原样
+ *  透传；新格式 profileSnapshot.modelSelection 结构体（宿主把 `provider/model$档位`
+ *  解析后落 providerId/modelId/options.reasoningLevel——2026-09-17 档位批新会话首验
+ *  实证）合成同构字符串。两格式归一后走同一校验/比对路径，勿按格式分叉比较口径。
+ *  （盲区根因：③ 原只读 model 字符串——新格式绑定岗被静默跳过=检测面恰好漏掉
+ *  自己要盯的对象，本会话 k1 真实派发暴露，随批清偿。） */
+export function declaredModelOf(profileSnapshot) {
+  if (!profileSnapshot) return null
+  const m = profileSnapshot.model
+  if (typeof m === 'string' && m) return m
+  const sel = profileSnapshot.modelSelection
+  if (sel && typeof sel === 'object' && typeof sel.providerId === 'string' && typeof sel.modelId === 'string' && sel.providerId && sel.modelId) {
+    const lvl = sel?.options?.reasoningLevel
+    return typeof lvl === 'string' && lvl ? `${sel.providerId}/${sel.modelId}$${lvl}` : `${sel.providerId}/${sel.modelId}`
+  }
+  return null
+}
 export function detectSilentFallback({ metas, subagentNet }) {
   const findings = []
   for (const m of metas) {
-    const declared = m?.profileSnapshot?.model || null
+    const declared = declaredModelOf(m?.profileSnapshot)
     const sid = m?.childSessionId
-    if (!declared) continue // 无 model 字段=宿主默认，非绑定岗
+    if (!declared) continue // 无 model/modelSelection=宿主默认，非绑定岗
     if (!VALID_MODEL_RE.test(declared)) {
       findings.push({ level: 'RED', profile: m.profileId, sid, declared, actual: subagentNet[sid] ? `${subagentNet[sid].alias}/${subagentNet[sid].modelId}` : '(无请求)', kind: '疑似枚举/伪值（静默回退宿主）' })
       continue
@@ -314,6 +331,25 @@ function run() {
       subagentNet: { s3: { alias: 'kimi-main', providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
     })
     t('$档位后缀不误报回退（声明 k3$max/实际 k3=剥档位后一致）', fbLvl.length === 0)
+    // 2026-09-17 档位批新会话首验暴露的检测盲区向量：宿主 metadata 新格式
+    // profileSnapshot.modelSelection 结构体（$档位 解析落 options.reasoningLevel）
+    // ——③ 原只读 model 字符串=新格式绑定岗静默跳过（恰好漏掉要盯的对象）
+    t('sel 新格式（含档位）合成串可比对且不误报（provider/model$level）', detectSilentFallback({
+      metas: [{ profileId: 'probe-sel-ok', childSessionId: 's5', profileSnapshot: { modelSelection: { providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', options: { reasoningLevel: 'max' } } } }],
+      subagentNet: { s5: { alias: 'kimi-main', providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+    }).length === 0)
+    t('sel 新格式回退可抓（声明 k3/实际宿主他模=RED 静默回退）', (() => {
+      const r = detectSilentFallback({
+        metas: [{ profileId: 'probe-sel-bad', childSessionId: 's6', profileSnapshot: { modelSelection: { providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3' } } }],
+        subagentNet: { s6: { alias: '(宿主)', providerId: 'builtin:bigmodel-coding-plan', modelId: 'GLM-5.3', lastFinish: 'end_turn', fails: 0 } },
+      })
+      return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('静默回退')
+    })())
+    t('sel account: 前缀形态（probe 岗 GLM 绑定）合成串合法', (() => {
+      const d = declaredModelOf({ modelSelection: { providerId: 'account:bigmodel-individual-coding-plan', modelId: 'GLM-5.3' } })
+      return d === 'account:bigmodel-individual-coding-plan/GLM-5.3' && VALID_MODEL_RE.test(d)
+    })())
+    t('sel 残缺形态（缺 modelId）=null 非绑定岗跳过，不合成伪值', declaredModelOf({ modelSelection: { providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e' } }) === null && declaredModelOf(null) === null)
     const fb = detectSilentFallback({
       metas: [{ profileId: 'probe-b-x', childSessionId: 's1', profileSnapshot: { model: 'sonnet' } },
               { profileId: 'probe-c-x', childSessionId: 's2', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash' } }],
