@@ -241,14 +241,19 @@ anthropic 格式未适配）。
   `node scripts/org-config.mjs hash`，产出形如 `cfg:a3f9c21d04e2`）
   ——执行者自检参照扩展到供应商事实版本（防"换环境后按旧供应商事实硬闯"）。
 - 「成本入账」（步骤 11）增补：账本=项目根 `.zcode/org-ledger.jsonl`，
-  行 schema v2（2026-09-14；selfiter 批增可选 findings 字段）：
-  `{ts,schema_version,runId,project,event,role,tier,source,cfg_hash,usage?,
-  mocked?,truncated?,findings?,outcome}`——`runId`=账本↔流水行级关联键
-  （W-B2）；`truncated`=**派生布尔**（finish 唯一真相源在流水，账本只存
-  判定结果，非双源）；`mocked`=演练行甄别（W-2）；`findings?`=ok 行可选
-  （selfiter 批 findings-parser）——审出件末栏「FINDINGS: B= W= N= VERDICT=」
-  解析产物 `{B,W,N,verdict}`，仅审计岗产出携带（R4 不强制——非审计岗无
-  此字段；health-scan ⑥ 对截止时点后 audit_surface 岗真实行缺栏执法 RED）。
+  行 schema v3（v2=2026-09-14；selfiter 批 B4 增 project_id）：
+  `{ts,schema_version,runId,project,project_id?,event,role,tier,source,
+  cfg_hash,usage?,mocked?,truncated?,findings?,outcome}`——`runId`=账本↔
+  流水行级关联键（W-B2；后缀 8 字符——selfiter B4 消同秒碰撞窗）；
+  `project_id`=v3 派发行必填（归一化 id——映射单源=org-config projects
+  分区，缺映射 raw 透传；读侧按 project_id??project 归一；v2 存量行与
+  人工事件行不要求——R4 按 schema_version 分代）；`truncated`=**派生布尔**
+  （finish 唯一真相源在流水，账本只存判定结果，非双源）；`mocked`=演练行
+  甄别（W-2）；`findings?`=ok 行可选（selfiter 批 findings-parser）——
+  审出件末栏「FINDINGS: B= W= N= VERDICT=」解析产物 `{B,W,N,verdict}`，
+  仅审计岗产出携带（R4 不强制——非审计岗无此字段；health-scan ⑥ 对截止
+  时点后 audit_surface 岗真实行缺栏执法 RED）。落账原子性=跨进程建议锁
+  （org-config withFileLock——多写入者行交错纵深防御，selfiter B4）。
   tier 记法统一口径——**外部派发岗**取 org-config `roles.<role>.tier`
   （枚举：prime/audit/debt-readonly）；**会话内岗与欠账行**按
   references/07 §4 记 `session:<档位描述>`（欠账行=`session:环境限制统一档`）；

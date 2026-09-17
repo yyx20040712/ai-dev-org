@@ -40,14 +40,16 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
   const RED = [], WARN = [], INFO = []
   const fmt = (n) => (n == null ? '?' : n.toLocaleString('en-US'))
 
-  // ── ① 欠账未还（跳过 mocked 行与临时演练项目——W-2 / P0-1） ──
+  // ── ① 欠账未还（跳过 mocked 行与临时演练项目——W-2 / P0-1）──
+  // 分组键归一化（selfiter B4 project-id-migration）：project_id ?? project
+  // （v3 行携归一化 id；v2 历史行/手工行 raw 名——跨名同项目自 v3 起并账）
   const byProject = {}
   let unnamed = 0, mockedRows = 0
   const drillProjects = new Set()
   for (const e of ledger) {
     if (e.event !== 'ok' && e.event !== 'switch' && e.event !== 'exhaust') continue
     if (e.mocked === true) { mockedRows++; continue }
-    const p = e.project
+    const p = e.project_id || e.project
     if (!p) { unnamed++; continue }
     if (isDrillProject(p)) { drillProjects.add(p); continue }
     ;(byProject[p] ||= []).push(e)
@@ -215,6 +217,12 @@ function selfTest(merged) {
   t('mocked 演练行不触发 findings 执法', !f4.RED.some((r) => r.includes('FINDINGS')))
   const f5 = scan({ ledger: [{ ...base, ts: '2026-09-18T00:00:00Z', project: '/real/p', event: 'escaped-defect', outcome: 'W 批漏网样例', usage: undefined }], merged })
   t('escaped-defect 行 → WARN 逃逸在册+人工事件 INFO', f5.WARN.some((w) => w.includes('逃逸在册')) && f5.INFO.some((i) => i.includes('人工事件计数')))
+  // selfiter 批（B4 project-id-migration）向量：归一化分组
+  const f6 = scan({ ledger: [
+    { ...base, ts: '2026-05-01T00:00:00Z', project: 'raw-a', project_id: 'pid-1', event: 'exhaust' },
+    { ...base, ts: '2026-05-02T00:00:00Z', project: 'raw-b', project_id: 'pid-1' },
+  ], merged })
+  t('B4 project_id 归一化：跨 raw 名同 id 并账=已补还（无欠账 RED）', !f6.RED.some((r) => r.includes('欠账未还')))
   const fail = cases.filter((c) => !c.pass)
   for (const c of cases) console.log(`${c.pass ? 'PASS' : 'FAIL'} ${c.name}${c.detail ? ' — ' + c.detail : ''}`)
   console.log(`health-scan 自检：${cases.length - fail.length}/${cases.length} 过`)

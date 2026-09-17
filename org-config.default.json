@@ -1,6 +1,12 @@
 {
   "version": "1.0.0",
   "ledger_path": ".zcode/org-ledger.jsonl",
+  "projects": {
+    "synapse": "synapse",
+    "E:/class/智水蓝图/waterprint": "waterprint",
+    "ai-dev-org": "ai-dev-org",
+    "note": "project_id 映射（selfiter 批 B4 project-id-migration 清偿）：键=账本 raw project 名（自由文本史），值=归一化 id；派发器写入账本行 project_id（schema v3），读侧按 project_id ?? project 归一；新项目覆盖件可增映射，缺映射=raw 名透传不阻断"
+  },
   "providers": {
     "kimi-main": {
       "uuid_prefix": "b2466f8b",
@@ -53,7 +59,10 @@
   },
   "source_health": {
     "dual_groups": [
-      ["kimi-main", "kimi-backup"]
+      [
+        "kimi-main",
+        "kimi-backup"
+      ]
     ],
     "gate1_subagent_of": {
       "kimi-main": "ops-gate1-k1",
@@ -62,8 +71,19 @@
     "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件"
   },
   "vision_channels": {
-    "glm": { "model": "GLM-5.3-Flash", "endpoint_contains": "/anthropic", "prefer_hosts": ["open.bigmodel.cn", "z.ai", "zcode"] },
-    "ds": { "model": "deepseek-flash", "endpoint_contains": "deepseek" },
+    "glm": {
+      "model": "GLM-5.3-Flash",
+      "endpoint_contains": "/anthropic",
+      "prefer_hosts": [
+        "open.bigmodel.cn",
+        "z.ai",
+        "zcode"
+      ]
+    },
+    "ds": {
+      "model": "deepseek-flash",
+      "endpoint_contains": "deepseek"
+    },
     "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数。字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）。通道命中=模型名∧端点子串双条件（通道互斥由模型名区分，聚合网关代发他厂模型属配置面可改）。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实（模型名/偏好序/端点形态）住本件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。项目覆盖件无须复制本分区（深合并未提及沿用默认件）。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑"
   },
   "hardcode_scan": {
@@ -76,11 +96,21 @@
     "note": "派发器请求参数单源（v1.7.4 m4 清偿）：ds-call-v2 两载荷形态共用；原脚本字面量收编。改动即 cfg_hash 变更可追溯；缺段/非数值=exit 3 无静默回退"
   },
   "regression_cfg": {
-    "r1_sources": ["kimi-main", "deepseek"],
+    "r1_sources": [
+      "kimi-main",
+      "deepseek"
+    ],
     "note": "R1 双源抽样源名单单源（v1.7.4 m4 清偿）：源别名须 ∈ providers；改名单=R1 语义变更须重验"
   },
   "anchors_exempt": {
-    "project_names": ["scripts/run_gates.py", "scripts/check_model_names.py", "scripts/check-model-names.mjs", "scripts/check-locks.mjs", "check-tickets.mjs", "__init__.py"],
+    "project_names": [
+      "scripts/run_gates.py",
+      "scripts/check_model_names.py",
+      "scripts/check-model-names.mjs",
+      "scripts/check-locks.mjs",
+      "check-tickets.mjs",
+      "__init__.py"
+    ],
     "note": "check-anchors 项目侧裸文件名豁免点名单单源（v1.7.4 m4 清偿）：项目侧路径不属技能根存在性检查域（同段 PROJECT_PREFIX 正则为语法形态留脚本内）"
   },
   "roles": {

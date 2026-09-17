@@ -13,9 +13,9 @@
  *   node org-config.mjs --self-test                 # 合并/哈希语义自测向量
  * flag 取值一律空格分隔（--x=y 等号形态=用法错拒收——cliFlag 单源立场）。
  */
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, openSync, writeSync, closeSync, statSync, rmSync, utimesSync, mkdtempSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
@@ -123,6 +123,31 @@ export function readJsonlFile(p) {
     .map((l, i) => { try { return JSON.parse(l) } catch { return { unparseable: `行${i + 1}: ${l.slice(0, 60)}` } } })
 }
 
+/** 跨进程建议锁（selfiter 批 B4 evolve-m6-runid 清偿——账本/流水多写入者行交错面）：
+ *  lockfile 兄弟文件 + 'wx' 独占建；陈旧锁（>staleMs）破锁续行；tries 耗尽=降级
+ *  无锁执行+stderr 留痕（单行 append 本就近原子，锁=纵深防御不阻断派发主流程）。
+ *  同步睡眠=Atomics.wait（Node 主线程合法）。 */
+const sleepSync = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms) }
+export function withFileLock(lockPath, fn, { staleMs = 10_000, tries = 60, waitMs = 20 } = {}) {
+  let fd = -1
+  let degraded = false
+  for (let i = 0; i < tries; i++) {
+    try { fd = openSync(lockPath, 'wx'); break } catch (e) {
+      if (e.code !== 'EEXIST') throw e
+      try { const st = statSync(lockPath); if (Date.now() - st.mtimeMs > staleMs) { rmSync(lockPath, { force: true }); continue } } catch { /* 竞态消亡=续抢 */ }
+      sleepSync(waitMs)
+    }
+  }
+  if (fd < 0) { degraded = true; console.error(`[lock-degraded] ${lockPath} ${tries} 次未获锁（持锁者异常？）——降级无锁执行（单行 append 近原子，纵深防御层失效留痕）`) }
+  try {
+    if (fd >= 0) writeSync(fd, `${process.pid} ${new Date().toISOString()}\n`)
+    return fn()
+  } finally {
+    if (fd >= 0) { try { closeSync(fd) } catch { /* already closed */ } try { rmSync(lockPath, { force: true }) } catch { /* 竞态破锁=对方已清 */ } }
+    void degraded
+  }
+}
+
 /** 与宿主 config.json 交叉校验：uuid 前缀+条目名双命中。返回错误数组（空=通过）。
  *  校验 providers 全集（未入链的已声明源亦须通过——防漂移，审核链 K-N4 口径）。 */
 export function validateProviders(cfg, hostCfg) {
@@ -208,6 +233,21 @@ if (isMain) {
     // 不识别该形态、静默判缺席返 null（fail-fast 相左面）
     t('selfiter cliFlag：等号形态 --b=v →UsageError（拒收并点名）', (() => { const r = g3run(() => cliFlag(['--b=v'], '--b')); return r.e?.constructor?.name === 'UsageError' && String(r.e.message).includes('--b=v') })())
     t('selfiter cliFlag：等号形态仅对被查询 flag 判拒（查 --c 拒并点名/--b 正常取值不受累）', (() => { const r1 = g3run(() => cliFlag(['--b', 'v1', '--c=v'], '--c')); const r2 = g3run(() => cliFlag(['--b', 'v1', '--c=v'], '--b')); return r1.e?.constructor?.name === 'UsageError' && String(r1.e.message).includes('--c=v') && r2.e === undefined && r2.v === 'v1' })())
+    // selfiter 批（B4 evolve-m6-runid）向量：跨进程建议锁——正常获锁/陈旧破锁/结果直通
+    let lockDir = null
+    try {
+      lockDir = mkdtempSync(join(tmpdir(), 'oc-lock-'))
+      const lk1 = join(lockDir, 'a.lock')
+      const v1r = withFileLock(lk1, () => 'RAN')
+      t('B4 锁：获锁执行+fn 结果直通+锁件随释清除', v1r === 'RAN' && !existsSync(lk1))
+      const lk2 = join(lockDir, 'b.lock')
+      writeFileSync(lk2, 'stale-holder\n', 'utf8')
+      const old = new Date(Date.now() - 60_000)
+      utimesSync(lk2, old, old)
+      const v2r = withFileLock(lk2, () => 'STALE-BROKE')
+      t('B4 锁：陈旧锁（>staleMs）破锁续行', v2r === 'STALE-BROKE' && !existsSync(lk2))
+    } catch { t('B4 锁：临时目录异常', false) }
+    finally { if (lockDir) rmSync(lockDir, { recursive: true, force: true }) }
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
   }

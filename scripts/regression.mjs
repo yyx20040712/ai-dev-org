@@ -226,7 +226,10 @@ if (want('R4')) {
     const base = e.event === 'ok' ? [...LEDGER_REQUIRED, 'usage'] : LEDGER_REQUIRED
     // v1.6 终审 W1：v2 字段恒要求——无 schema_version 的新行（截止时点后）会因缺字段直接计坏；
     // 截止前存量行由 checkLines 的 skipIf 跳过（原条件分支成死代码，已删）
-    return [...base, ...(LEDGER_V2[e.event] || [])]
+    const v2 = [...base, ...(LEDGER_V2[e.event] || [])]
+    // selfiter B4 分代：schema_version 3 的派发行增 project_id 必填（归一化 id；
+    // v2 存量行按 v2 契约——历史行禁改写，08 §3）
+    return e.schema_version === 3 ? [...v2, 'project_id'] : v2
   }
   const b = checkLines('账本', ledgerPath, ledgerReq, 50, {
     // 无 schema_version 且早于纪律生效时点（2026-09-16T12:00Z）的存量行=旧版本形态——跳过计数

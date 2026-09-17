@@ -46,10 +46,10 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
-import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, readHostConfig, readJson, cliFlag, UsageError } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, readHostConfig, readJson, cliFlag, UsageError, withFileLock } from './org-config.mjs'
 
-const DISPATCHER_VERSION = '2.2.1'
-const LEDGER_SCHEMA_VERSION = 2 // W-N5：账本行 schema 版本（新增字段 runId/mocked/truncated/schema_version）
+const DISPATCHER_VERSION = '2.3.0'
+const LEDGER_SCHEMA_VERSION = 3 // v3（selfiter 批 B4）：增 project_id（归一化 id——映射单源=org-config projects，缺映射 raw 透传）
 const LOG_PATH = join(dirname(fileURLToPath(import.meta.url)), 'model-routing-log.jsonl')
 const REGISTRY_PATH = join(SKILL_ROOT, 'scripts', 'roles', 'registry.json')
 const RETRYABLE = (s) => s === 429 || s >= 500
@@ -129,12 +129,14 @@ function loadDispatchRequest(merged) {
   return { maxTokens: mt, temperature: tp }
 }
 
-// ── 本地落账安全封装：目录自动建+IO 失败降级警告（不抛入远程重试语义） ──
+// ── 本地落账安全封装：目录自动建+IO 失败降级警告（不抛入远程重试语义）
+// ＋跨进程建议锁（selfiter 批 B4 evolve-m6-runid：账本/流水多写入者行交错面
+// ——锁=纵深防御，获锁失败降级留痕不阻断派发） ──
 function makeSafeAppend() {
   let warned = false
   return (path, line) => {
     try {
-      appendFileSync(path, line, 'utf8')
+      withFileLock(path + '.lock', () => { appendFileSync(path, line, 'utf8') })
     } catch (e) {
       if (!warned) {
         warned = true
@@ -258,10 +260,13 @@ export function parseFindings(text) {
 // 账本 schema v2（W-N5）：增 runId（账本↔流水行级关联键，W-B2）/schema_version/
 // mocked（源头侧甄别演练行，W-2）/truncated（**派生布尔**——finish 唯一真相源在
 // 流水，账本只存判定结果，非双源，W-B2 明文裁决）。
-const runId = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 6)
+const runId = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 10) // 后缀 8 字符（selfiter B4：原 4 字符同秒并发碰撞窗）
 function makeLogger(role, merged, project, ledgerPath, isMock, classifyFinish) {
   const safeAppend = makeSafeAppend()
   const ctx = { role_id: role.id, role_version: role.version, role_sig: role.sig, dispatcher_version: DISPATCHER_VERSION, org_config_hash: cfgHash(merged) }
+  // project_id 归一化（selfiter B4 project-id-migration）：映射单源=org-config
+  // projects 分区，缺映射=raw 名透传（v3 行恒携带 project_id）
+  const projectId = merged.projects && merged.projects[project] !== undefined ? merged.projects[project] : project
   return {
     ctx,
     classifyFinish,
@@ -274,7 +279,7 @@ function makeLogger(role, merged, project, ledgerPath, isMock, classifyFinish) {
       // findings=ok 行可选字段（selfiter 批 findings-parser）：parseFindings(text)
       // 产物，仅审计岗产出携带（非审计岗/未带尾栏=undefined 不落键）
       const findings = event === 'ok' ? (fields.findings || undefined) : undefined
-      safeAppend(ledgerPath, JSON.stringify({ ts: new Date().toISOString(), schema_version: LEDGER_SCHEMA_VERSION, runId, project, event, role: role.id, tier: roleCfg.tier || 'unspecified', source: fields.source, cfg_hash: ctx.org_config_hash, usage: fields.usage, mocked: isMock || undefined, truncated, findings, outcome: scrub(fields.outcome) }) + '\n')
+      safeAppend(ledgerPath, JSON.stringify({ ts: new Date().toISOString(), schema_version: LEDGER_SCHEMA_VERSION, runId, project, project_id: projectId, event, role: role.id, tier: roleCfg.tier || 'unspecified', source: fields.source, cfg_hash: ctx.org_config_hash, usage: fields.usage, mocked: isMock || undefined, truncated, findings, outcome: scrub(fields.outcome) }) + '\n')
     },
   }
 }

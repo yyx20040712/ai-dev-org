@@ -54,7 +54,7 @@ import process from "node:process";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { fileURLToPath } from "node:url";
-import { loadOrgConfig, cliFlag, UsageError, cfgHash } from "./org-config.mjs";
+import { loadOrgConfig, cliFlag, UsageError, cfgHash, withFileLock } from "./org-config.mjs";
 
 const DISPATCHER_VERSION = "glm-look/1.3.0"; // 自版本号（写入者身份——流水 ctx 对齐面）
 let DEGRADED = false; // 降级运行位（宿主 provider null 条目——发现面部分可用，显式留痕 exit 5）
@@ -154,7 +154,8 @@ function logEvent(event, fields) {
     ...rest,
   });
   try {
-    fs.appendFileSync(ROUTING_LOG, line + "\n");
+    // 跨进程建议锁（selfiter B4：与 ds-call-v2 同流水多写入者行交错面）
+    withFileLock(ROUTING_LOG + '.lock', () => { fs.appendFileSync(ROUTING_LOG, line + "\n"); });
   } catch {
     /* 流水失败不阻断主流程（只读证据链尽力而为） */
   }
@@ -330,7 +331,7 @@ async function main() {
           })),
         ];
 
-  const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+  const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`; // 后缀 8 字符（selfiter B4：对齐派发器，消同秒碰撞窗）
   const url = channel === "glm" ? `${src.base}/v1/messages` : `${src.base}/chat/completions`;
   const started = Date.now();
 

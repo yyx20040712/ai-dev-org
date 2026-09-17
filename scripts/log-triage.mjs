@@ -166,7 +166,13 @@ function harvestRouting(rows, sinceMs, untilMs) {
       out.exhaust[src] = out.exhaust[src] || []
       out.exhaust[src].push({ ts: r.ts, statusCode: r.statusCode, cls, error: r.error, runId: r.runId, role: r.role_id, isMock })
     }
-    if (r.event === 'switch') out.switch[r.runId] = { ts: r.ts, from: r.source, error: r.error }
+    if (r.event === 'switch') {
+      // 累积形态（selfiter B4 evolve-m6-runid 清偿——原单值覆盖：同 runId 多次
+      // switch 只记末值=换源轨迹截断）；消费面按数组聚合
+      const rec = { ts: r.ts, from: r.source, error: r.error }
+      if (out.switch[r.runId]) out.switch[r.runId].push(rec)
+      else out.switch[r.runId] = [rec]
+    }
   }
   return out
 }
