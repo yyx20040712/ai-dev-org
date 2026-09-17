@@ -122,7 +122,7 @@
 | 2 | **源链耗尽 exhaust（派发器专用；regression R1 断言依赖——其他脚本禁复用）** | ds-call-v2 |
 | 3 | 配置/装载错（org-config 缺段、源双校验不符、golden 缺失、词表缺失） | 全部 |
 | 4 | 本地 IO 错（输出写失败等——远程调用已发生语义不回滚） | ds-call-v2 |
-| 5 | 降级运行（扫描面部分不可用：宿主配置/白名单损坏——显式留痕不阻断） | check-hardcode |
+| 5 | 降级运行（输入/发现面部分不可用：宿主配置/白名单损坏——显式留痕不阻断） | check-hardcode、glm-look（selfiter 批扩入） |
 
 本表=退出码唯一真相源；各脚本头注一律指针到本表，禁复写语义（A3）。
 **迁移注记（本表统一的旧行为→新行为，供存量调用方核对——终审 N3）**：
@@ -138,6 +138,14 @@ org-config/ds-call-v2 exit 3+明确消息、check-hardcode 降级 exit 5 继续�
 **selfiter 批 C1 严式常驻**（evolve-p2-① 扩面）：`exit N=`/`退出码：N=` 两式
 数字=语义复写形态由 pre-commit 快扫拦截（原 one-off grep 配方的变体盲区闭合
 ——严式首扫即揪出 b8 清偿后残留的同族两处）。
+**selfiter 批 glm-look 面行为变化申报**：①宿主 provider null 条目=降级行+
+跳过、exit 5（行 5 适用面扩入本件——原 TypeError 崩溃面，M3 族第 4 消费点）；
+②截断终态（含「截断但有正文」）一律倍升重试，3 轮后仍截断=报告照常输出但
+exit 1 不记成功（原 hasText 即收=假成功面，05 §4 判据「截断的审计报告不算
+合格审计」执法）；③流水行 schema 对齐派发器 ctx 五字段+attempt/finish_class/
+statusCode（R4 对 channel+dispatcher_version 双标记行按对齐 schema 校验，
+legacy 行维持外来跳过）；④argv 收编 cliFlag 单源（缺值/重复/值形如 flag/
+等号形态/未知 flag=用法错 fail-fast）。
 
 ## 6. 会话内子代理定档限制与欠账（诚实记账）
 

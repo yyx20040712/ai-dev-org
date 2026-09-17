@@ -30,6 +30,15 @@
 //     accept-encoding；R10 结构断言+mock 双通道往返钉此面）；
 //   - ok 流水行带 truncated 派生布尔（finish 白名单反转口径，词表=org-config
 //     finish_vocab——闭残留册 glm-look-truncation-field）；
+//   - 流水行 schema 对齐派发器 ctx 五字段（dispatcher_version/role_version/
+//     role_sig/org_config_hash + attempt 序号；ok 行增 finish_class；fail 行
+//     增 statusCode——selfiter 批 glm-look-schema 清偿，双写入者一套行契约，
+//     R4 对 channel+dispatcher_version 双标记行按对齐 schema 校验）；
+//   - 截断终态不因「有正文」豁免（selfiter 批 glm-look-truncation 清偿）：
+//     finish=截断即倍升重试（无论正文有无）；3 轮后仍截断=报告照出但
+//     exit 1（「截断的审计报告不算合格审计」——05 §4 判据速查）；
+//   - argv 解析收编 org-config cliFlag 单源（缺值/重复/值形如 flag/等号形态/
+//     未知 flag=用法错 fail-fast——selfiter 批 g3-glmlook-flags 清偿）；
 //   - 视觉方向级决策仍留用户——本通道只产判读证据；
 //   - 退出码经 process.exitCode 自然退出（Node 25 libuv 退出阶段
 //     async.c 断言规避——HOST-node25 同族面，勿用 process.exit 急退）。
@@ -45,7 +54,10 @@ import process from "node:process";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { fileURLToPath } from "node:url";
-import { loadOrgConfig } from "./org-config.mjs";
+import { loadOrgConfig, cliFlag, UsageError, cfgHash } from "./org-config.mjs";
+
+const DISPATCHER_VERSION = "glm-look/1.3.0"; // 自版本号（写入者身份——流水 ctx 对齐面）
+let DEGRADED = false; // 降级运行位（宿主 provider null 条目——发现面部分可用，显式留痕 exit 5）
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url)); // 规范解析（percent-decode）——原 URL pathname 手拼在含空格/中文路径下必坏（v1.6 批 P0-B e）
 const SKILL_ROOT = path.join(SCRIPT_DIR, "..");
@@ -126,11 +138,18 @@ function channelTag(channel) {
 
 function logEvent(event, fields) {
   const { channel, ...rest } = fields;
+  // ctx 五字段对齐派发器行 schema（selfiter 批 glm-look-schema 清偿）：
+  // role_version/role_sig=会话内岗诚实值（07 §4 设计岗卡，无 registry 档案——
+  // sig=null 表「无签名面」而非缺字段；R4 按 !==undefined 判在场）
   const line = JSON.stringify({
     ts: new Date().toISOString(),
     runId: rest.runId,
     event,
     role_id: "design-reviewer",
+    role_version: "07 §4 设计岗卡（会话内岗无 registry 档）",
+    role_sig: null,
+    dispatcher_version: DISPATCHER_VERSION,
+    org_config_hash: cfgHash(orgCfg()),
     channel: channelTag(channel),
     ...rest,
   });
@@ -147,6 +166,13 @@ function discoverSources(channel) {
   const cfg = JSON.parse(fs.readFileSync(CONFIG, "utf-8").replace(/^\uFEFF/, "")); // BOM 剥离（对齐 org-config.readJson——v1.6 批 P2）
   const found = [];
   for (const [pid, prov] of Object.entries(cfg.provider || {})) {
+    // null/非对象宿主条目守卫（selfiter 批 evolve-glmlook-150-null 清偿——M3 族
+    // 第 4 消费点，同 b4 形态：降级行+跳过；该条目漏检面如实留痕 exit 5）
+    if (!prov || typeof prov !== "object") {
+      console.error(`[degraded] 宿主配置 provider 含 null/非对象条目（${pid}）——该条目跳过、其余源继续发现（漏检面=该条目端点/模型），退出码 5`);
+      DEGRADED = true;
+      continue;
+    }
     const opts = prov.options || {};
     if (!opts.apiKey || !opts.baseURL) continue;
     const base = String(opts.baseURL).replace(/\/$/, "");
@@ -220,22 +246,39 @@ async function main() {
       sources.forEach((s, i) =>
         console.log(`  ${i + 1}. ${s.pid} | ${s.model} | ${s.base}`));
     }
-    return 0;
+    return DEGRADED ? 5 : 0; // 降级运行=显式留痕不阻断（exit 5 语义族——06 §5.8 行 5 适用面本批扩至本件）
   }
+  // argv 收编 org-config cliFlag 单源（selfiter 批 g3-glmlook-flags 清偿）：
+  // 缺值/重复/值形如 flag/等号形态=用法错拒收；未知 flag fail-fast（原静默
+  // 落入 images 由扩展名报错——错误归因面差）
   let promptFile = "";
   let outFile = "";
   let maxTokens = MIN_MAX_TOKENS;
   let channel = "glm";
+  const VALUE_FLAGS = new Set(["--prompt", "-o", "--max-tokens", "--channel"]);
+  try {
+    promptFile = cliFlag(argv, "--prompt") || "";
+    outFile = cliFlag(argv, "-o") || "";
+    const mtArg = cliFlag(argv, "--max-tokens");
+    if (mtArg !== null) maxTokens = Number(mtArg);
+    const chArg = cliFlag(argv, "--channel");
+    if (chArg !== null) {
+      channel = String(chArg).toLowerCase();
+      if (channel === "deepseek") channel = "ds";
+    }
+  } catch (e) {
+    if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); return 1 }
+    throw e
+  }
   const images = [];
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
-    if (a === "--prompt") promptFile = argv[++i];
-    else if (a === "-o") outFile = argv[++i];
-    else if (a === "--max-tokens") maxTokens = Number(argv[++i]);
-    else if (a === "--channel") {
-      channel = String(argv[++i] || "").toLowerCase();
-      if (channel === "deepseek") channel = "ds";
-    } else images.push(a);
+    if (VALUE_FLAGS.has(a)) { i += 1; continue } // 值段跳过
+    if (a.startsWith("-") && a !== "-") {
+      console.error(`[用法错] 未知 flag ${a}（本件 flag 面=--prompt/-o/--max-tokens/--channel/--list-sources）`);
+      return 1;
+    }
+    images.push(a);
   }
   if (!CHANNELS.has(channel)) {
     console.error(`[glm-look] 未知通道 ${channel}（合法面 glm|ds）`);
@@ -300,7 +343,7 @@ async function main() {
       max_tokens: attemptTokens,
       messages: [{ role: "user", content }],
     });
-    logEvent("attempt", { runId, channel, source: src.pid, model: src.model, images: images.length, promptBytes: body.length, maxTokens: attemptTokens });
+    logEvent("attempt", { runId, channel, source: src.pid, model: src.model, attempt, images: images.length, promptBytes: body.length, maxTokens: attemptTokens });
     // 网络级瞬断重试（fetch failed/connection reset——实测偶发，5s 退避×2）；
     // 立断类=非 429 的 4xx（对齐派发器 NO_RETRY）与超时（TimeoutError——20min 已超长再试无意义）；
     // 429/5xx 保留退避重试（对齐派发器 RETRYABLE 语义——v1.6 批 P0-B c/W11）
@@ -318,6 +361,7 @@ async function main() {
         if (!r.ok) {
           const errBody = await r.text().catch(() => "");
           const err = new Error(`HTTP ${r.status}: ${scrub(errBody).slice(0, 300)}`);
+          err.statusCode = r.status; // fail 行 statusCode 字段源（对齐派发器 P0-4 纪律：网络级失败=null 亦显式落字段）
           if (r.status >= 400 && r.status < 500 && r.status !== 429) err.noretry = true;
           throw err;
         }
@@ -325,7 +369,7 @@ async function main() {
       } catch (err) {
         const noretry = err.noretry === true || err.name === "TimeoutError" || err.name === "AbortError";
         if (netTry === 3 || noretry) {
-          logEvent("fail", { runId, channel, source: src.pid, model: src.model, error: scrub(String(err)).slice(0, 200) });
+          logEvent("fail", { runId, channel, source: src.pid, model: src.model, statusCode: err.statusCode ?? null, error: scrub(String(err)).slice(0, 200) });
           console.error(`[${channelTag(channel)}] 调用失败（${noretry ? "立断类（4xx 非 429/超时）" : "3 次网络重试后"}）: ${scrub(err.message)}`);
           return 1;
         }
@@ -336,8 +380,12 @@ async function main() {
     }
     norm = normalizeResponse(resp, channel);
     const truncFlag = channel === "glm" ? "max_tokens" : "length";
-    if (norm.hasText || norm.finish !== truncFlag) break;
-    console.error(`[${channelTag(channel)}] 第 ${attempt} 轮推理段耗尽配额（max_tokens=${attemptTokens} 零正文）——倍升重试`);
+    // 截断终态不因「有正文」豁免（selfiter 批 glm-look-truncation 清偿——原
+    // hasText 即 break=截断有正文照当 ok 收下的假成功面）：终态非截断且有正文
+    // 才提前收；截断（无论正文有无）一律倍升重试
+    if (norm.finish !== truncFlag && norm.hasText) break;
+    if (attempt < 3)
+      console.error(`[${channelTag(channel)}] 第 ${attempt} 轮终态截断（finish=${norm.finish}${norm.hasText ? "，有正文仍不完整" : "，零正文"}）——倍升重试`);
     attemptTokens *= 2;
   }
   if (norm === null) {
@@ -345,17 +393,18 @@ async function main() {
     return 1;
   }
   const usageInfo = norm.usage;
-  // truncated 派生布尔（finish 白名单反转——仅 complete 词表命中=完整，其余含未知=截断；
-  // 词表单源=org-config finish_vocab，闭残留册 glm-look-truncation-field）
+  // finish_class+truncated 派生（镜像派发器 makeFinishClassifier 同口径：complete
+  // 白名单正判，truncation/未知/无终态=非完整保守反转；词表单源=org-config）
   const completeFinishes = new Set(ORG_CFG.finish_vocab.complete);
-  const truncatedFlag = !completeFinishes.has(norm.finish);
+  const truncFinishes = new Set(ORG_CFG.finish_vocab.truncation);
+  const finishClass = norm.finish == null ? "unknown" : completeFinishes.has(norm.finish) ? "complete" : truncFinishes.has(norm.finish) ? "truncation" : "unknown";
+  const truncatedFlag = finishClass !== "complete";
   logEvent("ok", {
     runId, channel, source: src.pid, model: src.model,
     usage: { in: usageInfo.input_tokens, out: usageInfo.output_tokens },
-    latencyMs: Date.now() - started, finish: norm.finish, truncated: truncatedFlag, images: images.length,
+    latencyMs: Date.now() - started, finish: norm.finish, finish_class: finishClass, truncated: truncatedFlag, images: images.length,
     maxTokens: attemptTokens,
   });
-  if (truncatedFlag) console.error(`[${channelTag(channel)}] 注意：finish=${norm.finish} 非完整终态（truncated=true 已落流水）——报告可能不完整`);
   if (!norm.hasText) {
     console.error(`[${channelTag(channel)}] 响应零正文（finish=${norm.finish}）——` +
       `推理段耗尽配额面：3 轮倍升后仍零正文，手动 --max-tokens ≥${attemptTokens} 重试或减小图量。`);
@@ -370,7 +419,14 @@ async function main() {
     console.error(`[${channelTag(channel)}] 报告落盘 ${outFile}`);
   }
   console.log(out);
-  return 0;
+  // 截断终态不记成功（selfiter 批 glm-look-truncation 清偿）：报告照常输出供人工
+  // 判读（证据保全），但机器面 exit 1——「截断的审计报告不算合格审计」（05 §4）
+  if (truncatedFlag) {
+    console.error(`[${channelTag(channel)}] finish=${norm.finish} 非完整终态（finish_class=${finishClass}/truncated=true 已落流水）——` +
+      `3 轮倍升后仍截断：报告已输出仅供人工判读，机器面不得记成功（exit 1）。`);
+    return 1;
+  }
+  return DEGRADED ? 5 : 0;
 }
 
 // isMain guard（evolve 批 b1，范式=org-config.mjs:124-126）：import 消费纯函数

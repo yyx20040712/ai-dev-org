@@ -175,6 +175,21 @@ if (want('R4')) {
       // 自带 channel 标记且无 dispatcher_version——按他源 schema 计「外来行」而非坏行
       // （写入者 glm-look.mjs 属 WIP 锁定集，统一 schema 登记残留，见 RESIDUALS）。
       if (e.channel !== undefined && e.dispatcher_version === undefined) { foreign++; continue }
+      // selfiter 批（glm-look-schema 清偿）：对齐行=channel+dispatcher_version 双标记
+      // ——按 glm-look 通道 schema（attempt/ok/fail 三形）作第一类行校验；legacy 行
+      // （channel 无 dispatcher_version）维持上方外来跳过（历史行禁改写，08 §3）
+      if (e.channel !== undefined && e.dispatcher_version !== undefined) {
+        const GLM_REQUIRED = {
+          attempt: ['ts', 'runId', 'event', 'source', 'model', 'attempt', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'],
+          ok: ['ts', 'runId', 'event', 'source', 'model', 'usage', 'latencyMs', 'finish', 'finish_class', 'truncated', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'],
+          fail: ['ts', 'runId', 'event', 'source', 'model', 'error', 'statusCode', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'],
+        }
+        const gr = GLM_REQUIRED[e.event]
+        if (!gr) { unknown++; bad++; continue }
+        for (const k of gr) if (e[k] === undefined) { bad++; break }
+        kinds[e.event] = (kinds[e.event] || 0) + 1
+        continue
+      }
       // 流水行：未知事件类型=坏行（schema 未登记即弱校验——ds-W5）；历史版本行按当时 schema 跳过=合法历史（禁改写）
       if (e.dispatcher_version !== undefined && e.dispatcher_version !== CURRENT_DISPATCHER) { skipped++; continue }
       const req = typeof required === 'function' ? required(e) : required
@@ -397,12 +412,25 @@ process.exit(fails === 0 ? 0 : 1)
     const logFile = join(logDir, 'model-routing-log.jsonl')
     const logLines = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
     const chOf = (ch) => logLines.filter((e) => e.channel === ch)
-    const lookOk = (r, ch, text) => r.status === 0 && (r.stdout || '').includes(text) && chOf(ch).some((e) => e.event === 'attempt') && chOf(ch).some((e) => e.event === 'ok' && e.truncated === false)
+    // selfiter 批（glm-look-schema）断言扩面：mock 流水行=对齐 schema（ctx 五字段
+    // +attempt 序号+ok 行 finish_class/truncated）——红态=旧 logEvent 缺 ctx 字段
+    const ctxOk = (e) => e.role_id === 'design-reviewer' && e.dispatcher_version !== undefined && e.org_config_hash !== undefined && e.role_version !== undefined && 'role_sig' in e
+    const alignedOk = logLines.filter((e) => e.event === 'attempt').every((e) => typeof e.attempt === 'number' && ctxOk(e)) &&
+      logLines.filter((e) => e.event === 'ok').every((e) => ctxOk(e) && typeof e.finish_class === 'string' && typeof e.truncated === 'boolean')
+    const lookOk = (r, ch, text) => r.status === 0 && (r.stdout || '').includes(text) && chOf(ch).some((e) => e.event === 'attempt') && chOf(ch).some((e) => e.event === 'ok' && e.truncated === false) && alignedOk
     const glmOk = lookOk(rg, 'glm-look', 'MOCK-GLM-OK')
     const dsOk = lookOk(rd, 'ds-look', 'MOCK-DS-OK')
     if (!glmOk || !dsOk) ok = false
     const lookFail = (r) => `✗(exit=${r.status} stderr尾=${(r.stderr || '').slice(-140).replace(/\n/g, ' ')})`
     det.push(`②mock往返:glm=${glmOk ? `✓(exit=${rg.status} 正文+流水attempt/ok行)` : lookFail(rg)}/ds=${dsOk ? `✓(exit=${rd.status})` : lookFail(rd)}`)
+    // selfiter 批（evolve-glmlook-150-null）向量：宿主 provider null 条目→降级行
+    // +跳过其余源+exit 5（env 钩子隔离零外呼；红态=旧 discoverSources 裸取 TypeError 崩溃）
+    const hostCfgNull = join(r10tmp, 'host-config-null.json')
+    writeFileSync(hostCfgNull, JSON.stringify({ provider: { dead: null, 'mock-glm': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-null-key-cccccccccccccccc' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } } } }), 'utf8')
+    const rNull5 = r10Spawn([join(SCRIPTS, 'glm-look.mjs'), '--list-sources'], { env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgNull } })
+    const nullOk = rNull5.status === 5 && (rNull5.stderr || '').includes('[degraded]') && (rNull5.stdout || '').includes('mock-glm')
+    if (!nullOk) ok = false
+    det.push(`⑤null守卫(mock发现面):${nullOk ? `✓(exit=5 降级行+其余源续列)` : `✗(exit=${rNull5.status} stderr尾=${(rNull5.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
     server.close()
   } else {
     ok = false
