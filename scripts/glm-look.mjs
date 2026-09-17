@@ -56,7 +56,7 @@ import { request as httpsRequest } from "node:https";
 import { fileURLToPath } from "node:url";
 import { loadOrgConfig, cliFlag, UsageError, cfgHash, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse } from "./org-config.mjs";
 
-const DISPATCHER_VERSION = "glm-look/1.3.0"; // 自版本号（写入者身份——流水 ctx 对齐面）
+const DISPATCHER_VERSION = "glm-look/1.3.1"; // 自版本号（写入者身份——流水 ctx 对齐面）。1.3.1=v2.0.1 修复批：截断重试触发词表化/流水写失败留痕/倍升记账修正
 let DEGRADED = false; // 降级运行位（宿主 provider null 条目——发现面部分可用，显式留痕 exit 5）
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url)); // 规范解析（percent-decode）——原 URL pathname 手拼在含空格/中文路径下必坏（v1.6 批 P0-B e）
@@ -136,6 +136,7 @@ function channelTag(channel) {
   return channel === "ds" ? "ds-look" : "glm-look";
 }
 
+let logWarned = false; // 流水写失败一次性留痕位（v2.0.1 修复批 L8——原 catch 完全静默=证据链无据可查且无人知情，对齐 ds-call-v2 makeSafeAppend 纪律）
 function logEvent(event, fields) {
   const { channel, ...rest } = fields;
   // ctx 五字段对齐派发器行 schema（selfiter 批 glm-look-schema 清偿）：
@@ -156,8 +157,8 @@ function logEvent(event, fields) {
   try {
     // 跨进程建议锁（selfiter B4：与 ds-call-v2 同流水多写入者行交错面）
     withFileLock(ROUTING_LOG + '.lock', () => { fs.appendFileSync(ROUTING_LOG, line + "\n"); });
-  } catch {
-    /* 流水失败不阻断主流程（只读证据链尽力而为） */
+  } catch (e) {
+    if (!logWarned) { logWarned = true; console.error(`[log-warn] 流水写入失败（后续仅警告一次，不影响调用主流程）：${ROUTING_LOG}: ${e.message}`) }
   }
 }
 
@@ -334,11 +335,17 @@ async function main() {
   const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`; // 后缀 8 字符（selfiter B4：对齐派发器，消同秒碰撞窗）
   const url = channel === "glm" ? `${src.base}/v1/messages` : `${src.base}/chat/completions`;
   const started = Date.now();
+  // finish 词表集合（单源=org-config finish_vocab；终态判定与截断重试触发共用——
+  // v2.0.1 修复批 L7：原重试触发词按通道硬编码，与「词表住 org-config」声明相悖）
+  const completeFinishes = new Set(ORG_CFG.finish_vocab.complete);
+  const truncFinishes = new Set(ORG_CFG.finish_vocab.truncation);
 
   let resp = null;
   let attemptTokens = maxTokens;
   let norm = null;
+  let roundsRun = 0; // 实跑轮次（门一回炉 N2：零正文归因文案按真轮次——for 块级 attempt 循环外不可见）
   for (let attempt = 1; attempt <= 3; attempt += 1) {
+    roundsRun = attempt;
     // B5 流式位（selfiter 批）：org-config vision_channels.<ch>.stream=true 请求
     // SSE——首字节早达根治网关非流式窗口 504 族；响应侧 SSE/JSON 双形态
     const useStream = chCfg(channel).stream === true;
@@ -389,15 +396,16 @@ async function main() {
       }
     }
     norm = normalizeResponse(resp, channel);
-    const truncFlag = channel === "glm" ? "max_tokens" : "length";
     // 截断终态不因「有正文」豁免（selfiter 批 glm-look-truncation 清偿——原
     // hasText 即 break=截断有正文照当 ok 收下的假成功面）。回炉 W2 修正：
     // 重试条件=终态为截断（无论正文有无）——零正文且非截断=完整但空响应，
-    // 立即收（重试不改变空产出，原语义保持；归因文案只对真截断打）
-    if (norm.finish !== truncFlag) break;
-    if (attempt < 3)
+    // 立即收（重试不改变空产出，原语义保持；归因文案只对真截断打）。
+    // 触发词=truncation 词表成员（修复批 L7——词表新增条目同获倍升重试机会）
+    if (!truncFinishes.has(norm.finish)) break;
+    if (attempt < 3) {
       console.error(`[${channelTag(channel)}] 第 ${attempt} 轮终态截断（finish=${norm.finish}${norm.hasText ? "，有正文仍不完整" : "，零正文"}）——倍升重试`);
-    attemptTokens *= 2;
+      attemptTokens *= 2; // 倍升仅发生于确将重试时（修复批 L9：原循环尾无条件翻倍——末轮仍截断时流水 maxTokens 记未使用的翻倍值、重试提示虚高）
+    }
   }
   if (norm === null) {
     console.error(`[${channelTag(channel)}] 无可用响应`);
@@ -405,9 +413,7 @@ async function main() {
   }
   const usageInfo = norm.usage;
   // finish_class+truncated 派生（镜像派发器 makeFinishClassifier 同口径：complete
-  // 白名单正判，truncation/未知/无终态=非完整保守反转；词表单源=org-config）
-  const completeFinishes = new Set(ORG_CFG.finish_vocab.complete);
-  const truncFinishes = new Set(ORG_CFG.finish_vocab.truncation);
+  // 白名单正判，truncation/未知/无终态=非完整保守反转；词表集合已前置构建——修复批 L7）
   const finishClass = norm.finish == null ? "unknown" : completeFinishes.has(norm.finish) ? "complete" : truncFinishes.has(norm.finish) ? "truncation" : "unknown";
   const truncatedFlag = finishClass !== "complete";
   logEvent("ok", {
@@ -417,8 +423,10 @@ async function main() {
     maxTokens: attemptTokens,
   });
   if (!norm.hasText) {
-    console.error(`[${channelTag(channel)}] 响应零正文（finish=${norm.finish}）——` +
-      `推理段耗尽配额面：3 轮倍升后仍零正文，手动 --max-tokens ≥${attemptTokens} 重试或减小图量。`);
+    console.error(`[${channelTag(channel)}] 响应零正文（finish=${norm.finish}，实跑 ${roundsRun} 轮）——` +
+      (truncFinishes.has(norm.finish)
+        ? `截断族零正文（已倍升至 max_tokens=${attemptTokens}）：手动 --max-tokens ≥${attemptTokens * 2} 重试或减小图量。`
+        : "完整终态但空产出：重试不改变产出（保守口径 exit 1，产出面人工处置）。"));
     return 1;
   }
   const out = norm.texts.join("\n\n");
