@@ -347,10 +347,11 @@ process.exit(fails === 0 ? 0 : 1)
   const vecDs = join(r10tmp, 'vec-ds.mjs')
   writeFileSync(vecDs, `import * as dsCall from ${JSON.stringify(vecUrl('ds-call-v2.mjs'))}
 import { join, dirname, resolve } from 'node:path'
-const { classifyExitCode, ConfigError, ensureWithinRoot } = dsCall
+const { classifyExitCode, ConfigError, ensureWithinRoot, parseFindings } = dsCall
 let fails = 0
 const t = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++ }
 if (typeof classifyExitCode !== 'function' || typeof ConfigError !== 'function' || typeof ensureWithinRoot !== 'function') { console.log('FAIL 纯函数未导出（b2/b6 待实现）'); process.exit(1) }
+if (typeof parseFindings !== 'function') { console.log('FAIL parseFindings 未导出（selfiter findings-parser 待实现）'); process.exit(1) }
 t('分类:配置 ConfigError→3', classifyExitCode(new ConfigError('配置错')) === 3)
 t('分类:用法 普通 Error→1', classifyExitCode(new Error('用法错')) === 1)
 t('分类:未知 非 Error 值→1', classifyExitCode('boom') === 1)
@@ -363,6 +364,11 @@ t('越界负例:..\\\\ 深层逃逸', throws3(() => ensureWithinRoot(root, join(
 t('越界负例:../ 形态（混合分隔输入）', throws3(() => ensureWithinRoot(root, root + '/../evil/x.txt')))
 t('正例:root 内深层文件', ensureWithinRoot(root, join(root, 'roles', 'a.md')) === join(root, 'roles', 'a.md'))
 t('正例:root 自身', ensureWithinRoot(root, root) === root)
+// selfiter 批（findings-parser）向量：机读尾栏解析
+t('findings:标准尾栏解析', JSON.stringify(parseFindings('报告正文\\nFINDINGS: B=1 W=2 N=3 VERDICT=PASS')) === JSON.stringify({ B: 1, W: 2, N: 3, verdict: 'PASS' }))
+t('findings:无尾栏→null（不伪造）', parseFindings('普通产出无尾栏') === null)
+t('findings:尾栏后有杂行（末5行回扫窗）仍命中', parseFindings('FINDINGS: B=0 W=1 N=0 VERDICT=FAIL\\n\\n备注行') !== null)
+t('findings:verdict 归一大写+零值形态', parseFindings('FINDINGS: B=0 W=0 N=2 VERDICT=pass').verdict === 'PASS' && parseFindings('FINDINGS: B=0 W=0 N=2 VERDICT=pass').N === 2)
 console.log(fails === 0 ? 'R10VEC-ALL-PASS' : 'R10VEC-FAILS:' + fails)
 process.exit(fails === 0 ? 0 : 1)
 `, 'utf8')

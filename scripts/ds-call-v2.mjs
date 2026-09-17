@@ -240,6 +240,20 @@ function makeFinishClassifier(vocab) {
   }
 }
 
+/** FINDINGS 机读尾栏解析（selfiter 批 findings-parser 清偿——DoD 契约机读面）：
+ *  审出件末栏形如「FINDINGS: B=1 W=2 N=3 VERDICT=PASS」（末 5 行回扫窗，空格容错，
+ *  verdict 归一大写）；未命中返回 null（非审计产出/未带尾栏=不伪造）。纯函数
+ *  export 供 R10 向量。 */
+export function parseFindings(text) {
+  if (typeof text !== 'string') return null
+  const lines = text.trimEnd().split('\n')
+  for (let i = lines.length - 1, back = 0; i >= 0 && back <= 5; i--, back++) {
+    const m = /^FINDINGS:\s*B=(\d+)\s+W=(\d+)\s+N=(\d+)\s+VERDICT=(\S+)/.exec(lines[i].trim())
+    if (m) return { B: Number(m[1]), W: Number(m[2]), N: Number(m[3]), verdict: m[4].toUpperCase() }
+  }
+  return null
+}
+
 // ── 双落账：运行流水（含 attempt）+ 项目账本（仅 ok/switch/exhaust）；本地 IO 降级 ──
 // 账本 schema v2（W-N5）：增 runId（账本↔流水行级关联键，W-B2）/schema_version/
 // mocked（源头侧甄别演练行，W-2）/truncated（**派生布尔**——finish 唯一真相源在
@@ -257,7 +271,10 @@ function makeLogger(role, merged, project, ledgerPath, isMock, classifyFinish) {
       const roleCfg = merged.roles?.[role.id] || {}
       // truncated 仅对 ok 行有意义（switch/exhaust 无产出，不记——防语义噪声）
       const truncated = event === 'ok' ? classifyFinish(fields.finish).truncated : undefined
-      safeAppend(ledgerPath, JSON.stringify({ ts: new Date().toISOString(), schema_version: LEDGER_SCHEMA_VERSION, runId, project, event, role: role.id, tier: roleCfg.tier || 'unspecified', source: fields.source, cfg_hash: ctx.org_config_hash, usage: fields.usage, mocked: isMock || undefined, truncated, outcome: scrub(fields.outcome) }) + '\n')
+      // findings=ok 行可选字段（selfiter 批 findings-parser）：parseFindings(text)
+      // 产物，仅审计岗产出携带（非审计岗/未带尾栏=undefined 不落键）
+      const findings = event === 'ok' ? (fields.findings || undefined) : undefined
+      safeAppend(ledgerPath, JSON.stringify({ ts: new Date().toISOString(), schema_version: LEDGER_SCHEMA_VERSION, runId, project, event, role: role.id, tier: roleCfg.tier || 'unspecified', source: fields.source, cfg_hash: ctx.org_config_hash, usage: fields.usage, mocked: isMock || undefined, truncated, findings, outcome: scrub(fields.outcome) }) + '\n')
     },
   }
 }
@@ -332,10 +349,13 @@ async function callSource(src, prompt, system, logger, mock, reqParams) {
       const { text, usage, finish } = parseResponse(src, data)
       if (!text) throw Object.assign(new Error('空响应 finish=' + finish + ' usage=' + JSON.stringify(usage)), { fatal: true })
       const { cls, truncated } = logger.classifyFinish(finish)
+      // FINDINGS 机读尾栏解析（selfiter 批 findings-parser）：审计岗产出按 DoD 带
+      // 尾栏——解析产物入账本 ok 行 findings 字段；未带=undefined 不伪造
+      const findings = parseFindings(text)
       // 截断=假成功（P0-2）：报告可能不完整而被当 ok 收下。显式告警，交收口 RED 处置。
       if (truncated) console.error(`[truncation-warn] ${src.alias} 产出非完整终态 finish=${finish}（${cls}）——审计产出按假成功处置（回炉/换源），账本已记 truncated=true`)
       logger.routing('ok', { source: src.alias, model: src.modelName, usage, latencyMs: Date.now() - t0, finish, finish_class: cls, truncated })
-      logger.ledger('ok', { source: src.alias, usage, finish, outcome: truncated ? `ok-truncated（finish=${finish}）` : 'ok' })
+      logger.ledger('ok', { source: src.alias, usage, finish, findings, outcome: truncated ? `ok-truncated（finish=${finish}）` : 'ok' })
       return { text, usage, latencyMs: Date.now() - t0, truncated }
     } catch (e) {
       if (e.fatal || attempt === 3) throw e // switch/exhaust 由外层按「是否真换源」记（互斥语义）

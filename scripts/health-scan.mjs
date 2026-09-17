@@ -8,8 +8,10 @@
  *     ③预算超限（给了阈值且超）
  *   WARN（不阻断，但摘要强制回显计数——W-1 升格条件）：
  *     ⑤设计链同源（drafter 与 auditor 同源——02 §8.6；W-8 降级待归因）
- *     cfg 漂移；ok 缺 usage / in=0 而 out>0（缓存未计）；单源占比超阈（配给红线）
- *   INFO：各源用量汇总
+ *     cfg 漂移；ok 缺 usage / in=0 而 out>0（缓存未计）；单源占比超阈（配给红线）；
+ *     逃逸在册（escaped-defect 人工行——selfiter 批 manual-event-consumers 接线）
+ *   INFO：各源用量汇总；审计 findings verdict 分布（selfiter 批 findings-parser）；
+ *     人工事件计数（ruling/doc-health 等 R4 MANUAL_EVENTS 同集）
  * 用法：node scripts/health-scan.mjs [--project <dir>] [--ledger <path>]
  *       [--window N] [--budget <alias>:<maxOutTokens>[,…]] [--self-test]
  * 退出码口径单源=references/06 §5.8（此处不复写数字=语义映射，防双源漂移
@@ -136,6 +138,41 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
   const lastCfg = [...ledger].reverse().find((e) => e.cfg_hash)?.cfg_hash
   if (liveCfg && lastCfg && lastCfg !== liveCfg) WARN.push(`cfg 漂移：账本末行 cfg_hash=${lastCfg} ≠ 当前 ${liveCfg}——供应商事实已变（源序/套餐/配给），需重盘投放面并核对旧批次结论（P2-6）`)
 
+  // ── ⑥ FINDINGS 机读尾栏执法+汇总（selfiter 批 findings-parser 接线） ──
+  // 截止时点后 audit_surface 岗真实 ok 行（非 mocked）缺 findings 字段=DoD 机读
+  // 尾栏契约失守（RED——防「无尾栏假审计」与解析失配静默）；截止前存量行豁免
+  // （08 §3 不追认）；带 findings 行汇总 verdict 分布与 B/W/N 累计（INFO）。
+  const FINDINGS_CUTOFF = '2026-09-17T12:00:00Z'
+  let auditRows = 0, auditNoFindings = 0
+  const verdictDist = {}, findingsSum = { B: 0, W: 0, N: 0 }
+  for (const e of ledger) {
+    if (e.event !== 'ok' || e.mocked === true) continue
+    if (!auditRoles.has(e.role)) continue
+    if (String(e.ts || '') < FINDINGS_CUTOFF) continue
+    auditRows++
+    const f = e.findings
+    if (!f || typeof f !== 'object') { auditNoFindings++; continue }
+    verdictDist[f.verdict] = (verdictDist[f.verdict] || 0) + 1
+    findingsSum.B += f.B || 0; findingsSum.W += f.W || 0; findingsSum.N += f.N || 0
+  }
+  if (auditNoFindings) RED.push(`审计行缺机读 FINDINGS 解析字段 ×${auditNoFindings}/${auditRows}（DoD 契约：审出件末栏「FINDINGS: B= W= N= VERDICT=」——findings-parser 执法；缺=尾栏未带或解析失配，人工核对审出件）`)
+  else if (auditRows) INFO.push(`审计 findings 汇总：${auditRows} 行，verdict 分布=${JSON.stringify(verdictDist)}，累计 B=${findingsSum.B}/W=${findingsSum.W}/N=${findingsSum.N}`)
+
+  // ── ⑦ 人工事件消费+逃逸率（selfiter 批 manual-event-consumers 接线） ──
+  // 写入面=主控手工行（R4 MANUAL_EVENTS 同集）；escaped-defect=门禁放行后缺陷
+  // 在册（WARN 如实点名）+逃逸率粗口径（INFO——批次级归因仍人工）
+  const MANUAL_EVENT_SET = new Set(['porting-delta', 'doc-health', 'ruling', 'constitution-overrun', 'escaped-defect', 'stopped'])
+  const manualCount = {}
+  for (const e of ledger) { if (MANUAL_EVENT_SET.has(e.event)) manualCount[e.event] = (manualCount[e.event] || 0) + 1 }
+  const manualKeys = Object.keys(manualCount)
+  if (manualKeys.length) INFO.push(`人工事件计数：${manualKeys.map((k) => `${k}×${manualCount[k]}`).join(' ')}`)
+  const escaped = ledger.filter((e) => e.event === 'escaped-defect')
+  if (escaped.length) {
+    WARN.push(`逃逸在册 ×${escaped.length}（escaped-defect——门禁放行后发现的缺陷，主控手工入账）：${escaped.slice(-3).map((e) => `${String(e.ts || '').slice(0, 10)} ${String(e.outcome || '').slice(0, 60)}`).join('；')}${escaped.length > 3 ? '…' : ''}`)
+    const realOk = ledger.filter((e) => e.event === 'ok' && e.mocked !== true).length
+    INFO.push(`逃逸率粗口径=${realOk ? (escaped.length / realOk).toFixed(3) : '?'}（escaped ${escaped.length}/真实 ok ${realOk}——批次级归因仍人工）`)
+  }
+
   return { RED, WARN, INFO }
 }
 
@@ -167,6 +204,17 @@ function selfTest(merged) {
   // cfg 漂移 → WARN
   const a8 = scan({ ledger: [{ ...base, ts: '2026-04-01T00:00:00Z', project: '/real/p' }], merged, liveCfg: 'NEWHASH' })
   t('cfg 漂移 → WARN', a8.WARN.some((w) => w.includes('cfg 漂移')))
+  // selfiter 批（findings-parser/manual-event-consumers）向量
+  const f1 = scan({ ledger: [{ ...base, ts: '2026-09-18T00:00:00Z', project: '/real/p', findings: { B: 1, W: 2, N: 3, verdict: 'PASS' } }], merged })
+  t('审计行带 findings → 无缺栏 RED+INFO 汇总', !f1.RED.some((r) => r.includes('缺机读 FINDINGS')) && f1.INFO.some((i) => i.includes('verdict 分布')))
+  const f2 = scan({ ledger: [{ ...base, ts: '2026-09-18T00:00:00Z', project: '/real/p' }], merged })
+  t('截止后审计行缺 findings → RED（DoD 机读尾栏执法）', f2.RED.some((r) => r.includes('缺机读 FINDINGS')))
+  const f3 = scan({ ledger: [{ ...base, ts: '2026-09-01T00:00:00Z', project: '/real/p' }], merged })
+  t('截止前存量审计行豁免（08 §3 不追认）', !f3.RED.some((r) => r.includes('FINDINGS')))
+  const f4 = scan({ ledger: [{ ...base, ts: '2026-09-18T00:00:00Z', project: '/real/p', mocked: true }], merged })
+  t('mocked 演练行不触发 findings 执法', !f4.RED.some((r) => r.includes('FINDINGS')))
+  const f5 = scan({ ledger: [{ ...base, ts: '2026-09-18T00:00:00Z', project: '/real/p', event: 'escaped-defect', outcome: 'W 批漏网样例', usage: undefined }], merged })
+  t('escaped-defect 行 → WARN 逃逸在册+人工事件 INFO', f5.WARN.some((w) => w.includes('逃逸在册')) && f5.INFO.some((i) => i.includes('人工事件计数')))
   const fail = cases.filter((c) => !c.pass)
   for (const c of cases) console.log(`${c.pass ? 'PASS' : 'FAIL'} ${c.name}${c.detail ? ' — ' + c.detail : ''}`)
   console.log(`health-scan 自检：${cases.length - fail.length}/${cases.length} 过`)
