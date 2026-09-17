@@ -19,9 +19,28 @@
 | host-metadata-schema-drift | 宿主子代理 metadata schema 演进使 ③ 检测面失明（在册实例：2026-09-17 profileSnapshot.model 字符串→modelSelection 结构体，旧 ③ 静默跳过新格式绑定岗——declaredModelOf 已收编两格式） | 宿主升级后首场绑定岗派发核对 metadata 形态仍被 declaredModelOf 认识；常驻 tripwire=log-triage ③ WARN「格式漂移疑似」（detectMetadataShapeDrift：model 键非字符串/modelSelection 残缺）出现即触发处置 |
 | empty-declared-blindspot | 空字符串 model 声明被当非绑定岗静默跳过（tripwire 只查非字符串形态；批前既有行为，宿主空串语义未确证——门二裁决 B3 登记） | 宿主 metadata 实证出现 model:"" 时处置（先确证语义再定跳过/漂移口径） |
 | log-triage-import-side-effect | log-triage.mjs 顶层无 import.meta.main 守卫，import 即跑 CLI 主流程（门二实证 M5-M7 注入命令实录；批前既有） | 出现模块化消费该文件的需求时加守卫（当前消费面=CLI+自检，无受损） |
+| volta-exitcode-mask | volta run 将任意非零退出码掩成 126（本机实证 2026-09-17：1/2/3→126、0 正常、裸 node 透传无误；DEPLOY.md §0 已提示） | 出现脚本化消费精确退出码且须经 volta run 的封装时处置（volta pin 固定默认或直跑 node） |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
 
 ## 修订记
+
+- 2026-09-17 漂移清偿批（drift-clear-2026-09-17）：外部评估批出 9 项文档
+  双源漂移+1 项环境交互事实，本批清偿——02 §10 机检面收全 ①-⑦+呈现
+  排序归一（原乱序①④②③⑤且⑥⑦散落 §9 括注）/§5+§9 回炉上限默认口径
+  （宪法未声明取严者【SY】≤2 轮，主控预裁申报、ORG-SEG 可覆盖）/§9
+  六段残留对齐七段；06 §4 403 归因对齐 log-triage 配额族口径（v2.0.1
+  L4）/§6 补遗①绑定格式补 `$档位` 后缀（单源=07 §4 纪律①）；07 §1
+  编制表双承载注记+实现者行七段对齐；08 §5 挂 §6 规则 4 指针/§1 寻址表
+  扩 01~09；05 §5 整合基准口径注记。评估批另报「06 §0 断锚」经复核
+  **撤销**（00 术语表前导已单源定义 §0 约定并以 06 §0 为例——非缺陷）。
+  DEPLOY.md §0 增 volta run 退出码掩码提示+本册登记 volta-exitcode-mask
+  触发器行。门一=ops-gate1-k1 隔离审（自包含 diff 包）B=0/W=2/N=3
+  PASS；回炉一轮全处置：W1 八处指针主控逐点亲验（七处实在，一处指错
+  ——「05 §2 回炉轮数」更正为 06 §7，补遗二引文转写改逐字）；W2 ⑥⑦
+  补日期字面+⑦ 窗口口径；N1 消 ≤2 双写（§5 改纯指针）；N2 全角斜杠；
+  N3 消 `$max` 双源陈述。门禁：anchors 0/0+hardcode strict 零命中+
+  pre-commit 过+regression 8/8（R1 配给保护 SKIP，2026-09-17 已有真跑
+  3/3 记录在册）。
 
 - 2026-09-17 档位批首验闭合：selfiter-k1k2-reasoninglevel **closed**（新会话派发
   ops-gate1-k1 真实审包小任务）。证据链四件：①宿主 metadata

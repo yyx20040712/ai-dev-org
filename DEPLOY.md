@@ -15,6 +15,12 @@
 `volta run --node 24 node scripts/deploy-check.mjs`（本仓参考态即此形态）；
 ②直接改装受支持主版本。禁用系下 deploy-check ①项=FAIL 属如实告警（已知
 退出崩溃面），其余六项照常检查。
+- **volta run 退出码掩码（本机实证 2026-09-17）**：`volta run --node 24 …`
+  会把任意非零退出码掩成 126（实测 exit 1/2/3 经 volta run 均 →126；
+  exit 0 正常；裸 node 透传无误）。交互式人工排查用 volta run 无碍；
+  **依赖精确退出码的脚本化封装禁经 volta run**（如 exhaust=2 断言、钩子
+  对 3/5 的分流——语义单源=references/06 §5.8）——须在受支持 Node
+  环境直跑 node（推荐 `volta pin node@24` 固定默认后裸跑）。
 - 本仓克隆到 `~/.zcode/skills/ai-dev-org`（克隆形态而非 zip 解压——hook/remote
   两项检查依赖 git 仓；zip 形态 deploy-check 对应项降级 [warn] 跳过）。
 
