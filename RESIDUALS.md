@@ -85,7 +85,7 @@
 | evolve-samefamily | 外部评审清偿战役 evolve 批（裁决 C6 口径） | 计划双审源同族证据形态：源A/源B MODEL-SELF 同 model-key（同宿主实配模型键，具体串与 uuid 前缀对=b2466f8b…/5e1abd9d… 见批档 k1/k2 审出件——本册不落供应商 live 事实）——「异供应商」为未证假设，勿断言为已证事实 | open | 处置=轻量双审合规注记+按「同源记欠账」文化记欠账；宿主提供真异构备源时消账 |
 | evolve-verify-mjs-header | 外部评审清偿战役 evolve 批（E3 头注普查） | templates/verify.mjs:6 头注「（退出码：0=全过；1=有 FAIL）」数字=语义复写——随 init-defenses 分发到项目仓的模板骨架件 | open | 禁改面命中登记不修（templates/** 白名单外，本批仅 org-seg.snippet.md:11 扩权）；处置=init-defenses 模板升版批顺带指针化 |
 | evolve-ccb-weaktype | 外部评审清偿战役 evolve 批（E3 头注普查） | check-constitution-budget.mjs:3 头注「→ exit 1」弱同型复写（单退出码弱形态，非完整数字=语义表） | open | 登记不修（脚本不在本批白名单）；处置=下批脚本头注卫生批 |
-| evolve-struct-tables | 外部评审清偿战役 evolve 批（结构项——计划 v3 假设 4：本战役不实施只登记） | 岗位三表三写：SKILL.md 岗位速查/06 §1 分工总表/07 §1 编制表——内容重叠漂移面，须单源化+指针收敛 | open | 承接=结构项专项批（evolve-struct-* 同批呈报） |
+| evolve-struct-tables | 外部评审清偿战役 evolve 批（结构项——计划 v3 假设 4：本战役不实施只登记） | 岗位三表三写：SKILL.md 岗位速查/06 §1 分工总表/07 §1 编制表——内容重叠漂移面，须单源化+指针收敛 | closed | 已修（v1.7.5）：07 §1=唯一全属性终表（补主控不降档注记+主权声明）；SKILL.md 速查缩两列索引（禁增列）；06 §1 换指针块+路由域注记三条。零信息丢失=28 条清单范围内逐格事实盘点 grep 全过（初轮 23 条+门审交叉核补 2 格 5 短语后复跑；档=2026-09-17_struct-impl-report.md）。机检守卫未建——三表结构漂移暂靠 review（07 主权声明+SKILL 禁增列注记为规约锚）；升格条件=再现漂移即建 golden 行列数守卫 |
 | evolve-struct-glossary | 同上 | 术语速查入口缺位（拟 00 件：跨 references 术语表/新手上手图——「惯称/口径」类术语散布定义无集中入口） | open | 承接=结构项专项批 |
 | evolve-struct-patchwrite | 同上 | 补丁式时序写作累积：「后节接管前节」注记链（02 §8.4 接管注记/06 §6 补遗等）散布各件，结构性收敛未做 | open | 承接=结构项专项批 |
 | evolve-healthscan-86ref | 主控移交+b7 自检引出（evolve 批 check-anchors 自检实测发现 06 无 §8.6、真源在 02，未随批清偿） | health-scan.mjs 两处（:10/:104）「06 §8.6」断链引用（三段通道真源=references/02 §8.6） | closed | 已修（回炉 r2，2026-09-16）：两处改指 02 §8.6；断锚面随批复扫 WARN×0/FAIL×0 |
