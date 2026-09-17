@@ -7,7 +7,9 @@
  *  - 名单**从 org-config 派生**（hardcode_scan.*），脚本禁硬编码供应商事实（A3）。
  *    通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。
  *  - 白名单独立 JSON 文件（not .md——避免 .md 白名单被自身扫中）。
- *  - WARN 起步（升格判据未定，W-6）；`--strict` 时按 RED 退出。
+ *  - 升格 RED 已生效（selfiter 批 B6 清偿 W-6 愿望式升档）：配置位
+ *    hardcode_scan.strict（缺省 true）+`--strict` 双入口，命中=RED 退出；
+ *    `--warn`=试点校准期显式降级逃生口。
  *  - 安排性提及边界（08 §1）：岗位×供应商分工链**描述**可写；端点/实配名不可。
  *
  * B-1 扩展（2026-09-16，05 §五+W-1/W-6 终裁+B-2 裁决②③）：
@@ -29,7 +31,11 @@ import { SKILL_ROOT, loadOrgConfig } from './org-config.mjs'
 const argv = process.argv.slice(2)
 const flag = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
 const root = flag('--root') || SKILL_ROOT
-const strict = argv.includes('--strict')
+// 升格位（selfiter 批 B6 清偿 check-hardcode-promotion）：org-config
+// hardcode_scan.strict（缺省 true）=命中即 RED 退出；--warn=显式降回 WARN
+// （试点校准期逃生口——升格判据=B3 白名单收缩后连续 B4/B5 两批零误报零命中，
+// 已满足）。effective strict 在配置装载后合流（见主流程尾）。
+const warnMode = argv.includes('--warn')
 let DEGRADED = false // 降级运行位（宿主配置/白名单损坏——显式留痕退出码 5，v1.6 批 P2-2：原静默吞错=strict 下假 RED/非 strict 假绿）
 const agentsDir = argv.includes('--agents') ? (flag('--agents') || join(homedir(), '.zcode', 'agents')) : null
 const whitelistPath = flag('--whitelist') || join(SKILL_ROOT, 'scripts', 'hardcode-whitelist.json')
@@ -216,8 +222,9 @@ if (agentsDir && existsSync(agentsDir)) {
   }
 }
 const effective = all.filter((h) => !h.whitelisted)
+const strict = !warnMode && (argv.includes('--strict') || merged?.hardcode_scan?.strict === true)
 const W = process.stdout.write.bind(process.stdout)
 for (const h of effective) W(`[WARN] ${h.file}:${h.line} ${h.kind} 命中「${h.match}」——供应商 live 事实不得写入 .md 正文（06 §0/08 §1）；改指针化（指向 org-config）或登记白名单（scripts/hardcode-whitelist.json）\n`)
 if (all.length - effective.length) W(`[info] 白名单豁免 ${all.length - effective.length} 处（${whitelist.length} 条规则）\n`)
-console.log(`check-hardcode 汇总：扫 ${files.length} 个 .md${agentsFiles ? ` + agents 目录 ${agentsFiles} 个 ops-*.md（frontmatter 已剥离）` : ''}，命中 ${effective.length} 处（白名单豁免 ${all.length - effective.length}；词表=org-config ${deriveTerms(merged).length} 条+宿主注册表 ${hostTerms.length} 条）${strict && effective.length ? '——strict：按 RED 处置，不得收口' : '（WARN 级——升格判据待定，W-6）'}`)
+console.log(`check-hardcode 汇总：扫 ${files.length} 个 .md${agentsFiles ? ` + agents 目录 ${agentsFiles} 个 ops-*.md（frontmatter 已剥离）` : ''}，命中 ${effective.length} 处（白名单豁免 ${all.length - effective.length}；词表=org-config ${deriveTerms(merged).length} 条+宿主注册表 ${hostTerms.length} 条）${strict && effective.length ? '——strict：按 RED 处置，不得收口' : strict ? '（strict 已生效，零命中）' : '（WARN 级——--warn 显式降级：校准期逃生口）'}`)
 process.exit(strict && effective.length ? (DEGRADED ? 5 : 1) : DEGRADED ? 5 : 0) // 降级信号优先于 strict 命中（终审 W4：勿让 1 吞 5）；总表=references/06 §5.8

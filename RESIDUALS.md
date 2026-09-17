@@ -23,3 +23,8 @@
 
 - 2026-09-17 selfiter 批 B3 重立：全量册归档（65 件历史件随批出库，sha256
   对账 65/65 OK），薄册仅承载触发器行与后续新登记。
+- 2026-09-17 selfiter 批 B4/B5/B6 承接项闭环：evolve-m6-runid+
+  project-id-migration（B4）、glm-look-streaming（B5——真端点流式语义留
+  R1 真外呼核验位）、check-hardcode-promotion（B6 升格判据满足，strict
+  RED 生效+--warn 逃生口）。g3-glossary-drift 并入 08 §4 体检纪律（用户
+  裁决，不单独立项）——至此 selfiter 四组裁决 D 类全部实施完毕。

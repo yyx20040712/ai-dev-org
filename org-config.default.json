@@ -90,7 +90,8 @@
   },
   "hardcode_scan": {
     "forbidden_terms": [],
-    "note": "check-hardcode 的额外扫描名单（正则字面量，扫 .md 正文）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。事实分层（同 vision_channels.note，终审 auditor-B 统一口径）：身份/甄别类供应商事实住本件（providers/vision_channels/source_health），连接/密钥类住宿主 config，.md 正文禁一切 live 事实——实配模型名词表由 check-hardcode 从宿主注册表实时派生，故本名单默认空；项目覆盖件可加自有禁词"
+    "note": "check-hardcode 的额外扫描名单（正则字面量，扫 .md 正文）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。事实分层（同 vision_channels.note，终审 auditor-B 统一口径）：身份/甄别类供应商事实住本件（providers/vision_channels/source_health），连接/密钥类住宿主 config，.md 正文禁一切 live 事实——实配模型名词表由 check-hardcode 从宿主注册表实时派生，故本名单默认空；项目覆盖件可加自有禁词；strict=升格位（selfiter B6 清偿 check-hardcode-promotion：判据=B3 白名单收缩后经 B4/B5 两批全门禁零误报+零命中——已满足；缺省 RED 生效，--warn 逃生口=试点校准期专用）",
+    "strict": true
   },
   "dispatch_request": {
     "max_tokens": 32768,

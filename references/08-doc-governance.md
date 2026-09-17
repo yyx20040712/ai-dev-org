@@ -32,7 +32,9 @@ deepseek 审核」）属流程规则，允许出现在宪法与文档正文；�
   org-config。（本判例为说明需要展示反面样例，具体串见白名单件与
   scripts/check-hardcode.mjs 实扫输出；本条已登记白名单豁免。）
 - **机检**：`scripts/check-hardcode.mjs` 按 org-config 派生名单扫 .md
-  正文（WARN 起步）；**白名单须独立 JSON**（`scripts/hardcode-whitelist.json`
+  正文（**strict RED 已生效**——selfiter 批 B6 升格：判据=白名单收缩后连续
+  两批零误报零命中已满足；`--warn`=校准期逃生口）；**白名单须独立 JSON**
+  （`scripts/hardcode-whitelist.json`
   ——若用 .md 存白名单会被自身扫中），每条豁免须写理由。
 - **历史件豁免**：修订记/事故叙述中被引用的端点属历史过程记录（§3 禁
   改写），登记白名单即可，**不原地修改**。
