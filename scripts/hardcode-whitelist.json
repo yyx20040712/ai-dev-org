@@ -13,6 +13,7 @@
     { "contains": "deepseek v4 flash", "reason": "02 §8 历史条款安排性提及（分面放行语义描述）；实配以 org-config 为准" },
     { "file_prefix": "agents/ops-", "contains": "MODEL-SELF: model-field:", "reason": "代理文件机读契约行（A 批纪律）：绑定值自报行——锚定 agents/ops-* 前缀+行内契约串双条件（审核 B-1 修复：豁免不外溢到普通行）；其正确性由 log-triage ③ 声明vs实际路由核对保障（强于正文扫描）；frontmatter 已剥离不扫" },
     { "file_prefix": "agents/ops-", "contains": "LEDGER-CLAIM: role=", "reason": "代理文件机读契约行（W-2）：账本认领尾栏模板——同上锚定+由 log-triage ③ 保障" },
-    { "file_prefix": "agents/ops-", "contains": "模型绑定=", "reason": "代理文件身份段绑定声明（B-2 裁决②：绑定值=配置面合法形态的正文镜像，供 MODEL-SELF 自报契约）——同上锚定；正确性由 log-triage ③ 保障" }
+    { "file_prefix": "agents/ops-", "contains": "模型绑定=", "reason": "代理文件身份段绑定声明（B-2 裁决②：绑定值=配置面合法形态的正文镜像，供 MODEL-SELF 自报契约）——同上锚定；正确性由 log-triage ③ 保障" },
+    { "file": "RESIDUALS.md", "contains": "builtin:bigmodel-coding-plan/GLM-5.3", "reason": "2026-09-17 自我迭代批清偿：RESIDUALS.md:94（evolve-gate2-samesource 行，v1.7 收口尾笔登记）引用实配 model-key 作同源欠账证据——08 §1 判例历史件豁免（08 §3 禁改写原文），行级登记；同行 k3/deepseek-flash/GLM-5.3 三命中一并覆盖；锚串在本文件唯一（grep 计 1）" }
   ]
 }
