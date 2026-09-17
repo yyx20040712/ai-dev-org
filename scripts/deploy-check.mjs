@@ -28,6 +28,7 @@
  *   错误处置（回炉轮 1，门一 W2/W3）：③ 装载失败（org-config/宿主）分行
  *   干净跳过（warn+指引）；写盘/回读抛错=[FAIL] 行带真因计入阻断（exit 1）。
  * 用法：node scripts/deploy-check.mjs [--install] [--self-test] [--agents-dir <dir>]
+ *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 可 import 纯函数零副作用（isMain guard 惯例；自检向量禁动真实状态）。
  */
 import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync, copyFileSync, mkdtempSync, rmSync } from 'node:fs'
@@ -466,8 +467,9 @@ if (isMain) {
       }
       if (hostCfg) hf = installHostFacts(oc.merged, hostCfg, oc.overPath)
       // 回炉轮 2 R5（W1-r1，纵深防御——evolve-b6 同族）：readHostConfig 返
-      // falsy 的理论形态兜底（主控机器事实：实装 readJson 对缺席文件必抛
-      // ENOENT 走上行 catch，此路当前不可达——补 else 消 hf 未定义暴露面，
+      // falsy 的兜底（改述 g3-w1r1：宿主 config 内容为字面 null=合法 JSON，
+      // readJson 不抛错、readHostConfig 返 null——极端罕见但可达，非「不可达」；
+      // 缺席文件形态实装必抛 ENOENT 走上行 catch——补 else 消 hf 未定义暴露面，
       // 非修活缺陷）
       else
         hf = { wrote: false, level: 'warn', line: `install-hostfacts——跳过：宿主配置不可读/缺席（readHostConfig 返回 ${hostCfg === null ? 'null' : typeof hostCfg}——理论形态，实装缺席必抛 ENOENT 由装载失败行承接）——手工路径=DEPLOY §3` }

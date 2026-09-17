@@ -11,9 +11,9 @@
  *  - 宿主配置单次读入共用；find 未命中/字段缺失给 alias 级错误（K-W3）。
  *  - JSON 读取剥 BOM（ds-N2）；日志 error 文本脱敏 Bearer/api-key 形态（K-N2）；
  *    ledger_path 支持绝对路径（K-N3）。
- *  - 退出码口径单源=references/06 §5.8；本件特有一句（exit 4=输出写失败时
- *    响应已落账、主控禁重试——防重复计费；总表行 4 仅载「远程调用已发生
- *    语义不回滚」未载禁重试指令，回炉 r2 保留呈终审）。
+ *  - 退出码口径单源=references/06 §5.8；本件特有一句（输出写失败时
+ *    响应已落账、主控禁重试——防重复计费；总表该行未载禁重试指令，
+ *    回炉 r2 保留呈终审；selfiter 批 p2-③ 削「数字=语义」半句）。
  *  - --mock-source 支持逗号并列多点（如 kimi-main:429,deepseek:500）——
  *    全链注入=零成本 exhaust 演练；部分注入则后续源为真实调用（成本自担）。
  *  - v1/v2 禁混用于同一工单=主控流程纪律（单一调用者+事件字段 dispatcher_version
@@ -38,6 +38,7 @@
  *   node ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>]
  *        [--dry-run] [--mock-source <alias>:<status>] <prompt文件> [输出文件]
  *   node ds-call-v2.mjs --list-roles | --list-sources
+ * flag 取值一律空格分隔（--x=y 等号形态=用法错拒收——cliFlag 单源立场）。
  */
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join, dirname, resolve, isAbsolute, relative, basename } from 'node:path'
@@ -58,8 +59,8 @@ const scrub = (s) => String(s).replace(SCRUB_RE, '<redacted>')
 
 // ── 退出码分类（evolve 批 b2，2026-09-16）：类型化错误带 exitCode 属性替换
 // 消息正则兜底（英文 locale 下 fs/系统错误消息不含中文关键词致配置装载类
-// 误判 exit 1 的修误分类面；判据源=06 §5.8 退出码总表——3=配置/装载错，
-// 1=用法/未知，2=exhaust 链内专用，4=输出写失败显式路径） ──
+// 误判的修误分类面；判据源=06 §5.8 退出码总表——配置/装载错、用法/未知、
+// exhaust 链内专用、输出写失败显式路径四类，行号见总表） ──
 export class ConfigError extends Error {
   constructor(message) {
     super(message)

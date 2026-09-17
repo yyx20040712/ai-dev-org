@@ -34,10 +34,12 @@ const argv = process.argv.slice(2)
 const flag = (n) => argv.includes(n)
 
 // ── 扫描面 ──
+// references 清单确定性排序（selfiter 批 evolve-l3-sort 清偿）：readdirSync
+// 枚举序跨平台/目录序不稳定——WARN/FAIL 报告行序与 diff 对账噪声面
 const docFiles = [
   join(SKILL_ROOT, 'SKILL.md'),
   join(SKILL_ROOT, 'RESIDUALS.md'),
-  ...readdirSync(REF_DIR).filter((f) => f.endsWith('.md')).map((f) => join(REF_DIR, f)),
+  ...readdirSync(REF_DIR).filter((f) => f.endsWith('.md')).sort().map((f) => join(REF_DIR, f)),
 ]
 // 章节标题索引：fileNo → Set("M", "M.K")
 function buildHeadingIndex() {
@@ -178,6 +180,10 @@ function selfTest() {
   t('m4 点名单 fixture 派生正例：名单内命中被豁免/名单外不命中（豁免不外溢）', dOk?.error == null && dOk?.names?.has?.('scripts/x.py') === true && dOk?.names?.has?.('scripts/other.py') === false, true)
   const dBad = typeof deriveProjectNames === 'function' ? deriveProjectNames({}) : null
   t('m4 缺段→exit 3 语义：deriveProjectNames 返回错误形态+stderr 点名 anchors_exempt', dBad?.error != null && dBad?.names === null && dBad.error.includes('anchors_exempt'), true)
+  // selfiter 批（evolve-l3-sort）向量：扫描面确定性排序不变式——头部两件为
+  // 固定序（SKILL/RESIDUALS），references 段须按名排序（构造处 .sort() 回归守卫）
+  const refsPortion = docFiles.slice(2)
+  t('l3 扫描面确定性排序（references 段按名排序）', refsPortion.length > 0 && refsPortion.join('\n') === [...refsPortion].sort().join('\n'), true)
   if (fails.length) console.error(`[self-test] FAIL ×${fails.length}: ${fails.join('; ')}`)
   else console.error(`[self-test] ${n}/${n} 过`)
   return fails.length === 0

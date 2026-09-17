@@ -3,7 +3,8 @@
  * 语义：探测 package.json scripts，逐 gate 跑「存在者」；缺失=SKIP（骨架
  * 宽松模式）。**宽松模式不是门禁**——投产必须 DEFENSES_STRICT=1（CI
  * 模板已设）：SKIP 升级为 FAIL，逼门禁齐装（W5 审 Kimi-W9 防假门禁）。
- * 用法：node scripts/verify.mjs   （退出码：0=全过；1=有 FAIL）
+ * 用法：node scripts/verify.mjs（退出码口径单源=ai-dev-org 技能 references/06
+ *   §5.8——分发到项目后以项目门禁文档为准，本件不复写数字映射）
  */
 import { readFileSync, existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'

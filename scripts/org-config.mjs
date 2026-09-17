@@ -11,6 +11,7 @@
  *   node org-config.mjs [--project <dir>] hash      # 打印 cfg:<hash12>
  *   node org-config.mjs [--project <dir>] validate  # 与宿主 config.json 交叉校验（不符 exit 3）
  *   node org-config.mjs --self-test                 # 合并/哈希语义自测向量
+ * flag 取值一律空格分隔（--x=y 等号形态=用法错拒收——cliFlag 单源立场）。
  */
 import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
@@ -21,7 +22,9 @@ import { fileURLToPath } from 'node:url'
 export const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_CFG = join(SKILL_ROOT, 'org-config.default.json')
 
-/** JSON 读取（剥 UTF-8 BOM——Windows 编辑器常见，审核链 ds-N2；语法错误带路径上下文）。 */
+/** JSON 读取（剥 UTF-8 BOM——Windows 编辑器常见，审核链 ds-N2；语法错误带路径上下文）。
+ *  返回值语义归档（g3-w1r1）：合法 JSON 字面 null → 返 null 非 throw——
+ *  消费点须对 null 守卫（宿主 config 内容为 null 时 readHostConfig 即此形态）。 */
 export function readJson(path) {
   const raw = readFileSync(path, 'utf8').replace(/^\uFEFF/, '')
   try {
@@ -97,10 +100,14 @@ export class UsageError extends Error {
   }
 }
 
-/** CLI flag 取值单源（g3 批三校验）：①同名 flag 出现≥2 次=用法错；②flag 居
- *  末位（无值）=用法错；③下一 token 以 -- 开头（值形如 flag）=用法错。
+/** CLI flag 取值单源（g3 批三校验+selfiter 批等号立场）：①同名 flag 出现≥2 次
+ *  =用法错；②flag 居末位（无值）=用法错；③下一 token 以 -- 开头（值形如
+ *  flag）=用法错；④等号形态 `--name=value`=用法错拒收（g3-cliflag-equals
+ *  立场：本工具族 flag 一律空格分隔取值，禁静默判缺席回退——fail-fast）。
  *  缺席仍返回 null=现语义不变；单 - 开头值（如负数）不算 flag 形态，放行。 */
 export function cliFlag(argv, name) {
+  const eqForm = argv.find((t) => typeof t === 'string' && t.startsWith(name + '='))
+  if (eqForm !== undefined) throw new UsageError(`flag ${name} 的等号形态「${eqForm}」不支持——flag 一律空格分隔取值（g3-cliflag-equals 立场：拒收并点名，防静默缺席回退）`)
   const hits = []
   for (let i = 0; i < argv.length; i++) if (argv[i] === name) hits.push(i)
   if (hits.length === 0) return null
@@ -197,6 +204,10 @@ if (isMain) {
     t('g3 cliFlag：下一 token 以 -- 开头（值形如 flag）→UsageError', (() => { const r = g3run(() => cliFlag(['--b', '--c'], '--b')); return r.e?.constructor?.name === 'UsageError' })())
     t('g3 cliFlag：单 - 开头值（负数）放行', (() => { const r = g3run(() => cliFlag(['--hours', '-3'], '--hours')); return r.e === undefined && r.v === '-3' })())
     t('g3 cliFlag：UsageError 不带 exitCode 属性（消费点显式 exit 1）', (() => { const r = g3run(() => cliFlag(['--b'], '--b')); return r.e?.constructor?.name === 'UsageError' && r.e.exitCode === undefined })())
+    // selfiter 批（g3-cliflag-equals 立场）向量：等号形态拒收——红态=旧实现
+    // 不识别该形态、静默判缺席返 null（fail-fast 相左面）
+    t('selfiter cliFlag：等号形态 --b=v →UsageError（拒收并点名）', (() => { const r = g3run(() => cliFlag(['--b=v'], '--b')); return r.e?.constructor?.name === 'UsageError' && String(r.e.message).includes('--b=v') })())
+    t('selfiter cliFlag：等号形态仅对被查询 flag 判拒（查 --c 拒并点名/--b 正常取值不受累）', (() => { const r1 = g3run(() => cliFlag(['--b', 'v1', '--c=v'], '--c')); const r2 = g3run(() => cliFlag(['--b', 'v1', '--c=v'], '--b')); return r1.e?.constructor?.name === 'UsageError' && String(r1.e.message).includes('--c=v') && r2.e === undefined && r2.v === 'v1' })())
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
   }

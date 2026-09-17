@@ -11,6 +11,7 @@
  *       ~9k Kimi tokens，须 --r1 显式触发=配给保护）。
  * 用法：node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden]
  *       [--project <账本目录>] [--keep-tmp]
+ *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 退出码口径单源=references/06 §5.8；本件特有一句（R2b 派发器装载路异常
  *       计入 FAIL 汇总、不单独退配置错——总表对回归件未载此聚合口径，
  *       回炉 r2 保留呈终审）。
@@ -284,8 +285,8 @@ if (want('R9')) {
 //     ensureWithinRoot 三负例（恰 ..、..\、../ 三输入形态）+2 正例。
 //   ④ B1 回炉向量（evolve-rework r1，2026-09-16）：registry 装载错误面端到端——
 //     坏 JSON 与 roles:null 两形态均须 exit 3（06 §5.8 配置/装载错类；红态=
-//     裸 readJson/裸取 registry.roles[roleId] 抛普通异常→classifyExitCode 无
-//     exitCode 属性判 1=未申报回退，门一出件 B1）。
+//     裸 readJson/裸取 registry.roles[roleId] 抛普通异常→classifyExitCode 对
+//     无 exitCode 属性按用法/未知类退——未申报回退面，门一出件 B1）。
 //   本块一切 spawnSync 带 timeout+killSignal（秒级 mock 路径 60s 量级）。
 if (want('R10')) {
   let ok = true

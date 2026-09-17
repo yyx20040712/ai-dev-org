@@ -135,6 +135,9 @@ exit 1→3（类型化分类替换消息正则）；registry 文件路径越界�
 拒绝（纵深防御，当前不可达）；null provider 三路径 TypeError 崩溃→
 org-config/ds-call-v2 exit 3+明确消息、check-hardcode 降级 exit 5 继续扫。
 本批起各脚本头注一律仅持「口径单源=本表」指针（九件复写块清偿，C1 机检）。
+**selfiter 批 C1 严式常驻**（evolve-p2-① 扩面）：`exit N=`/`退出码：N=` 两式
+数字=语义复写形态由 pre-commit 快扫拦截（原 one-off grep 配方的变体盲区闭合
+——严式首扫即揪出 b8 清偿后残留的同族两处）。
 
 ## 6. 会话内子代理定档限制与欠账（诚实记账）
 

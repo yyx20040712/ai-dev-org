@@ -1,8 +1,10 @@
 /**
  * 宪法组织段预算自检（ai-dev-org）：提取 AGENTS.md 中全部 ORG-SEG 标记段，
- * 每段非空白字符数 ≤600 为过；缺段/多段/BEGIN 无 END/超限 → exit 1
+ * 每段非空白字符数 ≤600 为过；缺段/多段/BEGIN 无 END/超限=FAIL
  *（立案清单第 0 步强制项）。多段=配置错误（意图单段，防预算分散逃逸）。
  * 用法：node check-constitution-budget.mjs [AGENTS.md 路径（默认 ./AGENTS.md）]
+ * 退出码口径单源=references/06 §5.8（此处不复写数字映射——selfiter 批
+ * evolve-ccb-weaktype 清偿）。
  */
 import { readFileSync } from 'node:fs'
 

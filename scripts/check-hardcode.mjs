@@ -22,7 +22,7 @@
  * 指针化；回炉 r2 削 b8 残留碎片，降级行语义总表已载）。
  */
 import { readFileSync, existsSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join, relative, basename } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { SKILL_ROOT, loadOrgConfig } from './org-config.mjs'
 
@@ -114,7 +114,10 @@ export function scanText({ relPath, text, merged, whitelist = [], extraTerms = [
 
 function listMd(dir) {
   const out = []
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
+  // 确定性排序（selfiter 批 evolve-l3-sort 清偿）：readdirSync 枚举序跨平台/
+  // 目录序不稳定——diff 对账与报告输出噪声面；一律按名排序后遍历
+  const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+  for (const e of entries) {
     if (e.name.startsWith('.') || e.name === '_archive' || e.name === 'scripts' || e.name === 'templates') continue
     const p = join(dir, e.name)
     if (e.isDirectory()) out.push(...listMd(p))
@@ -177,6 +180,18 @@ function selfTest() {
   }
   hmDegraded = hmBuf.some((s) => s.includes('[degraded]') && s.includes('null'))
   t('b4 null provider→降级行+其余源词表继续派生（不崩）', hmErr === null && Array.isArray(hmTerms) && hmTerms.length === 1 && hmTerms[0].name.includes('B4Guard-Model') && hmDegraded)
+  // selfiter 批（evolve-l3-sort）向量：清单确定性排序——红态=排序缺位时目录序
+  // 原样透出（NTFS 常按建盘序非字典序），乱序建盘 fixture 拷打
+  let l3ok = null
+  try {
+    const d = mkdtempSync(join(tmpdir(), 'hc-l3-'))
+    try {
+      for (const n of ['c.md', 'a.md', 'b.md']) writeFileSync(join(d, n), 'x', 'utf8')
+      const got = listMd(d).map((p) => basename(p))
+      l3ok = got.join(',') === 'a.md,b.md,c.md'
+    } finally { rmSync(d, { recursive: true, force: true }) }
+  } catch { l3ok = false }
+  t('l3 清单确定性排序（乱序建盘 fixture）', l3ok === true)
   const fail = cases.filter((x) => !x.c)
   for (const x of cases) console.log(`${x.c ? 'PASS' : 'FAIL'} ${x.n}${x.d ? ' — ' + x.d : ''}`)
   console.log(`check-hardcode 自检：${cases.length - fail.length}/${cases.length} 过`)
@@ -194,7 +209,7 @@ for (const f of files) all.push(...scanText({ relPath: relative(root, f).replace
 // agents 目录（--agents 时启用）：限 ops-*.md，剥离 frontmatter 只扫正文（B-2 裁决②③）
 let agentsFiles = 0
 if (agentsDir && existsSync(agentsDir)) {
-  for (const e of readdirSync(agentsDir, { withFileTypes: true })) {
+  for (const e of readdirSync(agentsDir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) { // 确定性排序（evolve-l3-sort）
     if (!e.isFile() || !/^ops-.*\.md$/.test(e.name)) continue // 限 ops-*.md（N-1：内置/插件代理不扫）
     agentsFiles++
     all.push(...scanText({ relPath: `agents/${e.name}`, text: stripFrontmatter(readFileSync(join(agentsDir, e.name), 'utf8')), merged, whitelist, extraTerms: hostTerms }))
