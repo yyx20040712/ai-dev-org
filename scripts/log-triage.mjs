@@ -50,10 +50,20 @@ export function isValidDateStr(s) {
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d
 }
 /** 窗口解析（纯函数，自检可注入）：--hours 与 --date 同走 epoch ms；
- *  --date 窗=[UTC 零点, 次 UTC 零点)（撤回「本地零点」预案）；--hours 窗=[now−Nh, ∞) 无上界（原状）。 */
+ *  --date 窗=[UTC 零点, 次 UTC 零点)（撤回「本地零点」预案）；--hours 窗=[now−Nh, ∞) 无上界（原状）。
+ *  v2.0.1 修复批 M3：--date 与 --hours 互斥（同给=UsageError——原 hours 分支胜出
+ *  而展示走 dateStr=假窗、取数走 date 单文件漏跨午夜行，窗口/展示/取数三处互相
+ *  矛盾）；--hours 须为正有限数（原 NaN/负数静默退化为「今天」date 窗=与 --date
+ *  fail-fast 立场不一致的静默回退面）。 */
 export function resolveWindow({ argv, now = new Date() }) {
-  const hours = Number(cliFlag(argv, '--hours') || 0)
+  const hoursRaw = cliFlag(argv, '--hours')
   const dateArg = cliFlag(argv, '--date') || null
+  if (hoursRaw != null && dateArg != null) throw new UsageError('--date 与 --hours 互斥（同给时窗口/展示/取数三处口径分裂——请单选；v2.0.1 修复批 M3）')
+  let hours = 0
+  if (hoursRaw != null) {
+    hours = Number(hoursRaw)
+    if (!Number.isFinite(hours) || hours <= 0) throw new UsageError(`--hours 非法值「${hoursRaw}」——须为正数（如 --hours 24；v2.0.1 修复批 M3：原静默退化为当天日期窗）`)
+  }
   const dateStr = dateArg || (hours > 0 ? null : now.toISOString().slice(0, 10))
   const dayStart = dateStr ? Date.parse(`${dateStr}T00:00:00Z`) : null
   const sinceMs = hours > 0 ? now.getTime() - hours * 3600_000 : dayStart
@@ -97,11 +107,13 @@ const aliasOf = (providerId, aliasMap) => {
 export function classifyError({ statusCode, reason, statusMessage, providerMessage, durationMs }) {
   const code = Number(statusCode) || 0
   const msg = `${statusMessage || ''} ${providerMessage || ''} ${reason || ''}`.toLowerCase()
-  if (code === 429 || /rate.?limit|quota|配额|too many requests/.test(msg)) return 'quota'      // 配额限流
+  // 403=配额族（v2.0.1 修复批 L4：与类目标签「配额限流(429/403)」及派发器 exhaust
+  // 实录口径对齐——原代码落 config 分支=标签撒谎；换源处置对坏 key 403 亦为合理解）
+  if (code === 429 || code === 403 || /rate.?limit|quota|配额|too many requests/.test(msg)) return 'quota' // 配额限流
   if (code === 504 || (code === 0 && /timeout|timed? ?out/.test(msg) && (durationMs || 0) > 240_000)) return 'window' // 网关窗口
   if (code >= 500 || /overload|internal server|bad gateway|service unavailable/.test(msg)) return 'server'           // 服务端过载
   if (/econnreset|econnrefused|fetch failed|socket|network|dns|tls/.test(msg)) return 'transport' // 传输层
-  if (code === 400 || code === 401 || code === 403 || code === 404 || /invalid.*key|not found|unauthorized|forbidden/.test(msg)) return 'config' // 配置错
+  if (code === 400 || code === 401 || code === 404 || /invalid.*key|not found|unauthorized|forbidden/.test(msg)) return 'config' // 配置错
   return 'other'
 }
 const CLASS_NAMES = { quota: '配额限流(429/403)', window: '网关窗口(504/超长时延)', server: '服务端过载(5xx)', transport: '传输层(网络错)', config: '配置错(400/401/404)', other: '未分类' }
@@ -171,8 +183,10 @@ function harvestRouting(rows, sinceMs, untilMs) {
     }
     if (r.event === 'switch') {
       // 累积形态（selfiter B4 evolve-m6-runid 清偿——原单值覆盖：同 runId 多次
-      // switch 只记末值=换源轨迹截断）；消费面按数组聚合
-      const rec = { ts: r.ts, from: r.source, error: r.error }
+      // switch 只记末值=换源轨迹截断）。v2.0.1 修复批 M2：收割字段对齐派发器
+      // switch 行实况（from/to——原读 r.source 恒 undefined），并补 to 字段供
+      // ②段换源轨迹聚合（原「消费面按数组聚合」为未兑现声明=死数据）。
+      const rec = { ts: r.ts, from: r.from ?? r.source, to: r.to, error: r.error }
       if (out.switch[r.runId]) out.switch[r.runId].push(rec)
       else out.switch[r.runId] = [rec]
     }
@@ -270,7 +284,8 @@ function run() {
   const aliasMap = buildAliasMap(merged.providers)
   if (!merged.finish_vocab?.complete?.length || !merged.finish_vocab?.truncation?.length) {
     console.error('[config] org-config finish_vocab 缺 complete/truncation 词表（词表单源纪律 06 §0——v1.6 批收紧，无脚本内兜底）')
-    process.exit(3)
+    process.exitCode = 3 // 配置错（06 §5.8 行 3）——自然退出不强杀（v2.0.1 修复批 L3：原 process.exit(3) 自破本件「自然退出（HOST-node25 规避）」纪律，同文件两种退出哲学并存）
+    return
   }
 
   // 自检（--self-test）：fixture 级断言，全量聚合计入退出码（v1.6 批——原仅末 fixture 计=假 PASS 面）
@@ -281,6 +296,7 @@ function run() {
     t('504→window', classifyError({ statusCode: 504 }) === 'window')
     t('500→server', classifyError({ statusCode: 500 }) === 'server')
     t('401→config', classifyError({ statusCode: 401 }) === 'config')
+    t('403→quota（v2.0.1 修复批 L4：对齐类目标签「配额限流(429/403)」——原落 config 分支=标签撒谎）', classifyError({ statusCode: 403 }) === 'quota')
     t('ECONNRESET→transport', classifyError({ statusMessage: 'fetch failed: ECONNRESET' }) === 'transport')
     t('枚举值判定（sonnet 非 <uuid>/<model> 形态）', !VALID_MODEL_RE.test('sonnet'))
     t('合法绑定形态（uuid/model）', VALID_MODEL_RE.test('8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash'))
@@ -316,6 +332,12 @@ function run() {
     const tSh0916 = Date.UTC(2026, 8, 15, 20) // =Asia/Shanghai 本地 2026-09-16 04:00
     t('b3 UTC 日界（非本地零点）：上海本地 09-16 04:00 行（=UTC 09-15 20:00）不入 09-16 窗', !!wB3 && tSh0916 < wB3.sinceMs)
     t('b3 --hours 同路径：epoch ms 回推（now 定锚 12:00Z−2h=10:00Z）', typeof resolveWindow === 'function' && resolveWindow({ argv: ['--hours', '2'], now: new Date(Date.UTC(2026, 8, 16, 12)) }).sinceMs === Date.UTC(2026, 8, 16, 10))
+    // v2.0.1 修复批 M3 向量：--date/--hours 互斥 + --hours 值校验（红态=旧实现三处口径分裂/静默退化）
+    t('M3 --date 与 --hours 同给→UsageError', (() => { try { resolveWindow({ argv: ['--date', '2026-09-16', '--hours', '2'] }); return false } catch (e) { return e instanceof UsageError } })())
+    t('M3 --hours 非法值（abc/0/-3）→UsageError（原静默退化为当天日期窗）', (() => { for (const v of ['abc', '0', '-3']) { try { resolveWindow({ argv: ['--hours', v] }); return false } catch (e) { if (!(e instanceof UsageError)) return false } } return true })())
+    // v2.0.1 修复批 M2 向量：switch 收割字段对齐派发器行实况（from/to——原读 r.source 恒 undefined）
+    const swOut = harvestRouting([{ ts: '2026-09-16T10:00:00Z', runId: 'sw1', event: 'switch', from: 'a', to: 'b', error: 'x' }], null).switch
+    t('M2 switch 收割：from/to 透传（供 ②段换源轨迹聚合）', swOut.sw1?.[0]?.from === 'a' && swOut.sw1?.[0]?.to === 'b')
     const rtRowsB3 = [
       { ts: '2026-09-16T18:00:00.000Z', runId: 'sh-local-0917-0200', event: 'exhaust', statusCode: 504, error: 'x' },
       { ts: '2026-09-16T23:59:59.999Z', runId: 'in-tail', event: 'exhaust', statusCode: 504, error: 'x' },
@@ -338,8 +360,11 @@ function run() {
     console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
     process.exitCode = stFails === 0 ? 0 : 1
   } else {
-    // 收割两账（--hours 无日期时目录守卫：CLI 日志目录缺失=空集不崩——v1.6 批）
-    const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-2) : [])
+    // 收割两账（--hours 无日期时目录守卫：CLI 日志目录缺失=空集不崩——v1.6 批）。
+    // v2.0.1 修复批 L5：hours 模式取数文件数按窗长推导（ceil(N/24)+1）——原恒
+    // slice(-2) 使 --hours≥48 跨天统计静默低估且无留痕（窗口注释称「无上界」与
+    // 取数面矛盾）。
+    const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-(Math.ceil(hours / 24) + 1)) : [])
     // 缺输入显式留痕（evolve-l9-degrade：原三面静默空输出与 M1 静默空窗同族——红态=缺目录零提示）。
     // 回炉 W1：hours 模式目录缺失走 cliDir 形态（原空数组漏留痕=目标场景零提示）
     for (const n of missingInputNotes(dateStr
@@ -387,6 +412,16 @@ function run() {
       }
       W(`-- ② 外链路（派发器流水）attempt/ok/exhaust/switch 计数：\n`)
       W(`   attempts=${JSON.stringify(routing.attempts)} ok=${JSON.stringify(routing.ok)}\n`)
+      // switch 聚合输出（v2.0.1 修复批 M2：原头注声明 switch 计数而收割恒空+零消费
+      // =「声称提供但实际坏掉」面——现按 from→to 对计数+涉及 runId 数并呈）
+      {
+        const swRecs = Object.values(routing.switch).flat()
+        if (swRecs.length) {
+          const pairs = {}
+          for (const s of swRecs) { const k = `${s.from ?? '?'}→${s.to ?? '?'}`; pairs[k] = (pairs[k] || 0) + 1 }
+          W(`   switch 总数=${swRecs.length}（涉及 runId ${Object.keys(routing.switch).length} 个）from→to=${JSON.stringify(pairs)}\n`)
+        } else W(`   switch=0\n`)
+      }
       for (const [src, list] of Object.entries(routing.exhaust)) for (const e of list) W(`   exhaust ${e.ts} ${src} ${e.statusCode}[${CLASS_NAMES[e.cls]}] ${e.error} run=${e.runId} role=${e.role}\n`)
       // ③ 静默回退检测
       W(`-- ③③ 静默回退检测（子代理声明绑定 vs 实际路由，metadata×${metasAll.length} 份）：\n`)
