@@ -16,10 +16,23 @@
 | PostToolUse-livefire | hook 实弹触发验证 | 需机检强制（hook 拦截）的批次首场核对 |
 | killed-agent-metadata-gap | 被杀岗 metadata 无声明值可核 | 机检化（编排会话派发记录回填）后续批 |
 | check-anchors-calibration | 全角冒号形态/dod.md 扫描面/点名豁免漂移面 | check-anchors 升 --strict 决策前置批 |
-| selfiter-k1k2-reasoninglevel | 绑定子代理派发缺档位声明即拒启（reasoning-level-missing）——根因已定位：宿主 model 串支持 `$档位` 后缀（zcode.cjs parseModelPickerValue/resolveProfileModelSelection 实证 2026-09-17），非 UI 选择器问题；七档案+六模板已补 `$max`，log-triage ③ 检测面已同步（$ 后缀剥除比对+account: 前缀族） | 新会话派发真实小任务+`log-triage` 核对零回退后闭合 |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
 
 ## 修订记
+
+- 2026-09-17 档位批首验闭合：selfiter-k1k2-reasoninglevel **closed**（新会话派发
+  ops-gate1-k1 真实审包小任务）。证据链四件：①宿主 metadata
+  `profileSnapshot.modelSelection.options.reasoningLevel="max"`（`$max` 语法宿主
+  解析活体实证）；②网络日志 provider=kimi-main（org-config 别名）/model=声明
+  绑定值（剥档位后一致）/attempt=1/finish=stop（102s/8691tok，tool_uses=0=
+  协议墙遵守）；③log-triage ③ 零回退
+  检出+⑥ 归因 `ops-gate1-k1 @ kimi-main calls=1 in=5439 out=3252`（与 metadata
+  usage 逐字一致），MODEL-SELF 尾栏=声明值；④反证样本：同日 5 次旧快照
+  （level=None）派发全部卡死 status=running=拒启形态。随批清偿检测面盲区
+  （首场真实派发即暴露）：log-triage ③ 声明值归一器 `declaredModelOf`——
+  宿主 metadata 新格式 `modelSelection` 结构体合成同构字符串、旧 `model`
+  字符串透传、残缺形态=null 跳过不合成伪值；单比较口径不分叉+4 自检向量
+  （regression R8 承载，8/8 过）。
 
 - 2026-09-17 档位批：根因定位 selfiter-k1k2-reasoninglevel=宿主 model 串
   `$档位` 后缀语法（非 UI 选择器）；六岗七档案+六模板统一 `$max`（含清偿
