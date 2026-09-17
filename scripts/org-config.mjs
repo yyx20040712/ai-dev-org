@@ -303,14 +303,30 @@ if (isMain) {
     process.exit(fails === 0 ? 0 : 1)
   }
 
-  const { merged, hasOverride } = loadOrgConfig(projectDir)
+  // v2.0.1 修复批 M7：CLI 命令路径的装载/宿主配置失败包 [fatal]+exit 3——
+  // resolve/hash/validate 原裸抛完整堆栈退 1，与用法注宣称的「validate 不符
+  // exit 3」及家族 ConfigError 纪律（配置/装载错=3、一行错误）相悖。
+  let loaded
+  try {
+    loaded = loadOrgConfig(projectDir)
+  } catch (e) {
+    console.error(`[fatal] org-config 装载失败（${projectDir}）: ${e.message}（06 §5.8 行 3=配置/装载错）`)
+    process.exit(3)
+  }
+  const { merged, hasOverride } = loaded
   if (cmd === 'resolve') {
     console.log(JSON.stringify(merged, null, 2))
     console.error(`[override] ${hasOverride ? '项目覆盖件已合并' : '无项目覆盖件（纯默认件）'}`)
   } else if (cmd === 'hash') {
     console.log(`cfg:${cfgHash(merged)}`)
   } else if (cmd === 'validate') {
-    const errors = validateProviders(merged)
+    let errors
+    try {
+      errors = validateProviders(merged)
+    } catch (e) {
+      console.error(`[fatal] validate 途中宿主配置装载失败: ${e.message}（06 §5.8 行 3=配置/装载错）`)
+      process.exit(3)
+    }
     if (errors.length) {
       errors.forEach((e) => console.error(e))
       process.exit(3)
