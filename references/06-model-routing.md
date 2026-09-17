@@ -234,8 +234,8 @@ agents metadata（声明绑定/status/usage）。
   v1.1 改写——供应商事实全部抽出至 org-config；新增派发器 v2 角色
   档案化条款与记账字段；会话内子代理欠账升格为账本强制输出项
   （设计书=Kimi 拟定，审核=deepseek 5B/5W/3N，终裁档=
-  scripts/audits/2026-09-10_org-skill-rulings.md）。
+  ~/.zcode/skills/_archive/ai-dev-org-history-2026-09/audits/2026-09-10_org-skill-rulings.md）。
 - 2026-09-02 v1.0/v1.1：见归档件修订史（用户四次 Ruling 定稿）。
-- 2026-09-17 v2.4（m4 清偿批）：派发器请求参数/R1 源名单/anchors 豁免点名单收编 org-config（新分区 dispatch_request/regression_cfg/anchors_exempt）；缺段=exit 3 无静默回退。批档=scripts/audits/2026-09-17_m4-impl-report.md
-- 2026-09-17 v2.5（g3 三残留清偿批）：ds-call-v2 flag 解析收编 org-config cliFlag 单源（W7「分发单元自包含」副本豁免前提过时——主控预裁申报，门二 R-6 裁定成立）+用法错三校验（evolve-l4-flags 清偿；行为变化=缺值/重复/值形如 flag 统一 [用法错] exit 1，见 CHANGELOG v1.7.6 申报节）；deploy-check --install 增派生覆盖件动作③（deploy-hostfacts-split 清偿）。批档=scripts/audits/2026-09-17_g3-*
+- 2026-09-17 v2.4（m4 清偿批）：派发器请求参数/R1 源名单/anchors 豁免点名单收编 org-config（新分区 dispatch_request/regression_cfg/anchors_exempt）；缺段=exit 3 无静默回退。批档=~/.zcode/skills/_archive/ai-dev-org-history-2026-09/audits/2026-09-17_m4-impl-report.md
+- 2026-09-17 v2.5（g3 三残留清偿批）：ds-call-v2 flag 解析收编 org-config cliFlag 单源（W7「分发单元自包含」副本豁免前提过时——主控预裁申报，门二 R-6 裁定成立）+用法错三校验（evolve-l4-flags 清偿；行为变化=缺值/重复/值形如 flag 统一 [用法错] exit 1，行为变化申报=归档区 CHANGELOG v1.7.6 条）；deploy-check --install 增派生覆盖件动作③（deploy-hostfacts-split 清偿）。批档=~/.zcode/skills/_archive/ai-dev-org-history-2026-09/audits/2026-09-17_g3-*
 - 2026-09-17 v2.6（selfiter 批 B1+B2）：§5.8 行 5 适用面扩入 glm-look+C1 严式常驻+glm-look 面四项行为变化申报（B1b）；§6 补遗二=子代理失败接续 runbook 迁入（runbook-external-source 清偿，真源自此在技能内）；glm-look 流水行 schema 对齐 ctx 五字段（§5 记账字段面）。批档=仓外 E:/zcode_md/fix/ai-dev-org-selfiter-plan-2026-09-17/

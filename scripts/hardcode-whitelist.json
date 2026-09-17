@@ -7,18 +7,8 @@
       "reason": "2026-09-15 入口治理批更新：07 操作段已指针化（残留 glm-look-endpoints 闭环），本豁免现仅覆盖修订记（2026-09-11 补遗）的历史叙述——08 §3 禁改写"
     },
     {
-      "file": "CHANGELOG.md",
-      "contains": "api.deepseek.com",
-      "reason": "2026-09-15 入口治理批：SKILL.md 修订记迁档件，历史过程记录逐字保留——08 §3 禁改写；SKILL.md 正文与新增条目已零端点"
-    },
-    {
       "contains": "防作弊 K3",
       "reason": "概念编号误伤（B-1 词表扩容）：K3=组织教训库条款编号（防作弊锁设计），非模型键——正则无法区分，按行豁免（01/03 两处）"
-    },
-    {
-      "file": "CHANGELOG.md",
-      "contains": "GLM-5.3-Flash",
-      "reason": "CHANGELOG=历史过程记录（08 §3 禁改写）——模型名属历史叙事非现行路由声明"
     },
     {
       "file": "references/07-role-cards.md",

@@ -94,7 +94,10 @@ tier 记法：外部岗取 org-config
 （01/04 条数单源=`scripts/.golden/doc-counts.json`，check-anchors 对账，
 正文不落数字——A3 防双源）
 
-档案件（按需查、勿随技能常载）：版本史/冻结存档=CHANGELOG.md ｜ 残留欠账=RESIDUALS.md ｜ 历史批档=scripts/audits/。
+档案件（按需查、勿随技能常载）：历史版本史/残留册全量/批档=
+`~/.zcode/skills/_archive/ai-dev-org-history-2026-09/`（65 件 sha256 对账
+归档，selfiter 批 B3；路径相对 skills 根）。在册触发器与后续新登记=本
+目录 RESIDUALS.md（薄册）。
 新机部署与一键自检=DEPLOY.md（根目录）｜ scripts/deploy-check.mjs（--install 补代理/钩子/派生覆盖件）。
 
 ## 红旗（出现即停）
@@ -145,9 +148,13 @@ tier 记法：外部岗取 org-config
 | "子代理大概用了对的模型" | 无 model 参数=环境限制，如实记欠账 |
 | "部门墙灵活一点效率高" | 喂什么=岗位边界，灵活化=在册红线（01·E2） |
 
-## 版本与状态（v1.7.2 起指针化——正文不再内联）
+## 版本与状态（selfiter 批 B3 起自含——历史指针化）
 
-- 版本史/各批修订记=CHANGELOG.md（单源）；v1.0 冻结（用户裁决
-  2026-09-10）的条件、资格与裁决档指针=CHANGELOG v1.7.2 迁入存档段。
-- 残留欠账=RESIDUALS.md（open/closed 单源）；批档=scripts/audits/。
-- 新项目首场战役按 05 移植后做压力场景复测，结果回填 CHANGELOG 对应条目。
+- v1.0→v1.7.6+selfiter 前段版本史/各批修订记=归档件（`~/.zcode/skills/
+  _archive/ai-dev-org-history-2026-09/CHANGELOG.md`，路径相对 skills 根）；
+  v1.0 冻结（用户裁决 2026-09-10）的条件、资格与裁决档指针=该件 v1.7.2 迁入
+  存档段。
+- selfiter 批起版本演化=git 提交信息（分笔可回溯）+归档区批档+薄册新登记，
+  不再维护仓内 CHANGELOG（技能仓零过程件纪律，08 §6 规则 4）。
+- 残留欠账=RESIDUALS.md（薄册：触发器行+新登记）；历史全量=归档区同名件。
+- 新项目首场战役按 05 移植后做压力场景复测，结果回填仓外批档与薄册修订记。

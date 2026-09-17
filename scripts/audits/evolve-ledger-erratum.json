@@ -1,1 +1,0 @@
-[{"runId":"evolve-v17-erratum1","project":"ai-dev-org","event":"ruling","role":"main-control","tier":"session:host-tier","source":"session","usage":{"in":0,"out":0},"truncated":false,"outcome":"勘误（计数）：evolve-v17-closure 行「commit 13 笔未 push」应为 12 笔（实现 9+回炉 2+收口 1；git rev-list --count fe19260..HEAD=12）。与本批门一 W1 同类计数病（永久记录落数字），主控自抓自登；呈报包已同步勘误。承接=evolve-p2-advisories 同族（正文不落数字纪律）"}]
