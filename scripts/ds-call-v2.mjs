@@ -39,6 +39,13 @@
  *        [--dry-run] [--mock-source <alias>:<status>] <prompt文件> [输出文件]
  *   node ds-call-v2.mjs --list-roles | --list-sources
  * flag 取值一律空格分隔（--x=y 等号形态=用法错拒收——cliFlag 单源立场）。
+ * v2.3.1（2026-09-17 修复批）：①stdout 产物路径改自然退出（exitCode+return
+ *   替代 process.exit——大正文经管道时急退不等异步排空可截断尾部，原 W-2
+ *   「正文已输出 stdout」保证恰建立在被削弱面上）；②choices 空数组可选链
+ *   补全（原 TypeError 被误归网络瞬断退避重试）；③错误体脱敏先于截断（原
+ *   反序可留 key 前缀片段）；④多模型宿主条目显式警告（原静默取首个）；
+ *   ⑤DS_CALL_REGISTRY env 注入钩子（内部测试设施——R10④ 坏件注入零触碰
+ *   共享 registry；缺省行为不变，prod 路径禁依赖）。
  */
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join, dirname, resolve, isAbsolute, relative, basename } from 'node:path'
@@ -48,10 +55,15 @@ import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, readHostConfig, readJson, cliFlag, UsageError, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse } from './org-config.mjs'
 
-const DISPATCHER_VERSION = '2.3.0'
+const DISPATCHER_VERSION = '2.3.1'
 const LEDGER_SCHEMA_VERSION = 3 // v3（selfiter 批 B4）：增 project_id（归一化 id——映射单源=org-config projects，缺映射 raw 透传）
 const LOG_PATH = join(dirname(fileURLToPath(import.meta.url)), 'model-routing-log.jsonl')
-const REGISTRY_PATH = join(SKILL_ROOT, 'scripts', 'roles', 'registry.json')
+// env 重定向钩子（v2.3.1 修复批——内部测试设施，R10④ 坏件注入零触碰共享
+// registry；glm-look GLM_LOOK_HOST_CONFIG 先例）：不设 env 时落点与原硬编码
+// 完全一致；prod 路径禁依赖。
+const REGISTRY_PATH = process.env.DS_CALL_REGISTRY
+  ? resolve(process.env.DS_CALL_REGISTRY)
+  : join(SKILL_ROOT, 'scripts', 'roles', 'registry.json')
 const RETRYABLE = (s) => s === 429 || s >= 500
 const NO_RETRY = (s) => s === 400 || s === 401 || s === 403 || s === 404
 const SCRUB_RE = /(Bearer\s+)?[A-Za-z0-9_-]{24,}/g // 日志脱敏：长 token 形态一律掩码（K-N2）
@@ -187,6 +199,9 @@ function loadSources(merged, hostCfg) {
     const [, prov] = hit
     if (!prov.options?.baseURL || !prov.models || Object.keys(prov.models).length === 0)
       exitConfig(`源装载失败 alias=${alias}：宿主条目缺 options.baseURL 或 models 字段`)
+    const modelKeys = Object.keys(prov.models)
+    if (modelKeys.length > 1) // v2.3.1：多模型条目显式警告（原静默取首个——取键序无声明=静默路由面）
+      console.error(`[warn] 源 ${alias} 宿主条目配置了 ${modelKeys.length} 个模型，按对象键序取首个 ${modelKeys[0]}（org-config 暂无 per-role 模型钉扎位——多模型宿主条目请收敛为单键）`)
     return {
       alias,
       kind: def.kind,
@@ -224,9 +239,9 @@ function parseResponse(src, data) {
     const text = Array.isArray(data.content) ? data.content.filter((b) => b.type === 'text').map((b) => b.text).join('') : ''
     return { text, usage: { in: data.usage?.input_tokens, out: data.usage?.output_tokens }, finish: data.stop_reason }
   }
-  const msg = data.choices?.[0].message || {}
+  const msg = data.choices?.[0]?.message || {}
   let text = msg.content || ''
-  if (!text && msg.reasoning_content) text = '[仅推理无正文,finish=' + data.choices?.[0].finish_reason + ']\n' + msg.reasoning_content
+  if (!text && msg.reasoning_content) text = '[仅推理无正文,finish=' + data.choices?.[0]?.finish_reason + ']\n' + msg.reasoning_content
   return { text, usage: { in: data.usage?.prompt_tokens, out: data.usage?.completion_tokens }, finish: data.choices?.[0]?.finish_reason }
 }
 
@@ -359,7 +374,7 @@ async function callSource(src, prompt, system, logger, mock, reqParams) {
         continue
       }
       if (!res.ok) {
-        const detail = scrub((await res.text()).slice(0, 300))
+        const detail = scrub(await res.text()).slice(0, 300) // 脱敏先于截断（v2.3.1：原反序在 300 字符边界切断 ≥24 字符 key 时可留未掩码前缀片段）
         if (NO_RETRY(res.status)) throw Object.assign(new Error(`HTTP ${res.status}: ${detail}`), { fatal: true, statusCode: res.status })
         if (attempt === 3) throw Object.assign(new Error(`HTTP ${res.status}: ${detail}`), { statusCode: res.status })
         const wait = mocked ? 0 : 5000 * 2 ** attempt
@@ -393,6 +408,9 @@ async function callSource(src, prompt, system, logger, mock, reqParams) {
 //     （classifyExitCode/ensureWithinRoot，R10 向量）时零副作用） ──
 async function cliMain() {
   const argv = process.argv.slice(2)
+  // env 钩子激活留痕（门一回炉 N4：DS_CALL_REGISTRY 残留会静默重定向 registry——
+  // 与 L16 消灭的静默路由面同族，激活即一行 stderr 可见）
+  if (process.env.DS_CALL_REGISTRY) console.error(`[registry-env] DS_CALL_REGISTRY 生效中: ${REGISTRY_PATH}（测试注入钩子——生产路径请清除此 env，防静默重定向）`)
   // g3 批（evolve-l4-flags 清偿，主控预裁 P1）：本地 flag 副本收编为 org-config
   // cliFlag 单源 import——W7「分发单元自包含」豁免前提已过时（本件 import 行已
   // 引 org-config 多标识符，副本=纯双源面）；三校验（重复/末位缺值/值形如
@@ -436,7 +454,8 @@ async function cliMain() {
       const rc = merged.roles?.[id] || {}
       console.log(`  ${id} | source=${rc.source ?? def.default_source}${rc.source ? '（org-config）' : '（registry 兜底）'} tier=${rc.tier || '?'} | ${def.sys_prompt_file}`)
     }
-    process.exit(0)
+    process.exitCode = 0 // 自然退出（v2.3.1：stdout 产物路径禁 process.exit 急退——管道下不等异步排空可截尾）
+    return
   }
 
   let hostCfg // b2：宿主配置装载失败=配置类 ConfigError（exit 3）
@@ -445,7 +464,8 @@ async function cliMain() {
   if (listSources) {
     console.log(`源序（org-config source_chain；cfg:${cfgHash(merged)}）：`)
     sources.forEach((s, i) => console.log(`  ${i + 1}. ${s.alias} | ${s.modelName} | ${s.kind} @ ${s.baseURL} | ${s.note}`))
-    process.exit(0)
+    process.exitCode = 0 // 自然退出（同 listRoles——v2.3.1）
+    return
   }
 
   if (!roleId) {
@@ -507,7 +527,8 @@ async function cliMain() {
         2,
       ),
     )
-    process.exit(0)
+    process.exitCode = 0 // 自然退出（dry-run 装配包含 sys_prompt 全文——管道截尾面与主产物同形，v2.3.1）
+    return
   }
 
   // 账本目录先建（K-B2/ds-B2）——置于只读分支之后，零副作用命令不建目录（W-1）
@@ -554,10 +575,12 @@ async function cliMain() {
         writeFileSync(outPath, body, 'utf8')
       } catch (e) {
         console.error(`[out-warn] 输出文件写失败（正文已输出 stdout，可手工重定向保全；**响应已成功且已落账——主控禁据本码重试，防重复计费**）: ${e.message}`)
-        process.exit(4) // 4=本地 IO 错误（区别于 1=用法错误；stdout 已出正文即不得重试——ds-W1 终裁）
+        process.exitCode = 4 // 4=本地 IO 错误（区别于 1=用法错误；stdout 已出正文即不得重试——ds-W1 终裁）。自然退出（v2.3.1：exit 4 路径恰依赖「正文已在 stdout」——急退不等排空=该保证自毁）
+        return
       }
     }
-    process.exit(0)
+    process.exitCode = 0 // 自然退出（v2.3.1 修复 M1：审计报告常超管道缓冲 64KB，process.exit 急退不等异步 stdout 排空可丢正文尾——成功路径禁急退）
+    return
   }
 }
 const isMain =
