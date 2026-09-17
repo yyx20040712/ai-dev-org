@@ -215,7 +215,10 @@ export function recommendHealth(cnt, sh = {}) {
 }
 
 // ── ③③ 静默回退检测：metadata 声明 vs 日志实际 ──
-const VALID_MODEL_RE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|builtin:[^\s/]+)\/[^\s/]+$/
+// 形态：`provider/model` 或 `provider/model$档位`（`$` 后缀=宿主 model 串扩展语法，
+// 显式思考档位声明——2026-09-17 宿主 zcode.cjs 实证 parseModelPickerValue；档位段
+// 仅格式校验不参与回退比对）；provider 段=uuid / builtin: / account: 三前缀族。
+const VALID_MODEL_RE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|builtin:[^\s/]+|account:[^\s/]+)\/[^\s/]+(?:\$[\w-]+)?$/
 export function detectSilentFallback({ metas, subagentNet }) {
   const findings = []
   for (const m of metas) {
@@ -228,8 +231,10 @@ export function detectSilentFallback({ metas, subagentNet }) {
     }
     const act = subagentNet[sid]
     if (!act) { findings.push({ level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '无可核对请求' }); continue }
-    // 声明的供应商段（uuid 或 builtin:…）须与实际 providerId 一致；模型段须与 modelId 一致
-    const [declaredProv, declaredModel] = declared.split('/')
+    // 声明的供应商段（uuid/builtin:/account:）须与实际 providerId 一致；模型段剥除
+    // `$档位` 后缀后须与 modelId 一致（档位不参与回退判定——网络日志无档位维度）
+    const [declaredProv, declaredModelRaw] = declared.split('/')
+    const declaredModel = declaredModelRaw.split('$')[0]
     const match = (act.providerId === declaredProv || act.alias === declaredProv) && act.modelId === declaredModel
     if (!match) findings.push({ level: 'RED', profile: m.profileId, sid, declared, actual: `${act.alias}/${act.modelId}`, kind: '静默回退（声明≠实际路由）' })
   }
@@ -301,6 +306,14 @@ function run() {
     t('枚举值判定（sonnet 非 <uuid>/<model> 形态）', !VALID_MODEL_RE.test('sonnet'))
     t('合法绑定形态（uuid/model）', VALID_MODEL_RE.test('8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash'))
     t('合法绑定形态（builtin:model/key）', VALID_MODEL_RE.test('builtin:bigmodel-coding-plan/GLM-5.3'))
+    // 2026-09-17 档位批向量：`$档位` 后缀（宿主 model 串扩展语法）与 account: 前缀族
+    t('合法绑定形态（uuid/model$档位——宿主 $ 后缀语法）', VALID_MODEL_RE.test('b2466f8b-9d89-4428-a38e-c2aca1c41d0e/k3$max'))
+    t('合法绑定形态（account: 前缀族）', VALID_MODEL_RE.test('account:bigmodel-individual-coding-plan/GLM-5.3$max'))
+    const fbLvl = detectSilentFallback({
+      metas: [{ profileId: 'probe-lvl-x', childSessionId: 's3', profileSnapshot: { model: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e/k3$max' } }],
+      subagentNet: { s3: { alias: 'kimi-main', providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+    })
+    t('$档位后缀不误报回退（声明 k3$max/实际 k3=剥档位后一致）', fbLvl.length === 0)
     const fb = detectSilentFallback({
       metas: [{ profileId: 'probe-b-x', childSessionId: 's1', profileSnapshot: { model: 'sonnet' } },
               { profileId: 'probe-c-x', childSessionId: 's2', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash' } }],
