@@ -34,10 +34,12 @@ node scripts/deploy-check.mjs
 node scripts/deploy-check.mjs --install
 ```
 
-仅两动作：补 `~/.zcode/agents/ops-*` 六代理（templates/agents/ 单源复制，
-逐件 sha256 复核；已存在漂移件**不覆盖**——保护本机定制）+ 提交钩子
-（`git config core.hooksPath .githooks`，已设含自定义值时不重复设置）。
-不碰供应商配置。完成后自动复跑七项并按同口径退出。
+仅三动作（序号=对应检查项）：④ 补 `~/.zcode/agents/ops-*` 六代理
+（templates/agents/ 单源复制，逐件 sha256 复核；已存在漂移件**不覆盖**
+——保护本机定制）；⑤ 提交钩子（`git config core.hooksPath .githooks`，
+已设含自定义值时不重复设置）；③ 宿主事实派生项目覆盖件（g3 批 v1.7.6
+——授权形态=仅 --install 显式调用；规则与护栏见 §3）。
+不碰供应商默认件与宿主配置。完成后自动复跑七项并按同口径退出。
 
 ## 3 供应商对齐（用户裁决面）
 
@@ -45,6 +47,15 @@ org-config providers 双校验不符（deploy-check ③ FAIL 或 validate 输出
 alias/期望/实际三元组）时：按三元组改 `org-config.default.json`，或建项目
 覆盖件 `.zcode/org-config.json` 深合并覆盖（推荐——默认件保持仓库基线）。
 宿主 config（key/端点事实）**永不改、不入库**。
+
+自动化路（deploy-check --install 动作③，g3 批 v1.7.6）：从宿主供应商注册表
+按 entry_name 找唯一命中，派生各 alias 的 uuid_prefix（宿主条目 id 前 8
+字符）写项目覆盖件 `.zcode/org-config.json`（含 note 声明「用户配置域，装后
+可自由改写」；`.zcode/` 已 gitignore，机局部不入库）。护栏：覆盖件已存在
+**绝不覆盖**；有别名零命中或同名歧义（同 entry_name≥2）时**不写文件**、
+打印指引指向本节手工路径（歧义不猜）；全部命中且与默认件完全一致时**不写**
+（无冗余件）。派生只读宿主注册表与默认件，写后七项复跑（③ validate 真退出
+码即回读面）。
 
 ## 4 新会话验证
 

@@ -23,7 +23,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
-import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile } from './org-config.mjs'
+import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile, UsageError } from './org-config.mjs'
 
 const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CLI_LOG_DIR = join(homedir(), '.zcode', 'cli', 'log')
@@ -222,9 +222,17 @@ const pct = (arr, p) => { if (!arr.length) return 0; const s = [...arr].sort((a,
 //    自然退出形态，对齐本件「自然退出（HOST-node25 规避）」纪律；return 须
 //    函数体承载，缩进重排语义零变化=ds-call-v2 cliMain 先例） ──
 const argv = process.argv.slice(2)
-const flag = (n) => cliFlag(argv, n) // 单源（org-config 导出——v1.6 批 P2-3）
+const flag = (n) => cliFlag(argv, n) // 单源（org-config 导出——v1.6 批 P2-3；g3 批起三校验抛 UsageError）
 const now = new Date()
-const rawDate = flag('--date') || null
+// g3 批（evolve-l4-flags/P9 收敛）：--date/--hours 缺值不再按 null/0 静默——
+// cliFlag 三校验抛 UsageError→[用法错]+exitCode=1 自然退出（本件纪律不强杀）
+let rawDate = null
+let g3UsageErr = null
+try {
+  rawDate = flag('--date') || null
+} catch (e) {
+  g3UsageErr = e
+}
 function run() {
   if (rawDate && !isValidDateStr(rawDate)) {
     console.error(`[usage] --date 非法值「${rawDate}」——须为真实存在的日期（YYYY-MM-DD，如 2026-09-16）；格式/语义校验拒，窗口日界=UTC（evolve-E2 b3——原静默空窗=假绿面）`)
@@ -380,4 +388,18 @@ function run() {
     }
   }
 }
-run()
+// g3 批：flag 解析用法错（--date 此处/--hours 在 run() 内 resolveWindow 抛）
+// →[用法错]+exitCode=1 自然退出（HOST-node25 规避——本件纪律）
+if (g3UsageErr) {
+  console.error(`[用法错] ${g3UsageErr.message}`)
+  process.exitCode = 1
+} else {
+  try {
+    run()
+  } catch (e) {
+    if (e instanceof UsageError) {
+      console.error(`[用法错] ${e.message}`)
+      process.exitCode = 1
+    } else throw e
+  }
+}

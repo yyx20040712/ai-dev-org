@@ -23,18 +23,30 @@ import { tmpdir } from 'node:os'
 import { spawnSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
-import { SKILL_ROOT, readJson, loadOrgConfig, cliFlag } from './org-config.mjs'
+import { SKILL_ROOT, readJson, loadOrgConfig, cliFlag, UsageError } from './org-config.mjs'
 import { ensureWithinRoot } from './ds-call-v2.mjs' // b6：包含性校验单源消费（另一落点=ds-call-v2 loadRole，同步演进）
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
 const GOLDEN_DIR = join(SCRIPTS, 'roles', '.golden')
 const LOG_PATH = join(SCRIPTS, 'model-routing-log.jsonl')
 const argv = process.argv.slice(2)
-const flag = (n) => cliFlag(argv, n) // 单源（org-config 导出——v1.6 批 P2-3 收敛）
-const only = flag('--only') ? flag('--only').split(',').map((s) => s.trim().toUpperCase()) : null
+const flag = (n) => cliFlag(argv, n) // 单源（org-config 导出——v1.6 批 P2-3 收敛；g3 批起三校验抛 UsageError）
+// g3 批（evolve-l4-flags/P9 收敛）：--only/--project 缺值不再按 null/cwd 静默
+let only = null
+let projectDir = process.cwd()
+try {
+  const onlyArg = flag('--only')
+  if (onlyArg) only = onlyArg.split(',').map((s) => s.trim().toUpperCase())
+  projectDir = flag('--project') || process.cwd()
+} catch (e) {
+  if (e instanceof UsageError) {
+    console.error(`[用法错] ${e.message}`)
+    process.exit(1)
+  }
+  throw e
+}
 const wantR1 = argv.includes('--r1')
 const updateGolden = argv.includes('--update-golden')
-const projectDir = flag('--project') || process.cwd()
 const keepTmp = argv.includes('--keep-tmp')
 const want = (id) => !only || only.includes(id)
 const results = []
@@ -226,12 +238,27 @@ if (want('R7')) {
   record('R7', ok, `账本 schema 指针唯一指向 02 §9 ${det.join(' ')}`)
 }
 
-// ═══ R8：log-triage 自检聚合+--health 验收断言（v1.6 批 C2——mock 过滤假信号回归钉） ═══
+// ═══ R8：三脚本自检套件聚合（g3 批 P8 扩——原 v1.6 批 C2 单点）：
+//     org-config/deploy-check/log-triage 各自 exit 0 且输出含「全过」；
+//     log-triage 另持 --health 验收断言（mock 过滤假信号回归钉，C2 沿袭） ═══
 if (want('R8')) {
-  const r = spawnSync(node()[0], [join(SCRIPTS, 'log-triage.mjs'), '--self-test'], { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 5_000, killSignal: 'SIGKILL' })
-  const out = (r.stdout || '') + (r.stderr || '')
-  const hasAcc = out.includes('验收断言') && out.includes('全过')
-  record('R8', r.status === 0 && hasAcc, `exit=${r.status} 自检含验收断言=${out.includes('验收断言')}${r.status !== 0 ? `（输出尾：${out.slice(-160)}）` : ''}`)
+  const specs = [
+    ['log-triage', join(SCRIPTS, 'log-triage.mjs'), true], // 验收断言（C2）=log-triage 专有
+    ['org-config', join(SCRIPTS, 'org-config.mjs'), false],
+    ['deploy-check', join(SCRIPTS, 'deploy-check.mjs'), false],
+  ]
+  const det = []
+  let okAll = true
+  for (const [name, script, wantAcc] of specs) {
+    const r = spawnSync(node()[0], [script, '--self-test'], { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 30_000, killSignal: 'SIGKILL' })
+    const out = (r.stdout || '') + (r.stderr || '')
+    const allPass = out.includes('全过')
+    const accOk = !wantAcc || out.includes('验收断言')
+    const thisOk = r.status === 0 && allPass && accOk
+    if (!thisOk) okAll = false
+    det.push(`${name}:exit=${r.status}/全过=${allPass}${wantAcc ? `/验收断言=${accOk}` : ''}${!thisOk ? `（输出尾：${out.slice(-160)}）` : ''}`)
+  }
+  record('R8', okAll, det.join(' '))
 }
 
 // ═══ R9：scrub 受控复制对账（A3 受控双源——glm-look 复制体须与 ds-call-v2 源字面量一致；v1.6 批 P0-B b②/W7 判据②） ═══

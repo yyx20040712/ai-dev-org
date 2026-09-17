@@ -83,9 +83,33 @@ export function readHostConfig() {
   return readJson(join(homedir(), '.zcode', 'v2', 'config.json'))
 }
 
-/** 跨脚本共享小件（v1.6 批 P2-3 收敛：多份逐字复制→单源导出；
- * ds-call-v2 依「分发单元自包含」判据豁免（裁决档 W7）——其内副本注释指向此处）。 */
-export function cliFlag(argv, name) { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null }
+/** 跨脚本共享小件（v1.6 批 P2-3 收敛：多份逐字复制→单源导出；ds-call-v2
+ *  副本已收编（g3 批，W7 前提过时——其 import 行已引本件多标识符，自包含
+ *  既破，副本=纯双源面））。 */
+/** 用法错（g3 批 2026-09-17，evolve-l4-flags 清偿）：flag 重复/末位缺值/值形如
+ *  flag。Error 子类且**不带 exitCode 属性**——消费点显式 catch 后
+ *  `[用法错] …`+exit 1（口径单源=references/06 §5.8 行 1）；不 catch 则 Node
+ *  自然退 1，同为契约内。 */
+export class UsageError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'UsageError'
+  }
+}
+
+/** CLI flag 取值单源（g3 批三校验）：①同名 flag 出现≥2 次=用法错；②flag 居
+ *  末位（无值）=用法错；③下一 token 以 -- 开头（值形如 flag）=用法错。
+ *  缺席仍返回 null=现语义不变；单 - 开头值（如负数）不算 flag 形态，放行。 */
+export function cliFlag(argv, name) {
+  const hits = []
+  for (let i = 0; i < argv.length; i++) if (argv[i] === name) hits.push(i)
+  if (hits.length === 0) return null
+  if (hits.length >= 2) throw new UsageError(`flag ${name} 出现 ${hits.length} 次（重复=用法错——原仅解析首个，g3 批 evolve-l4-flags 清偿）`)
+  const val = argv[hits[0] + 1]
+  if (val === undefined) throw new UsageError(`flag ${name} 居末位无值（缺值=用法错——原取 undefined 静默，g3 批 evolve-l4-flags 清偿）`)
+  if (typeof val === 'string' && val.startsWith('--')) throw new UsageError(`flag ${name} 的值形如 flag（「${val}」——误吃下一 flag=用法错，g3 批 evolve-l4-flags 清偿）`)
+  return val
+}
 export function readJsonlFile(p) {
   if (!existsSync(p)) return []
   return readFileSync(p, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean)
@@ -131,8 +155,18 @@ const isMain =
 if (isMain) {
   const argv = process.argv.slice(2)
   const selfTest = argv.includes('--self-test')
-  const projIdx = argv.indexOf('--project')
-  const projectDir = projIdx >= 0 ? argv[projIdx + 1] : process.cwd()
+  // g3 批（evolve-l4-flags）：--project 裸 indexOf 改走单源 cliFlag（重复/末位
+  // 缺值/值形如 flag→[用法错] exit 1——原裸取 argv[i+1] 缺值时 undefined 崩装载）
+  let projectDir = process.cwd()
+  try {
+    projectDir = cliFlag(argv, '--project') || process.cwd()
+  } catch (e) {
+    if (e instanceof UsageError) {
+      console.error(`[用法错] ${e.message}`)
+      process.exit(1)
+    }
+    throw e
+  }
   const cmd = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--project')
 
   if (selfTest) {
@@ -153,6 +187,16 @@ if (isMain) {
     t('b4 null provider→校验错误行（不崩）', Array.isArray(vpErr) && vpErr.some((e) => e.includes('providers.dead') && e.includes('null')))
     t('b4 近邻提示 null 宿主条目不崩（near?.[1]?.name）', Array.isArray(vpErr) && vpErr.some((e) => e.includes('alias=nearnull') && e.includes('name=null')))
     t('b4 健康源不受 null 条目影响（live 双校验通过不出错行）', Array.isArray(vpErr) && !vpErr.some((e) => e.includes('alias=live 期望')))
+    // g3 批（evolve-l4-flags 清偿）向量：cliFlag 三校验——红态=旧实现不抛
+    // （重复返回首值/末位取 undefined/值形如 flag 原样返回）→向量 FAIL 不崩
+    const g3run = (fn) => { try { return { v: fn() } } catch (e) { return { e } } }
+    t('g3 cliFlag：缺席→null（现语义不变）', (() => { const r = g3run(() => cliFlag(['--b', 'x'], '--a')); return r.e === undefined && r.v === null })())
+    t('g3 cliFlag：正常取值', (() => { const r = g3run(() => cliFlag(['--b', 'v1'], '--b')); return r.e === undefined && r.v === 'v1' })())
+    t('g3 cliFlag：同名 flag 出现≥2 次→UsageError', (() => { const r = g3run(() => cliFlag(['--b', '1', '--b', '2'], '--b')); return r.e?.constructor?.name === 'UsageError' })())
+    t('g3 cliFlag：flag 居末位（无值）→UsageError', (() => { const r = g3run(() => cliFlag(['--b'], '--b')); return r.e?.constructor?.name === 'UsageError' })())
+    t('g3 cliFlag：下一 token 以 -- 开头（值形如 flag）→UsageError', (() => { const r = g3run(() => cliFlag(['--b', '--c'], '--b')); return r.e?.constructor?.name === 'UsageError' })())
+    t('g3 cliFlag：单 - 开头值（负数）放行', (() => { const r = g3run(() => cliFlag(['--hours', '-3'], '--hours')); return r.e === undefined && r.v === '-3' })())
+    t('g3 cliFlag：UsageError 不带 exitCode 属性（消费点显式 exit 1）', (() => { const r = g3run(() => cliFlag(['--b'], '--b')); return r.e?.constructor?.name === 'UsageError' && r.e.exitCode === undefined })())
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
   }

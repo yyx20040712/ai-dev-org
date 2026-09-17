@@ -45,7 +45,7 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
-import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, readHostConfig, readJson } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, readHostConfig, readJson, cliFlag, UsageError } from './org-config.mjs'
 
 const DISPATCHER_VERSION = '2.2.1'
 const LEDGER_SCHEMA_VERSION = 2 // W-N5：账本行 schema 版本（新增字段 runId/mocked/truncated/schema_version）
@@ -350,14 +350,23 @@ async function callSource(src, prompt, system, logger, mock, reqParams) {
 //     （classifyExitCode/ensureWithinRoot，R10 向量）时零副作用） ──
 async function cliMain() {
   const argv = process.argv.slice(2)
-  const flag = (name) => {
-    const i = argv.indexOf(name)
-    return i >= 0 ? argv[i + 1] : null
+  // g3 批（evolve-l4-flags 清偿，主控预裁 P1）：本地 flag 副本收编为 org-config
+  // cliFlag 单源 import——W7「分发单元自包含」豁免前提已过时（本件 import 行已
+  // 引 org-config 多标识符，副本=纯双源面）；三校验（重复/末位缺值/值形如
+  // flag）→[用法错] exit 1（P9 收敛：--mock-source 多点重复注射不再仅首点生效）
+  let roleId, onlyAlias, projectName, mockSpec
+  try {
+    roleId = cliFlag(argv, '--role')
+    onlyAlias = cliFlag(argv, '--source')
+    projectName = cliFlag(argv, '--project') || basename(process.cwd())
+    mockSpec = cliFlag(argv, '--mock-source')
+  } catch (e) {
+    if (e instanceof UsageError) {
+      console.error(`[用法错] ${e.message}`)
+      process.exit(1)
+    }
+    throw e
   }
-  const roleId = flag('--role')
-  const onlyAlias = flag('--source')
-  const projectName = flag('--project') || basename(process.cwd())
-  const mockSpec = flag('--mock-source')
   const listRoles = argv.includes('--list-roles')
   const listSources = argv.includes('--list-sources')
   const dryRun = argv.includes('--dry-run')
