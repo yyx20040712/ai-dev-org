@@ -20,25 +20,36 @@
  *
  * 用法：node scripts/check-hardcode.mjs [--root <技能根>] [--strict] [--agents <dir>]
  *       [--whitelist <path>] [--self-test]
+ * （--agents 须带值——裸 flag=用法错，v2.0.1 修复批 M4 收紧：原缺值静默回退
+ *   默认 agents 目录=假动作面；扫描范围限 ops-*.md 剥 frontmatter）
  * 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
  * 指针化；回炉 r2 削 b8 残留碎片，降级行语义总表已载）。
  */
 import { readFileSync, existsSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { join, relative, basename } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
-import { SKILL_ROOT, loadOrgConfig } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError } from './org-config.mjs'
 
 const argv = process.argv.slice(2)
-const flag = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
-const root = flag('--root') || SKILL_ROOT
+// flag 解析收编 cliFlag 单源（v2.0.1 修复批 M4：原裸 argv[i+1] 误吃下一 flag——
+// 如 --agents --strict 会静默回退默认目录=g3 批自裁的「假动作面」漏网副本）
+let root, agentsFlag, whitelistFlag
+try {
+  root = cliFlag(argv, '--root') || SKILL_ROOT
+  agentsFlag = cliFlag(argv, '--agents')
+  whitelistFlag = cliFlag(argv, '--whitelist')
+} catch (e) {
+  if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); process.exit(1) }
+  throw e
+}
 // 升格位（selfiter 批 B6 清偿 check-hardcode-promotion）：org-config
 // hardcode_scan.strict（缺省 true）=命中即 RED 退出；--warn=显式降回 WARN
 // （试点校准期逃生口——升格判据=B3 白名单收缩后连续 B4/B5 两批零误报零命中，
 // 已满足）。effective strict 在配置装载后合流（见主流程尾）。
 const warnMode = argv.includes('--warn')
 let DEGRADED = false // 降级运行位（宿主配置/白名单损坏——显式留痕退出码 5，v1.6 批 P2-2：原静默吞错=strict 下假 RED/非 strict 假绿）
-const agentsDir = argv.includes('--agents') ? (flag('--agents') || join(homedir(), '.zcode', 'agents')) : null
-const whitelistPath = flag('--whitelist') || join(SKILL_ROOT, 'scripts', 'hardcode-whitelist.json')
+const agentsDir = argv.includes('--agents') ? agentsFlag : null // 门一回炉 W3：cliFlag 缺值即抛=裸 --agents 不可达回退（原「|| 默认目录」死代码已删——行为收紧申报：旧版裸 flag 静默扫默认目录，现=用法错 exit 1，g3「假动作面」立场一致）
+const whitelistPath = whitelistFlag || join(SKILL_ROOT, 'scripts', 'hardcode-whitelist.json')
 const HOST_CFG = join(homedir(), '.zcode', 'v2', 'config.json')
 
 const GENERIC = [
@@ -90,7 +101,29 @@ export function stripFrontmatter(text) {
 
 export function loadWhitelist(path = whitelistPath) {
   if (!existsSync(path)) return []
-  try { return JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, '')).entries || [] } catch (e) { console.error(`[degraded] 白名单件不可读（${e.message}）——按零豁免执行（可能假 WARN），退出码 5`); DEGRADED = true; return [] }
+  let entries
+  try { entries = JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, '')).entries || [] } catch (e) { console.error(`[degraded] 白名单件不可读（${e.message}）——按零豁免执行（可能假 WARN），退出码 5`); DEGRADED = true; return [] }
+  const { valid, invalid } = validateWhitelistRules(entries)
+  // v2.0.1 修复批 L12：空条件规则（无 file/file_prefix/contains 任一）经
+  // ruleMatches 恒真=对全部文件全部行全局放行，整个扫描静默失效——按无效
+  // 丢弃+降级留痕（exit 5），禁静默执行
+  if (invalid.length) {
+    console.error(`[degraded] 白名单第 ${invalid.map((i) => `#${i + 1}`).join('/')} 号规则无任何条件字段（file/file_prefix/contains）——空条件=全放行面，该规则按无效丢弃，退出码 5（修复批 L12）`)
+    DEGRADED = true
+  }
+  return valid
+}
+
+/** 白名单规则形态校验（纯函数，自检可注入——修复批 L12）：每条须含
+ *  file/file_prefix/contains 至少一个非空字符串条件，否则=全局放行的空规则。 */
+export function validateWhitelistRules(entries) {
+  const valid = [], invalid = []
+  entries.forEach((w, i) => {
+    const hasCond = !!w && typeof w === 'object' &&
+      ['file', 'file_prefix', 'contains'].some((k) => typeof w[k] === 'string' && w[k].length > 0)
+    if (hasCond) valid.push(w); else invalid.push(i)
+  })
+  return { valid, invalid }
 }
 
 /** 白名单规则匹配（B-1 修复：增 file_prefix 锚定——契约行豁免不得外溢到普通行）。 */
@@ -169,6 +202,9 @@ function selfTest() {
   t('contains-only 规则反例（不含串行不豁免）', scanText({ relPath: 'references/z.md', text: '调用 api.deepseek.com', merged, whitelist: wlCo, extraTerms: termsDs }).every((h) => !h.whitelisted))
   // r4 审核 W 终项：contains-only 规则专用正例（含串行豁免·任意文件）
   t('contains-only 规则正例（含串行豁免·任意文件）', scanText({ relPath: 'references/z.md', text: 'api.deepseek.com 事故叙述', merged, whitelist: wlCo, extraTerms: termsDs }).every((h) => h.whitelisted))
+  // v2.0.1 修复批 L12 向量：空条件规则=全局放行面，形态校验须拒（红态=旧实现无校验静默收）
+  const vw = typeof validateWhitelistRules === 'function' ? validateWhitelistRules([{ contains: 'x' }, {}, { file: '' }, null, { file_prefix: 'agents/' }]) : null
+  t('L12 空条件规则（{}/空串/null）判无效、有条件规则放行', vw != null && vw.valid.length === 2 && vw.invalid.length === 3)
   // b4 向量（evolve-E2）：null provider 宿主条目→降级行（stderr 留痕）+其余源词表继续派生（exit 5 语义族，不崩溃）
   let hmTerms = null, hmErr = null, hmDegraded = false
   const hmBuf = []

@@ -34,6 +34,13 @@ const argv = process.argv.slice(2)
 const flag = (n) => argv.includes(n)
 
 // ── 扫描面 ──
+// 依赖面预检（v2.0.1 修复批 L13）：references 目录与 01/04 登记表源缺失
+// =配置/装载错族（06 §5.8 行 3）——[fatal] 一行退 3，防裸 readFileSync 抛堆栈
+// （对齐本件 org-config 装载守卫与 ds-call-v2 ConfigError 惯例，风格割裂收口）
+if (!existsSync(REF_DIR)) { console.error(`[fatal] references 目录缺失: ${REF_DIR}（check-anchors 扫描面依赖——06 §5.8 行 3）`); process.exit(3) }
+for (const f of ['01-org-principles.md', '04-lessons.md']) {
+  if (!existsSync(join(REF_DIR, f))) { console.error(`[fatal] 登记表源缺失: ${join(REF_DIR, f)}（条目索引/计数对账依赖——06 §5.8 行 3）`); process.exit(3) }
+}
 // references 清单确定性排序（selfiter 批 evolve-l3-sort 清偿）：readdirSync
 // 枚举序跨平台/目录序不稳定——WARN/FAIL 报告行序与 diff 对账噪声面
 const docFiles = [
@@ -41,6 +48,9 @@ const docFiles = [
   join(SKILL_ROOT, 'RESIDUALS.md'),
   ...readdirSync(REF_DIR).filter((f) => f.endsWith('.md')).sort().map((f) => join(REF_DIR, f)),
 ]
+for (const f of docFiles) {
+  if (!existsSync(f)) { console.error(`[fatal] 扫描面文件缺失: ${f}（06 §5.8 行 3）`); process.exit(3) }
+}
 // 章节标题索引：fileNo → Set("M", "M.K")
 function buildHeadingIndex() {
   const idx = {}

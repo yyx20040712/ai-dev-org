@@ -16,7 +16,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, cop
 import { join, resolve, dirname } from 'node:path'
 import { createInterface } from 'node:readline'
 import { spawnSync } from 'node:child_process'
-import { SKILL_ROOT } from './org-config.mjs'
+import { SKILL_ROOT, cliFlag, UsageError } from './org-config.mjs'
 
 const TPL = join(SKILL_ROOT, 'templates')
 const STACKS = ['npm-verify', 'pnpm-pygates', 'generic']
@@ -27,10 +27,17 @@ const GATE_ENTRY = {
 }
 
 const argv = process.argv.slice(2)
-const flag = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
-const target = flag('--target')
-const stack = flag('--stack')
-const projectName = flag('--project')
+// flag 解析收编 cliFlag 单源（v2.0.1 修复批 M4：原裸 argv[i+1] 误吃下一 flag——
+// 如 --target --stack generic 会把 '--stack' 当作 target 取值；g3 批已定性缺陷的漏网副本）
+let target, stack, projectName
+try {
+  target = cliFlag(argv, '--target')
+  stack = cliFlag(argv, '--stack')
+  projectName = cliFlag(argv, '--project')
+} catch (e) {
+  if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); process.exit(1) }
+  throw e
+}
 const assumeYes = argv.includes('--yes')
 const dryRun = argv.includes('--dry-run')
 const date = new Date().toISOString().slice(0, 10)

@@ -7,6 +7,8 @@
  *              多行/块形态歧义时判 unknown（仅报告）——「无法可靠解析的
  *              frontmatter 只报告、不进可自动删除集合」（ds-B2 终裁）
  *   orphan   = 技能根下无 SKILL.md 的目录（仅报告）
+ *   unreadable = SKILL.md 存在但不可读（权限损坏等——仅报告，v2.0.1 修复批 L17：
+ *              单项不可读不得让整个盘点崩溃）
  *   active   = 正常技能
  * 安全设计：默认干跑；--apply 须与 --delete-redirects/--delete-invalid 同用；
  * 清单先写后移（manifest 写失败=中止不移动——归档事务完整性）；同日多次
@@ -23,10 +25,19 @@
 import { readdirSync, readFileSync, statSync, renameSync, mkdirSync, writeFileSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { cliFlag, UsageError } from './org-config.mjs' // flag 解析单源（v2.0.1 修复批 M4）
 
 const argv = process.argv.slice(2)
-const flag = (n) => (argv.includes(n) ? argv[argv.indexOf(n) + 1] : null)
-const ROOT = flag('--root') || join(homedir(), '.zcode', 'skills')
+// flag 解析收编 cliFlag 单源（v2.0.1 修复批 M4：原裸 argv[indexOf+1] 误吃下一
+// flag——如 --root --json → ROOT='--json' → readdirSync 裸崩带堆栈；g3 批已定性
+// 缺陷的漏网副本）
+let ROOT
+try {
+  ROOT = cliFlag(argv, '--root') || join(homedir(), '.zcode', 'skills')
+} catch (e) {
+  if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); process.exit(1) }
+  throw e
+}
 const APPLY = argv.includes('--apply')
 const DEL_REDIRECTS = argv.includes('--delete-redirects')
 const DEL_INVALID = argv.includes('--delete-invalid')
@@ -42,7 +53,12 @@ if (APPLY && !DEL_REDIRECTS && !DEL_INVALID) {
 function classify(dir) {
   const skillPath = join(ROOT, dir, 'SKILL.md')
   if (!existsSync(skillPath)) return { dir, cls: 'orphan', name: dir, descB: 0, bodyB: 0, note: '无 SKILL.md' }
-  const raw = readFileSync(skillPath, 'utf8').replace(/^\uFEFF/, '')
+  let raw
+  try { raw = readFileSync(skillPath, 'utf8').replace(/^\uFEFF/, '') } catch (e) {
+    // v2.0.1 修复批 L17：单目录不可读=按 unreadable 仅报告（一个权限损坏项不得
+    // 让整个盘点带堆栈崩溃——与本件「仅报告、人裁决」哲学一致；不入自动删除集）
+    return { dir, cls: 'unreadable', name: dir, descB: 0, bodyB: 0, note: `SKILL.md 不可读（${e.message}）——仅报告` }
+  }
   const fm = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
   const body = raw.slice(fm ? fm[0].length : 0)
   const bodyB = Buffer.byteLength(body, 'utf8') // 正文口径（K-W3：不含 frontmatter）
@@ -73,13 +89,13 @@ const reclaimDesc = sumDesc(by('redirect')) + sumDesc(by('invalid'))
 const totalDesc = sumDesc(entries)
 
 if (JSON_OUT) {
-  console.log(JSON.stringify({ root: ROOT, scope_warning: '统计不含插件系统管理目录；插件技能若经他机制驻留技能根则口径不完整', total: entries.length, active: by('active').length, redirect: by('redirect').length, suspect: by('suspect').length, invalid: by('invalid').length, unknown: by('unknown').length, orphan: by('orphan').length, always_on_desc_bytes: totalDesc, reclaimable_desc_bytes: reclaimDesc, entries }, null, 2))
+  console.log(JSON.stringify({ root: ROOT, scope_warning: '统计不含插件系统管理目录；插件技能若经他机制驻留技能根则口径不完整', total: entries.length, active: by('active').length, redirect: by('redirect').length, suspect: by('suspect').length, invalid: by('invalid').length, unknown: by('unknown').length, unreadable: by('unreadable').length, orphan: by('orphan').length, always_on_desc_bytes: totalDesc, reclaimable_desc_bytes: reclaimDesc, entries }, null, 2))
 } else {
   console.log(`技能根：${ROOT}（统计不含插件系统管理目录——插件技能若经他机制驻留技能根则此口径不完整）`)
-  for (const e of [...by('redirect'), ...by('suspect'), ...by('invalid'), ...by('unknown'), ...by('orphan')])
+  for (const e of [...by('redirect'), ...by('suspect'), ...by('invalid'), ...by('unknown'), ...by('unreadable'), ...by('orphan')])
     console.log(`  [${e.cls}] ${e.name} — ${e.note}（desc ${e.descB}B/body ${e.bodyB}B）`)
   console.log(
-    `\n合计 ${entries.length} 技能：active ${by('active').length} / redirect ${by('redirect').length} / suspect ${by('suspect').length} / invalid ${by('invalid').length} / unknown ${by('unknown').length} / orphan ${by('orphan').length}`,
+    `\n合计 ${entries.length} 技能：active ${by('active').length} / redirect ${by('redirect').length} / suspect ${by('suspect').length} / invalid ${by('invalid').length} / unknown ${by('unknown').length} / unreadable ${by('unreadable').length} / orphan ${by('orphan').length}`,
   )
   console.log(`常驻 description 总量=${totalDesc}B；本次可回收=${reclaimDesc}B（仅 redirect+invalid；suspect/unknown 恒不自动删）`)
   if (!APPLY) console.log('（干跑——加 --apply --delete-redirects/--delete-invalid 才实际归档清理）')
