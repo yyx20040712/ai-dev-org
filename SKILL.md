@@ -61,8 +61,8 @@ model=`<provider-uuid>/<model-key>`；上游枚举值=假绑定禁用；空 tool
 `log-triage.mjs` 日志核对零回退）。外部派发器=健康探针+后备通道，
 不拆除（迁移期双承载，org-config roles.*.migration_note）。子代理失败
 接续纪律=杀岗→`log-triage.mjs --health` 归因→额度类换源继任（读进度
-落盘）/窗口类同源瘦身/无工具岗同包重跑（runbook 真源=批档 09 号件，
-后续批迁技能侧）。
+落盘）/窗口类同源瘦身/无工具岗同包重跑（runbook 真源=references/06
+§6 补遗二——selfiter 批迁入技能内）。
 
 无 `--role` 报错；源装载双校验（uuid_prefix+entry_name）不符即 exit 3，
 无 fallback。宿主 Node 25（已证档）下 ds-call-v2 在退出阶段有 libuv

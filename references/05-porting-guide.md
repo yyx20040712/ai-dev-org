@@ -47,7 +47,7 @@
 **双形态（2026-09-10 起防线脚手架自带）**：先跑
 `node <技能根>/scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]`
 ——一条命令落地下述防线日五项的骨架（宪法骨架+ORG-SEG 段带预算自检联动/
-CI 骨架/门禁聚合入口/任务书六段模板/台账+org-delta 初始化/.gitignore 片段；
+CI 骨架/门禁聚合入口/任务书模板（七段，惯称六段简报）/台账+org-delta 初始化/.gitignore 片段；
 幂等可重跑，重跑=逐项 SKIP），再按下表**逐项核对**——脚手架≠防线齐装，
 `[SKIP]` 行即缺口清单（已生成产物按 stack 有 verify 宽松/STRICT 双档）。
 
@@ -57,7 +57,7 @@ CI 骨架/门禁聚合入口/任务书六段模板/台账+org-delta 初始化/.g
   [ ] 宪法草稿（≤500 行：硬规则+否定式安全禁令+DoD+阅读顺序）
   [ ] 测试锁 manifest+只读属性脚本
   [ ] 门禁聚合入口（一键全查脚本/命令，CI 同口径）
-  [ ] 任务书模板（六段）+台账文件（追加式）
+  [ ] 任务书模板（七段，惯称六段简报）+台账文件（追加式）
 首任务：
   [ ] 技能盘点落盘 → 冻结提取 → 任务书 → TDD（红实录→绿→变异红证）
   [ ] 双门派发模板就位 → 收口亲验（真退出码）→ 入账
@@ -69,8 +69,8 @@ CI 骨架/门禁聚合入口/任务书六段模板/台账+org-delta 初始化/.g
 ```
   [ ] node <技能根>/scripts/health-scan.mjs --project <项目根>   # RED=0 方可收口
   [ ] node <技能根>/scripts/check-hardcode.mjs                   # 供应商 live 事实零硬编码
-  [ ] node <技能根>/scripts/health-scan.mjs --self-test           # 扫描器自检 9/9
-  [ ] node <技能根>/scripts/check-hardcode.mjs --self-test        # 扫描器自检 5/5
+  [ ] node <技能根>/scripts/health-scan.mjs --self-test           # 扫描器自检全过（向量数以实时输出为准，正文不落数字——A3）
+  [ ] node <技能根>/scripts/check-hardcode.mjs --self-test        # 扫描器自检全过（同上）
   [ ] node <技能根>/scripts/regression.mjs --only R2,R4,R5        # 档案/记账/换源三面
 ```
 判据速查：**截断的审计报告不算合格审计**（health-scan ④ RED，见 02 §10）；
@@ -111,3 +111,6 @@ CI 骨架/门禁聚合入口/任务书六段模板/台账+org-delta 初始化/.g
   脚手架先行+逐项核对）——优化战役 W1 落地，实测三 stack
   （npm-verify/pnpm-pygates/generic）各 7/7 + 幂等重跑全 SKIP（证据=
   Synapse scripts/audits/2026-09-10_w1-init-defenses-test.raw.txt）。
+- 2026-09-17 v1.2（selfiter 批 B2）：§4 白名单措辞口径入判据速查（evolve-p2-②）；
+  计数句去数字（自检 9/9/5/5→全过+实时输出为准——A3）；任务书模板表述对齐
+  02 §4 单源（七段，惯称六段简报）。

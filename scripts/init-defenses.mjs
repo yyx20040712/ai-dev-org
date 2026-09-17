@@ -1,7 +1,8 @@
 /**
  * 新项目防线日脚手架（ai-dev-org）——一条命令落地 05 §4 首周清单：
  *   ORG-SEG 插入（交互确认+预算自检联动）/CI 骨架（参数化 stack）/
- *   门禁聚合入口/任务书六段模板/台账/org-delta 初始化/.gitignore 片段。
+ *   门禁聚合入口/任务书模板（七段，1-6 段惯称「六段简报」）/台账/org-delta
+ *   初始化/.gitignore 片段。
  * 用法：
  *   node scripts/init-defenses.mjs --target <目录> --stack <npm-verify|pnpm-pygates|generic>
  *        [--project <项目名>] [--yes] [--dry-run]
@@ -107,9 +108,9 @@ createIfAbsent(join(dir, '.github', 'workflows', 'ci-defenses.yml'), '.github/wo
 const gate = GATE_ENTRY[stack]
 createIfAbsent(join(dir, gate.dst), gate.dst, `门禁聚合入口（${gate.desc}）`, readFileSync(join(TPL, gate.src), 'utf8'))
 
-// ── 4. 任务书六段模板 ──
+// ── 4. 任务书模板（七段，1-6 段惯称「六段简报」——selfiter 批 B2 对齐 02 §4 单源） ──
 createIfAbsent(join(dir, 'docs', 'templates', 'task-brief-template.md'), 'docs/templates/task-brief-template.md',
-  '任务书六段模板', render(readFileSync(join(TPL, 'task-brief-template.md'), 'utf8')))
+  '任务书模板（七段，1-6 段惯称「六段简报」）', render(readFileSync(join(TPL, 'task-brief-template.md'), 'utf8')))
 
 // ── 5. 台账（追加式） ──
 createIfAbsent(join(dir, 'docs', 'ledger.md'), 'docs/ledger.md',

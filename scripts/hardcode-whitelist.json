@@ -1,19 +1,67 @@
 {
   "_note": "check-hardcode 白名单（P0-3/W-6）。独立 JSON 文件——不用 .md 以免被自身扫中。规则字段与匹配语义（r2 审核 W② 精确化）：一条规则对**单个行**生效当且仅当全部已声明条件同时满足——{file:relPath 后缀匹配, file_prefix:relPath 前缀匹配（B-1 修复新增；旧条目缺该字段=无此约束，向后兼容，无假 RED）, contains:行内子串}。豁免=行级非文件级：同文件内不含 contains 串的行不受豁免（自检反例1在案）。豁免须写明理由，且仅在「安排性提及」或历史叙述场景使用（08 §1 边界）。2026-09-16 B-1 扩：宿主模型词表（v2/config.json 派生+归一变体）与 agents 目录（ops-*.md 剥 frontmatter 扫正文）入扫。",
   "entries": [
-    { "file": "references/07-role-cards.md", "contains": "api.deepseek.com", "reason": "2026-09-15 入口治理批更新：07 操作段已指针化（残留 glm-look-endpoints 闭环），本豁免现仅覆盖修订记（2026-09-11 补遗）的历史叙述——08 §3 禁改写" },
-    { "file": "CHANGELOG.md", "contains": "api.deepseek.com", "reason": "2026-09-15 入口治理批：SKILL.md 修订记迁档件，历史过程记录逐字保留——08 §3 禁改写；SKILL.md 正文与新增条目已零端点" },
-    { "contains": "防作弊 K3", "reason": "概念编号误伤（B-1 词表扩容）：K3=组织教训库条款编号（防作弊锁设计），非模型键——正则无法区分，按行豁免（01/03 两处）" },
-    { "file": "CHANGELOG.md", "contains": "GLM-5.3-Flash", "reason": "CHANGELOG=历史过程记录（08 §3 禁改写）——模型名属历史叙事非现行路由声明" },
-    { "file": "references/07-role-cards.md", "contains": "GLM", "reason": "07 修订记/补遗历史叙述（2026-09-10/11 用户指示逐字入册——08 §3 禁改写）；07 §4 卡内现行操作段已于 2026-09-15 入口治理批指针化" },
-    { "file": "references/07-role-cards.md", "contains": "deepseek-flash", "reason": "07 修订记历史叙述（同上条边界——08 §3 禁改写）" },
-    { "file": "references/06-model-routing.md", "contains": "GLM-5.3-Flash", "reason": "06 §8 修订记历史叙述（08 §3 禁改写）；§1 分工总表设计岗行已于 2026-09-16 B-1 批指针化" },
-    { "file": "references/02-pipeline-templates.md", "contains": "GLM", "reason": "02 §8 额度经济学=母本继承的配置性条款历史层（2026-09 订阅叙事）——B-1 白名单过渡，指针化欠账已登记 RESIDUALS（残留册如实重开）；§8.5 分面放行语义仍有效，实配事实以 org-config 为准" },
-    { "contains": "Kimi K3", "reason": "02 §8 历史额度条款中的安排性提及（岗位×供应商分工链描述——08 §1 允许）；实配模型键以 org-config 为准" },
-    { "contains": "deepseek v4 flash", "reason": "02 §8 历史条款安排性提及（分面放行语义描述）；实配以 org-config 为准" },
-    { "file_prefix": "agents/ops-", "contains": "MODEL-SELF: model-field:", "reason": "代理文件机读契约行（A 批纪律）：绑定值自报行——锚定 agents/ops-* 前缀+行内契约串双条件（审核 B-1 修复：豁免不外溢到普通行）；其正确性由 log-triage ③ 声明vs实际路由核对保障（强于正文扫描）；frontmatter 已剥离不扫" },
-    { "file_prefix": "agents/ops-", "contains": "LEDGER-CLAIM: role=", "reason": "代理文件机读契约行（W-2）：账本认领尾栏模板——同上锚定+由 log-triage ③ 保障" },
-    { "file_prefix": "agents/ops-", "contains": "模型绑定=", "reason": "代理文件身份段绑定声明（B-2 裁决②：绑定值=配置面合法形态的正文镜像，供 MODEL-SELF 自报契约）——同上锚定；正确性由 log-triage ③ 保障" },
-    { "file": "RESIDUALS.md", "contains": "builtin:bigmodel-coding-plan/GLM-5.3", "reason": "2026-09-17 自我迭代批清偿：RESIDUALS.md:94（evolve-gate2-samesource 行，v1.7 收口尾笔登记）引用实配 model-key 作同源欠账证据——08 §1 判例历史件豁免（08 §3 禁改写原文），行级登记；同行 k3/deepseek-flash/GLM-5.3 三命中一并覆盖；锚串在本文件唯一（grep 计 1）" }
+    {
+      "file": "references/07-role-cards.md",
+      "contains": "api.deepseek.com",
+      "reason": "2026-09-15 入口治理批更新：07 操作段已指针化（残留 glm-look-endpoints 闭环），本豁免现仅覆盖修订记（2026-09-11 补遗）的历史叙述——08 §3 禁改写"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "contains": "api.deepseek.com",
+      "reason": "2026-09-15 入口治理批：SKILL.md 修订记迁档件，历史过程记录逐字保留——08 §3 禁改写；SKILL.md 正文与新增条目已零端点"
+    },
+    {
+      "contains": "防作弊 K3",
+      "reason": "概念编号误伤（B-1 词表扩容）：K3=组织教训库条款编号（防作弊锁设计），非模型键——正则无法区分，按行豁免（01/03 两处）"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "contains": "GLM-5.3-Flash",
+      "reason": "CHANGELOG=历史过程记录（08 §3 禁改写）——模型名属历史叙事非现行路由声明"
+    },
+    {
+      "file": "references/07-role-cards.md",
+      "contains": "GLM",
+      "reason": "07 修订记/补遗历史叙述（2026-09-10/11 用户指示逐字入册——08 §3 禁改写）；07 §4 卡内现行操作段已于 2026-09-15 入口治理批指针化"
+    },
+    {
+      "file": "references/07-role-cards.md",
+      "contains": "deepseek-flash",
+      "reason": "07 修订记历史叙述（同上条边界——08 §3 禁改写）"
+    },
+    {
+      "file": "references/06-model-routing.md",
+      "contains": "GLM-5.3-Flash",
+      "reason": "06 §8 修订记历史叙述（08 §3 禁改写）；§1 分工总表设计岗行已于 2026-09-16 B-1 批指针化"
+    },
+    {
+      "contains": "Kimi K3",
+      "reason": "02 §8 历史额度条款中的安排性提及（岗位×供应商分工链描述——08 §1 允许）；实配模型键以 org-config 为准"
+    },
+    {
+      "contains": "deepseek v4 flash",
+      "reason": "02 §8 历史条款安排性提及（分面放行语义描述）；实配以 org-config 为准"
+    },
+    {
+      "file_prefix": "agents/ops-",
+      "contains": "MODEL-SELF: model-field:",
+      "reason": "代理文件机读契约行（A 批纪律）：绑定值自报行——锚定 agents/ops-* 前缀+行内契约串双条件（审核 B-1 修复：豁免不外溢到普通行）；其正确性由 log-triage ③ 声明vs实际路由核对保障（强于正文扫描）；frontmatter 已剥离不扫"
+    },
+    {
+      "file_prefix": "agents/ops-",
+      "contains": "LEDGER-CLAIM: role=",
+      "reason": "代理文件机读契约行（W-2）：账本认领尾栏模板——同上锚定+由 log-triage ③ 保障"
+    },
+    {
+      "file_prefix": "agents/ops-",
+      "contains": "模型绑定=",
+      "reason": "代理文件身份段绑定声明（B-2 裁决②：绑定值=配置面合法形态的正文镜像，供 MODEL-SELF 自报契约）——同上锚定；正确性由 log-triage ③ 保障"
+    },
+    {
+      "file": "RESIDUALS.md",
+      "contains": "builtin:bigmodel-coding-plan/GLM-5.3",
+      "reason": "2026-09-17 自我迭代批清偿：RESIDUALS.md:94（evolve-gate2-samesource 行，v1.7 收口尾笔登记）引用实配 model-key 作同源欠账证据——08 §1 判例历史件豁免（08 §3 禁改写原文），行级登记；同行 k3/deepseek-flash/GLM-5.3 三命中一并覆盖；锚串在本文件唯一（grep 计 1）"
+    }
   ]
 }

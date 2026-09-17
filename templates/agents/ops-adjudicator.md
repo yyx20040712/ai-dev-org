@@ -20,7 +20,8 @@ model: 8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash
 
 【三段·输出契约】
 报告三节：①逐条裁决表（逐条：原判断/裁决/依据/证据行号）②独立复算记录 ③回炉建议与优先级。
-报告最后两行为固定格式机读尾栏（禁省、禁改格式）：
+报告最后两行为固定格式机读尾栏（禁省、禁改格式；**尾栏后禁再有任何行**——含空行/路径说明/
+附注，机读契约位=末两行，selfiter 批 B2 收紧）：
 MODEL-SELF: model-field:8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash
 LEDGER-CLAIM: role=ops-adjudicator executor=model-field:8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash units=1 outcome=<done|partial|blocked>
 接续语义：裁决岗的证据包即全部状态，中断由主控同包重派（只读工具面，无进度文件）。

@@ -201,3 +201,55 @@
   ——门二裁决 N 项+实现者疑虑）；R1 真实派发抽样 3/3 过（Node 24 跑，
   零退出崩溃，欠账消）。批档=scripts/audits/2026-09-17_g3-*（12 件）；
   明细=CHANGELOG v1.7.6 条。
+
+## 2026-09-17 自我迭代批（selfiter）终态化登记
+
+> 本节=自我迭代批（B1a/B1b/B1c/B2）处置留痕（08 §3 追加形态）。历史行原文
+> 不改；本节为终态权威口径。批档=仓外 E:/zcode_md/fix/ai-dev-org-selfiter-plan-2026-09-17/。
+
+### 已修闭（closed，14+6 项）
+
+B1 三子波（commit 76934ed/77e560b/f175e96）：evolve-l3-sort、evolve-l9-degrade、
+evolve-ccb-weaktype、evolve-verify-mjs-header、g3-w1r1-wording、evolve-p2-advisories、
+g3-logtriage-catch（复核=d4ccedb 已修，变异验证附卷）、g3-cliflag-equals、
+evolve-glmlook-150-null、g3-glmlook-flags、glm-look-schema、glm-look-truncation、
+findings-parser、manual-event-consumers。
+
+B2 文档收敛批：adjudicator-tail-order（尾栏后禁再有任何行——模板+在役件同步）、
+runbook-external-source（真源迁入 06 §6 补遗二）、02-§8-model-terms（约 20 处
+型号提及指针化+白名单 14→13 规则/豁免 36→16）、preexisting-wip-baseline（2026-09-14
+脏基线时过境迁，闭为过期）、evolve-struct-patchwrite（**范围界定式收敛**：接管型
+注记链消除=02 §8.4 接管注记合并入节；成节型补遗（06 §6/07 §4）=合法版本演进
+形态保留，不属补丁病——处置边界登记于本行）。
+
+### C 类终态确认（won't-fix 维持，不再重复登记）
+
+A-dsN-1、C-K-N1、HOST-node25（Node 24 承载+版本守卫）、
+agents-profile-session-fixed、archive-distribution-trigger、evolve-m5-regenv
+（设计取舍已显式化）、evolve-l5-frontmatter（保守口径维持）、
+r1-deepseek-format-flake（重跑即绿纪律）、subagent-shell-gt-truncation
+（宿主缺陷+runbook §五 规避）、evolve-samefamily、evolve-gate2-samesource
+（同源欠账文化承载——宿主供真异构源时消账）。
+
+### B 类触发器维持 open（触发即处置，不算未决欠账）
+
+evolve-b1-transportresidual（B7 R1 真外呼窗口核）、evolve-k2-silent（复发≥2 次）、
+g3-deploy-writereal（异机首装）、PostToolUse-livefire（hook 批）、
+killed-agent-metadata-gap（机检化后续批）、check-anchors-calibration
+（升 --strict 决策前置批）。
+
+### 承接中（后续批次将闭）
+
+evolve-m6-runid+project-id-migration（B4）、glm-look-streaming（B5）、
+check-hardcode-promotion（B6）、g3-glossary-drift（并入 08 §4 体检纪律，
+用户裁决 2026-09-17，不单独立项）。
+
+### 范围外维持
+
+synapse-md-expand（Synapse 项目仓批次）。
+
+### 新登记（本批发现）
+
+| 编号 | 来源 | 内容 | 状态 | 处置 |
+|---|---|---|---|---|
+| selfiter-k1k2-reasoninglevel | B1 烤验派发实录（2026-09-17） | ops-gate1-k1/k2 绑定子代理在本会话启动报「未选择思考档位」拒跑（宿主=会话级思考档位选择缺失）——绑定通道不可用，门一回退外部派发器（kimi-main 实跑可用） | open | 迁移期双承载设计生效；触发器=宿主提供会话级思考档位选择后复测绑定通道；外部派发器承载期间门一照常异构 |
