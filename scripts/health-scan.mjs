@@ -18,9 +18,10 @@
  * ——evolve 批 b8 指针化）。
  */
 import { readFileSync, existsSync, realpathSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { SKILL_ROOT, loadOrgConfig, cfgHash, readJsonlFile } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cfgHash, readJsonlFile, cliFlag, UsageError } from './org-config.mjs'
 
 const normPath = (p) => {
   let s = String(p || '').replace(/[\\/]+/g, '/').replace(/\/+$/, '')
@@ -29,6 +30,10 @@ const normPath = (p) => {
 }
 const TMP_NORM = normPath(tmpdir())
 const isDrillProject = (p) => !!p && normPath(p).startsWith(TMP_NORM)
+
+/** 主控人工补记事件词表（单源导出——regression R4 账本 schema 校验同集消费；
+ *  v2.0.1 修复批 L14：原两文件逐字复制=新增事件类型漏改一侧即漂移）。 */
+export const MANUAL_EVENTS = new Set(['porting-delta', 'doc-health', 'ruling', 'constitution-overrun', 'escaped-defect', 'stopped']) // stopped=接续演练/被杀岗手记
 
 /**
  * 纯函数扫描核心（可注入 fixtures——B-1 要求的回归用例挂此）。
@@ -41,8 +46,9 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
   const fmt = (n) => (n == null ? '?' : n.toLocaleString('en-US'))
 
   // ── ① 欠账未还（跳过 mocked 行与临时演练项目——W-2 / P0-1）──
-  // 分组键归一化（selfiter B4 project-id-migration）：project_id ?? project
-  // （v3 行携归一化 id；v2 历史行/手工行 raw 名——跨名同项目自 v3 起并账）
+  // 分组键归一化（selfiter B4 project-id-migration）：project_id || project
+  // （v3 行携归一化 id；v2 历史行/手工行 raw 名——跨名同项目自 v3 起并账。
+  // 门一回炉 N1：注释算子与代码对齐——①④两处同用 ||，project_id 空串按回退处理）
   const byProject = {}
   let unnamed = 0, mockedRows = 0
   const drillProjects = new Set()
@@ -68,9 +74,11 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
 
   // ── ④ 审计产出截断（P0-2/W-3）——仅判含 truncated 字段的行，历史行豁免（08 §3）──
   // 不继承 tmpdir 豁免（W-5）：截断判定与 project 位置无关。auditRoles 从 org-config 派生（W-4）。
+  // 分组键归一化=project_id ?? project（v2.0.1 修复批 L11：对齐 ① 的 B4 归一化口径——
+  // 原只按 raw project 分组，v3 迁移期跨 raw 名同 id 项目的截断告警会拆组失真）。
   const truncRows = ledger.filter((e) => e.event === 'ok' && e.truncated === true && auditRoles.has(e.role))
   const truncByProject = {}
-  for (const e of truncRows) { const p = e.project || '(无名)'; (truncByProject[p] ||= []).push(e) }
+  for (const e of truncRows) { const p = e.project_id || e.project || '(无名)'; (truncByProject[p] ||= []).push(e) }
   for (const [p, rows] of Object.entries(truncByProject)) {
     const roles = [...new Set(rows.map((r) => r.role))].join('/')
     RED.push(`审计产出截断：项目 ${p} 存在 ${rows.length} 笔 ok-truncated（角色 ${roles}，来源 ${[...new Set(rows.map((r) => r.source))].join('/')}）——非完整终态被当合格审计收下（假成功）；按 02 §5 回炉/换源重审，勿据截断报告下结论`)
@@ -128,7 +136,7 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
   if (budgetSpec) {
     for (const part of budgetSpec.split(',')) {
       const m = /^([^:]+):(\d+)$/.exec(part.trim())
-      if (!m) throw new Error(`--budget 形态 <alias>:<maxOutTokens>，收到 ${part}`)
+      if (!m) throw new UsageError(`--budget 形态 <alias>:<maxOutTokens>，收到 ${part}（v2.0.1 修复批 L10：用法/参数错族——CLI 按 1 退，原普通 Error 落 FAIL+3 与家族口径不一致）`)
       const [, alias, cap] = m
       const u = usage[alias]
       if (u && u.out > Number(cap)) RED.push(`预算超限：${alias} 累计 out=${fmt(u.out)} > 阈值 ${fmt(Number(cap))}——停止该源投放，按换源状态机（06 §4）处置并如实记账`)
@@ -165,10 +173,11 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
 
   // ── ⑦ 人工事件消费+逃逸率（selfiter 批 manual-event-consumers 接线） ──
   // 写入面=主控手工行（R4 MANUAL_EVENTS 同集）；escaped-defect=门禁放行后缺陷
-  // 在册（WARN 如实点名）+逃逸率粗口径（INFO——批次级归因仍人工）
-  const MANUAL_EVENT_SET = new Set(['porting-delta', 'doc-health', 'ruling', 'constitution-overrun', 'escaped-defect', 'stopped'])
+  // 在册（WARN 如实点名）+逃逸率粗口径（INFO——批次级归因仍人工）。
+  // v2.0.1 修复批 L14：集合单源从本件导出（regression R4 消费——原两处逐字
+  // 复制，新增人工事件类型漏改一侧即规范↔实现矛盾，本文件注释里在册过一次前科）。
   const manualCount = {}
-  for (const e of ledger) { if (MANUAL_EVENT_SET.has(e.event)) manualCount[e.event] = (manualCount[e.event] || 0) + 1 }
+  for (const e of ledger) { if (MANUAL_EVENTS.has(e.event)) manualCount[e.event] = (manualCount[e.event] || 0) + 1 }
   const manualKeys = Object.keys(manualCount)
   if (manualKeys.length) INFO.push(`人工事件计数：${manualKeys.map((k) => `${k}×${manualCount[k]}`).join(' ')}`)
   const escaped = ledger.filter((e) => e.event === 'escaped-defect')
@@ -235,34 +244,52 @@ function selfTest(merged) {
   return fail.length === 0
 }
 
-// ── CLI ──
-const argv = process.argv.slice(2)
-const flag = (n) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : null }
-const projectDir = flag('--project') || process.cwd()
-const windowN = Number(flag('--window') || 20)
-if (!Number.isInteger(windowN) || windowN <= 0) { console.error(`FAIL --window 须为正整数（收到 ${flag('--window')}）`); process.exit(3) }
-const budgetSpec = flag('--budget')
-const ledgerPath = flag('--ledger') || join(projectDir, '.zcode', 'org-ledger.jsonl')
+// ── CLI（isMain guard=v2.0.1 修复批：MANUAL_EVENTS 导出供 regression 消费，
+//     import 零副作用——范式 ds-call-v2/glm-look；flag 解析收编 org-config cliFlag
+//     单源=修复批 M4：原裸 argv[i+1] 误吃下一 flag（如 --project --ledger →
+//     projectDir='--ledger'），家族 g3 批已定性缺陷的漏网副本） ──
+function cliMain() {
+  const argv = process.argv.slice(2)
+  let projectDir, windowRaw, budgetSpec, ledgerFlag
+  try {
+    projectDir = cliFlag(argv, '--project') || process.cwd()
+    windowRaw = cliFlag(argv, '--window')
+    budgetSpec = cliFlag(argv, '--budget')
+    ledgerFlag = cliFlag(argv, '--ledger')
+  } catch (e) {
+    if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); process.exit(1) }
+    throw e
+  }
+  const windowN = Number(windowRaw || 20)
+  if (!Number.isInteger(windowN) || windowN <= 0) { console.error(`[用法错] --window 须为正整数（收到 ${windowRaw}）`); process.exit(1) } // 用法错=1（06 §5.8 行 1——修复批 L10：原退 3 与家族口径不一致）
+  const ledgerPath = ledgerFlag || join(projectDir, '.zcode', 'org-ledger.jsonl')
 
-const { merged } = loadOrgConfig(projectDir)
-if (argv.includes('--self-test')) process.exit(selfTest(merged) ? 0 : 1)
+  const { merged } = loadOrgConfig(projectDir)
+  if (argv.includes('--self-test')) { process.exitCode = selfTest(merged) ? 0 : 1; return } // 自然退出（门一回炉 W1：自检 PASS/FAIL 行亦 stdout 产物——急退同形禁）
 
-const LOG_PATH = join(SKILL_ROOT, 'scripts', 'model-routing-log.jsonl')
-// 读行器收敛=org-config readJsonlFile 单源（v1.6 批 P2-3）；保留原「缺失=null」语义（下游 FAIL 分支依赖）
-const readLines = (p) => (existsSync(p) ? readJsonlFile(p) : null)
-const ledger = readLines(ledgerPath)
-if (!existsSync(LOG_PATH)) { console.error(`FAIL 流水不存在 ${LOG_PATH}——先跑一次派发或回归演练`); process.exit(3) }
-if (!ledger) { console.error(`FAIL 账本不存在 ${ledgerPath}（--project/--ledger 指定）`); process.exit(3) }
-for (const e of ledger) if (e.unparseable) { console.error(`FAIL 数据行解析失败 ${e.unparseable}`); process.exit(3) }
-const routingLines = readLines(LOG_PATH).length
+  const LOG_PATH = join(SKILL_ROOT, 'scripts', 'model-routing-log.jsonl')
+  // 读行器收敛=org-config readJsonlFile 单源（v1.6 批 P2-3）；保留原「缺失=null」语义（下游 FAIL 分支依赖）
+  const readLines = (p) => (existsSync(p) ? readJsonlFile(p) : null)
+  const ledger = readLines(ledgerPath)
+  if (!existsSync(LOG_PATH)) { console.error(`FAIL 流水不存在 ${LOG_PATH}——先跑一次派发或回归演练`); process.exit(3) }
+  if (!ledger) { console.error(`FAIL 账本不存在 ${ledgerPath}（--project/--ledger 指定）`); process.exit(3) }
+  for (const e of ledger) if (e.unparseable) { console.error(`FAIL 数据行解析失败 ${e.unparseable}`); process.exit(3) }
+  const routingLines = readLines(LOG_PATH).length
 
-let out
-try { out = scan({ ledger, merged, windowN, budgetSpec, liveCfg: cfgHash(merged) }) }
-catch (e) { console.error(`FAIL ${e.message}`); process.exit(3) }
-const W = process.stdout.write.bind(process.stdout)
-for (const r of out.RED) W(`[RED] ${r}\n`)
-for (const w of out.WARN) W(`[WARN] ${w}\n`)
-for (const i of out.INFO) W(`[info] ${i}\n`)
-const auditRoles = Object.entries(merged.roles || {}).filter(([, c]) => c.audit_surface).map(([id]) => id)
-console.log(`health-scan 汇总：RED ×${out.RED.length} / WARN ×${out.WARN.length}（WARN 不阻断但须回显计数，累计出现即按升格条件处置，W-1）（账本行 ${ledger.length}/流水行 ${routingLines}/窗口 ${windowN}/审计岗 ${auditRoles.join(',')}）${out.RED.length ? '——有 RED 不得收口' : '——可收口'}`)
-process.exit(out.RED.length ? 1 : 0)
+  let out
+  try { out = scan({ ledger, merged, windowN, budgetSpec, liveCfg: cfgHash(merged) }) }
+  catch (e) {
+    if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); process.exit(1) } // --budget 形态错=用法错（修复批 L10：原 FAIL+3）
+    console.error(`FAIL ${e.message}`); process.exit(3)
+  }
+  const W = process.stdout.write.bind(process.stdout)
+  for (const r of out.RED) W(`[RED] ${r}\n`)
+  for (const w of out.WARN) W(`[WARN] ${w}\n`)
+  for (const i of out.INFO) W(`[info] ${i}\n`)
+  const auditRoles = Object.entries(merged.roles || {}).filter(([, c]) => c.audit_surface).map(([id]) => id)
+  console.log(`health-scan 汇总：RED ×${out.RED.length} / WARN ×${out.WARN.length}（WARN 不阻断但须回显计数，累计出现即按升格条件处置，W-1）（账本行 ${ledger.length}/流水行 ${routingLines}/窗口 ${windowN}/审计岗 ${auditRoles.join(',')}）${out.RED.length ? '——有 RED 不得收口' : '——可收口'}`)
+  process.exitCode = out.RED.length ? 1 : 0 // 自然退出（门一回炉 W1 双源收敛：RED/WARN 行经 W() 在途即急退=M1 同族漏网——大账本下告警行可达数十条）
+}
+
+const isMain = process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
+if (isMain) cliMain()

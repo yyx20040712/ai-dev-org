@@ -10,7 +10,7 @@
  *   R1'3=语义抽样（3 个锚定样例双源跑，判定方向一致性；真实派发
  *       ~9k Kimi tokens，须 --r1 显式触发=配给保护）。
  * 用法：node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden]
- *       [--project <账本目录>] [--keep-tmp]
+ *       [--project <账本目录>] [--ledger <账本路径>] [--keep-tmp]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 退出码口径单源=references/06 §5.8；本件特有一句（R2b 派发器装载路异常
  *       计入 FAIL 汇总、不单独退配置错——总表对回归件未载此聚合口径，
@@ -26,6 +26,7 @@ import { createHash } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import { SKILL_ROOT, readJson, loadOrgConfig, cliFlag, UsageError } from './org-config.mjs'
 import { ensureWithinRoot } from './ds-call-v2.mjs' // b6：包含性校验单源消费（另一落点=ds-call-v2 loadRole，同步演进）
+import { MANUAL_EVENTS } from './health-scan.mjs' // 人工事件词表单源消费（v2.0.1 修复批 L14——原两处逐字复制=漏改一侧即漂移；health-scan isMain 守卫后 import 零副作用）
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
 const GOLDEN_DIR = join(SCRIPTS, 'roles', '.golden')
@@ -124,8 +125,11 @@ if (want('R5')) {
   writeFileSync(promptFile, 'exhaust 演练（mock 全链注入，零成本）', 'utf8')
   const logBefore = existsSync(LOG_PATH) ? readFileSync(LOG_PATH, 'utf8').split('\n').filter(Boolean).length : 0
   // 期望计数从 org-config 链长推导（防过拟合重试常量——W5 审 Kimi-W4）：
-  // 每源 4 attempt（退避 3 次后第 4 抛）、链内换源=链长-1、末源 exhaust=1
-  const { merged } = loadOrgConfig(process.cwd())
+  // 每源 4 attempt（退避 3 次后第 4 抛）、链内换源=链长-1、末源 exhaust=1。
+  // v2.0.1 修复批 M5：期望值配置源=SKILL_ROOT（与子进程一致——子进程 cwd=tmp
+  // 恒装载默认件，原从 process.cwd() 推导，在带项目覆盖件（改过 source_chain）
+  // 的目录运行 regression 时两边链长错位=mock 注入 exit 3 或计数假 FAIL）
+  const { merged } = loadOrgConfig(SKILL_ROOT)
   const chainLen = (merged.source_chain || []).length
   const expAttempt = 4 * chainLen, expSwitch = chainLen - 1
   // cwd=tmp：账本随派发器 cwd 落 tmp/.zcode/（--project 仅是条目名，不改变落点）
@@ -163,7 +167,8 @@ if (want('R4')) {
   // 主控人工补记事件（ORG-11）：02 §9/05 §6/08 §4 要求入账的人工事件类型——
   // 旧 ledgerReq 仅认派发器三事件，致"照规范记账=R4 FAIL"的规范↔实现矛盾
   // （P0-4 同类病）。人工事件恒用 LEDGER_REQUIRED 基字段（无 usage，非派发产出）。
-  const MANUAL_EVENTS = ['porting-delta', 'doc-health', 'ruling', 'constitution-overrun', 'escaped-defect', 'stopped'] // stopped=接续演练/被杀岗手记（v1.6 批补登——原未登记致坏行误报）
+  // 词表单源=health-scan MANUAL_EVENTS 导出（Set 形态，消费用 .has——v2.0.1
+  // 修复批 L14：原两文件逐字复制数组，新增事件类型漏改一侧即规范↔实现矛盾）
   const checkLines = (label, path, required, tailN, opts = {}) => {
     if (!existsSync(path)) return { pass: false, detail: `${label}:文件不存在 ${path}` }
     const ls = readFileSync(path, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean).slice(-tailN)
@@ -222,7 +227,7 @@ if (want('R4')) {
   const ledgerPath = flag('--ledger') || join(projectDir, '.zcode', 'org-ledger.jsonl')
   const ledgerReq = (e) => {
     if (!['ok', 'switch', 'exhaust', ...MANUAL_EVENTS].includes(e.event)) return ['__unknown_event__'] // 账本侧未知 event 同样计坏行（终轮 A'-Kimi：防新增记账事件未同步 schema 即弱校验通过）。返回数组——checkLines 以 for...of 逐字段消费，对象形态会 TypeError（终轮复核修正）
-    if (MANUAL_EVENTS.includes(e.event)) return LEDGER_REQUIRED // 主控人工补记（无 usage/mocked/truncated——非派发产出）
+    if (MANUAL_EVENTS.has(e.event)) return LEDGER_REQUIRED // 主控人工补记（无 usage/mocked/truncated——非派发产出）
     const base = e.event === 'ok' ? [...LEDGER_REQUIRED, 'usage'] : LEDGER_REQUIRED
     // v1.6 终审 W1：v2 字段恒要求——无 schema_version 的新行（截止时点后）会因缺字段直接计坏；
     // 截止前存量行由 checkLines 的 skipIf 跳过（原条件分支成死代码，已删）
@@ -233,8 +238,15 @@ if (want('R4')) {
   }
   const b = checkLines('账本', ledgerPath, ledgerReq, 50, {
     // 无 schema_version 且早于纪律生效时点（2026-09-16T12:00Z）的存量行=旧版本形态——跳过计数
-    // （不追认不改写，08 §3）；时点后新增行漏带 schema_version 不再跳过=因缺字段计坏 FAIL（终审 W1 闸门）
-    skipIf: (e) => e.schema_version === undefined && String(e.ts || '') < '2026-09-16T12:00:00Z',
+    // （不追认不改写，08 §3）；时点后新增行漏带 schema_version 不再跳过=因缺字段计坏 FAIL（终审 W1 闸门）。
+    // v2.0.1 修复批 L6：时点比较=Date.parse 数值（原字符串比较对带毫秒 ts 存在 '.'<'Z'
+    // 边界——截止整秒内行被静默豁免；对齐 health-scan W3 回炉已修口径，不可解析/缺失
+    // ts=保守豁免跳过）
+    skipIf: (e) => {
+      if (e.schema_version !== undefined) return false
+      const t = Date.parse(e.ts || '')
+      return Number.isNaN(t) ? true : t < Date.parse('2026-09-16T12:00:00Z')
+    },
   })
   record('R4', passA && b.pass, `${a.detail}；${b.detail}`)
 }
@@ -470,29 +482,33 @@ process.exit(fails === 0 ? 0 : 1)
     ok = false
     det.push('②mock往返:跳过（splitEndpoint 未导出=b1 传输层未落，env 钩子未就位——跑则触真实宿主源发现）')
   }
-  // ④ B1 回炉向量：registry 装载错误面端到端（备份-注入-跑-还原，try/finally
-  //   保还原；注入窗内本进程顺序执行无并发读者——R2/R5 等已跑毕，R1 默认 SKIP）。
+  // ④ B1 回炉向量（v2.0.1 修复批 M6 清偿）：registry 装载错误面端到端——
+  //   DS_CALL_REGISTRY env 注入钩子指向临时坏件，共享 registry.json 零触碰
+  //   并以 sha256 前后对账钉住（原备份-注入-还原形态在注入窗内真实损坏共享
+  //   fixture：finally 挡不住进程被杀，同机并发读者会读到坏件致全装载面
+  //   exit 3——测试不得活体改写被测共享 fixture）。
   {
     const REG = join(SCRIPTS, 'roles', 'registry.json')
-    const backup = readFileSync(REG, 'utf8')
+    const regBefore = createHash('sha256').update(readFileSync(REG)).digest('hex')
+    const regBad = join(r10tmp, 'registry-bad.json')
+    writeFileSync(regBad, '{ 坏 JSON（B1 注入）', 'utf8')
+    const regNull = join(r10tmp, 'registry-null.json')
+    writeFileSync(regNull, JSON.stringify({ registry_version: 'rework-b1', roles: null }), 'utf8')
     const b1Prompt = join(r10tmp, 'b1-prompt.txt')
     writeFileSync(b1Prompt, 'B1 vector: registry load-error face', 'utf8')
     let b1Ok = true
     const b1Det = []
-    try {
-      writeFileSync(REG, '{ 坏 JSON（B1 注入）', 'utf8')
-      const rBad = r10Spawn([join(SCRIPTS, 'ds-call-v2.mjs'), '--list-roles'], { cwd: SKILL_ROOT })
-      const badFatal = (rBad.stderr || '').includes('[fatal]')
-      b1Ok &&= rBad.status === 3 && badFatal
-      b1Det.push(`坏JSON→exit=${rBad.status}(期3)/[fatal]=${badFatal}`)
-      writeFileSync(REG, JSON.stringify({ registry_version: 'rework-b1', roles: null }), 'utf8')
-      const rNull = r10Spawn([join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--dry-run', b1Prompt], { cwd: SKILL_ROOT })
-      const nullFatal = (rNull.stderr || '').includes('[fatal]')
-      b1Ok &&= rNull.status === 3 && nullFatal
-      b1Det.push(`roles:null→exit=${rNull.status}(期3)/[fatal]=${nullFatal}`)
-    } finally {
-      writeFileSync(REG, backup, 'utf8')
-    }
+    const rBad = r10Spawn([join(SCRIPTS, 'ds-call-v2.mjs'), '--list-roles'], { cwd: SKILL_ROOT, env: { ...process.env, DS_CALL_REGISTRY: regBad } })
+    const badFatal = (rBad.stderr || '').includes('[fatal]')
+    b1Ok &&= rBad.status === 3 && badFatal
+    b1Det.push(`坏JSON→exit=${rBad.status}(期3)/[fatal]=${badFatal}`)
+    const rNull = r10Spawn([join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--dry-run', b1Prompt], { cwd: SKILL_ROOT, env: { ...process.env, DS_CALL_REGISTRY: regNull } })
+    const nullFatal = (rNull.stderr || '').includes('[fatal]')
+    b1Ok &&= rNull.status === 3 && nullFatal
+    b1Det.push(`roles:null→exit=${rNull.status}(期3)/[fatal]=${nullFatal}`)
+    const untouched = createHash('sha256').update(readFileSync(REG)).digest('hex') === regBefore
+    b1Ok &&= untouched
+    b1Det.push(`共享件零触碰=${untouched}`)
     if (!b1Ok) ok = false
     det.push(`④B1向量(registry错误面):${b1Ok ? '全过' : '✗'} ${b1Det.join('；')}`)
   }
@@ -510,8 +526,9 @@ if (wantR1) {
   // R1 双源抽样源名单单源=org-config regression_cfg.r1_sources（v1.7.4 m4 清偿，
   // 残留册 evolve-m4-hardcode 承接）：缺段/空数组/别名∉providers → record('R1', false,
   // 明确原因)——不静默跳过（守卫先于派发循环=零真实调用即 FAIL）；名单语义=前两源
-  // 成对比较方向一致性；改名单=R1 语义变更须重验。
-  const { merged } = loadOrgConfig(process.cwd())
+  // 成对比较方向一致性；改名单=R1 语义变更须重验。配置源=SKILL_ROOT（v2.0.1
+  // 修复批 M5：对齐子进程实际装载根——原 process.cwd() 在项目覆盖件目录下错位）。
+  const { merged } = loadOrgConfig(SKILL_ROOT)
   const SOURCES = Array.isArray(merged.regression_cfg?.r1_sources) ? merged.regression_cfg.r1_sources : null
   const badSources = SOURCES === null
     ? 'regression_cfg.r1_sources 缺段或非数组（org-config 单源，v1.7.4 m4 清偿）'
