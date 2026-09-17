@@ -16,6 +16,9 @@
 | PostToolUse-livefire | hook 实弹触发验证 | 需机检强制（hook 拦截）的批次首场核对 |
 | killed-agent-metadata-gap | 被杀岗 metadata 无声明值可核 | 机检化（编排会话派发记录回填）后续批 |
 | check-anchors-calibration | 全角冒号形态/dod.md 扫描面/点名豁免漂移面 | check-anchors 升 --strict 决策前置批 |
+| host-metadata-schema-drift | 宿主子代理 metadata schema 演进使 ③ 检测面失明（在册实例：2026-09-17 profileSnapshot.model 字符串→modelSelection 结构体，旧 ③ 静默跳过新格式绑定岗——declaredModelOf 已收编两格式） | 宿主升级后首场绑定岗派发核对 metadata 形态仍被 declaredModelOf 认识；常驻 tripwire=log-triage ③ WARN「格式漂移疑似」（detectMetadataShapeDrift：model 键非字符串/modelSelection 残缺）出现即触发处置 |
+| empty-declared-blindspot | 空字符串 model 声明被当非绑定岗静默跳过（tripwire 只查非字符串形态；批前既有行为，宿主空串语义未确证——门二裁决 B3 登记） | 宿主 metadata 实证出现 model:"" 时处置（先确证语义再定跳过/漂移口径） |
+| log-triage-import-side-effect | log-triage.mjs 顶层无 import.meta.main 守卫，import 即跑 CLI 主流程（门二实证 M5-M7 注入命令实录；批前既有） | 出现模块化消费该文件的需求时加守卫（当前消费面=CLI+自检，无受损） |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
 
 ## 修订记
