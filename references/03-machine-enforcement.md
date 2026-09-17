@@ -9,14 +9,16 @@
 check_structure（文件职责表双向校验：表多=失败，表少=失败）· check_grep_gates
 （占位/裸 except/乱码计数=0）· check_magic_numbers（**AST 级**扫描——注释里的数字
 骗不过；数值字面量仅允许出现在真源区白名单）· check_module_graph（真实 import
-扫描器：实现期依赖必须是图谱声明边的子集，57 边级）· check_readonly（锁定测试面
+扫描器：实现期依赖必须是图谱声明边的子集——边级数字以 WP 仓当期 verify 输出
+为准，v2.0.1 修复批：项目 live 数字不驻技能正文）· check_readonly（锁定测试面
 完整性）· check_ruff · check_file_budgets（≤500 行等）· check_webapp ·
 check_contract_headers。
 
 **SY 形态**（`npm run verify`，CI 同口径）：
 quality（TODO/占位/mojibake/跨域白名单）· tickets（工单号引用一致性+done 无占位残留
-+open UI 必须渲染徽标）· locks（132 受锁文件 sha256 对账）· lint · typecheck ·
-test · build——七合一，**退出码是唯一真相**（文档不手写测试数）。
++open UI 必须渲染徽标）· locks（受锁文件 sha256 对账——文件数以 SY 仓当期 verify
+输出为准，不驻技能正文）· lint · typecheck · test · build——七合一，
+**退出码是唯一真相**（文档不手写测试数）。
 
 ## 2. 测试面双锁（防"改测试让代码通过"）
 
