@@ -259,14 +259,15 @@ function makeFinishClassifier(vocab) {
 }
 
 /** FINDINGS 机读尾栏解析（selfiter 批 findings-parser 清偿——DoD 契约机读面）：
- *  审出件末栏形如「FINDINGS: B=1 W=2 N=3 VERDICT=PASS」（末 5 行回扫窗，空格容错，
- *  verdict 归一大写）；未命中返回 null（非审计产出/未带尾栏=不伪造）。纯函数
- *  export 供 R10 向量。 */
+ *  审出件末栏形如「FINDINGS: B=1 W=2 N=3 VERDICT=PASS」（末 5 行回扫窗——
+ *  回炉 N1：原 back<=5 实扫 6 行与注释不符；空格容错，verdict=纯字母集——
+ *  原回炉 N1：\S+ 会吞尾随标点污染归一值）；未命中返回 null（非审计产出/
+ *  未带尾栏=不伪造）。纯函数 export 供 R10 向量。 */
 export function parseFindings(text) {
   if (typeof text !== 'string') return null
   const lines = text.trimEnd().split('\n')
-  for (let i = lines.length - 1, back = 0; i >= 0 && back <= 5; i--, back++) {
-    const m = /^FINDINGS:\s*B=(\d+)\s+W=(\d+)\s+N=(\d+)\s+VERDICT=(\S+)/.exec(lines[i].trim())
+  for (let i = lines.length - 1, back = 0; i >= 0 && back <= 4; i--, back++) {
+    const m = /^FINDINGS:\s*B=(\d+)\s+W=(\d+)\s+N=(\d+)\s+VERDICT=([A-Za-z]+)/.exec(lines[i].trim())
     if (m) return { B: Number(m[1]), W: Number(m[2]), N: Number(m[3]), verdict: m[4].toUpperCase() }
   }
   return null

@@ -150,6 +150,10 @@ tier 记法：外部岗取 org-config
 
 ## 版本与状态（selfiter 批 B3 起自含——历史指针化）
 
+- **当前版本=v2.0（2026-09-17 selfiter 收口批落章）**：自我迭代七批闭环
+  （B1 代码卫生 14 项/B2 文档收敛/B3 历史归档纯净化/B4 账本写入器 v3/
+  B5 SSE 流式化/B6 hardcode 升 RED/B7 收口）——四组用户裁决（git 不压平/
+  R1 真跑/轮转保尾/D 类全实施）全数兑现。
 - v1.0→v1.7.6+selfiter 前段版本史/各批修订记=归档件（`~/.zcode/skills/
   _archive/ai-dev-org-history-2026-09/CHANGELOG.md`，路径相对 skills 根）；
   v1.0 冻结（用户裁决 2026-09-10）的条件、资格与裁决档指针=该件 v1.7.2 迁入

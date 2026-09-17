@@ -391,9 +391,10 @@ async function main() {
     norm = normalizeResponse(resp, channel);
     const truncFlag = channel === "glm" ? "max_tokens" : "length";
     // 截断终态不因「有正文」豁免（selfiter 批 glm-look-truncation 清偿——原
-    // hasText 即 break=截断有正文照当 ok 收下的假成功面）：终态非截断且有正文
-    // 才提前收；截断（无论正文有无）一律倍升重试
-    if (norm.finish !== truncFlag && norm.hasText) break;
+    // hasText 即 break=截断有正文照当 ok 收下的假成功面）。回炉 W2 修正：
+    // 重试条件=终态为截断（无论正文有无）——零正文且非截断=完整但空响应，
+    // 立即收（重试不改变空产出，原语义保持；归因文案只对真截断打）
+    if (norm.finish !== truncFlag) break;
     if (attempt < 3)
       console.error(`[${channelTag(channel)}] 第 ${attempt} 轮终态截断（finish=${norm.finish}${norm.hasText ? "，有正文仍不完整" : "，零正文"}）——倍升重试`);
     attemptTokens *= 2;

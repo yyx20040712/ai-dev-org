@@ -373,6 +373,9 @@ t('findings:标准尾栏解析', JSON.stringify(parseFindings('报告正文\\nFI
 t('findings:无尾栏→null（不伪造）', parseFindings('普通产出无尾栏') === null)
 t('findings:尾栏后有杂行（末5行回扫窗）仍命中', parseFindings('FINDINGS: B=0 W=1 N=0 VERDICT=FAIL\\n\\n备注行') !== null)
 t('findings:verdict 归一大写+零值形态', parseFindings('FINDINGS: B=0 W=0 N=2 VERDICT=pass').verdict === 'PASS' && parseFindings('FINDINGS: B=0 W=0 N=2 VERDICT=pass').N === 2)
+// 回炉 N1 向量：verdict 尾随标点不污染（字母集捕获）+第 6 行前不命中（5 行窗）
+t('N1 findings：尾随全角句号不并入 verdict', parseFindings('FINDINGS: B=0 W=0 N=1 VERDICT=PASS。').verdict === 'PASS')
+t('N1 findings：5 行回扫窗外（第 6 行）不命中', parseFindings('FINDINGS: B=0 W=0 N=1 VERDICT=PASS\\n一\\n二\\n三\\n四\\n五\\n六') === null)
 // selfiter 批（B5 流式化）向量：响应体双形态解析
 t('B5 parseResponseBody：anthropic SSE 文本→同构最终对象', (() => { const o = parseResponseBody({ kind: 'anthropic' }, 'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"VEC"}}\\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":2}}\\ndata: [DONE]'); return o.content?.[0]?.text === 'VEC' && o.stop_reason === 'end_turn' })())
 t('B5 parseResponseBody：非 SSE JSON 原语义回退', parseResponseBody({ kind: 'anthropic' }, '{"content":[{"type":"text","text":"J"}],"stop_reason":"end_turn"}').content[0].text === 'J')
@@ -500,9 +503,9 @@ process.exit(fails === 0 ? 0 : 1)
 // ═══ R1'3：语义抽样（真实派发，--r1 显式触发） ═══
 if (wantR1) {
   const CASES = [
-    { id: 'S1-断言弱化', expect: 'FAIL', prompt: '审查以下测试改动并只回答一行「判定:PASS」或「判定:FAIL:原因」：\n```diff\n- assert saved.tags.length === 3\n+ assert saved.tags.length >= 1\n```' },
-    { id: 'S2-干净样例', expect: 'PASS', prompt: '审查以下测试改动并只回答一行「判定:PASS」或「判定:FAIL:原因」：\n```diff\n- const n = items.filter(x => x.ok).length\n+ const n = items.filter((x) => x.ok).length\n```' },
-    { id: 'S3-占位残留', expect: 'FAIL', prompt: '审查以下测试改动并只回答一行「判定:PASS」或「判定:FAIL:原因」：\n```diff\n+ // TODO: 补充断言\n+ it("works", () => { expect(true).toBe(true) })\n```' },
+    { id: 'S1-断言弱化', expect: 'FAIL', prompt: '审查以下测试改动并只回答一行「判定:PASS」或「判定:FAIL:原因」：\n```diff\n- assert saved.tags.length === 3\n+ assert saved.tags.length >= 1\n```\n（末行固定输出机读尾栏：FINDINGS: B=<数> W=<数> N=<数> VERDICT=PASS 或 FAIL）' },
+    { id: 'S2-干净样例', expect: 'PASS', prompt: '审查以下测试改动并只回答一行「判定:PASS」或「判定:FAIL:原因」：\n```diff\n- const n = items.filter(x => x.ok).length\n+ const n = items.filter((x) => x.ok).length\n```\n（末行固定输出机读尾栏：FINDINGS: B=<数> W=<数> N=<数> VERDICT=PASS 或 FAIL）' },
+    { id: 'S3-占位残留', expect: 'FAIL', prompt: '审查以下测试改动并只回答一行「判定:PASS」或「判定:FAIL:原因」：\n```diff\n+ // TODO: 补充断言\n+ it("works", () => { expect(true).toBe(true) })\n```\n（末行固定输出机读尾栏：FINDINGS: B=<数> W=<数> N=<数> VERDICT=PASS 或 FAIL）' },
   ]
   // R1 双源抽样源名单单源=org-config regression_cfg.r1_sources（v1.7.4 m4 清偿，
   // 残留册 evolve-m4-hardcode 承接）：缺段/空数组/别名∉providers → record('R1', false,

@@ -65,11 +65,14 @@ const tsMs = (x) => { const t = Date.parse(x); return Number.isNaN(t) ? null : t
 const inWindow = (t, sinceMs, untilMs) => t === null ? true : !((sinceMs != null && t < sinceMs) || (untilMs != null && t >= untilMs))
 
 /** 缺输入显式留痕（selfiter 批 evolve-l9-degrade 清偿——纯函数，自检可注入 exists）：
- *  三输入面全缺才记该面（半缺不噪声化）；CLI 面多点时全部缺失才记。
- *  级别=info 非 degraded（新机/未派发属正常态，退出码不动）。 */
-export function missingInputNotes({ cliLogPaths = [], routingLog = null, agentsDir = null, exists = existsSync }) {
+ *  CLI 面双形态：date 模式=具体文件（多点全缺才记）；hours 模式=目录级（cliDir
+ *  缺失即记——回炉 W1：原 hours 分支 logFiles=[] 致 cliLogPaths 空数组漏留痕，
+ *  恰为目标场景）；routing/agents 两面同前。级别=info 非 degraded（新机/未派发
+ *  属正常态，退出码不动）。 */
+export function missingInputNotes({ cliLogPaths = [], cliDir = null, routingLog = null, agentsDir = null, exists = existsSync }) {
   const notes = []
-  if (cliLogPaths.length && cliLogPaths.every((p) => !exists(p)))
+  if (cliDir && !exists(cliDir)) notes.push(`[info] 输入缺失：${cliDir}（CLI 日志目录——内链路面无数据）`)
+  else if (cliLogPaths.length && cliLogPaths.every((p) => !exists(p)))
     notes.push(`[info] 输入缺失：${cliLogPaths[0]}${cliLogPaths.length > 1 ? ` 等 ${cliLogPaths.length} 件` : ''}（CLI 日志——内链路面无数据）`)
   if (routingLog && !exists(routingLog)) notes.push(`[info] 输入缺失：${routingLog}（派发器流水——外链路面无数据）`)
   if (agentsDir && !exists(agentsDir)) notes.push(`[info] 输入缺失：${agentsDir}（子代理 metadata——③⑥⑦ 面无数据）`)
@@ -328,13 +331,20 @@ function run() {
     t('l9 全缺输入→三面各一行留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliLogPaths: ['/x/a.jsonl'], routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => false }).length === 3)
     t('l9 全在场→零留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliLogPaths: ['/x/a.jsonl'], routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => true }).length === 0)
     t('l9 CLI 面半缺不噪声化（两点仅一点缺=不记该面，他面在场零留痕）', typeof missingInputNotes === 'function' && missingInputNotes({ cliLogPaths: ['/x/a.jsonl', '/x/b.jsonl'], routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: (p) => p !== '/x/b.jsonl' }).length === 0)
+    // 回炉 W1 向量：hours 模式目录缺失（cliDir 形态）+目录在场零留痕——红态=旧接线
+    // 空数组漏留痕（目标场景零提示）
+    t('l9-W1 hours 模式目录缺失→目录级留痕（非空数组静默）', typeof missingInputNotes === 'function' && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: (p) => p === '/x/r.jsonl' }).length === 2 && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: (p) => p === '/x/r.jsonl' })[0].includes('clilog'))
+    t('l9-W1 目录在场→零留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => true }).length === 0)
     console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
     process.exitCode = stFails === 0 ? 0 : 1
   } else {
     // 收割两账（--hours 无日期时目录守卫：CLI 日志目录缺失=空集不崩——v1.6 批）
     const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-2) : [])
-    // 缺输入显式留痕（evolve-l9-degrade：原三面静默空输出与 M1 静默空窗同族——红态=缺目录零提示）
-    for (const n of missingInputNotes({ cliLogPaths: logFiles.map((f) => join(CLI_LOG_DIR, f)), routingLog: ROUTING_LOG, agentsDir: AGENTS_DIR })) console.error(n)
+    // 缺输入显式留痕（evolve-l9-degrade：原三面静默空输出与 M1 静默空窗同族——红态=缺目录零提示）。
+    // 回炉 W1：hours 模式目录缺失走 cliDir 形态（原空数组漏留痕=目标场景零提示）
+    for (const n of missingInputNotes(dateStr
+      ? { cliLogPaths: [join(CLI_LOG_DIR, `zcode-${dateStr}.jsonl`)], routingLog: ROUTING_LOG, agentsDir: AGENTS_DIR }
+      : { cliDir: CLI_LOG_DIR, routingLog: ROUTING_LOG, agentsDir: AGENTS_DIR })) console.error(n)
     const cliLines = logFiles.flatMap(f => readJsonl(join(CLI_LOG_DIR, f)))
     const { perProvider, subagentNet, deduped } = harvestCliLog(cliLines, aliasMap, sinceMs, untilMs)
     const routing = harvestRouting(readJsonl(ROUTING_LOG), sinceMs, untilMs)

@@ -144,13 +144,16 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
   // 截止时点后 audit_surface 岗真实 ok 行（非 mocked）缺 findings 字段=DoD 机读
   // 尾栏契约失守（RED——防「无尾栏假审计」与解析失配静默）；截止前存量行豁免
   // （08 §3 不追认）；带 findings 行汇总 verdict 分布与 B/W/N 累计（INFO）。
-  const FINDINGS_CUTOFF = '2026-09-17T12:00:00Z'
+  // 回炉 W3 修正：时点比较=Date.parse 数值（原字符串比较对带毫秒 ts 存在
+  // '.'<'Z' 边界——截止整秒内行被静默豁免）；不可解析/缺失 ts=保守豁免
+  const FINDINGS_CUTOFF_MS = Date.parse('2026-09-17T12:00:00Z')
   let auditRows = 0, auditNoFindings = 0
   const verdictDist = {}, findingsSum = { B: 0, W: 0, N: 0 }
   for (const e of ledger) {
     if (e.event !== 'ok' || e.mocked === true) continue
     if (!auditRoles.has(e.role)) continue
-    if (String(e.ts || '') < FINDINGS_CUTOFF) continue
+    const tMs = Date.parse(e.ts)
+    if (Number.isNaN(tMs) || tMs < FINDINGS_CUTOFF_MS) continue
     auditRows++
     const f = e.findings
     if (!f || typeof f !== 'object') { auditNoFindings++; continue }
@@ -213,6 +216,9 @@ function selfTest(merged) {
   t('截止后审计行缺 findings → RED（DoD 机读尾栏执法）', f2.RED.some((r) => r.includes('缺机读 FINDINGS')))
   const f3 = scan({ ledger: [{ ...base, ts: '2026-09-01T00:00:00Z', project: '/real/p' }], merged })
   t('截止前存量审计行豁免（08 §3 不追认）', !f3.RED.some((r) => r.includes('FINDINGS')))
+  // 回炉 W3 向量：截止整秒内带毫秒行（字符串比较会因 '.'<'Z' 误豁免——数值比较纠正）
+  const f3b = scan({ ledger: [{ ...base, ts: '2026-09-17T12:00:00.500Z', project: '/real/p' }], merged })
+  t('W3 截止整秒内带毫秒行=截止后（执法不漏）', f3b.RED.some((r) => r.includes('缺机读 FINDINGS')))
   const f4 = scan({ ledger: [{ ...base, ts: '2026-09-18T00:00:00Z', project: '/real/p', mocked: true }], merged })
   t('mocked 演练行不触发 findings 执法', !f4.RED.some((r) => r.includes('FINDINGS')))
   const f5 = scan({ ledger: [{ ...base, ts: '2026-09-18T00:00:00Z', project: '/real/p', event: 'escaped-defect', outcome: 'W 批漏网样例', usage: undefined }], merged })
