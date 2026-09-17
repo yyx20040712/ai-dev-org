@@ -96,6 +96,14 @@
 
 修订记同步见本册末节 2026-09-16 行。
 
+## 2026-09-17 部署能力批（v1.7.3）新登记
+
+| 编号 | 来源 | 内容 | 状态 | 处置 |
+|---|---|---|---|---|
+| deploy-hostfacts-split | 部署能力批（v1.7.3） | org-config.default.json 仍内嵌本机供应商事实（uuid_prefix/entry_name）——新机若宿主注册表不同形须手改默认件；更优形态=新机首装脚手架从宿主注册表派生项目覆盖件（deploy-check --install 扩展位） | open | 承接=下批；裁决面=供应商事实属用户配置域，自动改写须显式授权 |
+
+修订记同步见本册末节 2026-09-17 行。
+
 ## 残留快照对账表（交接书 §1.3 → 本册编号；「静默消失」证伪位）
 
 | 交接书 §1 快照条目 | 本册编号 | 状态 |
@@ -167,3 +175,7 @@
   ——主控移交+b7 自检引出，本轮回炉闭合）+evolve-b1-transportresidual 处置列
   追加 R10 错误面承接注+evolve-h2-timeouts 行 R1 超时表述勘误（防加法误读）。
   批档=scripts/audits/2026-09-16_evolve-rework-*。
+- 2026-09-17 部署能力批（v1.7.3）：新增登记 1 条（deploy-hostfacts-split——
+  open）；本批交付=templates/agents/ 六件版本化+scripts/deploy-check.mjs+
+  DEPLOY.md+SKILL.md 加载地图一行。批档=scripts/audits/
+  2026-09-17_deploy-impl-report.md。

@@ -4,6 +4,23 @@
 > 逐字保留，此后新增版本只在本件追加）。v1.7.2 起 SKILL.md 不再保留
 > 任何修订记内联条（含最近一条摘要），版本面单源=本件。历史条目属过程记录，按 references/08 §3 红线不再改写。
 
+## 2026-09-17 v1.7.3（部署能力批——新机一键自检+首装：宿主侧 ops-* 六代理版本化入 templates）
+
+- **动机**：外部评估 P5 的可落地部分——新机部署能力缺位（部署体检散落多脚本、
+  无一键入口）；且宿主侧 ops-* 六代理自子代理绑定批入役以来从未版本化（单机
+  孤本，新机无法复现，漂移不可对账）。
+- **变更**：A templates/agents/ 六件字节级拷贝（宿主侧→技能仓，逐件 sha256
+  双侧对账相等，deploy-check ④ 清单单源）；B scripts/deploy-check.mjs 七项
+  自检（node-major/skill-files/org-config/agents/hook/remote/ledger-dir）
+  +--install（仅补缺失代理件与未设 hooksPath，漂移件不覆盖）；C DEPLOY.md
+  六步部署指南；D SKILL.md 加载地图增一行；E 本条；F RESIDUALS 新登记
+  deploy-hostfacts-split（open）。
+- **行为变化申报**：新增脚本与文档，无既有行为面变更；--install 仅补缺失不
+  覆盖漂移（漂移=warn 人工比对，保护本机定制）；绝不改 org-config/宿主配置。
+- **机检面**：提交钩子/anchors/R7 不受影响（templates/ 不在 check-hardcode
+  扫描面；新增文本零断锚零命中）；deploy-check 自身 --self-test（16 向量：
+  forbid 判定/agents 清单派生/漂移分类/退出码映射含 3 类/hook 值分类/汇总）。
+
 ## 2026-09-17 v1.7.2（SKILL.md 瘦身批——修订记/验证状态迁出主件：降会话加载上下文税）
 
 - **动机**：外部评估遗留项（中期建议）——SKILL.md 随技能加载全量入上下文，

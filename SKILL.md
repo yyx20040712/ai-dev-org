@@ -96,6 +96,7 @@ tier 记法：外部岗取 org-config
 正文不落数字——A3 防双源）
 
 档案件（按需查、勿随技能常载）：版本史/冻结存档=CHANGELOG.md ｜ 残留欠账=RESIDUALS.md ｜ 历史批档=scripts/audits/。
+新机部署与一键自检=DEPLOY.md（根目录）｜ scripts/deploy-check.mjs（--install 补代理与钩子）。
 
 ## 红旗（出现即停）
 
