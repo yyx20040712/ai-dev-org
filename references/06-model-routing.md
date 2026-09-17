@@ -208,3 +208,4 @@ EXECUTOR=model-field:＜值＞ 即机读证据（W-2 双印证非双源）；未
   （设计书=Kimi 拟定，审核=deepseek 5B/5W/3N，终裁档=
   scripts/audits/2026-09-10_org-skill-rulings.md）。
 - 2026-09-02 v1.0/v1.1：见归档件修订史（用户四次 Ruling 定稿）。
+- 2026-09-17 v2.4（m4 清偿批）：派发器请求参数/R1 源名单/anchors 豁免点名单收编 org-config（新分区 dispatch_request/regression_cfg/anchors_exempt）；缺段=exit 3 无静默回退。批档=scripts/audits/2026-09-17_m4-impl-report.md

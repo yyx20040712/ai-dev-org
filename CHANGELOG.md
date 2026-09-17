@@ -4,6 +4,42 @@
 > 逐字保留，此后新增版本只在本件追加）。v1.7.2 起 SKILL.md 不再保留
 > 任何修订记内联条（含最近一条摘要），版本面单源=本件。历史条目属过程记录，按 references/08 §3 红线不再改写。
 
+## 2026-09-17 v1.7.4（m4 硬编码清偿批——脚本参数面收编 org-config：三分区单源+缺段 exit 3 守卫）
+
+- **动机**：在册残留 evolve-m4-hardcode 三处脚本硬编码（ds-call-v2 请求参数
+  字面量/regression R1 源名单内联/check-anchors 项目侧点名单）——「脚本禁
+  硬编码供应商事实」纪律（06 §0/A3）的参数面延伸：改动须走 cfg_hash 可追溯，
+  缺段拒跑而非静默回退。
+- **变更**：A org-config.default.json 新增三分区 dispatch_request（max_tokens/
+  temperature，ds-call-v2 两载荷形态共用）/regression_cfg（r1_sources）/
+  anchors_exempt（project_names），插在 hardcode_scan 与 roles 之间；B ds-call-v2
+  两 body 载荷改读配置（装载点校验有限数值，否则 ConfigError exit 3 点名
+  分区与字段）；C regression R1 SOURCES 改读 regression_cfg.r1_sources（缺段/
+  空数组/别名∉providers → R1 FAIL 显式原因，不静默跳过；守卫先于派发循环=
+  零真实调用）；D check-anchors PROJECT_NAMES 改由配置派生（缺段/非数组
+  exit 3，词表缺失族）+--self-test 16→18 向量（fixture 派生正例+缺段错误
+  形态）。cfg_hash 变更申报：a26f710a540d → 20254429f008（以 `node
+  scripts/org-config.mjs hash` 实跑为准）。
+- **行为变化申报**：值不变纯迁址（三分区默认值=原脚本字面量，行为面零变化）；
+  新增缺段守卫（旧行为=无守卫）——ds-call-v2 缺段/非数值=exit 3、
+  check-anchors 缺段/非数组=exit 3、R1 缺段/空名单/未知别名=FAIL，均无
+  静默回退；变异红证：null 覆盖件三点全中、点名单置空 → 路径缺失
+  WARN ×7（消费证）。
+- **机检面**：R2a/R2b golden 不涉（系统提示不变）；R5 链行为不变（mock
+  全链 exit 2/attempt 12/switch 2/exhaust 1）；R4 自愈路径=新哈希行随
+  R5 mock 派发先于 R4 写入（cfg哈希一致=true：流水 20254429f008 vs live）；
+  终态=regression 8/8、anchors 0/0（面 11）、--self-test 18/18、hardcode
+  命中 0。批档=scripts/audits/2026-09-17_m4-impl-report.md。
+- **实现链**：ops-executor 一轮+回炉 1 轮（门一 W-1/W-2/N-1 终裁批内清偿，
+  门一回炉重审）：W-1 mock 漏注射=ConfigError exit 3 拒跑（外层 catch 直通
+  配置类错不进换源/exhaust 链语义——根因堵死本批自裁 1「漏注射静默真实调用」
+  前科）；W-2 R1 守卫链补重复别名判据（双源一致性退化同源自比=FAIL）；
+  N-1 check-anchors 主流程装载失败=[fatal] 一行+exit 3（对齐 ds-call-v2
+  ConfigError 惯例，06 §5.8 行 3）。三红证零外呼实录（漏注射 exit 3 点名
+  kimi-backup/重复别名 FAIL 点名/坏 JSON [fatal] exit 3），自检向量数不变
+  （18）如实保留；复绿全套=regression 8/8+anchors 0/0+self-test 18/18+
+  hardcode 0 命中+validate PASS（cfg 不变 20254429f008——回炉零配置面变更）。
+
 ## 2026-09-17 v1.7.3（部署能力批——新机一键自检+首装：宿主侧 ops-* 六代理版本化入 templates）
 
 - **动机**：外部评估 P5 的可落地部分——新机部署能力缺位（部署体检散落多脚本、
