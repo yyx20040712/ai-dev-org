@@ -417,12 +417,32 @@ if (wantR1) {
     { id: 'S2-干净样例', expect: 'PASS', prompt: '审查以下测试改动并只回答一行「判定:PASS」或「判定:FAIL:原因」：\n```diff\n- const n = items.filter(x => x.ok).length\n+ const n = items.filter((x) => x.ok).length\n```' },
     { id: 'S3-占位残留', expect: 'FAIL', prompt: '审查以下测试改动并只回答一行「判定:PASS」或「判定:FAIL:原因」：\n```diff\n+ // TODO: 补充断言\n+ it("works", () => { expect(true).toBe(true) })\n```' },
   ]
-  const SOURCES = ['kimi-main', 'deepseek']
+  // R1 双源抽样源名单单源=org-config regression_cfg.r1_sources（v1.7.4 m4 清偿，
+  // 残留册 evolve-m4-hardcode 承接）：缺段/空数组/别名∉providers → record('R1', false,
+  // 明确原因)——不静默跳过（守卫先于派发循环=零真实调用即 FAIL）；名单语义=前两源
+  // 成对比较方向一致性；改名单=R1 语义变更须重验。
+  const { merged } = loadOrgConfig(process.cwd())
+  const SOURCES = Array.isArray(merged.regression_cfg?.r1_sources) ? merged.regression_cfg.r1_sources : null
+  const badSources = SOURCES === null
+    ? 'regression_cfg.r1_sources 缺段或非数组（org-config 单源，v1.7.4 m4 清偿）'
+    : SOURCES.length === 0
+      ? 'regression_cfg.r1_sources 为空数组（org-config 单源，v1.7.4 m4 清偿）'
+      : SOURCES.length < 2
+        ? `regression_cfg.r1_sources 少于 2 源（现=[${SOURCES.join(',')}]）——双源方向一致性判定不可构成`
+      : new Set(SOURCES).size !== SOURCES.length
+        ? `r1_sources 含重复别名（现=[${SOURCES.join(',')}]）——双源一致性退化为同源自比（门一 W-2）`
+        : SOURCES.some((a) => !(merged.providers || {})[a])
+          ? `regression_cfg.r1_sources 含 providers 外别名（现=[${SOURCES.join(',')}]——源别名须∈providers）`
+          : null
+  if (badSources) {
+    record('R1', false, `${badSources}——R1 语义面失效，显式 FAIL 不静默跳过`)
+  } else {
   const tmp = mkdtempSync(join(tmpdir(), 'r1-'))
   let allPass = true, detail = []
+  const [srcA, srcB] = SOURCES
   for (const c of CASES) {
     const verdicts = {}
-    for (const src of SOURCES) {
+    for (const src of [srcA, srcB]) {
       const pf = join(tmp, c.id + '.txt')
       writeFileSync(pf, c.prompt, 'utf8')
       const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--source', src, '--project', tmp, pf, pf + '.' + src + '.out'], { encoding: 'utf8', cwd: tmp, timeout: 5_400_000, killSignal: 'SIGKILL' }) // R1 超时=单源推导 4×20min（链长 4×派发器 CALL_TIMEOUT_MS）+35s 开销=4,835,000ms，+裕量取 90min（5,400,000ms∈C5 机检窗 [4,835,000, 7,200,000]；evolve-E2 b5——原 1,260,000 低于派生值，合法最坏链会被先杀误报 FAIL；v1.6 批史：原 10min 同病）
@@ -433,12 +453,13 @@ if (wantR1) {
       verdicts[src] = vm ? vm[1].toUpperCase() : `UNPARSEABLE(exit=${r.status})`
       if (verdicts[src] === 'UNPARSEABLE') allPass = false
     }
-    const agree = verdicts['kimi-main'] === verdicts['deepseek'] && verdicts['kimi-main'] === c.expect
+    const agree = verdicts[srcA] === verdicts[srcB] && verdicts[srcA] === c.expect
     if (!agree) allPass = false
-    detail.push(`${c.id}:${verdicts['kimi-main']}/${verdicts['deepseek']}(期${c.expect})${agree ? '✓' : '✗'}`)
+    detail.push(`${c.id}:${verdicts[srcA]}/${verdicts[srcB]}(期${c.expect})${agree ? '✓' : '✗'}`)
   }
   if (!keepTmp) rmSync(tmp, { recursive: true, force: true })
   record('R1', allPass, `双源判定方向一致性 ${detail.join(' ')}`)
+  }
 } else if (want('R1')) {
   recordSkip('R1', '未给 --r1——真实派发配给保护，~9k Kimi tokens；冻结裁决前须跑或显式登记欠账（SKIP 不计入通过数——ds-W6）')
 }

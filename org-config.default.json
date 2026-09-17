@@ -70,6 +70,19 @@
     "forbidden_terms": [],
     "note": "check-hardcode 的额外扫描名单（正则字面量，扫 .md 正文）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。事实分层（同 vision_channels.note，终审 auditor-B 统一口径）：身份/甄别类供应商事实住本件（providers/vision_channels/source_health），连接/密钥类住宿主 config，.md 正文禁一切 live 事实——实配模型名词表由 check-hardcode 从宿主注册表实时派生，故本名单默认空；项目覆盖件可加自有禁词"
   },
+  "dispatch_request": {
+    "max_tokens": 32768,
+    "temperature": 0.2,
+    "note": "派发器请求参数单源（v1.7.4 m4 清偿）：ds-call-v2 两载荷形态共用；原脚本字面量收编。改动即 cfg_hash 变更可追溯；缺段/非数值=exit 3 无静默回退"
+  },
+  "regression_cfg": {
+    "r1_sources": ["kimi-main", "deepseek"],
+    "note": "R1 双源抽样源名单单源（v1.7.4 m4 清偿）：源别名须 ∈ providers；改名单=R1 语义变更须重验"
+  },
+  "anchors_exempt": {
+    "project_names": ["scripts/run_gates.py", "scripts/check_model_names.py", "scripts/check-model-names.mjs", "scripts/check-locks.mjs", "check-tickets.mjs", "__init__.py"],
+    "note": "check-anchors 项目侧裸文件名豁免点名单单源（v1.7.4 m4 清偿）：项目侧路径不属技能根存在性检查域（同段 PROJECT_PREFIX 正则为语法形态留脚本内）"
+  },
   "roles": {
     "drafter": {
       "source": "chain",

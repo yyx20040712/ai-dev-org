@@ -23,6 +23,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
+import { loadOrgConfig } from './org-config.mjs'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url)) // 规范路径解析（勿用 URL pathname 手拼——v1.6 批 P0-B 教训）
 const SKILL_ROOT = resolve(SCRIPT_DIR, '..')
@@ -95,7 +96,21 @@ function checkEntryRefs(ln, entIdx) {
 
 // 项目侧路径（项目仓/项目覆盖件/项目脚本示例）不属技能根存在性检查域——按前缀+点名跳过（试点基线分类：均为 WP/Synapse 项目侧文件）
 const PROJECT_PREFIX = /^(\.zcode\/|reports\/|briefs\/|docs\/)/
-const PROJECT_NAMES = new Set(['scripts/run_gates.py', 'scripts/check_model_names.py', 'scripts/check-model-names.mjs', 'scripts/check-locks.mjs', 'check-tickets.mjs', '__init__.py'])
+
+// 点名单单源=org-config anchors_exempt.project_names（v1.7.4 m4 清偿，残留册
+// evolve-m4-hardcode 承接）：deriveProjectNames 派生纯函数（主扫描真实装载+
+// --self-test fixture 共用）；缺段/非数组=exit 3（词表缺失族——同 finish_vocab
+// 口径：无兜底名单，缺=配置错即拒跑，无静默回退）。PROJECT_PREFIX 正则=
+// 语法形态，留脚本内（org-config 同段 note 明示）。
+function deriveProjectNames(merged) {
+  const list = merged?.anchors_exempt?.project_names
+  if (!Array.isArray(list))
+    return {
+      names: null,
+      error: `org-config anchors_exempt.project_names 缺段或非数组（现=${list === undefined ? 'undefined' : JSON.stringify(list) ?? String(list)}）——项目侧点名单单源（v1.7.4 m4 清偿），缺段=exit 3 无静默回退`,
+    }
+  return { names: new Set(list), error: null }
+}
 
 function resolveRef(v) {
   if (v.startsWith('~/')) return resolve(homedir(), v.slice(2))
@@ -158,6 +173,11 @@ function selfTest() {
   t('免误伤：K3 编号短语（无文档号·前缀）不命中', refsOf('K3 编号短语不命中')?.length === 0, true)
   t('「」叙述跳过延续 ·XN 族', refsOf('「旧引 02·C2 为断锚」叙述')?.length === 0, true)
   t('两位文档号条目形：10·A1 解析 no=10（现无该号文档=断锚方向）', (() => { const r = refsOf('10·A1'); return Array.isArray(r) && r.length === 1 && r[0].no === '10' && r[0].ok === false })(), true)
+  // m4 清偿向量（v1.7.4）：点名单从 fixture 配置派生正例（名单内路径被豁免）+缺段 exit 3 语义
+  const dOk = typeof deriveProjectNames === 'function' ? deriveProjectNames({ anchors_exempt: { project_names: ['scripts/x.py', 'y.md'] } }) : null
+  t('m4 点名单 fixture 派生正例：名单内命中被豁免/名单外不命中（豁免不外溢）', dOk?.error == null && dOk?.names?.has?.('scripts/x.py') === true && dOk?.names?.has?.('scripts/other.py') === false, true)
+  const dBad = typeof deriveProjectNames === 'function' ? deriveProjectNames({}) : null
+  t('m4 缺段→exit 3 语义：deriveProjectNames 返回错误形态+stderr 点名 anchors_exempt', dBad?.error != null && dBad?.names === null && dBad.error.includes('anchors_exempt'), true)
   if (fails.length) console.error(`[self-test] FAIL ×${fails.length}: ${fails.join('; ')}`)
   else console.error(`[self-test] ${n}/${n} 过`)
   return fails.length === 0
@@ -165,6 +185,20 @@ function selfTest() {
 
 // ── 主流程 ──
 if (flag('--self-test')) process.exit(selfTest() ? 0 : 1)
+
+// 点名单装载（主流程真实配置；--self-test 用 fixture 不触真实装载）——
+// 缺段/非数组=exit 3（词表缺失族），stderr 点名；装载失败（坏 JSON 等）
+// =06 §5.8 行 3（配置/装载错）：[fatal] 一行+exit 3（门一 N-1，回炉 1 轮——
+// 对齐 ds-call-v2 ConfigError 惯例，防裸抛堆栈噪声/误退出码）
+let mergedCfg
+try {
+  mergedCfg = loadOrgConfig(process.cwd()).merged
+} catch (e) {
+  console.error(`[fatal] org-config 装载失败（check-anchors 主流程）: ${e.message}（06 §5.8 行 3=配置/装载错）`)
+  process.exit(3)
+}
+const { names: PROJECT_NAMES, error: namesErr } = deriveProjectNames(mergedCfg)
+if (namesErr) { console.error(namesErr); process.exit(3) }
 
 const idx = buildHeadingIndex()
 const entryIdx = buildEntryIndex()

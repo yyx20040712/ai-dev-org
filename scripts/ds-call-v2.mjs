@@ -112,6 +112,22 @@ const exitConfig = (msg) => {
   process.exit(3)
 }
 
+// ── 派发器请求参数单源（v1.7.4 m4 清偿）：org-config dispatch_request ──
+// 两载荷形态（anthropic/openai）共用；缺段/非有限数值=ConfigError（exit 3，
+// stderr 点名分区与字段）——无静默回退，禁脚本内字面量。
+function loadDispatchRequest(merged) {
+  const d = merged?.dispatch_request
+  if (d == null || typeof d !== 'object')
+    throw new ConfigError(`org-config dispatch_request 分区缺失或非对象（现=${d === undefined ? 'undefined' : String(d)}）——派发器请求参数单源（v1.7.4 m4 清偿），缺段=exit 3 无静默回退`)
+  const bad = (k, v) =>
+    new ConfigError(`org-config dispatch_request.${k} 缺失或非有限数值（现=${typeof v === 'number' ? String(v) : JSON.stringify(v) ?? String(v)}）——派发器请求参数单源（v1.7.4 m4 清偿），缺段/非数值=exit 3 无静默回退`)
+  const mt = d.max_tokens
+  const tp = d.temperature
+  if (typeof mt !== 'number' || !Number.isFinite(mt)) throw bad('max_tokens', mt)
+  if (typeof tp !== 'number' || !Number.isFinite(tp)) throw bad('temperature', tp)
+  return { maxTokens: mt, temperature: tp }
+}
+
 // ── 本地落账安全封装：目录自动建+IO 失败降级警告（不抛入远程重试语义） ──
 function makeSafeAppend() {
   let warned = false
@@ -178,21 +194,21 @@ function loadSources(merged, hostCfg) {
   })
 }
 
-function buildRequest(src, prompt, system) {
+function buildRequest(src, prompt, system, reqParams) {
   if (src.kind === 'anthropic') {
     const base = src.baseURL.replace(/\/v1$/, '')
     return {
       url: `${base}/v1/messages`,
       method: 'POST',
       headersReal: { 'content-type': 'application/json', 'x-api-key': src.apiKey, 'anthropic-version': '2023-06-01' },
-      body: { model: src.modelName, max_tokens: 32768, temperature: 0.2, system, messages: [{ role: 'user', content: prompt }] },
+      body: { model: src.modelName, max_tokens: reqParams.maxTokens, temperature: reqParams.temperature, system, messages: [{ role: 'user', content: prompt }] },
     }
   }
   return {
     url: `${src.baseURL}/chat/completions`,
     method: 'POST',
     headersReal: { 'Content-Type': 'application/json', Authorization: `Bearer ${src.apiKey}` },
-    body: { model: src.modelName, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: 0.2, max_tokens: 32768 },
+    body: { model: src.modelName, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: reqParams.temperature, max_tokens: reqParams.maxTokens },
   }
 }
 
@@ -280,10 +296,14 @@ function postJson(url, headers, body, timeoutMs) {
   })
 }
 
-async function callSource(src, prompt, system, logger, mock) {
+async function callSource(src, prompt, system, logger, mock, reqParams) {
+  // 门一 W-1（v1.7.4 回炉 1 轮）：--mock-source 给出但链内某源未注射=拒跑——
+  // 防「漏注射=静默真实调用」（本批自裁 1 前科：两点注入漏链内第三源致一次真实调用）。
+  if (mock && !(src.alias in mock))
+    throw new ConfigError(`--mock-source 漏注射 ${src.alias}——mock 模式缺注射即拒跑，防静默真实调用（门一 W-1，本批自裁 1 前科）`)
   const mockedStatus = mock ? mock[src.alias] : undefined
   const mocked = mockedStatus !== undefined
-  const req = buildRequest(src, prompt, system)
+  const req = buildRequest(src, prompt, system, reqParams)
   const t0 = Date.now()
   for (let attempt = 0; attempt < 4; attempt++) {
     logger.routing('attempt', { source: src.alias, model: src.modelName, attempt: attempt + 1, promptBytes: Buffer.byteLength(prompt, 'utf8'), mocked: !!mocked })
@@ -352,6 +372,7 @@ async function cliMain() {
   let merged // b2：配置装载类失败抛 ConfigError（exit 3）——英文 locale 消息不含关键词，原正则兜底误判 exit 1
   try { ({ merged } = loadOrgConfig(process.cwd())) } catch (e) { throw new ConfigError(`org-config 装载失败: ${e.message}`) }
   nodeVersionGuard(merged)
+  const dispatchReq = loadDispatchRequest(merged) // m4 清偿：请求参数单源（缺段/非数值=exit 3，两载荷形态共用）
   const rawLedger = merged.ledger_path || '.zcode/org-ledger.jsonl'
   const ledgerPath = isAbsolute(rawLedger) ? rawLedger : join(process.cwd(), rawLedger)
   // 注：--project=账本条目名；配置装载恒从 cwd。死配置守卫（org-config 角色↔registry
@@ -424,7 +445,7 @@ async function cliMain() {
           role: { id: role.id, version: role.version, sig: role.sig, sys_prompt: role.sysPrompt, dod: role.dod, assembled_system: system },
           chain: chain.map((s) => s.alias),
           route_source: routeSource,
-          sources: chain.map((s) => ({ alias: s.alias, url: buildRequest(s, prompt, system).url, model: s.modelName, kind: s.kind })),
+          sources: chain.map((s) => ({ alias: s.alias, url: buildRequest(s, prompt, system, dispatchReq).url, model: s.modelName, kind: s.kind })),
           routing_log: LOG_PATH,
           ledger: ledgerPath,
           cfg_hash: cfgHash(merged),
@@ -453,8 +474,9 @@ async function cliMain() {
     console.error(`[routing] run=${runId} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} 尝试源 ${i + 1}/${chain.length}: ${s.alias}(${s.modelName})`)
     let result
     try {
-      result = await callSource(s, prompt, system, logger, mock)
+      result = await callSource(s, prompt, system, logger, mock, dispatchReq)
     } catch (e) {
+      if (e instanceof ConfigError) throw e // W-1（回炉 1 轮）：漏注射=配置类错直通 exit 3，不进换源/exhaust 链语义
       // P0-4 真因 2：网络级失败（fetch failed）无 HTTP 状态码——显式写 null，
       // 保字段存在（R4 schema 要求 statusCode；缺字段=坏行）。
       const statusCode = e.statusCode ?? null
