@@ -1,0 +1,1518 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index e625ff5..d38b057 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -4,6 +4,57 @@
+ > 逐字保留，此后新增版本只在本件追加）。SKILL.md 只保留最近一条摘要
+ > 与本件指针。历史条目属过程记录，按 references/08 §3 红线不再改写。
+ 
++## 2026-09-16 v1.7（外部评审清偿战役 evolve 批——外部全面评审→计划 v1-v3 双源对抗审→终裁有条件放行→E1/E2/E3 实施→门禁终态）
++
++- **战役过程**：外部全面评审（双异源探查+人工复核）确认 6 项代码级缺陷+
++  文档计数/清单/头注腐化+登记纯度问题→清偿计划 v1→源A（k1）对抗审 FAIL
++  （B1/W1-9/N1-8 全吸纳成 v2）→源B（k2）审 v2 FAIL（B1-3/W1-6/N1-9 全吸纳
++  成 v3）→裁决岗终裁有条件放行（C1 头注规则式穷举/C4 固定六段清零/C5 R1
++  机检窗/C6 同族证据形态等）→E1（b1+b2+b6+R10）/E2（b3+b4+b5+b7）/
++  E3（b8+b9）分批实施（七笔 commit，未 push）→门禁终态。
++- **代码修复（b1-b7）**：glm-look 传输层 fetch→node:http(s) 直连（AbortSignal
++  唯一超时源+isMain guard+纯函数 export+R10=结构断言+本地 mock 双通道往返
++  +向量）；ds-call-v2 退出码类型化（ConfigError/classifyExitCode，判据源=
++  06 §5.8，穷尽 throw 点清单化）；log-triage --date 格式+UTC 分量回环语义
++  校验+窗口 epoch 化 UTC 日界；provider null 守卫三消费点（org-config
++  校验错误 exit 3/check-hardcode 降级行 exit 5 族/log-triage 跳过）；
++  regression 五处 spawnSync 超时看护（R1=5,400,000ms=单源推导 4,835,000+
++  90min 裕量，∈C5 机检窗禁裁剪）；sys_prompt_file 包含性校验两落点；
++  check-anchors NN·XN 条目型断锚扩面+文档号两位数+自检 4→16 向量
++  （01:157 断锚改指 01·C2）。
++- **文档清偿（b8）**：「固定六段」族形态普查三分类处置——02 §4 单源根治
++  「固定七段（1-6 段惯称『六段简报』）」；SKILL:90 混合短语改「任务书七段」；
++  SKILL:53/:124 与模板 org-seg.snippet:11 告警三分类计数短语指针化（告警
++  分类单源=02 §10）；九件脚本头注退出码复写块规则式指针化 06 §5.8
++  （11 件穷举表=E3 报告；glm-look 无数字表排除；check-constitution-budget:3
++  与 templates/verify.mjs:6=禁改面登记不修）；06 §5 R 清单与 SKILL 同族
++  「R1~R6」断言指针化（R 项清单单源=regression.mjs 现行项集合）；01:166
++  补遗勘误；04 头注计数去数字（条数单源=doc-counts golden）。
++- **行为变化申报（四项，全部退出码面——存量调用方核对）**：①log-triage
++  --date 非法值：静默空窗→stderr 用法错+exit 1（并新增 [UTC 零点,次 UTC
++  零点) 上界）；②ds-call-v2 英文 locale 配置装载类未捕获异常：exit 1→3
++  （消息正则兜底删除，修误分类）；③registry 文件路径越界：新增 exit 3
++  拒绝路径（纵深防御，当前不可达）；④null provider：TypeError 崩溃→
++  校验错误（org-config/ds-call-v2 路径 exit 3+明确消息；check-hardcode
++  路径=降级行 exit 5 语义继续扫）。06 §5.8 迁移注记已补 v1.7 行。其余
++  外部契约（CLI 形态/schema/golden/退出码总表结构）零变化。
++- **内部测试设施申报**：glm-look env 钩子两枚（GLM_LOOK_HOST_CONFIG/
++  GLM_LOOK_LOG_DIR——R10 mock 往返指向本地端点与临时流水之必要实现；
++  缺省行为不变，prod 路径禁依赖）。
++- **登记面（b9）**：RESIDUALS 新增 25 行（closed 8=修复项单行制；open 17=
++  b1 三面不可实证残留/R1 超时未实证/M4 硬编码三处/M5 回归环境耦合/M6 runId
++  并发/L3/L4/L5/L9 低优先四项/glm-look:150 同族/k2 首派静默/双审源同族注记
++  （C6 口径：同 model-key 异 uuid 前缀，异供应商=未证假设）/verify.mjs:6/
++  ccb:3/结构项三件）+在册 02-§8-model-terms 补承接批次注（不重建）。
++  头注指针化=v1.6 批声称「各脚本头注一律指针到本表」未闭环的本批实证
++  闭环（九件复写块清零，机检 C1 断言化）。
++- **门禁终态**：regression 8/8（R1 SKIP 配给保护）+check-hardcode 命中 0
++  （豁免 33）+check-anchors WARN×0/FAIL×0+--self-test 16/16+health-scan
++  RED×0/WARN×2（基线存量不劣化）+新增 grep 断言 C1/C4 绿（「固定六段」
++  活文档面清零+头注「退出码：数字=语义」复写块清零；红→绿+变异红证×2）。
++  批档=scripts/audits/2026-09-16_evolve-*（简报/双审原文/计划 v1-v3/
++  E1-E3 报告与真退出码 log）。
++
+ ## 2026-09-16 v1.6（维护熵清偿战役——全面评审→双源对抗审→终裁→八批实施→终审回炉）
+ 
+ - **战役过程**：主控全面评审（脚本 10+文档 9，结论=设计 A/工程 B+/维护 C+，
+diff --git a/RESIDUALS.md b/RESIDUALS.md
+index 265ef34..0bbb788 100644
+--- a/RESIDUALS.md
++++ b/RESIDUALS.md
+@@ -37,7 +37,7 @@
+ | 编号 | 来源 | 内容 | 状态 | 处置 |
+ |---|---|---|---|---|
+ | glm-look-streaming | 批档 subagent-plan 05-ruling §七增补一指认的登记缺口（B-1 承接补登） | 06 §5.7 声称「流式化登记 RESIDUALS」而本册原无该条——登记缺口补正：流式化（anthropic SSE）根治网关非流式窗口截断，未实现 | open | B-2 批承接（ds-call-v2 与 glm-look 各自独立实现，承 W-3）；504 专项处置已定（载荷超窗不盲重试） |
+-| 02-§8-model-terms | B-1 check-hardcode 词表扩容实扫 | references/02 §8 额度经济学节含模型名安排性提及约 20 处（母本继承配置性条款层）——白名单过渡豁免，非指针化 | open | 白名单 13 条规则承接（reason 注明过渡）；指针化=后续文档批；§8.5 分面放行语义仍有效 |
++| 02-§8-model-terms | B-1 check-hardcode 词表扩容实扫 | references/02 §8 额度经济学节含模型名安排性提及约 20 处（母本继承配置性条款层）——白名单过渡豁免，非指针化 | open | 白名单 13 条规则承接（reason 注明过渡）；指针化=后续文档批；§8.5 分面放行语义仍有效；承接批次=结构项专项批（evolve-struct-* 同批呈报） |
+ | empty-tools-invalid | A'① probe-k 实证（08-exec-log §二） | 子代理 frontmatter `tools: []`=**泄漏全工具面**（真实发生 tool.call Read 读出金丝雀文件）——空数组被当"无限制"而非"无工具" | closed | 已按交接预案处置：ops-gate1-k1/k2 退 `tools: Read`+双墙声明（物理墙+协议墙）；环境事实入 06 §6 补遗 |
+ | agents-profile-session-fixed | A 批验证观察（metadata profileSnapshot） | 代理档案=会话启动时快照——会话中改文件对已启动会话无效（k1/k2 以旧 tools:[] 快照跑完验证批） | won't-fix | 宿主行为（无热加载既有结论的同族面）；纪律=改代理文件后须新会话验证，已写入 06 §6 补遗 |
+ | PostToolUse-livefire | B-0 观测面批 | zcode.cjs 内含 PostToolUse/PostToolUseFailure 执行器与 workspace_hooks 信任面（存在性已验），但实弹配置+触发验证未做 | open | 需机检强制（hook 拦截）的批次首场核对项；当前机检强制仍走 verify/health-scan 脚本路线 |
+@@ -56,6 +56,39 @@
+ | check-anchors-calibration | 终审门一 N1 | 试点固有盲点：标题索引正则不含全角冒号形态；扫描面未含 scripts/roles/*.dod.md（其内恰有 02 §3 指引）；PROJECT_NAMES 点名豁免=白名单漂移面；自检 head 断言恒真未拷打解析逻辑 | open | 全部于 check-anchors 升 --strict 前置批处置（升级前置条件=连续两轮零误报+本行闭环，裁决档 ds-W6） |
+ | r1-deepseek-format-flake | 主控 R1 三跑实证 | deepseek 侧间歇把「判定」耗在推理通道、可见正文格式漂移（3 跑 1 遇 UNPARSEABLE）——容错解析（判定\|verdict\|裸 PASS/FAIL）已收敛大半，重跑即绿 | open | 低优先：根治=CASE 提示词强化或固定输出形态采样；遇抖动处置=重跑 R1 留证（勿静默改判） |
+ 
++## 2026-09-16 外部评审清偿战役新登记（evolve 批；批档=scripts/audits/2026-09-16_evolve-*）
++
++修复项=closed 单行制（新开即闭）；未修项=open 各自建行。修复明细与红→绿
++证据=E1/E2/E3 报告；行为变化四项+env 钩子申报=CHANGELOG v1.7 条。
++
++| 编号 | 来源 | 内容 | 状态 | 处置 |
++|---|---|---|---|---|
++| evolve-h1-transport | 外部评审清偿战役 evolve 批（档=scripts/audits/2026-09-16_evolve-*；实现=E1 b1） | glm-look 传输层 global fetch（undici 内建 headersTimeout≈300s=非流式长推理隐形截断）改 node:http(s) 直连+AbortSignal 唯一超时源+res.on('error')+isMain guard+纯函数 export；R10=结构断言+本地 mock 双通道往返+向量钉面 | closed | 已修（commit 9b6bac9）；三条不可实证残留拆行 evolve-b1-transportresidual |
++| evolve-h3-exitcode | 同上（实现=E1 b2） | ds-call-v2 退出码分类：uncaughtException 消息正则兜底（英文 locale 误分类面）改类型化 ConfigError+classifyExitCode（判据源=06 §5.8）+穷尽 throw 点清单化（E1 报告四节表） | closed | 已修（commit d3d7adc） |
++| evolve-m1-datewindow | 同上（实现=E2 b3） | log-triage --date 非法值原为静默空窗=假绿（勘误后事实：窗口字面值照跑零报错，非全量）——格式+UTC 分量回环语义校验拒（exit 1）+窗口 epoch 化 UTC 日界 | closed | 已修（commit 2c91ddd）；行为变化已入 CHANGELOG v1.7 申报① |
++| evolve-m3-nullguard | 同上（实现=E2 b4） | provider null 裸取三消费点（org-config validateProviders 双裸取/check-hardcode deriveHostModelTerms/log-triage buildAliasMap）TypeError 崩溃改校验错误行 exit 3/降级行 exit 5 族/跳过 | closed | 已修（commit 3f0c080）；同族第 4 消费点新发现拆行 evolve-glmlook-150-null |
++| evolve-h2-timeouts | 同上（实现=E2 b5） | regression 五处主流程 spawnSync 无超时看护（合法最坏链被外层挂起/误杀面）全带 timeout+killSignal：四处秒级 mock 路径 5,000ms；R1=5,400,000ms（单源推导 4×1,200,000+35,000=4,835,000+90min 裕量，∈裁决 C5 机检窗禁裁剪） | closed | 已修（commit 58fb979）；R1 零运行时实证拆行 evolve-r1-timeout-unverified |
++| evolve-b6-containment | 同上（实现=E1 b6） | sys_prompt_file 无包含性校验（registry 路径可指向技能根外）补 path.relative 判 .. 前缀/绝对形态=越界 exit 3；两落点同步（ds-call-v2 loadRole+regression loadRoleAssembled 单源 import 消费） | closed | 已修（commit 919f27a）；纵深防御定性维持（当前 registry 无越界=不可达守卫） |
++| evolve-b7-anchorblind | 同上（实现=E2 b7） | check-anchors 条目型引用（NN·XN）断锚盲区+单数字文档号形态不识别——扩面：登记表从 01/04 正文解析+两位文档号+自检 4→16 向量（原 head 断言恒真盲点）；01:157 唯一现存断锚改指 01·C2（P-4 终裁） | closed | 已修（commit 67a60e1）；扩面主扫 WARN×0/FAIL×0 零误报 |
++| evolve-b8-docrot | 同上（实现=E3 b8） | 文档计数/清单/头注腐化：「固定六段」族形态普查三分类处置+02 §4 单源根治「固定七段（1-6 段惯称『六段简报』）」+九件脚本头注退出码复写块指针化 06 §5.8+06 §5 R 清单与 SKILL 同族 R1~R6 断言指针化+01:166 补遗错字+04 头注计数去数字 | closed | 已修（commit b76efd7）；禁改面命中登记不修（references/05 两处、07 一处、task-brief 模板、init-defenses 三处——处置明细=E3 报告普查表；verify.mjs:6 与 check-constitution-budget:3 已各自拆行） |
++| evolve-b1-transportresidual | 外部评审清偿战役 evolve 批（计划 v3 b1 既定拆行） | b1 三面不可实证残留：①>300s 首字节面不可回归复现（undici 消除以 R10 结构断言承载=非注释行无 fetch 形态）；②Node25 退出阶段崩溃面不可实证（本战役零外派期）；③异端点传输语义面（glm 形 3xx/gzip 未实证——本地 mock 仅证拟真，非真实端点语义） | open | 替代验证=R10 结构断言+双通道 mock 往返；真外呼窗口（--r1 真实跑或设计岗首用）后回填核验 |
++| evolve-r1-timeout-unverified | 外部评审清偿战役 evolve 批（E2 移交） | R1 超时改动 5,400,000ms 零运行时实证（R1 SKIP=真实派发配给保护，改动未经真实长链跑过） | open | 替代验证=派生复算表（E2 报告）+门一 diff 审；触发器=下次 --r1 真实跑后核对（看护是否误杀/放行合法最坏链） |
++| evolve-m4-hardcode | 外部评审清偿战役 evolve 批（外部评审 M4） | 脚本内残留硬编码三处：ds-call-v2 max_tokens=32768/temperature=0.2（请求参数，非供应商事实面）；regression R1 SOURCES 源别名内联；check-anchors PROJECT_NAMES 项目名点名单 | open | 承接=下批 org-config 化（与 hardcode_scan/roles 分区协调） |
++| evolve-m6-runid | 外部评审清偿战役 evolve 批（外部评审 M6） | runId 随机后缀仅 4 字符（同秒/并发碰撞窗口）+账本 appendFileSync 多写入者行交错无锁+log-triage switch 统计单值覆盖（同 runId 多次 switch 只记末值） | open | 互指 A-dsN-1（runId=机器关联键定位维持）与 regression R5 区期望计数注释；处置=账本写入器专项批 |
++| evolve-m5-regenv | 外部评审清偿战役 evolve 批（外部评审 M5） | 回归 R2b/R5/R4 勾连宿主 config 双校验与源链装载（本机宿主注册表=隐式 fixture），跨环境（无同形宿主条目）不复现 | open | 设计取舍显式化：自包含回归以本机配置面为基线；跨环境移植按 05 §6 差异回灌协议处置，不追回 |
++| evolve-l3-sort | 外部评审清偿战役 evolve 批（外部评审低优先 L 类） | 清单类输出无显式排序键：check-hardcode/check-anchors 以 readdirSync 枚举序输出（跨平台/目录序不稳定——diff 对账与 --update 重冻结噪声面） | open | 低优先；处置=扫描输出前显式 sort（check-anchors 升 --strict 前置批一并） |
++| evolve-l4-flags | 同上 | CLI flag 解析=argv.indexOf 取下一位（cliFlag 单源导出）：flag 值缺失（取 undefined）或误吃下一 flag（如 --project --json 会把 --json 当值）不报错 | open | 低优先；处置=cliFlag 校验值非 flag 形态+值缺失=用法错 1（org-config 单点改全件受益） |
++| evolve-l5-frontmatter | 同上 | frontmatter 解析健壮性弱面：skill-gc description 多行/块形态歧义判 unknown 仅报告（块级边界未严格解析）；check-hardcode agents 扫描剥 frontmatter 对未闭合形态的边界行为未向量覆盖 | open | 低优先；处置=解析器专项或维持 unknown 保守口径（ds-B2 终裁「只报告不删」延续） |
++| evolve-l9-degrade | 同上 | 降级显式留痕口径未全件统一：check-hardcode 降级=exit 5 已立；log-triage 日志目录缺失/health-scan 账本缺失仍静默空输出（与 M1 静默空窗同族面） | open | 低优先；处置=「缺输入显式留痕」口径统一批（08 §4 文档腐化体检顺带核） |
++| evolve-glmlook-150-null | 外部评审清偿战役 evolve 批（E2 普查新发现，E2 报告六节表） | glm-look.mjs:150 discoverSources prov.options 对 null 宿主条目裸取（宿主原始 JSON 侧可达）——M3 族第 4 消费点 | open | E2 纪律登记不自修（glm-look=E1 已落面+超 E2 白名单）；处置=glm-look 下一修改批顺带（同 b4 形态：降级行+跳过） |
++| evolve-k2-silent | 外部评审清偿战役 evolve 批（源B 派发事件） | k2 首派静默失败：无输出 5min/0 工具调用（重跑成功）——宿主侧通道事件，无本地可检信号 | open | 单次事件不升级；触发器=复发≥2 次升宿主排查批 |
++| evolve-samefamily | 外部评审清偿战役 evolve 批（裁决 C6 口径） | 计划双审源同族证据形态：源A/源B MODEL-SELF 同 model-key（同宿主实配模型键，具体串与 uuid 前缀对=b2466f8b…/5e1abd9d… 见批档 k1/k2 审出件——本册不落供应商 live 事实）——「异供应商」为未证假设，勿断言为已证事实 | open | 处置=轻量双审合规注记+按「同源记欠账」文化记欠账；宿主提供真异构备源时消账 |
++| evolve-verify-mjs-header | 外部评审清偿战役 evolve 批（E3 头注普查） | templates/verify.mjs:6 头注「（退出码：0=全过；1=有 FAIL）」数字=语义复写——随 init-defenses 分发到项目仓的模板骨架件 | open | 禁改面命中登记不修（templates/** 白名单外，本批仅 org-seg.snippet.md:11 扩权）；处置=init-defenses 模板升版批顺带指针化 |
++| evolve-ccb-weaktype | 外部评审清偿战役 evolve 批（E3 头注普查） | check-constitution-budget.mjs:3 头注「→ exit 1」弱同型复写（单退出码弱形态，非完整数字=语义表） | open | 登记不修（脚本不在本批白名单）；处置=下批脚本头注卫生批 |
++| evolve-struct-tables | 外部评审清偿战役 evolve 批（结构项——计划 v3 假设 4：本战役不实施只登记） | 岗位三表三写：SKILL.md 岗位速查/06 §1 分工总表/07 §1 编制表——内容重叠漂移面，须单源化+指针收敛 | open | 承接=结构项专项批（evolve-struct-* 同批呈报） |
++| evolve-struct-glossary | 同上 | 术语速查入口缺位（拟 00 件：跨 references 术语表/新手上手图——「惯称/口径」类术语散布定义无集中入口） | open | 承接=结构项专项批 |
++| evolve-struct-patchwrite | 同上 | 补丁式时序写作累积：「后节接管前节」注记链（02 §8.4 接管注记/06 §6 补遗等）散布各件，结构性收敛未做 | open | 承接=结构项专项批 |
++
+ 修订记同步见本册末节 2026-09-16 行。
+ 
+ ## 残留快照对账表（交接书 §1.3 → 本册编号；「静默消失」证伪位）
+@@ -113,3 +146,14 @@
+   本批闭环事实（非残留）：跨供应商 model 绑定双源实证、六 ops-* 代理入役、
+   log-triage.mjs 入 scripts/、check-hardcode 扩容（宿主词表+agents 扫描）。
+   批档=E:/zcode_md/fix/subagent-plan-2026-09-16/（08-exec-log.md=执行档案）。
++- 2026-09-16 外部评审清偿战役（evolve 批，v1.7）：新增登记 25 条（closed 8=
++  本战役修复项单行制：evolve-h1-transport/evolve-h3-exitcode/evolve-m1-datewindow/
++  evolve-m3-nullguard/evolve-h2-timeouts/evolve-b6-containment/evolve-b7-anchorblind/
++  evolve-b8-docrot；open 17=evolve-b1-transportresidual 三面拆行+
++  evolve-r1-timeout-unverified+evolve-m4-hardcode+evolve-m5-regenv+evolve-m6-runid+
++  evolve-l3-sort/evolve-l4-flags/evolve-l5-frontmatter/evolve-l9-degrade+
++  evolve-glmlook-150-null+evolve-k2-silent+evolve-samefamily+
++  evolve-verify-mjs-header+evolve-ccb-weaktype+evolve-struct-tables/
++  evolve-struct-glossary/evolve-struct-patchwrite）；在册 02-§8-model-terms
++  补承接批次注（不重建）。批档=scripts/audits/2026-09-16_evolve-*；
++  明细=CHANGELOG v1.7 条+E1/E2/E3 报告。
+diff --git a/SKILL.md b/SKILL.md
+index f5de8cd..dae4fe4 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -50,7 +50,7 @@ node scripts/skill-gc.mjs [--apply --delete-redirects|--delete-invalid]   # 技
+ node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空白字符
+ node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目防线日脚手架（05 §4）
+ node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden] [--project <dir>]   # 自包含回归（06 §5 R 清单内化；R1 真实派发须 --r1）
+-node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（欠账/同源/预算，RED=0 方可收口）
++node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（RED=0 方可收口；告警分类单源=02 §10）
+ node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊（B-0）：cli/log+派发器流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查（A'③）出 k1/k2 派发推荐（额度类→换源；504 窗口类→不换源瘦身）
+ node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点甄别=org-config vision_channels 分区+--list-sources；单次调用 20min 上限、非429的4xx立断、scrub 脱敏；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
+ ```
+@@ -87,7 +87,7 @@ tier 记法：外部岗取 org-config
+ 
+ ## 加载地图（references/，按需读勿全量）
+ 
+-01 原理 A~E 五组 ｜ 02 管道 12 步+任务书六段+回炉+数据专轨+适配注记 ｜
++01 原理 A~E 五组 ｜ 02 管道 12 步+任务书七段+回炉+数据专轨+适配注记 ｜
+ 03 机器强制 ｜ 04 教训库 WP/SY/MG/ORG 四系 ｜ 05 移植指南+差异回灌协议 ｜
+ 06 模型路由+换源状态机+派发器 v2 ｜ 07 角色卡终表+主控 PM 四子模式 ｜
+ 08 文档群治理（事实分层/指针化手册/历史件红线/体检/产出入仓纪律） ｜
+@@ -121,7 +121,7 @@ tier 记法：外部岗取 org-config
+ 派发前自检三问：①本批命中表中哪些对抗位？②各位源可用且与实现者
+ 异构吗？③欠账清单有无本批必须补还项？收口前必跑
+ `node scripts/health-scan.mjs --project <dir>`（RED=0 方可收口，
+-三类告警细则=02 §10）。**主控简报中的关键假设须显式标注「假设」并请
++告警分类细则=02 §10）。**主控简报中的关键假设须显式标注「假设」并请
+ 对抗位拷问——假设未被拷问=烤验未过。**
+ 
+ ## 团队化边界与扩展位（显式化——不假装解决）
+@@ -152,18 +152,22 @@ references/04）；本技能自身的基线失败实录=设计审核链 5B/5W/3N
+ v1.0 已冻结（用户裁决 2026-09-10，四项裁决原文见 Synapse 项目仓
+ scripts/audits/2026-09-10_w2-freeze-evidence.md 与
+ 2026-09-10_w5-final-ruling.md）。
+-冻结条件=首个适配场完整 LOOP 走通 + 派发器 v2 回归 R1~R6 全过；drafter
++冻结条件=首个适配场完整 LOOP 走通 + 派发器 v2 回归全项过（R 项清单单源=
++`scripts/regression.mjs` 现行项集合）；drafter
+ 复用与项目侧切换资格随冻结即时生效，项目切换走各仓 [locked-change]。
+ 新项目首场战役按 05 移植后做压力场景复测并回填本节。
+ 
+ ## 修订记
+ 
+-- 2026-09-16 v1.6（维护熵清偿战役）：全面评审→清偿计划送双源对抗审（均
+-  FAIL/B=4 收敛）→终裁 v1.1 八批次→b0-b9 实施→终审（门一 PASS+auditor
+-  有条件放行）回炉闭环。核心：账本 schema/退出码总表/审级口径/finish 词表/
+-  锚点体检五面单源化（02 §9/06 §5.8/02 §3/org-config/check-anchors+R7）；
+-  log-triage mock 假信号根修（验收断言入 R8）；glm-look 传输纪律对齐+
+-  vision_channels 配置收编（**预裁 A 申报**：独立分区不动 roles 注册表，
+-  07 先例保持）+payg 显式告警。验证终态：自检 5/5、regression 7/7+R1 3/3、
+-  门禁三扫零命中、health-scan RED=0。裁决链与明细=CHANGELOG.md v1.6 条+
+-  scripts/audits/2026-09-16_entropy-*（审包/双审原文/终裁档/终审双出件）。
++- 2026-09-16 v1.7（外部评审清偿战役 evolve 批）：外部全面评审（双异源探查+
++  人工复核）→清偿计划 v1-v3 双源两轮对抗审（k1/k2 均 FAIL 全吸纳）→裁决
++  有条件放行 C1-C6→E1/E2/E3 分批实施（b1-b9，七笔 commit）→门禁终态
++  （regression 8/8+R1 SKIP、三扫零命中、health-scan RED=0/WARN×2 基线
++  存量）。核心：glm-look 传输层 node:http(s) 直连+R10 回归面；ds-call-v2
++  退出码类型化；log-triage --date 语义校验+UTC 日界；provider null 守卫
++  三处；regression 五处超时看护；sys_prompt_file 包含性校验；check-anchors
++  NN·XN 扩面；文档腐化清偿（02 §4 固定七段单源/九件头注指针化 06 §5.8/
++  R 清单指针化）。行为变化四项+env 钩子申报与 06 §5.8 迁移注记=
++  CHANGELOG.md v1.7 条；登记面=RESIDUALS evolve 节（25 行）。批档=
++  scripts/audits/2026-09-16_evolve-*（全量历史=CHANGELOG.md，v1.6 及更早
++  条目在册不再复写）。
+diff --git a/references/01-org-principles.md b/references/01-org-principles.md
+index e4839cb..11424bd 100644
+--- a/references/01-org-principles.md
++++ b/references/01-org-principles.md
+@@ -154,7 +154,7 @@ BLOCKING 可携机器事实证伪重审一次、同单元回炉有上限（超
+ 门一=只喂自包含 diff 包（零仓库接触）；拟定者=自包含任务书；实现者=
+ 六段简报。**喂什么=岗位边界**——派发包模板即部门墙的机器形态，包内容
+ 之外的请求一律拒绝（"灵活化"部门墙=在册红线）。
+-锚点：门一 3W 全真缺陷拦截实战（02·C2）；被路由岗位咨询意见原文
++锚点：门一 3W 全真缺陷拦截实战（01·C2）；被路由岗位咨询意见原文
+ 「最不希望被灵活化掉的一条」。
+ 
+ ### E3 定档不可强制处的诚实记账
+@@ -163,6 +163,6 @@ BLOCKING 可携机器事实证伪重审一次、同单元回炉有上限（超
+ 非口头声明；禁止伪装已定档、禁止静默继承默认档。
+ 锚点：Synapse 2026-09-02 实测入册；审核链 B5/W2（账本 schema+档位
+ 枚举）。
+-注记（2026-09-16，06 §6 补遣）：代理档案 frontmatter model 绑定通道
++注记（2026-09-16，06 §6 补遗）：代理档案 frontmatter model 绑定通道
+ 实证后，「不可强制」仅适用于**未绑定岗**——绑定岗（日志核对零回退）
+ 免欠账行，以 LEDGER-CLAIM EXECUTOR=model-field:＜值＞ 为机读证据。
+diff --git a/references/02-pipeline-templates.md b/references/02-pipeline-templates.md
+index 5665caf..0b8d3b8 100644
+--- a/references/02-pipeline-templates.md
++++ b/references/02-pipeline-templates.md
+@@ -67,8 +67,9 @@ VERDICT 词表按岗分设：门一=`PASS|FAIL`；auditor=`放行|有条件放
+ 
+ ## 4. 任务书（简报/工单）必备要素
+ 
+-固定六段，缺一段=任务书不合格【SY 试点实证：模板偏差=回炉主要来源】。
+-（2026-09-14 P1-1 增第 7 项「运行时可观察性」——见下第 7 条。）
++固定七段（1-6 段惯称「六段简报」），缺一段=任务书不合格【SY 试点实证：
++模板偏差=回炉主要来源】；第 7 项「运行时可观察性」=2026-09-14 P1-1 增
++（evolve 批 b8 单源根治：删除原括注补丁句式，语义并入本句）。
+ 
+ 1. **身份与禁令**：执行者身份/领单号/禁令清单（禁 git/registry/禁新依赖…）
+ 2. **必读序**：宪法→票面/简报（=完整任务书）→ADR 母本→**先例池文件清单化**
+diff --git a/references/04-lessons.md b/references/04-lessons.md
+index bcbe0d3..ee07630 100644
+--- a/references/04-lessons.md
++++ b/references/04-lessons.md
+@@ -1,6 +1,7 @@
+ # 04 · 教训库（每条规则当初为什么立）
+ 
+-> 三段式：事件 → 根因 → 制度化。来源：WP=WaterPrint 教训库 11 条+工作流条款；
++> 三段式：事件 → 根因 → 制度化。来源：WP=WaterPrint 教训库+工作流条款
++> （条数单源=`scripts/.golden/doc-counts.json`——正文不落数字，A3）；
+ > SY=Synapse 事故档与战役报告；MG=2026-08-27 设备迁移批新增（方法论在迁移场景的实证）。
+ > 维护：新教训先入本册，可机器化者升格 03，流程性者升格 02。
+ 
+diff --git a/references/06-model-routing.md b/references/06-model-routing.md
+index 167bf02..a58248f 100644
+--- a/references/06-model-routing.md
++++ b/references/06-model-routing.md
+@@ -87,16 +87,12 @@
+   schema 见 SKILL.md 派发节与 02 §9，两账各用各的 schema，勿混）；
+   输出首行 `[routing]: run=… role=<id>@<sig> cfg=<hash> …`。
+ - 源装载校验：org-config `providers.<alias>.uuid_prefix`+`entry_name` 与
+-  宿主 `~/.zcode/v2/config.json` 条目双校验，不一致即 **exit 3**（配置级；
+-  2 保留给源尽 exhaust，1=用法，4=本地 IO）并输出 alias/期望/实际三元组，
++  宿主 `~/.zcode/v2/config.json` 条目双校验，不一致即 **exit 3**（语义与
++  全退出码总表=本件 §5.8——本节不复写）并输出 alias/期望/实际三元组，
+   无任何 fallback。
+-- 回归前置（R1~R6 全过方启用 drafter 复用与项目切换；清单内联）：
+-  - [ ] R1 取首个适配场历史门一任务包 3 件（含 1 件曾判 FAIL），v1 与 v2 `--role gate1-reviewer` 各跑一遍
+-  - [ ] R2 v1 内嵌系统提示与角色档案字节级等价（--dry-run 结构化 JSON 的 sys_prompt 段比对；技能落地时已机检 PASS 96B=96B）
+-  - [ ] R3 输出判定结论（PASS/FAIL 方向）3/3 一致；措辞差异人工过目不涉结论
+-  - [ ] R4 routing log 扩展字段齐全且 cfg 哈希与 org-config hash 输出一致
+-  - [ ] R5 换源演练：mock 注入（--mock-source，全链注入=零成本 exhaust 演练）验证链序走完且事件互斥落账
+-  - [ ] R6 全部通过后，方允许 `--role drafter` 复用拟定者岗与项目侧切换（locked-change）。
++- 回归前置（全部 R 项过方启用 drafter 复用与项目切换）：R 项清单单源=
++  `scripts/regression.mjs` 现行项集合（--only 可选项）——本节不复写清单，
++  防双源计数腐化（evolve 批 b8 指针化）。
+ 
+ ### 5.7 传输层与超时（v2.2.1 补遗，2026-09-16；来源=F-TESTREF-00 门一补审 5 轮 17 attempt 排障+本机双臂探针实证）
+ 
+@@ -143,6 +139,12 @@
+ glm-look 用法错 2→1；skill-gc 参数错 2→1；四脚本自检失败（头注旧称=3）
+ 实为 1；org-config 缺 finish_vocab 等词表=新增 3 类拒跑（ds-call-v2/
+ log-triage/glm-look 三处同律）；check-hardcode 新增 5=降级运行。
++**v1.7（evolve 批）**：log-triage 非法 --date 静默空窗→exit 1（用法错，
++窗口并增次 UTC 零点上界）；ds-call-v2 英文 locale 配置装载类未捕获异常
++exit 1→3（类型化分类替换消息正则）；registry 文件路径越界新增 exit 3
++拒绝（纵深防御，当前不可达）；null provider 三路径 TypeError 崩溃→
++org-config/ds-call-v2 exit 3+明确消息、check-hardcode 降级 exit 5 继续扫。
++本批起各脚本头注一律仅持「口径单源=本表」指针（九件复写块清偿，C1 机检）。
+ 
+ ## 6. 会话内子代理定档限制与欠账（诚实记账）
+ 
+diff --git a/scripts/check-anchors.mjs b/scripts/check-anchors.mjs
+index b59be5d..e96ae6d 100644
+--- a/scripts/check-anchors.mjs
++++ b/scripts/check-anchors.mjs
+@@ -1,13 +1,19 @@
+ #!/usr/bin/env node
+ // check-anchors.mjs — 08 §4「文档腐化体检」的机检化（v1.6 批 P1-A；裁决档 ds-W6/kimi-W2）
+ // 检查面：
+-//   ① 「NN §M[.K]」引用 → 目标 references/NN-*.md 对应章节标题存在性（断锚检测）
++//   ① 「NN §M[.K]」引用 → 目标 references/NN-*.md 对应章节标题存在性（断锚检测；
++//      文档号两位数形态（10+ 号文档）与单数字去前导零形态——evolve-E2 b7）
++//   ①b 「NN·XN」条目型引用（大写条目组 1-4 字母、可带 -数字，如 01·E2/04·SY-1）
++//      → 目标文档条目登记表存在性（登记表仅从 01（A-E 系）与 04（WP/SY/MG/ORG 系）
++//      正文条目标记解析——不从 golden 反推；小写版本串如 06·v1.1 天然不命中；
++//      「」叙述跳过延续；断锚=WARN 试点口径——evolve-E2 b7）
+ //   ② 反引号相对路径存在性（技能根解析；~/ 与盘符绝对路径按系统解析）
+ //   ③ 01 原理/04 教训库条目计数 vs scripts/.golden/doc-counts.json（kimi-W3 生成式对账——
+ //      正文不落数字，golden 为唯一计数锚）
+ // 级别：断锚/路径缺失=WARN（试点校准期——按裁决档 W6：全量 WARN 基线→误报分类，
+ //   连续两轮零误报再议升 --strict）；计数不一致=FAIL（golden 冻结面失守，须 --update 重冻结随批提交）。
+-// 退出码：0=通过（可有 WARN，回显计数）；1=计数 FAIL 或自检 FAIL；3=配置错（golden 缺失）。
++// 退出码口径单源=references/06 §5.8（golden 缺失=3 属总表配置/装载错类；
++// 此处不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
+ // 用法：node scripts/check-anchors.mjs [--update] [--strict] [--self-test]
+ //   --update    重生成 doc-counts.json（冻结动作：随工作单元提交+修订记登记，08 §7）
+ //   --strict    WARN 亦退 1（升格开关，试点期不用）
+@@ -54,6 +60,39 @@ const PATH_LIKE = /^[\w~./\\:-]+$/
+ const PATH_EXT = /\.(md|mjs|js|json|txt|py|sh|yml|snippet|jsonl)$/
+ const PLACEHOLDER = /[<>{…*]|\.\.\.|…/
+ 
++// ── 引用正则（evolve-E2 b7）：文档号两位数形态（[01]\d=\d=支持 10+ 号与单数字去前导零；
++//    前后禁数字/连字符邻接=防日期串（2026-09-16）与长数字误配） ──
++const SEC_REF_RE = /(?<![\d-])([01]\d|\d)(?!\d)\s*§\s*(\d+(?:\.\d+)?)/g
++// NN·XN 条目型：·后大写字母组 1-4 字母+可选（可带 -）数字；小写（v1.1 版本串）天然不命中
++const ENTRY_REF_RE = /(?<![\w·-])([01]\d|\d)·([A-Z]{1,4}(?:-?\d+)?)(?![\w-])/g
++
++// 「」内编号=叙述性提及（如「旧引『08 §0』为断锚」），非活引用——跳过（§ 族与 ·XN 族共用）
++const inQuote = (ln, idx) => ln.lastIndexOf('「', idx) > ln.lastIndexOf('」', idx)
++
++// ── 条目登记表：仅从 01（^### X N 标记）与 04（表行 | XN-n | 标记）正文解析（P-3） ──
++function buildEntryIndex() {
++  const idx = {}
++  const s01 = new Set()
++  for (const m of readFileSync(join(REF_DIR, '01-org-principles.md'), 'utf8').matchAll(/^### ([A-E])(\d+)\s/gm)) s01.add(`${m[1]}${m[2]}`)
++  const s04 = new Set()
++  for (const m of readFileSync(join(REF_DIR, '04-lessons.md'), 'utf8').matchAll(/^\|\s*(WP|SY|MG|ORG)-(\d+)/gm)) s04.add(`${m[1]}-${m[2]}`)
++  idx['01'] = s01
++  idx['04'] = s04
++  return idx
++}
++
++/** 行级条目引用检查（纯函数，主扫描与 --self-test 共用）：
++ *  返回 [{no（两位化文档号）, entry（条目键）, ok（登记表命中）}]；「」内跳过。 */
++function checkEntryRefs(ln, entIdx) {
++  const out = []
++  for (const m of ln.matchAll(ENTRY_REF_RE)) {
++    if (inQuote(ln, m.index)) continue
++    const no = m[1].padStart(2, '0')
++    out.push({ no, entry: m[2], ok: entIdx[no]?.has(m[2]) === true })
++  }
++  return out
++}
++
+ // 项目侧路径（项目仓/项目覆盖件/项目脚本示例）不属技能根存在性检查域——按前缀+点名跳过（试点基线分类：均为 WP/Synapse 项目侧文件）
+ const PROJECT_PREFIX = /^(\.zcode\/|reports\/|briefs\/|docs\/)/
+ const PROJECT_NAMES = new Set(['scripts/run_gates.py', 'scripts/check_model_names.py', 'scripts/check-model-names.mjs', 'scripts/check-locks.mjs', 'check-tickets.mjs', '__init__.py'])
+@@ -92,15 +131,35 @@ function countDocs() {
+ // ── 自检（聚合退出——v1.6 批 B2 教训：全 fixture 计入结果，禁只看末个） ──
+ function selfTest() {
+   const fails = []
+-  const t = (name, got, want) => { if (got !== want) fails.push(`${name}:got=${got} want=${want}`) }
+-  const heads = new Set(['8', '8.6', '5.7'])
+-  t('head-8.6', heads.has('8.6'), true)
++  let n = 0
++  const t = (name, got, want) => { n++; if (got !== want) fails.push(`${name}:got=${got} want=${want}`) }
++  // 真实文件索引断言（evolve-E2 b7 强化——原 head 断言对自建 Set 恒真=在册盲点，
++  // RESIDUALS check-anchors-calibration 项之一）：拷打真实解析而非合成恒真
++  const heads = buildHeadingIndex()
++  t('head-06 含 5.8（真实文件解析）', heads['06']?.has('5.8') === true, true)
++  t('head-06 不含 8.6（8.6 系 02 章节——负例防恒真，原恒真断言掩蔽的盲点）', heads['06']?.has('8.6') === false, true)
++  t('head-02 含 8.6（真实文件解析）', heads['02']?.has('8.6') === true, true)
+   const refOk = (v) => { const p = resolveRef(v); return typeof p === 'string' && p.length > 0 }
+   t('resolve-home', refOk('~/.zcode/skills/_archive/x.md'), true)
+   t('path-like-reject-space', PATH_LIKE.test('Synapse 项目仓 scripts/audits/x.md'), false)
+   t('placeholder-reject', PLACEHOLDER.test('scripts/audits/2026-09-10_org-skill-*'), true)
++  // b7：文档号两位数（10+ 号文档）+单数字（去前导 0 形态）解析（红态=正则常量未落→FAIL 不崩）
++  const secRefs = typeof SEC_REF_RE === 'undefined' ? [] : [...'见 10 §3 与 01 §5 与 6 §4'.matchAll(SEC_REF_RE)]
++  t('§引用两位文档号解析（10→10/01→01）', secRefs.length === 3 && secRefs[0][1] === '10' && secRefs[0][2] === '3' && secRefs[1][1] === '01', true)
++  t('§引用单数字去前导零形态解析（6→查 06）', secRefs.length === 3 && secRefs[2][1] === '6' && secRefs[2][1].padStart(2, '0') === '06', true)
++  // b7：NN·XN 条目型引用（登记表仅从 01/04 正文解析；断锚=WARN 试点口径）
++  const ent = typeof buildEntryIndex === 'function' ? buildEntryIndex() : null
++  t('条目登记表实析：01 含 E2/C2、04 含 SY-1', ent?.['01']?.has('E2') === true && ent?.['01']?.has('C2') === true && ent?.['04']?.has('SY-1') === true, true)
++  const refsOf = (ln) => (typeof checkEntryRefs === 'function' && ent ? checkEntryRefs(ln, ent) : null)
++  t('条目正例：01·E2/04·SY-1 合法命中', (() => { const r = refsOf('锚 01·E2 与 04·SY-1'); return Array.isArray(r) && r.length === 2 && r.every((x) => x.ok) })(), true)
++  t('条目负例（合成串，裁决 C3 要求自检保留）：02·C2→WARN', (() => { const r = refsOf('合成 02·C2'); return Array.isArray(r) && r.length === 1 && r[0].no === '02' && r[0].entry === 'C2' && r[0].ok === false })(), true)
++  t('P-4 改指目标存在：01·C2 合法（改指终裁的机检前置）', (() => { const r = refsOf('改指后 01·C2'); return Array.isArray(r) && r.length === 1 && r[0].ok === true })(), true)
++  t('免误伤：06·v1.1（小写版本串）不命中', refsOf('对齐 06·v1.1 版本')?.length === 0, true)
++  t('免误伤：K3 编号短语（无文档号·前缀）不命中', refsOf('K3 编号短语不命中')?.length === 0, true)
++  t('「」叙述跳过延续 ·XN 族', refsOf('「旧引 02·C2 为断锚」叙述')?.length === 0, true)
++  t('两位文档号条目形：10·A1 解析 no=10（现无该号文档=断锚方向）', (() => { const r = refsOf('10·A1'); return Array.isArray(r) && r.length === 1 && r[0].no === '10' && r[0].ok === false })(), true)
+   if (fails.length) console.error(`[self-test] FAIL ×${fails.length}: ${fails.join('; ')}`)
+-  else console.error('[self-test] 4/4 过')
++  else console.error(`[self-test] ${n}/${n} 过`)
+   return fails.length === 0
+ }
+ 
+@@ -108,6 +167,7 @@ function selfTest() {
+ if (flag('--self-test')) process.exit(selfTest() ? 0 : 1)
+ 
+ const idx = buildHeadingIndex()
++const entryIdx = buildEntryIndex()
+ let warn = 0, fail = 0
+ const notes = []
+ 
+@@ -117,13 +177,17 @@ for (const file of docFiles) {
+   const lines = text.split('\n')
+   for (let i = 0; i < lines.length; i++) {
+     const ln = lines[i]
+-    for (const m of ln.matchAll(/0([1-9])\s*§\s*(\d+(?:\.\d+)?)/g)) {
++    for (const m of ln.matchAll(SEC_REF_RE)) {
+       // 「」内的编号=叙述性提及（如「旧引『08 §0』为断锚」），非活引用——跳过
+-      if (ln.lastIndexOf('「', m.index) > ln.lastIndexOf('」', m.index)) continue
+-      const [no, sec] = [m[1], m[2]]
+-      const heads = idx['0' + no]
+-      if (!heads) { warn++; notes.push(`[WARN] ${rel}:${i + 1} 引 0${no} §${sec}——目标文件不在 references/`); continue }
+-      if (!heads.has(sec)) { warn++; notes.push(`[WARN] ${rel}:${i + 1} 引 0${no} §${sec}——目标无此章节（现有：${[...heads].join(',')}）`) }
++      if (inQuote(ln, m.index)) continue
++      const [no, sec] = [m[1].padStart(2, '0'), m[2]]
++      const heads = idx[no]
++      if (!heads) { warn++; notes.push(`[WARN] ${rel}:${i + 1} 引 ${m[1]} §${sec}——目标文件不在 references/`); continue }
++      if (!heads.has(sec)) { warn++; notes.push(`[WARN] ${rel}:${i + 1} 引 ${m[1]} §${sec}——目标无此章节（现有：${[...heads].join(',')}）`) }
++    }
++    // ①b NN·XN 条目型引用断锚（evolve-E2 b7——WARN 试点口径不变）
++    for (const ref of checkEntryRefs(ln, entryIdx)) {
++      if (!ref.ok) { warn++; notes.push(`[WARN] ${rel}:${i + 1} 条目断锚 ${ref.no}·${ref.entry}——目标文档无此条目（登记表=01 A-E 系+04 WP/SY/MG/ORG 系正文条目）`) }
+     }
+     for (const m of ln.matchAll(/`([^`\n]+)`/g)) {
+       const v = m[1]
+diff --git a/scripts/check-hardcode.mjs b/scripts/check-hardcode.mjs
+index 4041972..8eac646 100644
+--- a/scripts/check-hardcode.mjs
++++ b/scripts/check-hardcode.mjs
+@@ -18,11 +18,12 @@
+  *
+  * 用法：node scripts/check-hardcode.mjs [--root <技能根>] [--strict] [--agents <dir>]
+  *       [--whitelist <path>] [--self-test]
+- * 退出码：0=无命中/WARN；1=--strict 命中或自检失败；3=配置错；5=降级运行（宿主配置/白名单损坏——显式留痕不静默；总表=references/06 §5.8）。
++ * 退出码口径单源=references/06 §5.8（5=降级运行系总表本件专属行，此处
++ * 不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
+  */
+-import { readFileSync, existsSync, readdirSync } from 'node:fs'
++import { readFileSync, existsSync, readdirSync, writeFileSync, mkdtempSync } from 'node:fs'
+ import { join, relative } from 'node:path'
+-import { homedir } from 'node:os'
++import { homedir, tmpdir } from 'node:os'
+ import { SKILL_ROOT, loadOrgConfig } from './org-config.mjs'
+ 
+ const argv = process.argv.slice(2)
+@@ -62,6 +63,7 @@ export function deriveHostModelTerms(hostCfgPath = HOST_CFG) {
+   try { cfg = JSON.parse(readFileSync(hostCfgPath, 'utf8').replace(/^\uFEFF/, '')) } catch (e) { console.error(`[degraded] 宿主配置不可读（${e.message}）——扫描降级为通用语法形态（漏检面=供应商词表），退出码 5`); DEGRADED = true; return terms }
+   const seen = new Set()
+   for (const p of Object.values(cfg.provider || {})) {
++    if (!p || typeof p !== 'object') { console.error('[degraded] 宿主配置 provider 含 null/非对象条目——该条目词表跳过、其余源继续扫（漏检面=该条目模型名），退出码 5（evolve-E2 b4：原 null 条目 TypeError 崩溃）'); DEGRADED = true; continue }
+     for (const mk of Object.keys(p.models || {})) {
+       if (seen.has(mk)) continue
+       seen.add(mk)
+@@ -158,6 +160,19 @@ function selfTest() {
+   t('contains-only 规则反例（不含串行不豁免）', scanText({ relPath: 'references/z.md', text: '调用 api.deepseek.com', merged, whitelist: wlCo, extraTerms: termsDs }).every((h) => !h.whitelisted))
+   // r4 审核 W 终项：contains-only 规则专用正例（含串行豁免·任意文件）
+   t('contains-only 规则正例（含串行豁免·任意文件）', scanText({ relPath: 'references/z.md', text: 'api.deepseek.com 事故叙述', merged, whitelist: wlCo, extraTerms: termsDs }).every((h) => h.whitelisted))
++  // b4 向量（evolve-E2）：null provider 宿主条目→降级行（stderr 留痕）+其余源词表继续派生（exit 5 语义族，不崩溃）
++  let hmTerms = null, hmErr = null, hmDegraded = false
++  const hmBuf = []
++  const hmOrigErr = console.error
++  try {
++    const d = mkdtempSync(join(tmpdir(), 'hc-b4-'))
++    const f = join(d, 'host.json')
++    writeFileSync(f, JSON.stringify({ provider: { dead: null, live: { models: { 'B4Guard-Model': {} } } } }), 'utf8')
++    console.error = (...a) => hmBuf.push(a.join(' '))
++    hmTerms = deriveHostModelTerms(f)
++  } catch (e) { hmErr = e.message } finally { console.error = hmOrigErr }
++  hmDegraded = hmBuf.some((s) => s.includes('[degraded]') && s.includes('null'))
++  t('b4 null provider→降级行+其余源词表继续派生（不崩）', hmErr === null && Array.isArray(hmTerms) && hmTerms.length === 1 && hmTerms[0].name.includes('B4Guard-Model') && hmDegraded)
+   const fail = cases.filter((x) => !x.c)
+   for (const x of cases) console.log(`${x.c ? 'PASS' : 'FAIL'} ${x.n}${x.d ? ' — ' + x.d : ''}`)
+   console.log(`check-hardcode 自检：${cases.length - fail.length}/${cases.length} 过`)
+diff --git a/scripts/ds-call-v2.mjs b/scripts/ds-call-v2.mjs
+index cf5ad63..86d7703 100644
+--- a/scripts/ds-call-v2.mjs
++++ b/scripts/ds-call-v2.mjs
+@@ -11,9 +11,9 @@
+  *  - 宿主配置单次读入共用；find 未命中/字段缺失给 alias 级错误（K-W3）。
+  *  - JSON 读取剥 BOM（ds-N2）；日志 error 文本脱敏 Bearer/api-key 形态（K-N2）；
+  *    ledger_path 支持绝对路径（K-N3）。
+- *  - 退出码：3=配置级错误（uuid/name 校验、registry↔org-config 角色交叉失败、
+- *    配置 JSON 损坏）；2=源尽 exhaust；4=本地 IO 错误（输出写失败——响应已
+- *    成功已落账，主控禁重试）；1=用法错误。
++ *  - 退出码口径单源=references/06 §5.8（exit 2=exhaust 系本件专用行、
++ *    4=输出写失败时响应已落账主控禁重试——均总表既有语义，此处不复写
++ *    数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
+  *  - --mock-source 支持逗号并列多点（如 kimi-main:429,deepseek:500）——
+  *    全链注入=零成本 exhaust 演练；部分注入则后续源为真实调用（成本自担）。
+  *  - v1/v2 禁混用于同一工单=主控流程纪律（单一调用者+事件字段 dispatcher_version
+@@ -40,7 +40,7 @@
+  *   node ds-call-v2.mjs --list-roles | --list-sources
+  */
+ import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
+-import { join, dirname, resolve, isAbsolute, basename } from 'node:path'
++import { join, dirname, resolve, isAbsolute, relative, basename } from 'node:path'
+ import { createHash } from 'node:crypto'
+ import { fileURLToPath } from 'node:url'
+ import { request as httpRequest } from 'node:http'
+@@ -56,10 +56,43 @@ const NO_RETRY = (s) => s === 400 || s === 401 || s === 403 || s === 404
+ const SCRUB_RE = /(Bearer\s+)?[A-Za-z0-9_-]{24,}/g // 日志脱敏：长 token 形态一律掩码（K-N2）
+ const scrub = (s) => String(s).replace(SCRUB_RE, '<redacted>')
+ 
+-// 顶层兜底（ds-N3）：未捕获异常→一行错误（无堆栈噪声）；JSON/配置类=exit 3，其余=exit 1
++// ── 退出码分类（evolve 批 b2，2026-09-16）：类型化错误带 exitCode 属性替换
++// 消息正则兜底（英文 locale 下 fs/系统错误消息不含中文关键词致配置装载类
++// 误判 exit 1 的修误分类面；判据源=06 §5.8 退出码总表——3=配置/装载错，
++// 1=用法/未知，2=exhaust 链内专用，4=输出写失败显式路径） ──
++export class ConfigError extends Error {
++  constructor(message) {
++    super(message)
++    this.name = 'ConfigError'
++    this.exitCode = 3
++  }
++}
++/** 未捕获错误的退出码判定：有 exitCode 属性用属性，无=1（用法/未知）。
++ *  export 纯函数供 R10 向量。 */
++export function classifyExitCode(e) {
++  return typeof e?.exitCode === 'number' && Number.isInteger(e.exitCode) && e.exitCode >= 1 && e.exitCode <= 255 ? e.exitCode : 1
++}
++
++/** sys_prompt_file 包含性校验（evolve 批 b6，2026-09-16，P-2 预裁决）：
++ *  registry 声明路径 resolve 后须落在 root 内——path.relative 结果恰 '..' 或
++ *  首段 '..'（涵盖 ..\ 与 ../ 两种分隔形态）或绝对路径形态（跨盘符时
++ *  path.relative 产绝对串）=越界拒绝抛 ConfigError（exit 3+stderr 点名越界
++ *  路径）——纵深防御定性维持，当前 registry 无越界=不可达守卫（行为变化
++ *  申报 P-6③）。export 纯函数供 R10 向量。
++ *  两落点同步演进纪律：本函数+regression.mjs loadRoleAssembled（两处注释互指）。 */
++export function ensureWithinRoot(root, abs) {
++  const rel = relative(resolve(root), resolve(abs))
++  if (rel !== '' && (isAbsolute(rel) || rel.split(/[\\/]/)[0] === '..')) {
++    throw new ConfigError(`路径越界: ${abs}（registry 声明路径须在 ${root} 内——包含性校验拒绝，exit 3）`)
++  }
++  return resolve(abs)
++}
++
++// 顶层兜底（ds-N3）：未捕获异常→一行错误（无堆栈噪声）；退出码=classifyExitCode
++// 类型化判定（b2：消息正则兜底已删——ConfigError=3，其余=1）
+ process.on('uncaughtException', (e) => {
+   console.error(`[fatal] ${scrub(e.message)}`)
+-  process.exit(/JSON|配置|registry|org-config/.test(e.message) ? 3 : 1)
++  process.exit(classifyExitCode(e))
+ })
+ 
+ // ── Node 版本守卫（P3-1/W-12）：HOST-node25 libuv 退出阶段崩溃面 ──
+@@ -96,14 +129,24 @@ function makeSafeAppend() {
+ 
+ // ── 角色装载（注册表路径相对技能根）+ org-config 角色键交叉校验 ──
+ function loadRole(roleId, merged) {
+-  const registry = readJson(REGISTRY_PATH)
++  // b2：装载类失败抛 ConfigError（exit 3，06 §5.8）——英文 locale 系统消息
++  // 不含中文关键词，原正则兜底会误判 exit 1
++  let registry
++  try { registry = readJson(REGISTRY_PATH) } catch (e) { throw new ConfigError(`registry 装载失败（${REGISTRY_PATH}）: ${e.message}`) }
+   const def = registry.roles[roleId]
+-  if (!def) throw new Error(`未知角色: ${roleId}（可用角色见 --list-roles）`)
++  if (!def) throw new Error(`未知角色: ${roleId}（可用角色见 --list-roles）`) // 用法错=1（06 §5.8）
+   for (const key of Object.keys(merged.roles || {})) {
+     if (!registry.roles[key]) exitConfig(`配置错误：org-config 声明了注册表不存在的角色 ${key}（死配置守卫）`)
+   }
+-  const sysPrompt = readFileSync(join(SKILL_ROOT, def.sys_prompt_file), 'utf8')
+-  const dod = def.dod_file ? readFileSync(join(SKILL_ROOT, def.dod_file), 'utf8') : ''
++  let sysPrompt, dod
++  try {
++    ensureWithinRoot(SKILL_ROOT, join(SKILL_ROOT, def.sys_prompt_file)) // b6：包含性校验（越界=ConfigError exit 3；另一落点=regression loadRoleAssembled，同步演进）
++    sysPrompt = readFileSync(join(SKILL_ROOT, def.sys_prompt_file), 'utf8')
++    dod = def.dod_file ? readFileSync(join(SKILL_ROOT, def.dod_file), 'utf8') : ''
++  } catch (e) {
++    if (e instanceof ConfigError) throw e // 校验错直抛（不吞成装载失败文案）
++    throw new ConfigError(`角色档案装载失败（registry 声明 ${def.sys_prompt_file}${def.dod_file ? '/' + def.dod_file : ''}）: ${e.message}`)
++  }
+   const sig = createHash('sha256').update(sysPrompt + '\n---DOD---\n' + dod).digest('hex').slice(0, 8)
+   return { id: roleId, def, sysPrompt: sysPrompt.trimEnd(), dod: dod.trim(), sig, version: def.role_version }
+ }
+@@ -279,153 +322,161 @@ async function callSource(src, prompt, system, logger, mock) {
+   throw new Error('unreachable')
+ }
+ 
+-// ── CLI ──
+-const argv = process.argv.slice(2)
+-const flag = (name) => {
+-  const i = argv.indexOf(name)
+-  return i >= 0 ? argv[i + 1] : null
+-}
+-const roleId = flag('--role')
+-const onlyAlias = flag('--source')
+-const projectName = flag('--project') || basename(process.cwd())
+-const mockSpec = flag('--mock-source')
+-const listRoles = argv.includes('--list-roles')
+-const listSources = argv.includes('--list-sources')
+-const dryRun = argv.includes('--dry-run')
+-const positional = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--role' && argv[i - 1] !== '--source' && argv[i - 1] !== '--project' && argv[i - 1] !== '--mock-source')
++// ── CLI（isMain guard=evolve 批 b2，范式 org-config.mjs：import 消费纯函数
++//     （classifyExitCode/ensureWithinRoot，R10 向量）时零副作用） ──
++async function cliMain() {
++  const argv = process.argv.slice(2)
++  const flag = (name) => {
++    const i = argv.indexOf(name)
++    return i >= 0 ? argv[i + 1] : null
++  }
++  const roleId = flag('--role')
++  const onlyAlias = flag('--source')
++  const projectName = flag('--project') || basename(process.cwd())
++  const mockSpec = flag('--mock-source')
++  const listRoles = argv.includes('--list-roles')
++  const listSources = argv.includes('--list-sources')
++  const dryRun = argv.includes('--dry-run')
++  const positional = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--role' && argv[i - 1] !== '--source' && argv[i - 1] !== '--project' && argv[i - 1] !== '--mock-source')
+ 
+-const registry = readJson(REGISTRY_PATH)
+-const { merged } = loadOrgConfig(process.cwd())
+-nodeVersionGuard(merged)
+-const rawLedger = merged.ledger_path || '.zcode/org-ledger.jsonl'
+-const ledgerPath = isAbsolute(rawLedger) ? rawLedger : join(process.cwd(), rawLedger)
+-// 注：--project=账本条目名；配置装载恒从 cwd。死配置守卫（org-config 角色↔registry
+-// 交叉）仅在派发路径 loadRole 生效，org-config validate 不做注册表交叉。
++  const registry = readJson(REGISTRY_PATH)
++  let merged // b2：配置装载类失败抛 ConfigError（exit 3）——英文 locale 消息不含关键词，原正则兜底误判 exit 1
++  try { ({ merged } = loadOrgConfig(process.cwd())) } catch (e) { throw new ConfigError(`org-config 装载失败: ${e.message}`) }
++  nodeVersionGuard(merged)
++  const rawLedger = merged.ledger_path || '.zcode/org-ledger.jsonl'
++  const ledgerPath = isAbsolute(rawLedger) ? rawLedger : join(process.cwd(), rawLedger)
++  // 注：--project=账本条目名；配置装载恒从 cwd。死配置守卫（org-config 角色↔registry
++  // 交叉）仅在派发路径 loadRole 生效，org-config validate 不做注册表交叉。
+ 
+-if (listRoles) {
+-  console.log('角色注册表（registry_version=' + registry.registry_version + '；路径相对技能根；源路由=org-config 优先/registry 兜底）：')
+-  for (const [id, def] of Object.entries(registry.roles)) {
+-    const rc = merged.roles?.[id] || {}
+-    console.log(`  ${id} | source=${rc.source ?? def.default_source}${rc.source ? '（org-config）' : '（registry 兜底）'} tier=${rc.tier || '?'} | ${def.sys_prompt_file}`)
++  if (listRoles) {
++    console.log('角色注册表（registry_version=' + registry.registry_version + '；路径相对技能根；源路由=org-config 优先/registry 兜底）：')
++    for (const [id, def] of Object.entries(registry.roles)) {
++      const rc = merged.roles?.[id] || {}
++      console.log(`  ${id} | source=${rc.source ?? def.default_source}${rc.source ? '（org-config）' : '（registry 兜底）'} tier=${rc.tier || '?'} | ${def.sys_prompt_file}`)
++    }
++    process.exit(0)
+   }
+-  process.exit(0)
+-}
+-
+-const hostCfg = readHostConfig()
+-const sources = loadSources(merged, hostCfg)
+-if (listSources) {
+-  console.log(`源序（org-config source_chain；cfg:${cfgHash(merged)}）：`)
+-  sources.forEach((s, i) => console.log(`  ${i + 1}. ${s.alias} | ${s.modelName} | ${s.kind} @ ${s.baseURL} | ${s.note}`))
+-  process.exit(0)
+-}
+ 
+-if (!roleId) {
+-  console.error('错误：--role 必填（v1 内嵌系统提示已废止）。可用角色：')
+-  Object.keys(registry.roles).forEach((id) => console.error('  ' + id))
+-  console.error('用法: node ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>] [--dry-run] [--mock-source <alias>:<status>] <prompt文件> [输出文件]')
+-  process.exit(1)
+-}
+-const role = loadRole(roleId, merged)
+-const system = role.dod ? role.sysPrompt + '\n\n' + role.dod : role.sysPrompt
+-const routeSource = merged.roles?.[roleId]?.source ?? role.def.default_source // org-config 优先（K-B1）
++  let hostCfg // b2：宿主配置装载失败=配置类 ConfigError（exit 3）
++  try { hostCfg = readHostConfig() } catch (e) { throw new ConfigError(`宿主配置装载失败（~/.zcode/v2/config.json）: ${e.message}`) }
++  const sources = loadSources(merged, hostCfg)
++  if (listSources) {
++    console.log(`源序（org-config source_chain；cfg:${cfgHash(merged)}）：`)
++    sources.forEach((s, i) => console.log(`  ${i + 1}. ${s.alias} | ${s.modelName} | ${s.kind} @ ${s.baseURL} | ${s.note}`))
++    process.exit(0)
++  }
+ 
+-const promptPath = positional[0]
+-const outPath = positional[1]
+-if (!promptPath) {
+-  console.error('用法: node ds-call-v2.mjs --role <id> [...] <prompt文件> [输出文件]')
+-  process.exit(1)
+-}
+-const prompt = readFileSync(promptPath, 'utf8')
++  if (!roleId) {
++    console.error('错误：--role 必填（v1 内嵌系统提示已废止）。可用角色：')
++    Object.keys(registry.roles).forEach((id) => console.error('  ' + id))
++    console.error('用法: node ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>] [--dry-run] [--mock-source <alias>:<status>] <prompt文件> [输出文件]')
++    process.exit(1)
++  }
++  const role = loadRole(roleId, merged)
++  const system = role.dod ? role.sysPrompt + '\n\n' + role.dod : role.sysPrompt
++  const routeSource = merged.roles?.[roleId]?.source ?? role.def.default_source // org-config 优先（K-B1）
+ 
+-const chain = onlyAlias ? sources.filter((s) => s.alias === onlyAlias) : routeSource === 'chain' ? sources : sources.filter((s) => s.alias === routeSource)
+-if (chain.length === 0) {
+-  console.error(onlyAlias ? `未知或不可用源: ${onlyAlias}` : `角色 ${roleId} 路由源 ${routeSource} 不可用`)
+-  process.exit(1)
+-}
++  const promptPath = positional[0]
++  const outPath = positional[1]
++  if (!promptPath) {
++    console.error('用法: node ds-call-v2.mjs --role <id> [...] <prompt文件> [输出文件]')
++    process.exit(1)
++  }
++  const prompt = readFileSync(promptPath, 'utf8')
+ 
+-const mock = mockSpec
+-  ? Object.fromEntries(
+-      (mockSpec || '')
+-        .split(',')
+-        .map((part) => /^([^:]+):(\d+)$/.exec(part?.trim()))
+-        .filter(Boolean)
+-        .map((m) => [m[1], Number(m[2])]),
+-    )
+-  : null
+-if (mockSpec && (!mock || Object.keys(mock).length === 0)) throw new Error('--mock-source 需要 <alias>:<status>（可逗号并列多点，形如 kimi-main:429,deepseek:500）')
+-if (mock)
+-  for (const [alias, status] of Object.entries(mock)) {
+-    if (!chain.some((s) => s.alias === alias)) exitConfig(`--mock-source 的 alias ${alias} 不在本次链 ${chain.map((s) => s.alias).join('→')} 内（防演练静默真调）`)
+-    if (status < 400 || status > 599) exitConfig(`--mock-source 的 status 须在 [400,599]（故障注入语义；无成功路径）`)
++  const chain = onlyAlias ? sources.filter((s) => s.alias === onlyAlias) : routeSource === 'chain' ? sources : sources.filter((s) => s.alias === routeSource)
++  if (chain.length === 0) {
++    console.error(onlyAlias ? `未知或不可用源: ${onlyAlias}` : `角色 ${roleId} 路由源 ${routeSource} 不可用`)
++    process.exit(1)
+   }
+ 
+-const logger = makeLogger(role, merged, projectName, ledgerPath, !!mock, makeFinishClassifier(merged.finish_vocab))
+-if (dryRun) {
+-  console.log(
+-    JSON.stringify(
+-      {
+-        runId,
+-        role: { id: role.id, version: role.version, sig: role.sig, sys_prompt: role.sysPrompt, dod: role.dod, assembled_system: system },
+-        chain: chain.map((s) => s.alias),
+-        route_source: routeSource,
+-        sources: chain.map((s) => ({ alias: s.alias, url: buildRequest(s, prompt, system).url, model: s.modelName, kind: s.kind })),
+-        routing_log: LOG_PATH,
+-        ledger: ledgerPath,
+-        cfg_hash: cfgHash(merged),
+-        mock: mock,
+-      },
+-      null,
+-      2,
+-    ),
+-  )
+-  process.exit(0)
+-}
++  const mock = mockSpec
++    ? Object.fromEntries(
++        (mockSpec || '')
++          .split(',')
++          .map((part) => /^([^:]+):(\d+)$/.exec(part?.trim()))
++          .filter(Boolean)
++          .map((m) => [m[1], Number(m[2])]),
++      )
++    : null
++  if (mockSpec && (!mock || Object.keys(mock).length === 0)) throw new Error('--mock-source 需要 <alias>:<status>（可逗号并列多点，形如 kimi-main:429,deepseek:500）')
++  if (mock)
++    for (const [alias, status] of Object.entries(mock)) {
++      if (!chain.some((s) => s.alias === alias)) exitConfig(`--mock-source 的 alias ${alias} 不在本次链 ${chain.map((s) => s.alias).join('→')} 内（防演练静默真调）`)
++      if (status < 400 || status > 599) exitConfig(`--mock-source 的 status 须在 [400,599]（故障注入语义；无成功路径）`)
++    }
+ 
+-// 账本目录先建（K-B2/ds-B2）——置于只读分支之后，零副作用命令不建目录（W-1）
+-try {
+-  mkdirSync(dirname(ledgerPath), { recursive: true })
+-} catch (e) {
+-  exitConfig(`账本目录创建失败 ${dirname(ledgerPath)}: ${e.message}`)
+-}
++  const logger = makeLogger(role, merged, projectName, ledgerPath, !!mock, makeFinishClassifier(merged.finish_vocab))
++  if (dryRun) {
++    console.log(
++      JSON.stringify(
++        {
++          runId,
++          role: { id: role.id, version: role.version, sig: role.sig, sys_prompt: role.sysPrompt, dod: role.dod, assembled_system: system },
++          chain: chain.map((s) => s.alias),
++          route_source: routeSource,
++          sources: chain.map((s) => ({ alias: s.alias, url: buildRequest(s, prompt, system).url, model: s.modelName, kind: s.kind })),
++          routing_log: LOG_PATH,
++          ledger: ledgerPath,
++          cfg_hash: cfgHash(merged),
++          mock: mock,
++        },
++        null,
++        2,
++      ),
++    )
++    process.exit(0)
++  }
+ 
+-let switches = 0
+-const paygOf = (alias) => merged.providers?.[alias]?.billing === 'payg'
+-if (paygOf(chain[0].alias)) console.error(`[payg] 首源 ${chain[0].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁：换源不放宽任务书，但禁止静默烧钱）`)
+-for (let i = 0; i < chain.length; i++) {
+-  const s = chain[i]
+-  const srcMocked = !!(mock && mock[s.alias] !== undefined) // mock 标志贯穿 switch/exhaust 行（v1.6 批 C2：attempt 行有而 exhaust 行漏——log-triage --health 曾把演练 429 计入真实失效出假换源推荐）
+-  console.error(`[routing] run=${runId} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} 尝试源 ${i + 1}/${chain.length}: ${s.alias}(${s.modelName})`)
+-  let result
++  // 账本目录先建（K-B2/ds-B2）——置于只读分支之后，零副作用命令不建目录（W-1）
+   try {
+-    result = await callSource(s, prompt, system, logger, mock)
++    mkdirSync(dirname(ledgerPath), { recursive: true })
+   } catch (e) {
+-    // P0-4 真因 2：网络级失败（fetch failed）无 HTTP 状态码——显式写 null，
+-    // 保字段存在（R4 schema 要求 statusCode；缺字段=坏行）。
+-    const statusCode = e.statusCode ?? null
+-    if (i === chain.length - 1) {
+-      logger.routing('exhaust', { chain: chain.map((x) => x.alias).join('→'), error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
+-      logger.ledger('exhaust', { source: chain.map((x) => x.alias).join('→'), outcome: 'exhaust-debt（同源审计欠账，主控回退只读审）' })
+-      console.error(`[routing] 全源尽(${chain.map((x) => x.alias).join('→')}): ${scrub(e.message)}——主控按「同源审计欠账」处置`)
+-      process.exit(2)
+-    }
+-    switches++
+-    if (paygOf(chain[i + 1].alias)) console.error(`[payg] 换源至 ${chain[i + 1].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁）`)
+-    logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked, payg: paygOf(chain[i + 1].alias) || undefined })
+-    logger.ledger('switch', { source: s.alias, outcome: scrub(e.message).slice(0, 200) })
+-    console.error(`[routing] 换源 ${s.alias} → ${chain[i + 1].alias}: ${scrub(e.message).slice(0, 200)}`)
+-    continue
++    exitConfig(`账本目录创建失败 ${dirname(ledgerPath)}: ${e.message}`)
+   }
+-  // 输出写入在远程调用与重试语义之外（ds-W5：本地 IO 失败不触发换源/重复调用）
+-  const header = `[routing]: run=${runId} source=${s.alias} model=${s.modelName} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} switches=${switches} usage=in=${result.usage.in ?? '?'},out=${result.usage.out ?? '?'} latency=${result.latencyMs}ms (by ds-call-v2 链)\n\n`
+-  const body = header + result.text
+-  console.log(body) // 先出 stdout（W-2：输出文件写失败时正文已在标准流，产物不丢）
+-  if (outPath) {
++
++  let switches = 0
++  const paygOf = (alias) => merged.providers?.[alias]?.billing === 'payg'
++  if (paygOf(chain[0].alias)) console.error(`[payg] 首源 ${chain[0].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁：换源不放宽任务书，但禁止静默烧钱）`)
++  for (let i = 0; i < chain.length; i++) {
++    const s = chain[i]
++    const srcMocked = !!(mock && mock[s.alias] !== undefined) // mock 标志贯穿 switch/exhaust 行（v1.6 批 C2：attempt 行有而 exhaust 行漏——log-triage --health 曾把演练 429 计入真实失效出假换源推荐）
++    console.error(`[routing] run=${runId} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} 尝试源 ${i + 1}/${chain.length}: ${s.alias}(${s.modelName})`)
++    let result
+     try {
+-      writeFileSync(outPath, body, 'utf8')
++      result = await callSource(s, prompt, system, logger, mock)
+     } catch (e) {
+-      console.error(`[out-warn] 输出文件写失败（正文已输出 stdout，可手工重定向保全；**响应已成功且已落账——主控禁据本码重试，防重复计费**）: ${e.message}`)
+-      process.exit(4) // 4=本地 IO 错误（区别于 1=用法错误；stdout 已出正文即不得重试——ds-W1 终裁）
++      // P0-4 真因 2：网络级失败（fetch failed）无 HTTP 状态码——显式写 null，
++      // 保字段存在（R4 schema 要求 statusCode；缺字段=坏行）。
++      const statusCode = e.statusCode ?? null
++      if (i === chain.length - 1) {
++        logger.routing('exhaust', { chain: chain.map((x) => x.alias).join('→'), error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
++        logger.ledger('exhaust', { source: chain.map((x) => x.alias).join('→'), outcome: 'exhaust-debt（同源审计欠账，主控回退只读审）' })
++        console.error(`[routing] 全源尽(${chain.map((x) => x.alias).join('→')}): ${scrub(e.message)}——主控按「同源审计欠账」处置`)
++        process.exit(2)
++      }
++      switches++
++      if (paygOf(chain[i + 1].alias)) console.error(`[payg] 换源至 ${chain[i + 1].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁）`)
++      logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked, payg: paygOf(chain[i + 1].alias) || undefined })
++      logger.ledger('switch', { source: s.alias, outcome: scrub(e.message).slice(0, 200) })
++      console.error(`[routing] 换源 ${s.alias} → ${chain[i + 1].alias}: ${scrub(e.message).slice(0, 200)}`)
++      continue
++    }
++    // 输出写入在远程调用与重试语义之外（ds-W5：本地 IO 失败不触发换源/重复调用）
++    const header = `[routing]: run=${runId} source=${s.alias} model=${s.modelName} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} switches=${switches} usage=in=${result.usage.in ?? '?'},out=${result.usage.out ?? '?'} latency=${result.latencyMs}ms (by ds-call-v2 链)\n\n`
++    const body = header + result.text
++    console.log(body) // 先出 stdout（W-2：输出文件写失败时正文已在标准流，产物不丢）
++    if (outPath) {
++      try {
++        writeFileSync(outPath, body, 'utf8')
++      } catch (e) {
++        console.error(`[out-warn] 输出文件写失败（正文已输出 stdout，可手工重定向保全；**响应已成功且已落账——主控禁据本码重试，防重复计费**）: ${e.message}`)
++        process.exit(4) // 4=本地 IO 错误（区别于 1=用法错误；stdout 已出正文即不得重试——ds-W1 终裁）
++      }
+     }
++    process.exit(0)
+   }
+-  process.exit(0)
+ }
++const isMain =
++  process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
++if (isMain) await cliMain()
+diff --git a/scripts/glm-look.mjs b/scripts/glm-look.mjs
+index 09b5e28..81603b2 100644
+--- a/scripts/glm-look.mjs
++++ b/scripts/glm-look.mjs
+@@ -24,6 +24,10 @@
+ //   - 单次调用上限 20 分钟（AbortSignal.timeout=唯一超时源——对齐派发器
+ //     06 §5.7 传输纪律；v1.6 批 P0-B a：原 fetch 无超时可无限挂起）；
+ //     4xx（429 除外）立断不重试（对齐派发器 NO_RETRY；429/5xx 保留退避重试）；
++//   - 传输层=node:http(s) 直连（evolve 批 b1，2026-09-16——镜像 ds-call-v2
++//     v2.2.1 postJson：弃 global fetch，undici 内建 headers/body 300s 默认会在
++//     非流式长推理期先掐；req 侧禁 setTimeout，不跟随 3xx，不设
++//     accept-encoding；R10 结构断言+mock 双通道往返钉此面）；
+ //   - ok 流水行带 truncated 派生布尔（finish 白名单反转口径，词表=org-config
+ //     finish_vocab——闭残留册 glm-look-truncation-field）；
+ //   - 视觉方向级决策仍留用户——本通道只产判读证据；
+@@ -38,20 +42,26 @@ import fs from "node:fs";
+ import os from "node:os";
+ import path from "node:path";
+ import process from "node:process";
++import { request as httpRequest } from "node:http";
++import { request as httpsRequest } from "node:https";
+ import { fileURLToPath } from "node:url";
+ import { loadOrgConfig } from "./org-config.mjs";
+ 
+ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url)); // 规范解析（percent-decode）——原 URL pathname 手拼在含空格/中文路径下必坏（v1.6 批 P0-B e）
+ const SKILL_ROOT = path.join(SCRIPT_DIR, "..");
+-const ROUTING_LOG = path.join(SCRIPT_DIR, "model-routing-log.jsonl");
+-const CONFIG = path.join(os.homedir(), ".zcode", "v2", "config.json");
++// env 重定向钩子（evolve 批 b1 内部测试设施，R10 mock 往返用——缺省行为不变：
++// 不设 env 时落点/配置与原硬编码完全一致；prod 路径禁依赖）
++const ROUTING_LOG = path.join(process.env.GLM_LOOK_LOG_DIR || SCRIPT_DIR, "model-routing-log.jsonl");
++const CONFIG = process.env.GLM_LOOK_HOST_CONFIG || path.join(os.homedir(), ".zcode", "v2", "config.json");
+ const MIN_MAX_TOKENS = 8000;
+ const CALL_TIMEOUT_MS = 20 * 60_000; // 单次调用上限=对齐派发器（06 §5.7）
+ // 通道甄别参数单源=org-config vision_channels（v1.6 批 P0-B d 预裁 A）；
+ // 通道未声明=无源返回（禁脚本兜底硬编码——06 §0）
+-const { merged: ORG_CFG } = loadOrgConfig(SKILL_ROOT);
+-const VISION = ORG_CFG.vision_channels || {};
+-const chCfg = (ch) => VISION[ch] || {};
++// 装载惰性单例（evolve 批 b1：isMain guard 后 import 消费纯函数零副作用——
++// R10 向量脚本 import splitEndpoint 不触配置装载）
++let _orgCfgCache = null;
++const orgCfg = () => { _orgCfgCache ??= loadOrgConfig(SKILL_ROOT).merged; return _orgCfgCache; };
++const chCfg = (ch) => (orgCfg().vision_channels || {})[ch];
+ /** 脱敏（受控复制自 ds-call-v2.mjs——A3 受控双源：字面量由 regression R9
+  * 对账钉同步；升格共享模块=未来分发重构时再裁，裁决档 W7 统一判据）。 */
+ const SCRUB_RE = /(Bearer\s+)?[A-Za-z0-9_-]{24,}/g // 日志脱敏：长 token 形态一律掩码（K-N2）
+@@ -60,6 +70,56 @@ const scrub = (s) => String(s).replace(SCRUB_RE, '<redacted>')
+  * 端点异构，纪律面共用）。 */
+ const CHANNELS = new Set(["glm", "ds"]);
+ 
++/** URL 拆解为 node:http(s) request 选项三元组（纯函数，export 供 R10 向量）：
++ * 端口缺省按协议补（http=80/https=443），path=pathname+search。
++ * 传输层镜像源=ds-call-v2 v2.2.1 postJson（evolve 批 b1）。 */
++export function splitEndpoint(url) {
++  const u = new URL(url);
++  return {
++    protocol: u.protocol,
++    hostname: u.hostname,
++    port: u.port ? Number(u.port) : u.protocol === "http:" ? 80 : 443,
++    path: u.pathname + u.search,
++  };
++}
++
++/** POST 传输层=node:http(s) 直连（evolve 批 b1——镜像 ds-call-v2 v2.2.1：
++ * 弃 global fetch，undici 内建 headers/body 300s 默认会在非流式长推理期
++ * 先掐；signal=AbortSignal 唯一超时源（req 侧禁 setTimeout）；不跟随 3xx；
++ * 不设 accept-encoding；res.on('error') 防响应中途断流挂起）。 */
++function postJson(url, headers, body, timeoutMs) {
++  return new Promise((resolve, reject) => {
++    const ep = splitEndpoint(url);
++    const lib = ep.protocol === "http:" ? httpRequest : httpsRequest;
++    const req = lib(
++      {
++        hostname: ep.hostname,
++        port: ep.port,
++        path: ep.path,
++        method: "POST",
++        headers,
++        signal: AbortSignal.timeout(timeoutMs),
++      },
++      (res) => {
++        const chunks = [];
++        res.on("data", (c) => chunks.push(c));
++        res.on("error", reject);
++        res.on("end", () => {
++          const text = Buffer.concat(chunks).toString("utf8");
++          resolve({
++            status: res.statusCode,
++            ok: res.statusCode >= 200 && res.statusCode < 300,
++            text: async () => text,
++            json: async () => JSON.parse(text),
++          });
++        });
++      }
++    );
++    req.on("error", reject);
++    req.end(body);
++  });
++}
++
+ function channelTag(channel) {
+   return channel === "ds" ? "ds-look" : "glm-look";
+ }
+@@ -142,6 +202,7 @@ function usage() {
+ 
+ async function main() {
+   const argv = process.argv.slice(2);
++  const ORG_CFG = orgCfg(); // 配置单例（顶层惰性装载——isMain 后 import 零副作用）
+   // finish_vocab 拒跑守卫（终审 W3：缺词表=配置错——同批 ds-call-v2/log-triage 已立此纪律，
+   // 原可选链静默兜底致 completeFinishes 空集、truncated 恒 true 的静默假数据面）
+   if (!ORG_CFG.finish_vocab?.complete?.length || !ORG_CFG.finish_vocab?.truncation?.length) {
+@@ -253,7 +314,7 @@ async function main() {
+         } else {
+           headers["authorization"] = `Bearer ${src.key}`;
+         }
+-        const r = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(CALL_TIMEOUT_MS) });
++        const r = await postJson(url, headers, body, CALL_TIMEOUT_MS);
+         if (!r.ok) {
+           const errBody = await r.text().catch(() => "");
+           const err = new Error(`HTTP ${r.status}: ${scrub(errBody).slice(0, 300)}`);
+@@ -312,4 +373,10 @@ async function main() {
+   return 0;
+ }
+ 
+-process.exitCode = await main();
++// isMain guard（evolve 批 b1，范式=org-config.mjs:124-126）：import 消费纯函数
++// （splitEndpoint，R10 向量）时零副作用；CLI 体仅在直接执行时跑。
++const isMain =
++  process.argv[1] && path.resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase();
++if (isMain) {
++  process.exitCode = await main(); // 自然退出保持（Node 25 libuv 退出面——禁 process.exit 急退）
++}
+diff --git a/scripts/health-scan.mjs b/scripts/health-scan.mjs
+index 045f7f9..4400def 100644
+--- a/scripts/health-scan.mjs
++++ b/scripts/health-scan.mjs
+@@ -12,7 +12,8 @@
+  *   INFO：各源用量汇总
+  * 用法：node scripts/health-scan.mjs [--project <dir>] [--ledger <path>]
+  *       [--window N] [--budget <alias>:<maxOutTokens>[,…]] [--self-test]
+- * 退出码：0=无 RED；1=有 RED 或自检失败；3=配置错。总表=references/06 §5.8。
++ * 退出码口径单源=references/06 §5.8（此处不复写数字=语义映射，防双源漂移
++ * ——evolve 批 b8 指针化）。
+  */
+ import { readFileSync, existsSync, realpathSync } from 'node:fs'
+ import { join } from 'node:path'
+diff --git a/scripts/init-defenses.mjs b/scripts/init-defenses.mjs
+index 0020e9f..d369dde 100644
+--- a/scripts/init-defenses.mjs
++++ b/scripts/init-defenses.mjs
+@@ -5,8 +5,8 @@
+  * 用法：
+  *   node scripts/init-defenses.mjs --target <目录> --stack <npm-verify|pnpm-pygates|generic>
+  *        [--project <项目名>] [--yes] [--dry-run]
+- * 退出码（同技能约定 3-2-1-4 的本地件子集）：3=配置错误（目标不存在/
+- *   stack 枚举外/技能件缺失）；1=用法错误或预算自检 FAIL（已回滚）。
++ * 退出码口径单源=references/06 §5.8；本件特有：预算自检 FAIL 先回滚再退
++ *   （exit 1）——此处不复写数字=语义映射，防双源漂移（evolve 批 b8 指针化）。
+  * 覆盖安全：一切写入=「不存在则创建」；须确认的修改仅一处=AGENTS.md
+  *   追加 ORG-SEG 段——须 --yes 或 TTY 交互确认，否则 SKIP（.gitignore
+  *   幂等片段追加不须确认：含标记即跳过，重复内容不会写入）。
+diff --git a/scripts/log-triage.mjs b/scripts/log-triage.mjs
+index f15ce50..fc59714 100644
+--- a/scripts/log-triage.mjs
++++ b/scripts/log-triage.mjs
+@@ -15,7 +15,8 @@
+  *   --health：源健康检查（A'③）——按供应商五类分诊 → k1/k2 推荐+分类处置建议
+  *     （额度类→换源；504 窗口类→不换源、瘦身——zipoo 同端点共模，05 §九纠偏②）
+  * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--self-test]
+- * 退出码：0=正常；1=发现 RED 级事项（静默回退检出）或自检断言失败（全 fixture 聚合——v1.6 批）；3=配置错。
++ * 退出码口径单源=references/06 §5.8（RED 检出/自检失败/非法 --date 用法拒
++ * 均属总表 1 类；此处不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
+  * 纪律：finish 词表与供应商别名住 org-config（禁硬编码，A3/06 §0）；自然退出（HOST-node25 规避）。
+  */
+ import { readFileSync, existsSync, readdirSync } from 'node:fs'
+@@ -31,11 +32,39 @@ const ROUTING_LOG = join(SKILL_ROOT, 'scripts', 'model-routing-log.jsonl')
+ 
+ const readJsonl = readJsonlFile // 行读取器单源（org-config 导出——v1.6 批 P2-3 收敛）
+ 
++// ── b3（evolve-E2）：--date 校验+窗口 epoch 化（日界口径=UTC，与 CLI 日志文件名现状同口径） ──
++export const DATE_FMT_RE = /^\d{4}-\d{2}-\d{2}$/
++/** --date 合法性=格式+语义（真实存在的日期）。语义判据=UTC 分量回环：本机 V8
++ *  （Node 25）ISO 解析对日溢出回卷（2026-02-30→03-02）而非 NaN，仅判 Invalid/NaN
++ *  拒不住坏日向量——须回环比对年/月/日三分量（P-1 向量全过的必要实现）。 */
++export function isValidDateStr(s) {
++  if (typeof s !== 'string' || !DATE_FMT_RE.test(s)) return false
++  const [y, mo, d] = s.split('-').map(Number)
++  const t = new Date(`${s}T00:00:00Z`).getTime()
++  if (Number.isNaN(t)) return false
++  const dt = new Date(t)
++  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d
++}
++/** 窗口解析（纯函数，自检可注入）：--hours 与 --date 同走 epoch ms；
++ *  --date 窗=[UTC 零点, 次 UTC 零点)（撤回「本地零点」预案）；--hours 窗=[now−Nh, ∞) 无上界（原状）。 */
++export function resolveWindow({ argv, now = new Date() }) {
++  const hours = Number(cliFlag(argv, '--hours') || 0)
++  const dateArg = cliFlag(argv, '--date') || null
++  const dateStr = dateArg || (hours > 0 ? null : now.toISOString().slice(0, 10))
++  const dayStart = dateStr ? Date.parse(`${dateStr}T00:00:00Z`) : null
++  const sinceMs = hours > 0 ? now.getTime() - hours * 3600_000 : dayStart
++  const untilMs = hours > 0 || dayStart === null ? null : dayStart + 86_400_000
++  return { hours, dateStr, sinceMs, untilMs }
++}
++const tsMs = (x) => { const t = Date.parse(x); return Number.isNaN(t) ? null : t }
++/** 窗口过滤（epoch ms；不可解析/缺失时间戳行=保留，与原字符串比较口径的保守方向一致）。 */
++const inWindow = (t, sinceMs, untilMs) => t === null ? true : !((sinceMs != null && t < sinceMs) || (untilMs != null && t >= untilMs))
++
+ // ── 供应商别名解析：providerId(或 uuid) → org-config alias ──
+ const buildAliasMap = (providers) => {
+   const m = new Map()
+   for (const [alias, p] of Object.entries(providers || {})) {
+-    if (p.uuid_prefix) m.set(p.uuid_prefix, alias)
++    if (p?.uuid_prefix) m.set(p.uuid_prefix, alias) // null provider 条目跳过（evolve-E2 b4 守卫——原裸取即 TypeError 崩溃）
+   }
+   return m
+ }
+@@ -59,7 +88,7 @@ export function classifyError({ statusCode, reason, statusMessage, providerMessa
+ const CLASS_NAMES = { quota: '配额限流(429/403)', window: '网关窗口(504/超长时延)', server: '服务端过载(5xx)', transport: '传输层(网络错)', config: '配置错(400/401/404)', other: '未分类' }
+ 
+ // ── 内链路（cli/log）事件收割 ──
+-function harvestCliLog(lines, aliasMap, sinceTs) {
++function harvestCliLog(lines, aliasMap, sinceMs, untilMs) {
+   const perProvider = {}   // alias -> {ok, err:{class:n}, lat:[], attempts:{}}
+   const subagentNet = {}   // sessionId -> {alias, modelId, lastFinish, fails}
+   const netFailRaw = []    // network.failed 原行（同秒判重键用——v1.6 批）
+@@ -67,7 +96,7 @@ function harvestCliLog(lines, aliasMap, sinceTs) {
+   const bump = (alias) => (perProvider[alias] ||= { ok: 0, err: {}, lat: [], attempts: {} })
+   for (const d of lines) {
+     if (d.unparseable || !d.context) continue
+-    if (sinceTs && d.timestamp && d.timestamp < sinceTs) continue
++    if (!inWindow(tsMs(d.timestamp), sinceMs, untilMs)) continue
+     const c = d.context
+     const ev = d.event
+     if (ev === 'model.network.completed' || ev === 'model.network.failed') {
+@@ -107,11 +136,11 @@ function harvestCliLog(lines, aliasMap, sinceTs) {
+ }
+ 
+ // ── 外链路（model-routing-log）收割 ──
+-function harvestRouting(rows, sinceTs) {
++function harvestRouting(rows, sinceMs, untilMs) {
+   const out = { attempts: {}, ok: {}, exhaust: {}, switch: {} }
+   for (const r of rows) {
+     if (r.unparseable) continue
+-    if (sinceTs && r.ts && r.ts < sinceTs) continue
++    if (!inWindow(tsMs(r.ts), sinceMs, untilMs)) continue
+     const src = r.source || r.chain || '(链尽)'
+     if (r.event === 'attempt') out.attempts[src] = (out.attempts[src] || 0) + 1
+     if (r.event === 'ok') out.ok[src] = (out.ok[src] || 0) + 1
+@@ -169,7 +198,7 @@ export function detectSilentFallback({ metas, subagentNet }) {
+ }
+ 
+ // ── ⑥⑦ 子代理面：metadata（用量+终态）──
+-function harvestAgents(sinceTs) {
++function harvestAgents(sinceMs, untilMs) {
+   const metas = []
+   if (!existsSync(AGENTS_DIR)) return metas
+   for (const sess of readdirSync(AGENTS_DIR)) {
+@@ -178,8 +207,8 @@ function harvestAgents(sinceTs) {
+       for (const ag of readdirSync(sdir)) {
+         const mf = join(sdir, ag, 'metadata.json')
+         if (!existsSync(mf)) continue
+-        const m = JSON.parse(readFileSync(mf, 'utf8'))
+-        if (sinceTs && m.createdAt && m.createdAt < sinceTs) continue
++      const m = JSON.parse(readFileSync(mf, 'utf8'))
++      if (!inWindow(tsMs(m.createdAt), sinceMs, untilMs)) continue
+         metas.push(m)
+       }
+     } catch { /* 目录竞争态：跳过 */ }
+@@ -193,9 +222,12 @@ const pct = (arr, p) => { if (!arr.length) return 0; const s = [...arr].sort((a,
+ const argv = process.argv.slice(2)
+ const flag = (n) => cliFlag(argv, n) // 单源（org-config 导出——v1.6 批 P2-3）
+ const now = new Date()
+-const hours = Number(flag('--hours') || 0)
+-const dateStr = flag('--date') || (hours > 0 ? null : now.toISOString().slice(0, 10))
+-const sinceTs = hours > 0 ? new Date(now.getTime() - hours * 3600_000).toISOString() : (dateStr ? `${dateStr}T00:00:00` : null)
++const rawDate = flag('--date') || null
++if (rawDate && !isValidDateStr(rawDate)) {
++  console.error(`[usage] --date 非法值「${rawDate}」——须为真实存在的日期（YYYY-MM-DD，如 2026-09-16）；格式/语义校验拒，窗口日界=UTC（evolve-E2 b3——原静默空窗=假绿面）`)
++  process.exit(1)
++}
++const { hours, dateStr, sinceMs, untilMs } = resolveWindow({ argv, now }) // 窗口 epoch ms（--hours/--date 同路径；--date 日界=UTC）
+ 
+ const { merged } = loadOrgConfig(SKILL_ROOT)
+ const aliasMap = buildAliasMap(merged.providers)
+@@ -234,15 +266,39 @@ if (argv.includes('--self-test')) {
+   // 全角括号兜底回归（实陷：全角（mock）漏配）
+   const fw = harvestRouting([{ ts: '2026-09-16T10:00:00Z', runId: 'fw', event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽（mock）' }], null).exhaust
+   t('全角（mock）兜底命中（不计入推荐）', Object.values(fw)[0][0].isMock === true)
++  // b3 向量（evolve-E2）：--date 格式+语义校验+窗口 epoch 化 UTC 日界（红态=函数未落→FAIL 行不崩）
++  t('b3 格式校验：非 YYYY-MM-DD 拒（foo/2026-9-16/空串）', typeof isValidDateStr === 'function' && !isValidDateStr('foo') && !isValidDateStr('2026-9-16') && !isValidDateStr(''))
++  t('b3 语义校验：坏月日拒（2026-13-45）', typeof isValidDateStr === 'function' && !isValidDateStr('2026-13-45'))
++  t('b3 语义校验：坏日拒（2026-02-30——本机 V8 ISO 解析日溢出回卷非 NaN，须分量回环判）', typeof isValidDateStr === 'function' && !isValidDateStr('2026-02-30'))
++  t('b3 语义校验：平年 2 月 29 拒（2025-02-29）', typeof isValidDateStr === 'function' && !isValidDateStr('2025-02-29'))
++  t('b3 语义校验：合法值过（2026-09-16/闰 2024-02-29/平年 2025-02-28）', typeof isValidDateStr === 'function' && isValidDateStr('2026-09-16') && isValidDateStr('2024-02-29') && isValidDateStr('2025-02-28'))
++  const wB3 = typeof resolveWindow === 'function' ? resolveWindow({ argv: ['--date', '2026-09-16'] }) : null
++  t('b3 窗口 epoch 化+UTC 日界（since=UTC 零点/until=次 UTC 零点）', !!wB3 && wB3.sinceMs === Date.UTC(2026, 8, 16) && wB3.untilMs === Date.UTC(2026, 8, 17))
++  const tSh0917 = Date.UTC(2026, 8, 16, 18) // =Asia/Shanghai（UTC+8）本地 2026-09-17 02:00
++  t('b3 UTC 日界：上海本地 09-17 02:00 行（=UTC 09-16 18:00）归 09-16 窗', !!wB3 && wB3.sinceMs <= tSh0917 && tSh0917 < wB3.untilMs)
++  const tSh0916 = Date.UTC(2026, 8, 15, 20) // =Asia/Shanghai 本地 2026-09-16 04:00
++  t('b3 UTC 日界（非本地零点）：上海本地 09-16 04:00 行（=UTC 09-15 20:00）不入 09-16 窗', !!wB3 && tSh0916 < wB3.sinceMs)
++  t('b3 --hours 同路径：epoch ms 回推（now 定锚 12:00Z−2h=10:00Z）', typeof resolveWindow === 'function' && resolveWindow({ argv: ['--hours', '2'], now: new Date(Date.UTC(2026, 8, 16, 12)) }).sinceMs === Date.UTC(2026, 8, 16, 10))
++  const rtRowsB3 = [
++    { ts: '2026-09-16T18:00:00.000Z', runId: 'sh-local-0917-0200', event: 'exhaust', statusCode: 504, error: 'x' },
++    { ts: '2026-09-16T23:59:59.999Z', runId: 'in-tail', event: 'exhaust', statusCode: 504, error: 'x' },
++    { ts: '2026-09-17T00:00:00.000Z', runId: 'out-next-day', event: 'exhaust', statusCode: 504, error: 'x' },
++  ]
++  const rtOutB3 = wB3 ? harvestRouting(rtRowsB3, wB3.sinceMs, wB3.untilMs) : null
++  t('b3 窗口行过滤：UTC 09-16 窗内两行留（含上海 09-17 02:00 行）/次 UTC 零点起弃', !!rtOutB3 && Object.values(rtOutB3.exhaust).flat().length === 2 && !Object.values(rtOutB3.exhaust).flat().some((e) => e.runId === 'out-next-day'))
++  // b4 向量（evolve-E2）：null provider→buildAliasMap 不崩（null 条目跳过、其余映射保留）
++  let amMap = null, amErr = null
++  try { amMap = buildAliasMap({ dead: null, live: { uuid_prefix: 'b4-live-' } }) } catch (e) { amErr = e.message }
++  t('b4 null provider→buildAliasMap 不崩（null 条目跳过/其余映射保留）', amErr === null && amMap instanceof Map && amMap.size === 1 && amMap.get('b4-live-') === 'live')
+   console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
+   process.exitCode = stFails === 0 ? 0 : 1
+ } else {
+   // 收割两账（--hours 无日期时目录守卫：CLI 日志目录缺失=空集不崩——v1.6 批）
+   const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-2) : [])
+   const cliLines = logFiles.flatMap(f => readJsonl(join(CLI_LOG_DIR, f)))
+-  const { perProvider, subagentNet, deduped } = harvestCliLog(cliLines, aliasMap, sinceTs)
+-  const routing = harvestRouting(readJsonl(ROUTING_LOG), sinceTs)
+-  const metas = harvestAgents(sinceTs)
++  const { perProvider, subagentNet, deduped } = harvestCliLog(cliLines, aliasMap, sinceMs, untilMs)
++  const routing = harvestRouting(readJsonl(ROUTING_LOG), sinceMs, untilMs)
++  const metas = harvestAgents(sinceMs, untilMs)
+   const metasAll = harvestAgents(null) // 全时段 metadata 单次收割复用（原三重全量遍历——v1.6 批收敛）
+   const W = process.stdout.write.bind(process.stdout)
+ 
+diff --git a/scripts/org-config.mjs b/scripts/org-config.mjs
+index 8e1624b..701ea00 100644
+--- a/scripts/org-config.mjs
++++ b/scripts/org-config.mjs
+@@ -4,7 +4,8 @@
+  * 数组整体替换；显式 null=删除该键。
+  * 规范化哈希：递归键排序+剔除 null/undefined（对象键值与数组元素皆剔，
+  * 顺序保留）+紧凑 JSON.stringify 后 sha256 前 12 位——与键序/空白无关。
+- * 退出码：0=成功；1=用法错误/自检失败；3=配置校验失败（区别于派发器源尽 exhaust=2）。总表=references/06 §5.8。
++ * 退出码口径单源=references/06 §5.8（此处不复写数字=语义映射，防双源漂移
++ * ——evolve 批 b8 指针化）。
+  * 用法：
+  *   node org-config.mjs [--project <dir>] resolve   # 打印合并后配置
+  *   node org-config.mjs [--project <dir>] hash      # 打印 cfg:<hash12>
+@@ -98,12 +99,16 @@ export function validateProviders(cfg, hostCfg) {
+   const entries = Object.entries(hc.provider || {})
+   const errors = []
+   for (const [alias, def] of Object.entries(cfg.providers || {})) {
++    if (def == null || typeof def !== 'object') {
++      errors.push(`providers.${alias} 值为 ${def === null ? 'null' : typeof def}——须为对象（uuid_prefix/entry_name）；null/非对象条目=配置损坏（evolve-E2 b4 守卫：原裸取 uuid_prefix 即 TypeError 崩溃）`)
++      continue
++    }
+     const hit = entries.find(([id, p]) => id.startsWith(def.uuid_prefix) && p && p.name === def.entry_name)
+     if (!hit) {
+       const near = entries.find(([id]) => id.startsWith(def.uuid_prefix))
+       errors.push(
+         `源校验失败 alias=${alias} 期望 uuid前缀=${def.uuid_prefix} name=${def.entry_name} ` +
+-          `实际=${near ? near[0] + '(name=' + near[1].name + ')' : '无该前缀条目'}（未入链的声明源亦须双校验通过）`,
++          `实际=${near ? near[0] + '(name=' + (near[1]?.name ?? 'null') + ')' : '无该前缀条目'}（未入链的声明源亦须双校验通过）`,
+       )
+     }
+   }
+@@ -131,8 +136,8 @@ if (isMain) {
+   const cmd = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--project')
+ 
+   if (selfTest) {
+-    let fails = 0
+-    const t = (name, cond) => (console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`), cond || fails++)
++    let fails = 0, n = 0
++    const t = (name, cond) => (n++, console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`), cond || fails++)
+     const base = { a: { x: 1, y: 2 }, b: [1, 2], c: 3 }
+     t('对象逐字段覆盖+未提及沿用', JSON.stringify(deepMerge(base, { a: { x: 9 } })) === JSON.stringify({ a: { x: 9, y: 2 }, b: [1, 2], c: 3 }))
+     t('数组整体替换', JSON.stringify(deepMerge(base, { b: [3] }).b) === '[3]')
+@@ -141,7 +146,14 @@ if (isMain) {
+     t('哈希键序无关', cfgHash({ x: 1, y: { b: 2, a: 3 } }) === cfgHash({ y: { a: 3, b: 2 }, x: 1 }))
+     t('哈希剔 null（对象键）', cfgHash({ x: 1, y: null }) === cfgHash({ x: 1 }))
+     t('哈希剔 null（数组元素，顺序保留）', cfgHash({ s: ['a', null, 'b'] }) === cfgHash({ s: ['a', 'b'] }) && cfgHash({ s: ['b', 'a'] }) !== cfgHash({ s: ['a', 'b'] }))
+-    console.log(fails === 0 ? 'self-test 全过（7 向量）' : `self-test ${fails} 项失败`)
++    // b4 向量（evolve-E2）：null provider 守卫——validateProviders 不崩+明确校验错误行+近邻提示 null 宿主条目安全
++    const vpHost = { provider: { 'b4null-0000': null, 'b4live-9999': { name: 'LIVE-ENTRY' } } }
++    let vpErr = null
++    try { vpErr = validateProviders({ providers: { dead: null, live: { uuid_prefix: 'b4live', entry_name: 'LIVE-ENTRY' }, nearnull: { uuid_prefix: 'b4null', entry_name: 'X' } } }, vpHost) } catch (e) { vpErr = `THREW:${e.message}` }
++    t('b4 null provider→校验错误行（不崩）', Array.isArray(vpErr) && vpErr.some((e) => e.includes('providers.dead') && e.includes('null')))
++    t('b4 近邻提示 null 宿主条目不崩（near?.[1]?.name）', Array.isArray(vpErr) && vpErr.some((e) => e.includes('alias=nearnull') && e.includes('name=null')))
++    t('b4 健康源不受 null 条目影响（live 双校验通过不出错行）', Array.isArray(vpErr) && !vpErr.some((e) => e.includes('alias=live 期望')))
++    console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
+     process.exit(fails === 0 ? 0 : 1)
+   }
+ 
+diff --git a/scripts/regression.mjs b/scripts/regression.mjs
+index 7f6dc61..1c07969 100644
+--- a/scripts/regression.mjs
++++ b/scripts/regression.mjs
+@@ -1,5 +1,6 @@
+ /**
+- * 技能自包含回归（ai-dev-org v1.0 冻结前置——06 §5 R1~R6 的内化执行件）：
++ * 技能自包含回归（ai-dev-org v1.0 冻结前置——06 §5 的内化执行件；
++ * R 清单单源=本脚本 --only 可选项集合，此处不复写清单——evolve-E2 b5 指针化）：
+  *   R2'=系统提示 golden 字节自比对（golden 冻结于 scripts/roles/.golden/，
+  *       双路验证：档案文件装载 vs golden、派发器 --dry-run assembled_system
+  *       vs golden——勾连真实装载路径，防 regression 自身装载逻辑漂移）；
+@@ -10,18 +11,19 @@
+  *       ~9k Kimi tokens，须 --r1 显式触发=配给保护）。
+  * 用法：node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden]
+  *       [--project <账本目录>] [--keep-tmp]
+- * 退出码：0=所选回归项全过；1=任一 FAIL（含 R2b 派发器装载路异常
+- *       ——计入 FAIL 汇总，不单独 exit 3）；3=配置错误（golden 缺失未
+- *       --update-golden/版本提取失败/宿主配置不可读）。
++ * 退出码口径单源=references/06 §5.8；本件特有：R2b 派发器装载路异常
++ *       计入 FAIL 汇总（exit 1），不单独 3（evolve 批 b8 指针化）。
+  * golden 更新=冻结动作：--update-golden 重生成后应随工作单元提交并在
+  * 修订记登记（改系统提示≠错，错在未登记的静默漂移）。
+  */
+ import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+ import { join } from 'node:path'
+ import { tmpdir } from 'node:os'
+-import { spawnSync } from 'node:child_process'
++import { spawnSync, spawn } from 'node:child_process'
+ import { createHash } from 'node:crypto'
++import { pathToFileURL } from 'node:url'
+ import { SKILL_ROOT, readJson, loadOrgConfig, cliFlag } from './org-config.mjs'
++import { ensureWithinRoot } from './ds-call-v2.mjs' // b6：包含性校验单源消费（另一落点=ds-call-v2 loadRole，同步演进）
+ 
+ const SCRIPTS = join(SKILL_ROOT, 'scripts')
+ const GOLDEN_DIR = join(SCRIPTS, 'roles', '.golden')
+@@ -40,11 +42,15 @@ const recordSkip = (id, detail) => { results.push({ id, pass: true, notrun: true
+ const node = () => [process.execPath]
+ 
+ // ── 角色装载（与 ds-call-v2.mjs loadRole 同构——锚定注释：两处须同步演进；
+-//    交叉验证路（R2'b）用派发器 --dry-run 真实装载兜住此处复制件的漂移） ──
++//    交叉验证路（R2'b）用派发器 --dry-run 真实装载兜住此处复制件的漂移；
++//    b6（2026-09-16）：sys_prompt_file 包含性校验两落点同步演进——本处消费
++//    ds-call-v2 ensureWithinRoot 单源（越界抛 ConfigError→exit 3，兜底经
++//    import 链 uncaughtException handler 生效：[fatal] 一行+classifyExitCode） ──
+ function loadRoleAssembled(roleId) {
+   const registry = readJson(join(SCRIPTS, 'roles', 'registry.json'))
+   const def = registry.roles[roleId]
+   if (!def) throw new Error(`未知角色: ${roleId}`)
++  ensureWithinRoot(SKILL_ROOT, join(SKILL_ROOT, def.sys_prompt_file))
+   const sysPrompt = readFileSync(join(SKILL_ROOT, def.sys_prompt_file), 'utf8')
+   const dod = def.dod_file ? readFileSync(join(SKILL_ROOT, def.dod_file), 'utf8') : ''
+   const assembled = (def.dod_file ? sysPrompt.trimEnd() + '\n\n' + dod.trim() : sysPrompt.trimEnd()) + '\n'
+@@ -83,7 +89,8 @@ if (want('R2')) {
+   writeFileSync(promptFile, 'noop', 'utf8')
+   let bOk = true, bDetail = []
+   for (const id of roleIds) {
+-    const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', id, '--dry-run', promptFile], { encoding: 'utf8', cwd: tmp })
++    // 秒级 mock 路径超时=实测 max×5 取整 5s（evolve-E2 b5 实测推导表见 audits/evolve-e2-log；下同）
++    const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', id, '--dry-run', promptFile], { encoding: 'utf8', cwd: tmp, timeout: 5_000, killSignal: 'SIGKILL' })
+     if (r.status !== 0) { bOk = false; bDetail.push(`${id}:dry-run exit=${r.status}`); continue }
+     let dry
+     try { dry = JSON.parse(r.stdout) } catch { bOk = false; bDetail.push(`${id}:dry-run stdout 非 JSON`); continue }
+@@ -108,7 +115,7 @@ if (want('R5')) {
+   const chainLen = (merged.source_chain || []).length
+   const expAttempt = 4 * chainLen, expSwitch = chainLen - 1
+   // cwd=tmp：账本随派发器 cwd 落 tmp/.zcode/（--project 仅是条目名，不改变落点）
+-  const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--mock-source', (merged.source_chain || []).map((a) => `${a}:429`).join(','), '--project', 'r5-drill', promptFile], { encoding: 'utf8', cwd: tmp })
++  const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--mock-source', (merged.source_chain || []).map((a) => `${a}:429`).join(','), '--project', 'r5-drill', promptFile], { encoding: 'utf8', cwd: tmp, timeout: 5_000, killSignal: 'SIGKILL' })
+   const exitOk = r.status === 2
+   const stderrOk = (r.stderr || '').includes('全源尽')
+   const lines = existsSync(LOG_PATH) ? readFileSync(LOG_PATH, 'utf8').split('\n').filter(Boolean) : []
+@@ -173,7 +180,7 @@ if (want('R4')) {
+   let cfgOk = false, cfgDetail = 'cfg哈希=流水缺失（R4 FAIL）'
+   if (existsSync(LOG_PATH)) {
+     const latestCfgHash = [...readFileSync(LOG_PATH, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean)].reverse().find((l) => { try { return JSON.parse(l).org_config_hash } catch { return false } })
+-    const h = spawnSync(node()[0], [join(SCRIPTS, 'org-config.mjs'), 'hash'], { encoding: 'utf8', cwd: process.cwd() })
++    const h = spawnSync(node()[0], [join(SCRIPTS, 'org-config.mjs'), 'hash'], { encoding: 'utf8', cwd: process.cwd(), timeout: 5_000, killSignal: 'SIGKILL' })
+     if (h.status !== 0 || !h.stdout.trim()) cfgDetail = `cfg哈希=org-config hash 子进程失败（exit=${h.status}）`
+     else {
+       const live = h.stdout.trim()
+@@ -220,7 +227,7 @@ if (want('R7')) {
+ 
+ // ═══ R8：log-triage 自检聚合+--health 验收断言（v1.6 批 C2——mock 过滤假信号回归钉） ═══
+ if (want('R8')) {
+-  const r = spawnSync(node()[0], [join(SCRIPTS, 'log-triage.mjs'), '--self-test'], { encoding: 'utf8', cwd: SKILL_ROOT })
++  const r = spawnSync(node()[0], [join(SCRIPTS, 'log-triage.mjs'), '--self-test'], { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 5_000, killSignal: 'SIGKILL' })
+   const out = (r.stdout || '') + (r.stderr || '')
+   const hasAcc = out.includes('验收断言') && out.includes('全过')
+   record('R8', r.status === 0 && hasAcc, `exit=${r.status} 自检含验收断言=${out.includes('验收断言')}${r.status !== 0 ? `（输出尾：${out.slice(-160)}）` : ''}`)
+@@ -235,6 +242,143 @@ if (want('R9')) {
+   record('R9', ok, `scrub 复制体与源字面量一致=${ok}${!ok ? '（改其一须同步另一——受控复制纪律，裁决档 W7）' : ''}`)
+ }
+ 
++// ═══ R10：b1/b2/b6 回归面汇总（evolve 批 E1 2026-09-16——R10 归属 b1，P-4 预裁决） ═══
++//   ①结构断言：glm-look.mjs 非注释行无 fetch( 调用形态+存在 node:http(s) import
++//     （注释剥离口径钉死：先剥 /*…*/ 块注释再跳过 // 整行注释；行内尾注不剔——
++//      代码半行仍在非注释行内受检）；
++//   ②本地 mock 双通道往返：起 node:http 本地 server 拟真双形（glm=/anthropic
++//     /v1/messages anthropic 形、ds=/deepseek /chat/completions openai 形各一轮），
++//     子进程驱动 glm-look，env 重定向钩子 GLM_LOOK_HOST_CONFIG/GLM_LOOK_LOG_DIR
++//     （内部测试设施，缺省行为不变）隔离宿主配置与真实流水落点——零真实外呼、
++//     零真实落账；断言 stdout 正文+流水 attempt/ok 行（ok 行含 truncated 派生布尔）；
++//   ③纯函数向量（子进程向量脚本承载 import——未实现态 CLI 副作用不触主进程）：
++//     splitEndpoint≥3 例 / classifyExitCode 三类（配置→3/用法→1/未知→1）≥3 例 /
++//     ensureWithinRoot 三负例（恰 ..、..\、../ 三输入形态）+2 正例。
++//   本块一切 spawnSync 带 timeout+killSignal（秒级 mock 路径 60s 量级）。
++if (want('R10')) {
++  let ok = true
++  const det = []
++  const r10Spawn = (args, opts = {}) => spawnSync(node()[0], args, { encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL', ...opts })
++  // 异步 spawn+超时看护（60s 量级+SIGKILL，与 spawnSync 看护等价）：mock 往返必须
++  // 异步——spawnSync 会冻结父进程事件循环，本进程内 mock server 无法应答
++  // （实测：子进程 TCP 已连而父进程 server 请求永不处理=挂到被杀）。
++  const r10SpawnAsync = (args, opts = {}) => new Promise((resolve) => {
++    const child = spawn(node()[0], args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, ...opts })
++    let stdout = '', stderr = ''
++    child.stdout.on('data', (c) => { stdout += c })
++    child.stderr.on('data', (c) => { stderr += c })
++    const timer = setTimeout(() => child.kill('SIGKILL'), 60_000)
++    child.on('error', () => { clearTimeout(timer); resolve({ status: null, signal: null, stdout, stderr }) })
++    child.on('close', (code, signal) => { clearTimeout(timer); resolve({ status: code, signal, stdout, stderr }) })
++  })
++  // ① 结构断言
++  {
++    const src = readFileSync(join(SCRIPTS, 'glm-look.mjs'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
++    const codeLines = src.split('\n').filter((l) => !l.trim().startsWith('//'))
++    const fetchHit = codeLines.filter((l) => /\bfetch\s*\(/.test(l))
++    const hasHttpImport = /from\s+["']node:https?["']/.test(src)
++    if (fetchHit.length || !hasHttpImport) ok = false
++    det.push(`①结构断言:非注释行fetch命中=${fetchHit.length}${fetchHit.length ? `「${fetchHit[0].trim().slice(0, 50)}」` : ''} node:http(s)import=${hasHttpImport ? '✓' : '✗'}`)
++  }
++  // ③ 纯函数向量（两份向量脚本；红态函数未导出→FAIL 不崩）
++  const r10tmp = mkdtempSync(join(tmpdir(), 'r10-'))
++  const vecUrl = (f) => pathToFileURL(join(SCRIPTS, f)).href
++  const vecGlm = join(r10tmp, 'vec-glm.mjs')
++  writeFileSync(vecGlm, `import * as glmLook from ${JSON.stringify(vecUrl('glm-look.mjs'))}
++const { splitEndpoint } = glmLook
++let fails = 0
++const t = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++ }
++if (typeof splitEndpoint !== 'function') { console.log('FAIL splitEndpoint 未导出（b1 待实现）'); process.exit(1) }
++t('http 缺省端口 80', JSON.stringify(splitEndpoint('http://h.example/p')) === JSON.stringify({ protocol: 'http:', hostname: 'h.example', port: 80, path: '/p' }))
++t('https 显式端口 8443', splitEndpoint('https://h.example:8443/a?b=1').port === 8443)
++t('path 含 search 串', splitEndpoint('https://h.example/a?x=1&y=2').path === '/a?x=1&y=2')
++t('http 显式端口 3000', splitEndpoint('http://h:3000/x').port === 3000)
++console.log(fails === 0 ? 'R10VEC-ALL-PASS' : 'R10VEC-FAILS:' + fails)
++process.exit(fails === 0 ? 0 : 1)
++`, 'utf8')
++  const vecDs = join(r10tmp, 'vec-ds.mjs')
++  writeFileSync(vecDs, `import * as dsCall from ${JSON.stringify(vecUrl('ds-call-v2.mjs'))}
++import { join, dirname, resolve } from 'node:path'
++const { classifyExitCode, ConfigError, ensureWithinRoot } = dsCall
++let fails = 0
++const t = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++ }
++if (typeof classifyExitCode !== 'function' || typeof ConfigError !== 'function' || typeof ensureWithinRoot !== 'function') { console.log('FAIL 纯函数未导出（b2/b6 待实现）'); process.exit(1) }
++t('分类:配置 ConfigError→3', classifyExitCode(new ConfigError('配置错')) === 3)
++t('分类:用法 普通 Error→1', classifyExitCode(new Error('用法错')) === 1)
++t('分类:未知 非 Error 值→1', classifyExitCode('boom') === 1)
++t('分类:exitCode 属性直通(2)', classifyExitCode(Object.assign(new Error('x'), { exitCode: 2 })) === 2)
++t('ConfigError 实例 exitCode=3', new ConfigError('x').exitCode === 3)
++const root = resolve('r10-root-fixture')
++const throws3 = (fn) => { try { fn(); return false } catch (e) { return e.exitCode === 3 } }
++t('越界负例:恰 ..（root 兄弟）', throws3(() => ensureWithinRoot(root, dirname(root))))
++t('越界负例:..\\\\ 深层逃逸', throws3(() => ensureWithinRoot(root, join(root, '..', 'evil', 'x.txt'))))
++t('越界负例:../ 形态（混合分隔输入）', throws3(() => ensureWithinRoot(root, root + '/../evil/x.txt')))
++t('正例:root 内深层文件', ensureWithinRoot(root, join(root, 'roles', 'a.md')) === join(root, 'roles', 'a.md'))
++t('正例:root 自身', ensureWithinRoot(root, root) === root)
++console.log(fails === 0 ? 'R10VEC-ALL-PASS' : 'R10VEC-FAILS:' + fails)
++process.exit(fails === 0 ? 0 : 1)
++`, 'utf8')
++  const rGlm = r10Spawn([vecGlm])
++  const rDs = r10Spawn([vecDs])
++  const vecOk = rGlm.status === 0 && (rGlm.stdout || '').includes('R10VEC-ALL-PASS')
++  const vecDsOk = rDs.status === 0 && (rDs.stdout || '').includes('R10VEC-ALL-PASS')
++  if (!vecOk || !vecDsOk) ok = false
++  const vecFail = (r) => `FAIL(exit=${r.status} 「${((r.stdout || '') + '\n' + (r.stderr || '')).split('\n').filter((l) => l.startsWith('FAIL')).slice(0, 2).join('|')}」)`
++  det.push(`③向量:splitEndpoint=${vecOk ? '全过' : vecFail(rGlm)}/classify+ensure=${vecDsOk ? '全过' : vecFail(rDs)}`)
++  // ② 本地 mock 双通道往返（b1 传输层+env 钩子就位才跑——红态跳过防触真实宿主源发现）
++  if (vecOk) {
++    const { createServer } = await import('node:http')
++    const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
++    const server = createServer((req, res) => {
++      const chunks = []
++      req.on('data', (c) => chunks.push(c))
++      req.on('end', () => {
++        const glmForm = req.url.includes('/anthropic') // 通道甄别=org-config endpoint_contains 同串拟真
++        const body = glmForm
++          ? { content: [{ type: 'text', text: 'MOCK-GLM-OK' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }
++          : { choices: [{ message: { content: 'MOCK-DS-OK' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
++        res.writeHead(200, { 'content-type': 'application/json' })
++        res.end(JSON.stringify(body))
++      })
++    })
++    await new Promise((r) => server.listen(0, '127.0.0.1', r))
++    const port = server.address().port
++    const logDir = join(r10tmp, 'log')
++    mkdirSync(logDir, { recursive: true })
++    const hostCfgFile = join(r10tmp, 'host-config.json') // 拟真宿主配置（模型键/端点甄别子串与 org-config vision_channels 对齐）
++    writeFileSync(hostCfgFile, JSON.stringify({
++      provider: {
++        'mock-glm': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-mock-key-aaaaaaaaaaaaaaaaaaaa' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
++        'mock-ds': { options: { baseURL: `http://127.0.0.1:${port}/deepseek`, apiKey: 'r10-mock-key-bbbbbbbbbbbbbbbbbbbb' }, models: { 'deepseek-flash': { name: 'deepseek-flash' } } },
++      },
++    }), 'utf8')
++    const promptFile = join(r10tmp, 'prompt.md')
++    writeFileSync(promptFile, 'R10 mock 往返（本地拟真，零外部调用）', 'utf8')
++    const imgFile = join(r10tmp, 'img.png')
++    writeFileSync(imgFile, PNG_1PX)
++    const runLook = (channel) => r10SpawnAsync([join(SCRIPTS, 'glm-look.mjs'), '--prompt', promptFile, imgFile, '--channel', channel], {
++      env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgFile, GLM_LOOK_LOG_DIR: logDir },
++    })
++    const rg = await runLook('glm')
++    const rd = await runLook('ds')
++    const logFile = join(logDir, 'model-routing-log.jsonl')
++    const logLines = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
++    const chOf = (ch) => logLines.filter((e) => e.channel === ch)
++    const lookOk = (r, ch, text) => r.status === 0 && (r.stdout || '').includes(text) && chOf(ch).some((e) => e.event === 'attempt') && chOf(ch).some((e) => e.event === 'ok' && e.truncated === false)
++    const glmOk = lookOk(rg, 'glm-look', 'MOCK-GLM-OK')
++    const dsOk = lookOk(rd, 'ds-look', 'MOCK-DS-OK')
++    if (!glmOk || !dsOk) ok = false
++    const lookFail = (r) => `✗(exit=${r.status} stderr尾=${(r.stderr || '').slice(-140).replace(/\n/g, ' ')})`
++    det.push(`②mock往返:glm=${glmOk ? `✓(exit=${rg.status} 正文+流水attempt/ok行)` : lookFail(rg)}/ds=${dsOk ? `✓(exit=${rd.status})` : lookFail(rd)}`)
++    server.close()
++  } else {
++    ok = false
++    det.push('②mock往返:跳过（splitEndpoint 未导出=b1 传输层未落，env 钩子未就位——跑则触真实宿主源发现）')
++  }
++  if (!keepTmp) rmSync(r10tmp, { recursive: true, force: true })
++  record('R10', ok, `b1/b2/b6 回归面——${det.join('；')}`)
++}
++
+ // ═══ R1'3：语义抽样（真实派发，--r1 显式触发） ═══
+ if (wantR1) {
+   const CASES = [
+@@ -250,7 +394,7 @@ if (wantR1) {
+     for (const src of SOURCES) {
+       const pf = join(tmp, c.id + '.txt')
+       writeFileSync(pf, c.prompt, 'utf8')
+-      const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--source', src, '--project', tmp, pf, pf + '.' + src + '.out'], { encoding: 'utf8', cwd: tmp, timeout: 1_260_000 }) // >派发器 20min 调用上限+余量（v1.6 批：原 10min 会先杀合法长推理误报 FAIL）
++      const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--source', src, '--project', tmp, pf, pf + '.' + src + '.out'], { encoding: 'utf8', cwd: tmp, timeout: 5_400_000, killSignal: 'SIGKILL' }) // R1 超时=单源推导 4×20min（链长 4×派发器 CALL_TIMEOUT_MS）+35s 开销=4,835,000ms，+裕量取 90min（5,400,000ms∈C5 机检窗 [4,835,000, 7,200,000]；evolve-E2 b5——原 1,260,000 低于派生值，合法最坏链会被先杀误报 FAIL；v1.6 批史：原 10min 同病）
+       const out = r.status === 0 ? readFileSync(pf + '.' + src + '.out', 'utf8') : ''
+       // 格式容错解析（v1.6 批：deepseek 偶发把「判定:」耗在推理通道、可见正文用 Verdict:/裸 PASS-FAIL——
+       // 语义不变仍取方向；S2 干净样例不会被 FAIL 误配（模型方向错才会）
+diff --git a/scripts/skill-gc.mjs b/scripts/skill-gc.mjs
+index 29e0cd8..673f458 100644
+--- a/scripts/skill-gc.mjs
++++ b/scripts/skill-gc.mjs
+@@ -17,7 +17,8 @@
+  * 用法：
+  *   node skill-gc.mjs [--root <dir>] [--json]                    # 盘点+可回收估算（干跑）
+  *   node skill-gc.mjs --apply --delete-redirects [--delete-invalid]  # 归档+清理
+- * 退出码：0=正常；1=参数误用或归档事务失败；2=--apply 未指定删除类。
++ * 退出码口径单源=references/06 §5.8（v1.6 统一后本件无总表外特有语义；
++ * 此处不复写数字=语义映射，防双源漂移——evolve 批 b8 指针化）。
+  */
+ import { readdirSync, readFileSync, statSync, renameSync, mkdirSync, writeFileSync, existsSync } from 'node:fs'
+ import { homedir } from 'node:os'
+diff --git a/templates/org-seg.snippet.md b/templates/org-seg.snippet.md
+index ea7b966..f2863e3 100644
+--- a/templates/org-seg.snippet.md
++++ b/templates/org-seg.snippet.md
+@@ -8,5 +8,5 @@
+   组织差异回灌=.zcode/org-delta.jsonl（技能 05 §6 协议）。
+ - 成本账本=.zcode/org-ledger.jsonl（行 schema **单源=技能 references/02 §9**
+   ——SKILL.md 与本件均持指针，禁内联字段清单，A3）；
+-  收口前跑技能 `scripts/health-scan.mjs`（欠账/同源/预算三类告警）。
++  收口前跑技能 `scripts/health-scan.mjs`（RED=0 方可收口；告警分类单源=技能 references/02 §10）。
+ <!-- ORG-SEG:END -->
