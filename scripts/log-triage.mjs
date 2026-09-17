@@ -7,7 +7,8 @@
  *   ①五类分诊：配额限流(429/403)/服务端过载(5xx)/网关窗口(504+超长时延)/传输层(网络错)/配置错(400/401/404)
  *   ②attempt 分布（客户端重试放大统计——maxAttempts=11 噪声源）
  *   ③静默回退检测：~/.zcode/cli/agents/＜会话＞/＜代理＞/metadata.json 声明绑定 vs 日志实际 model 归因
- *     （声明值非 <uuid|builtin:…>/<model> 形态=疑似枚举假绑定；声明≠实际=静默回退）
+ *     （声明值非 <uuid|builtin:…|account:…>/<model> 形态=疑似枚举假绑定——按流量分级：窗口内有请求=RED/
+ *     无请求=WARN 档案面问题；声明≠实际=RED 静默回退；已知键形态异常=WARN 格式漂移疑似 tripwire）
  *     比较口径=精确串匹配（保守方向：假 RED 优于假绿，承 W-3 白名单反转哲学）——版本化
  *     别名形态（如 <model>-YYYYMMDD 快照）暂不支持，出现即按回退上报人工复核（审核 W-2）。
  *   ⑥岗×源用量汇总（含 Kimi 双源分列——org-ledger 补记数据源）
@@ -236,17 +237,40 @@ export function declaredModelOf(profileSnapshot) {
   }
   return null
 }
+/** 已知键形态巡检（tripwire，纯函数）：model 键非字符串 / modelSelection 键非
+ *  预期结构=宿主 metadata 格式漂移疑似——③ 对未识形态会当非绑定岗静默跳过
+ *  （=检测面失明；2026-09-17 在册实例：model 字符串→modelSelection 结构体漂移
+ *  即此族风险），显式 WARN 请人工核对 declaredModelOf。触发器行=RESIDUALS
+ *  host-metadata-schema-drift。 */
+export function detectMetadataShapeDrift(profileSnapshot) {
+  if (!profileSnapshot || typeof profileSnapshot !== 'object') return false
+  const m = profileSnapshot.model
+  if (m !== undefined && typeof m !== 'string') return true
+  const sel = profileSnapshot.modelSelection
+  if (sel !== undefined && !(sel && typeof sel === 'object' && typeof sel.providerId === 'string' && typeof sel.modelId === 'string')) return true
+  return false
+}
 export function detectSilentFallback({ metas, subagentNet }) {
   const findings = []
   for (const m of metas) {
-    const declared = declaredModelOf(m?.profileSnapshot)
+    const ps = m?.profileSnapshot
+    const declared = declaredModelOf(ps)
     const sid = m?.childSessionId
+    const act = subagentNet[sid]
+    // tripwire 无条件先行（门一 W-1 回炉：原门控在 !declared 内——双键同场且一键
+    // 可解析时另一键畸形漏报；漂移留痕不替代绑定核对，两者并行不互斥）
+    if (detectMetadataShapeDrift(ps)) findings.push({ level: 'WARN', profile: m.profileId, sid, declared: '(未识形态)', actual: act ? `${act.alias}/${act.modelId}` : '(窗口内无请求记录)', kind: '宿主 metadata 格式漂移疑似——③ 检测面可能失明，请核对 declaredModelOf（触发器行 host-metadata-schema-drift）' })
     if (!declared) continue // 无 model/modelSelection=宿主默认，非绑定岗
     if (!VALID_MODEL_RE.test(declared)) {
-      findings.push({ level: 'RED', profile: m.profileId, sid, declared, actual: subagentNet[sid] ? `${subagentNet[sid].alias}/${subagentNet[sid].modelId}` : '(无请求)', kind: '疑似枚举/伪值（静默回退宿主）' })
+      // 枚举/伪值按流量分级（评估批修正：原一律 RED——历史测试探针零流量也永久
+      // 污染退出码，全时段 metadata 扫描窗口化流量天然错位）：窗口内有实际请求=
+      // RED（声明形态非法，路由不可信）；无请求=WARN（档案面问题非窗口内路由
+      // 失效，留痕不阻断——覆盖其流量窗口再跑即升 RED，保守方向不放松）
+      findings.push(act
+        ? { level: 'RED', profile: m.profileId, sid, declared, actual: `${act.alias}/${act.modelId}`, kind: '疑似枚举/伪值且窗口内有实际请求（路由不可信）' }
+        : { level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '疑似枚举/伪值（无可核对请求）——档案面问题，非窗口内路由失效' })
       continue
     }
-    const act = subagentNet[sid]
     if (!act) { findings.push({ level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '无可核对请求' }); continue }
     // 声明的供应商段（uuid/builtin:/account:）须与实际 providerId 一致；模型段剥除
     // `$档位` 后缀后须与 modelId 一致（档位不参与回退判定——网络日志无档位维度）
@@ -355,7 +379,40 @@ function run() {
               { profileId: 'probe-c-x', childSessionId: 's2', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash' } }],
       subagentNet: { s2: { alias: 'deepseek', providerId: '8ad55776-2296-4f1a-bc46-05755c8f1300', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
     })
-    t('probe-b 假绑定可被 ③ 抓出（RED+枚举）', fb.length === 1 && fb[0].level === 'RED' && fb[0].kind.includes('枚举'))
+    t('probe-b 假绑定零流量=WARN（档案面问题不污染退出码——评估批修正：原一律 RED 致历史探针永久阻断）', fb.length === 1 && fb[0].level === 'WARN' && fb[0].kind.includes('枚举'))
+    t('probe-b 假绑定有流量=RED（枚举+窗口内实际请求=路由不可信）', detectSilentFallback({
+      metas: [{ profileId: 'probe-b-live', childSessionId: 's7', profileSnapshot: { model: 'sonnet' } }],
+      subagentNet: { s7: { alias: 'kimi-main', providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+    })[0]?.level === 'RED')
+    t('metadata 形态漂移 tripwire：model 键成对象→WARN 未识形态', detectSilentFallback({
+      metas: [{ profileId: 'probe-drift', childSessionId: 's8', profileSnapshot: { model: { providerId: 'x', modelId: 'y' } } }],
+      subagentNet: {},
+    })[0]?.kind.includes('漂移') === true)
+    t('metadata 形态漂移 tripwire：modelSelection 残缺结构→WARN（检测面失明前哨）', detectSilentFallback({
+      metas: [{ profileId: 'probe-drift2', childSessionId: 's9', profileSnapshot: { modelSelection: { providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e' } } }],
+      subagentNet: {},
+    })[0]?.kind.includes('漂移') === true)
+    t('tripwire 双键同场不漏报（门一 W-1 回炉：合法 model+畸形 modelSelection→漂移 WARN 且绑定核对照走）', (() => {
+      const r = detectSilentFallback({
+        metas: [{ profileId: 'probe-dual', childSessionId: 's10', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash', modelSelection: { providerId: 123 } } }],
+        subagentNet: { s10: { alias: 'deepseek', providerId: '8ad55776-2296-4f1a-bc46-05755c8f1300', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
+      })
+      return r.length === 1 && r[0].kind.includes('漂移') // 漂移 WARN 留痕+声明=实际无回退发现=绑定核对未被漂移顶替
+    })())
+    t('tripwire 与比对并行（门二裁决 P3-②：合法声明+漂移+声明≠实际→漂移 WARN+回退 RED 双条——漂移留痕不替代绑定核对）', (() => {
+      const r = detectSilentFallback({
+        metas: [{ profileId: 'probe-drift-mismatch', childSessionId: 's11', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash', modelSelection: { providerId: 123 } } }],
+        subagentNet: { s11: { alias: 'kimi-main', providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+      })
+      return r.length === 2 && r.some((f) => f.kind.includes('漂移') && f.level === 'WARN') && r.some((f) => f.kind.includes('静默回退') && f.level === 'RED')
+    })())
+    t('tripwire 零噪声面：无绑定键/合法旧格式/合法新格式均不误报', detectSilentFallback({
+      metas: [
+        { profileId: 'p-plain', childSessionId: 'sa', profileSnapshot: { name: 'x' } },
+        { profileId: 'p-old', childSessionId: 'sb', profileSnapshot: { model: 'sonnet' } },
+      ],
+      subagentNet: {},
+    }).every((f) => !f.kind.includes('漂移')) && detectMetadataShapeDrift({ modelSelection: { providerId: 'account:bigmodel-individual-coding-plan', modelId: 'GLM-5.3' } }) === false && detectMetadataShapeDrift({ model: 'a/b' }) === false && detectMetadataShapeDrift({}) === false)
     // 验收断言（裁决档 C2）：mock429×4 + 真实504×1 ⇒ 推荐=不换源
     const accRows = [
       ...[1, 2, 3, 4].map((i) => ({ ts: `2026-09-16T0${i}:00:00Z`, runId: `m${i}`, event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽', mocked: true })),
