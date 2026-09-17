@@ -350,11 +350,12 @@ process.exit(fails === 0 ? 0 : 1)
   const vecDs = join(r10tmp, 'vec-ds.mjs')
   writeFileSync(vecDs, `import * as dsCall from ${JSON.stringify(vecUrl('ds-call-v2.mjs'))}
 import { join, dirname, resolve } from 'node:path'
-const { classifyExitCode, ConfigError, ensureWithinRoot, parseFindings } = dsCall
+const { classifyExitCode, ConfigError, ensureWithinRoot, parseFindings, parseResponseBody } = dsCall
 let fails = 0
 const t = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++ }
 if (typeof classifyExitCode !== 'function' || typeof ConfigError !== 'function' || typeof ensureWithinRoot !== 'function') { console.log('FAIL 纯函数未导出（b2/b6 待实现）'); process.exit(1) }
 if (typeof parseFindings !== 'function') { console.log('FAIL parseFindings 未导出（selfiter findings-parser 待实现）'); process.exit(1) }
+if (typeof parseResponseBody !== 'function') { console.log('FAIL parseResponseBody 未导出（selfiter B5 流式化待实现）'); process.exit(1) }
 t('分类:配置 ConfigError→3', classifyExitCode(new ConfigError('配置错')) === 3)
 t('分类:用法 普通 Error→1', classifyExitCode(new Error('用法错')) === 1)
 t('分类:未知 非 Error 值→1', classifyExitCode('boom') === 1)
@@ -372,6 +373,10 @@ t('findings:标准尾栏解析', JSON.stringify(parseFindings('报告正文\\nFI
 t('findings:无尾栏→null（不伪造）', parseFindings('普通产出无尾栏') === null)
 t('findings:尾栏后有杂行（末5行回扫窗）仍命中', parseFindings('FINDINGS: B=0 W=1 N=0 VERDICT=FAIL\\n\\n备注行') !== null)
 t('findings:verdict 归一大写+零值形态', parseFindings('FINDINGS: B=0 W=0 N=2 VERDICT=pass').verdict === 'PASS' && parseFindings('FINDINGS: B=0 W=0 N=2 VERDICT=pass').N === 2)
+// selfiter 批（B5 流式化）向量：响应体双形态解析
+t('B5 parseResponseBody：anthropic SSE 文本→同构最终对象', (() => { const o = parseResponseBody({ kind: 'anthropic' }, 'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"VEC"}}\\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":2}}\\ndata: [DONE]'); return o.content?.[0]?.text === 'VEC' && o.stop_reason === 'end_turn' })())
+t('B5 parseResponseBody：非 SSE JSON 原语义回退', parseResponseBody({ kind: 'anthropic' }, '{"content":[{"type":"text","text":"J"}],"stop_reason":"end_turn"}').content[0].text === 'J')
+t('B5 parseResponseBody：openai SSE 累积+usage 末块', (() => { const o = parseResponseBody({ kind: 'openai' }, 'data: {"choices":[{"delta":{"content":"X"}}]}\\ndata: {"choices":[{"delta":{"content":"Y"}}]}\\ndata: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":2}}\\ndata: [DONE]'); return o.choices[0].message.content === 'XY' && o.usage.completion_tokens === 2 })())
 console.log(fails === 0 ? 'R10VEC-ALL-PASS' : 'R10VEC-FAILS:' + fails)
 process.exit(fails === 0 ? 0 : 1)
 `, 'utf8')
@@ -391,6 +396,23 @@ process.exit(fails === 0 ? 0 : 1)
       req.on('data', (c) => chunks.push(c))
       req.on('end', () => {
         const glmForm = req.url.includes('/anthropic') // 通道甄别=org-config endpoint_contains 同串拟真
+        // selfiter 批（B5）拟真扩展：请求体带 stream:true → 应答 SSE 流（首字节早达
+        // 语义拟真；收割器/同构断言经 glm-look 端到端走通）
+        let streamReq = false
+        try { streamReq = JSON.parse(Buffer.concat(chunks).toString('utf8')).stream === true } catch { /* 坏体走 JSON 路径 */ }
+        if (streamReq) {
+          res.writeHead(200, { 'content-type': 'text/event-stream' })
+          const sse = glmForm
+            ? ['event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
+               'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"MOCK-GLM-OK"}}',
+               'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}',
+               'data: [DONE]']
+            : ['data: {"choices":[{"delta":{"content":"MOCK-DS-OK"}}]}',
+               'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5}}',
+               'data: [DONE]']
+          res.end(sse.join('\n\n') + '\n\n')
+          return
+        }
         const body = glmForm
           ? { content: [{ type: 'text', text: 'MOCK-GLM-OK' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }
           : { choices: [{ message: { content: 'MOCK-DS-OK' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } }

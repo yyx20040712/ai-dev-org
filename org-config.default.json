@@ -78,13 +78,15 @@
         "open.bigmodel.cn",
         "z.ai",
         "zcode"
-      ]
+      ],
+      "stream": true
     },
     "ds": {
       "model": "deepseek-flash",
-      "endpoint_contains": "deepseek"
+      "endpoint_contains": "deepseek",
+      "stream": true
     },
-    "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数。字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）。通道命中=模型名∧端点子串双条件（通道互斥由模型名区分，聚合网关代发他厂模型属配置面可改）。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实（模型名/偏好序/端点形态）住本件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。项目覆盖件无须复制本分区（深合并未提及沿用默认件）。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑"
+    "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数。字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）。通道命中=模型名∧端点子串双条件（通道互斥由模型名区分，聚合网关代发他厂模型属配置面可改）。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实（模型名/偏好序/端点形态）住本件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。项目覆盖件无须复制本分区（深合并未提及沿用默认件）。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑；stream=看图通道流式位（selfiter B5，同 dispatch_request.stream 语义）"
   },
   "hardcode_scan": {
     "forbidden_terms": [],
@@ -93,7 +95,8 @@
   "dispatch_request": {
     "max_tokens": 32768,
     "temperature": 0.2,
-    "note": "派发器请求参数单源（v1.7.4 m4 清偿）：ds-call-v2 两载荷形态共用；原脚本字面量收编。改动即 cfg_hash 变更可追溯；缺段/非数值=exit 3 无静默回退"
+    "note": "派发器请求参数单源（v1.7.4 m4 清偿）：ds-call-v2 两载荷形态共用；原脚本字面量收编。改动即 cfg_hash 变更可追溯；缺段/非数值=exit 3 无静默回退；stream=流式请求位（selfiter B5：SSE 根治网关非流式窗口 504 族——真窗异常可置 false 配置回退，零代码变更）",
+    "stream": true
   },
   "regression_cfg": {
     "r1_sources": [

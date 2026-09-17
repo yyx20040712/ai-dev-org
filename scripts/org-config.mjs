@@ -127,6 +127,48 @@ export function readJsonlFile(p) {
  *  lockfile 兄弟文件 + 'wx' 独占建；陈旧锁（>staleMs）破锁续行；tries 耗尽=降级
  *  无锁执行+stderr 留痕（单行 append 本就近原子，锁=纵深防御不阻断派发主流程）。
  *  同步睡眠=Atomics.wait（Node 主线程合法）。 */
+/** SSE 文本→事件载荷数组（selfiter 批 B5 流式化——纯函数，双脚本共用）：
+ *  只认 data: 行；[DONE] 哨兵与非 JSON 行（注释/心跳）跳过。 */
+export function parseSseText(text) {
+  const events = []
+  for (const line of String(text).split('\n')) {
+    const l = line.trim()
+    if (!l.startsWith('data:')) continue
+    const payload = l.slice(5).trim()
+    if (!payload || payload === '[DONE]') continue
+    try { events.push(JSON.parse(payload)) } catch { /* 非 JSON 数据行（注释/心跳）跳过 */ }
+  }
+  return events
+}
+
+/** SSE 事件流收割器（B5——根治网关非流式窗口截断 504 族）：产出与各自非流式
+ *  形态**同构**的最终响应对象——消费方 normalizeResponse/parseResponse 零改动。
+ *  anthropic 形：message_start(input usage)/content_block_delta(text_delta 累积)/
+ *  message_delta(stop_reason+output usage)。openai 形：choices[].delta.content
+ *  累积/finish_reason/末块 usage（请求侧配 stream_options.include_usage）。 */
+export function collectAnthropicSse(events) {
+  let text = '', stopReason = null, usage = {}
+  for (const ev of events) {
+    if (ev?.type === 'message_start') usage = { ...usage, ...ev.message?.usage }
+    else if (ev?.type === 'content_block_delta' && ev.delta?.type === 'text_delta') text += ev.delta.text || ''
+    else if (ev?.type === 'message_delta') {
+      if (ev.delta?.stop_reason) stopReason = ev.delta.stop_reason
+      if (ev.usage && typeof ev.usage.output_tokens === 'number') usage = { ...usage, output_tokens: ev.usage.output_tokens }
+    }
+  }
+  return { content: text ? [{ type: 'text', text }] : [], stop_reason: stopReason, usage }
+}
+export function collectOpenaiSse(events) {
+  let text = '', finish = null, usage = null
+  for (const ev of events) {
+    const ch = ev?.choices?.[0]
+    if (ch?.delta?.content) text += ch.delta.content
+    if (ch?.finish_reason) finish = ch.finish_reason
+    if (ev?.usage) usage = ev.usage
+  }
+  return { choices: [{ message: { content: text }, finish_reason: finish }], usage: usage || {} }
+}
+
 const sleepSync = (ms) => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms) }
 export function withFileLock(lockPath, fn, { staleMs = 10_000, tries = 60, waitMs = 20 } = {}) {
   let fd = -1
@@ -248,6 +290,15 @@ if (isMain) {
       t('B4 锁：陈旧锁（>staleMs）破锁续行', v2r === 'STALE-BROKE' && !existsSync(lk2))
     } catch { t('B4 锁：临时目录异常', false) }
     finally { if (lockDir) rmSync(lockDir, { recursive: true, force: true }) }
+    // selfiter 批（B5 流式化）向量：SSE 解析与收割（纯函数）
+    const sseRaw = 'event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":11}}}\n\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"SSE-"}}\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"OK"}}\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":7}}\ndata: [DONE]\n'
+    const sseEv = parseSseText(sseRaw)
+    t('B5 parseSseText：event:/空行/[DONE] 滤除，data 载荷按序 4 件', sseEv.length === 4 && sseEv[0].type === 'message_start')
+    const aCol = collectAnthropicSse(sseEv)
+    t('B5 anthropic 收割：文本拼接+stop_reason+双侧 usage', aCol.content[0]?.text === 'SSE-OK' && aCol.stop_reason === 'end_turn' && aCol.usage.input_tokens === 11 && aCol.usage.output_tokens === 7)
+    const oCol = collectOpenaiSse([{ choices: [{ delta: { content: 'A' } }] }, { choices: [{ delta: { content: 'B' }, finish_reason: 'stop' }] }, { choices: [{ delta: {} }], usage: { prompt_tokens: 3, completion_tokens: 4 } }])
+    t('B5 openai 收割：delta 累积+finish+末块 usage', oCol.choices[0].message.content === 'AB' && oCol.choices[0].finish_reason === 'stop' && oCol.usage.prompt_tokens === 3)
+    t('B5 空事件流→空形态不崩（保守）', collectAnthropicSse([]).content.length === 0 && collectOpenaiSse([]).choices[0].message.content === '' && collectOpenaiSse([]).choices[0].finish_reason === null)
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
   }

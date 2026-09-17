@@ -46,7 +46,7 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
-import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, readHostConfig, readJson, cliFlag, UsageError, withFileLock } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, readHostConfig, readJson, cliFlag, UsageError, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse } from './org-config.mjs'
 
 const DISPATCHER_VERSION = '2.3.0'
 const LEDGER_SCHEMA_VERSION = 3 // v3（selfiter 批 B4）：增 project_id（归一化 id——映射单源=org-config projects，缺映射 raw 透传）
@@ -126,7 +126,9 @@ function loadDispatchRequest(merged) {
   const tp = d.temperature
   if (typeof mt !== 'number' || !Number.isFinite(mt)) throw bad('max_tokens', mt)
   if (typeof tp !== 'number' || !Number.isFinite(tp)) throw bad('temperature', tp)
-  return { maxTokens: mt, temperature: tp }
+  // B5 流式位（selfiter 批）：布尔，缺省 false（非流式原语义）；真窗异常可配置回退
+  const stream = d.stream === true
+  return { maxTokens: mt, temperature: tp, stream }
 }
 
 // ── 本地落账安全封装：目录自动建+IO 失败降级警告（不抛入远程重试语义）
@@ -204,14 +206,16 @@ function buildRequest(src, prompt, system, reqParams) {
       url: `${base}/v1/messages`,
       method: 'POST',
       headersReal: { 'content-type': 'application/json', 'x-api-key': src.apiKey, 'anthropic-version': '2023-06-01' },
-      body: { model: src.modelName, max_tokens: reqParams.maxTokens, temperature: reqParams.temperature, system, messages: [{ role: 'user', content: prompt }] },
+      // B5 流式（selfiter 批）：stream=true 请求 SSE——首字节早达，根治网关非流式
+      // 窗口 504 族；响应侧 parseResponseBody 按形态收割（非 SSE 应答原语义回退）
+      body: { model: src.modelName, max_tokens: reqParams.maxTokens, temperature: reqParams.temperature, system, messages: [{ role: 'user', content: prompt }], ...(reqParams.stream ? { stream: true } : {}) },
     }
   }
   return {
     url: `${src.baseURL}/chat/completions`,
     method: 'POST',
     headersReal: { 'Content-Type': 'application/json', Authorization: `Bearer ${src.apiKey}` },
-    body: { model: src.modelName, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: reqParams.temperature, max_tokens: reqParams.maxTokens },
+    body: { model: src.modelName, messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], temperature: reqParams.temperature, max_tokens: reqParams.maxTokens, ...(reqParams.stream ? { stream: true, stream_options: { include_usage: true } } : {}) },
   }
 }
 
@@ -224,6 +228,18 @@ function parseResponse(src, data) {
   let text = msg.content || ''
   if (!text && msg.reasoning_content) text = '[仅推理无正文,finish=' + data.choices?.[0].finish_reason + ']\n' + msg.reasoning_content
   return { text, usage: { in: data.usage?.prompt_tokens, out: data.usage?.completion_tokens }, finish: data.choices?.[0]?.finish_reason }
+}
+
+/** 响应体=SSE 或 JSON 双形态解析（selfiter 批 B5 流式化）：SSE 文本按源形态
+ *  收割为**同构**最终响应对象（parseResponse 零改动）；非 SSE 应答=原 JSON
+ *  语义（服务端忽略 stream 位时的回退面）。纯函数，export 供向量。 */
+export function parseResponseBody(src, rawText) {
+  const t = String(rawText)
+  if (/^(event:|data:)/m.test(t.slice(0, 200))) {
+    const events = parseSseText(t)
+    return src.kind === 'anthropic' ? collectAnthropicSse(events) : collectOpenaiSse(events)
+  }
+  return JSON.parse(t)
 }
 
 // ── 截断判定（W-3 白名单反转 + W-4 词表住 org-config，脚本零硬编码） ──
@@ -350,7 +366,7 @@ async function callSource(src, prompt, system, logger, mock, reqParams) {
         await new Promise((r) => setTimeout(r, wait))
         continue
       }
-      const data = await res.json()
+      const data = parseResponseBody(src, await res.text()) // B5：SSE/JSON 双形态（流式位开启时服务端应 SSE；忽略位=JSON 原语义）
       const { text, usage, finish } = parseResponse(src, data)
       if (!text) throw Object.assign(new Error('空响应 finish=' + finish + ' usage=' + JSON.stringify(usage)), { fatal: true })
       const { cls, truncated } = logger.classifyFinish(finish)

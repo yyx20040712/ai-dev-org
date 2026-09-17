@@ -54,7 +54,7 @@ import process from "node:process";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { fileURLToPath } from "node:url";
-import { loadOrgConfig, cliFlag, UsageError, cfgHash, withFileLock } from "./org-config.mjs";
+import { loadOrgConfig, cliFlag, UsageError, cfgHash, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse } from "./org-config.mjs";
 
 const DISPATCHER_VERSION = "glm-look/1.3.0"; // 自版本号（写入者身份——流水 ctx 对齐面）
 let DEGRADED = false; // 降级运行位（宿主 provider null 条目——发现面部分可用，显式留痕 exit 5）
@@ -339,10 +339,14 @@ async function main() {
   let attemptTokens = maxTokens;
   let norm = null;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
+    // B5 流式位（selfiter 批）：org-config vision_channels.<ch>.stream=true 请求
+    // SSE——首字节早达根治网关非流式窗口 504 族；响应侧 SSE/JSON 双形态
+    const useStream = chCfg(channel).stream === true;
     const body = JSON.stringify({
       model: src.model,
       max_tokens: attemptTokens,
       messages: [{ role: "user", content }],
+      ...(useStream ? (channel === "glm" ? { stream: true } : { stream: true, stream_options: { include_usage: true } }) : {}),
     });
     logEvent("attempt", { runId, channel, source: src.pid, model: src.model, attempt, images: images.length, promptBytes: body.length, maxTokens: attemptTokens });
     // 网络级瞬断重试（fetch failed/connection reset——实测偶发，5s 退避×2）；
@@ -366,7 +370,12 @@ async function main() {
           if (r.status >= 400 && r.status < 500 && r.status !== 429) err.noretry = true;
           throw err;
         }
-        resp = await r.json();
+        // B5 双形态：SSE 文本按通道形态收割（与非流式响应同构——normalizeResponse
+        // 零改动）；非 SSE 应答=JSON 原语义（服务端忽略 stream 位的回退面）
+        const rawText = await r.text();
+        resp = /^(event:|data:)/m.test(rawText.slice(0, 200))
+          ? (channel === "glm" ? collectAnthropicSse(parseSseText(rawText)) : collectOpenaiSse(parseSseText(rawText)))
+          : JSON.parse(rawText);
       } catch (err) {
         const noretry = err.noretry === true || err.name === "TimeoutError" || err.name === "AbortError";
         if (netTry === 3 || noretry) {

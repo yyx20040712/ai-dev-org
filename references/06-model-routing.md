@@ -86,6 +86,15 @@
 
 ### 5.7 传输层与超时（v2.2.1 补遗，2026-09-16；来源=F-TESTREF-00 门一补审 5 轮 17 attempt 排障+本机双臂探针实证）
 
+**B5 流式化（selfiter 批，2026-09-17）**：请求侧加 `stream:true`（openai 形
+并配 `stream_options.include_usage`）——首字节早达根治网关非流式窗口 504 族
+（配置位=org-config `dispatch_request.stream` 与 `vision_channels.<ch>.stream`，
+真窗异常可置 false 配置回退零代码变更）；响应侧 SSE/JSON 双形态解析
+（org-config `parseSseText`+双形态收割器——产出与非流式**同构**最终对象，
+parseResponse/normalizeResponse 零改动；服务端忽略 stream 位=JSON 原语义
+回退）。本机证据=R10 SSE mock 双通道端到端+收割器纯函数向量；**真实端点
+流式语义=B7 R1 真外呼窗口核验，未核验前勿断言根治**（同 evolve-b1 纪律）。
+
 **故障形态**：后台派发长推理（5 分钟量级）被掐，服务端记 **499**
 （context canceled——**客户端中断族，非服务端宕**；用户侧后台观察与
 服务端日志互证）。链路=推理时长 > 网关 5 分钟**非流式窗口** → 网关
