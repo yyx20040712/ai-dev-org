@@ -155,8 +155,9 @@ tier 记法：外部岗取 org-config
   log-triage switch 死数据收割+②段输出+窗口互斥/regression 期望配置源对齐+
   R10 注入面零触碰共享件/四脚本 cliFlag 收编/org-config CLI 装载守卫/
   glm-look 截断重试词表化+倍升记账修正；07 runbook 指针与 06 §5.7 新旧
-  两说更正；三件 GLM 绑定模板对齐宿主 account: 前缀。门一=绑定子代理
-  Kimi 双源全局审（用户裁决 2026-09-17）。
+  两说更正；三件 GLM 绑定模板对齐宿主 account: 前缀。门一=Kimi 双源独立
+  全局审双 PASS（绑定子代理通道受阻按 06 §6 补遗二 runbook 换外部派发器
+  承载，用户裁决 2026-09-17）。
 - v2.0（2026-09-17 selfiter 收口批落章）：自我迭代七批闭环
   （B1 代码卫生 14 项/B2 文档收敛/B3 历史归档纯净化/B4 账本写入器 v3/
   B5 SSE 流式化/B6 hardcode 升 RED/B7 收口）——四组用户裁决（git 不压平/
