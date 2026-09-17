@@ -28,3 +28,8 @@
   R1 真外呼核验位）、check-hardcode-promotion（B6 升格判据满足，strict
   RED 生效+--warn 逃生口）。g3-glossary-drift 并入 08 §4 体检纪律（用户
   裁决，不单独立项）——至此 selfiter 四组裁决 D 类全部实施完毕。
+
+- 2026-09-17 selfiter v2.0 收口注记：门一出件 B=0/W=3/N=3 PASS 全数处置
+  （回炉笔 a872d5e）；R1 真实派发 3/3 双源方向一致（流式派发器首场，
+  kimi-main 三连首发成功零 504=B5 真窗实证）；门二机械矩阵 12 项真退出码
+  全绿（主控承载——selfiter-k1k2-reasoninglevel 欠账范围实证波及全部绑定岗）。
