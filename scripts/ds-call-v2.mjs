@@ -46,6 +46,12 @@
  *   反序可留 key 前缀片段）；④多模型宿主条目显式警告（原静默取首个）；
  *   ⑤DS_CALL_REGISTRY env 注入钩子（内部测试设施——R10④ 坏件注入零触碰
  *   共享 registry；缺省行为不变，prod 路径禁依赖）。
+ * v2.3.2（2026-09-19 escaped-defect ① 修复批）：parseFindings verdict
+ *   字符集 [A-Za-z] → 字母∪CJK 基本区汉字——原纯字母集与 auditor-readonly
+ *   DoD 中文词表（放行|有条件放行|返工）结构性失配，auditor 尾栏永不附着
+ *   → health-scan ⑥ 连锁误 RED（源头=batch-relay-prod 战役登记）。字符集
+ *   覆盖≠枚举词表复制，不构成 DoD 双源；N1 尾随标点防污染仍由字符集
+ *   边界保证（全角标点不在集内）。回归向量=R10 按各岗 DoD 词表补齐。
  */
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
 import { join, dirname, resolve, isAbsolute, relative, basename } from 'node:path'
@@ -53,9 +59,9 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
-import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, readHostConfig, readJson, cliFlag, UsageError, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, validateRoleSurfaces, readHostConfig, readJson, cliFlag, UsageError, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse } from './org-config.mjs'
 
-const DISPATCHER_VERSION = '2.3.1'
+const DISPATCHER_VERSION = '2.3.2'
 const LEDGER_SCHEMA_VERSION = 3 // v3（selfiter 批 B4）：增 project_id（归一化 id——映射单源=org-config projects，缺映射 raw 透传）
 const LOG_PATH = join(dirname(fileURLToPath(import.meta.url)), 'model-routing-log.jsonl')
 // env 重定向钩子（v2.3.1 修复批——内部测试设施，R10④ 坏件注入零触碰共享
@@ -190,6 +196,15 @@ function loadRole(roleId, merged) {
 
 // ── 源装载（org-config 驱动；宿主配置单次读入；双校验 fail-fast=exit 3） ──
 function loadSources(merged, hostCfg) {
+  // 执法面一致性同关卡前置（回炉 W-4 闭合，2026-09-19）：findings_surface↔DoD
+  // 尾栏双向失配=派发拒启（exit 3）——validate 不再仅人工/CI 触发，运行期强制
+  // （行为锁=regression R5 集成向量：失配覆盖件下断言 exit 3——防接线被误删后
+  // 纯函数向量仍全绿的 fail-open 静默，k1 二过 W1）
+  const surfaceErrors = validateRoleSurfaces(merged)
+  if (surfaceErrors.length) {
+    surfaceErrors.forEach((e) => console.error(e))
+    process.exit(3)
+  }
   const errors = validateProviders(merged, hostCfg)
   if (errors.length) errors.forEach((e) => console.error(e)), process.exit(3)
   return (merged.source_chain || []).map((alias) => {
@@ -275,14 +290,17 @@ function makeFinishClassifier(vocab) {
 
 /** FINDINGS 机读尾栏解析（selfiter 批 findings-parser 清偿——DoD 契约机读面）：
  *  审出件末栏形如「FINDINGS: B=1 W=2 N=3 VERDICT=PASS」（末 5 行回扫窗——
- *  回炉 N1：原 back<=5 实扫 6 行与注释不符；空格容错，verdict=纯字母集——
- *  原回炉 N1：\S+ 会吞尾随标点污染归一值）；未命中返回 null（非审计产出/
- *  未带尾栏=不伪造）。纯函数 export 供 R10 向量。 */
+ *  回炉 N1：原 back<=5 实扫 6 行与注释不符；空格容错。verdict 字符集=
+ *  字母∪CJK 基本区汉字（v2.3.2 修复批 2026-09-19：原纯字母集吃不下
+ *  auditor-readonly DoD 中文词表 放行|有条件放行|返工=结构性失配，
+ *  escaped-defect ①——字符集为类覆盖非词表复制，不构成 DoD 双源；
+ *  N1 尾随标点防污染仍由字符集边界保证，\S+ 吞标点旧患不回归）；
+ *  未命中返回 null（非审计产出/未带尾栏=不伪造）。纯函数 export 供 R10 向量。 */
 export function parseFindings(text) {
   if (typeof text !== 'string') return null
   const lines = text.trimEnd().split('\n')
   for (let i = lines.length - 1, back = 0; i >= 0 && back <= 4; i--, back++) {
-    const m = /^FINDINGS:\s*B=(\d+)\s+W=(\d+)\s+N=(\d+)\s+VERDICT=([A-Za-z]+)/.exec(lines[i].trim())
+    const m = /^FINDINGS:\s*B=(\d+)\s+W=(\d+)\s+N=(\d+)\s+VERDICT=([A-Za-z\u4e00-\u9fff]+)/.exec(lines[i].trim())
     if (m) return { B: Number(m[1]), W: Number(m[2]), N: Number(m[3]), verdict: m[4].toUpperCase() }
   }
   return null

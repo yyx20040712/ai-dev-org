@@ -129,6 +129,7 @@
       "source": "chain",
       "tier": "audit",
       "audit_surface": true,
+      "findings_surface": true,
       "tier_note": "门一隔离一审（与实现者异构对抗）",
       "migration_note": "2026-09-16 A'批起迁移期双承载并存：主承载试点=会话内子代理 ops-gate1-k1/k2（frontmatter 绑定 Kimi 双源）；派发器=健康探针（log-triage --health）+后备通道，不拆除。roles.* 不删；health-scan audit_surface 判定以实际承载通道的记账源为准（迁移批逐岗改挂）"
     },
@@ -136,6 +137,7 @@
       "source": "deepseek",
       "tier": "debt-readonly",
       "audit_surface": true,
+      "findings_surface": true,
       "tier_note": "兜底审/源尽欠账只读审",
       "migration_note": "迁移期注记（2026-09-16 定档，下批迁）：现承载=外部派发器（deepseek 单源，按量无配额池）；目标承载=会话内子代理 ops-auditor；迁移前派发器=后备/探针。roles.* 不删"
     }
