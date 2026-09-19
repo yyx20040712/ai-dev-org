@@ -147,8 +147,16 @@ if (want('R5')) {
   const ledgerPath = join(tmp, '.zcode', 'org-ledger.jsonl')
   const ledgerOk = existsSync(ledgerPath) && readFileSync(ledgerPath, 'utf8').includes('"event":"exhaust"')
   const countsOk = attempts === expAttempt && switches === expSwitch && exhaustEvts.length === 1
-  record('R5', exitOk && stderrOk && countsOk && ledgerOk,
-    `exit=${r.status}(期2) stderr全源尽=${stderrOk} 事件计数 attempt=${attempts}/${expAttempt} switch=${switches}/${expSwitch} exhaust=${exhaustEvts.length}/1（链长${chainLen}推导）chain=${exhaustEvts[0]?.chain ?? '—'} 账本exhaust=${ledgerOk}`)
+  // 修复批（ed-fix 2026-09-19，k1 二过 W1 行为锁）：执法面失配覆盖件→派发拒启
+  // exit 3——纯函数向量全绿但 loadSources 接线被误删时此向量即红（防 fail-open 静默）。
+  // 配置装载恒从 cwd（ds-call 注：--project=账本条目名）——覆盖件放 badCfg/.zcode/
+  const badCfgDir = join(tmp, 'bad-surface')
+  mkdirSync(join(badCfgDir, '.zcode'), { recursive: true })
+  writeFileSync(join(badCfgDir, '.zcode', 'org-config.json'), JSON.stringify({ roles: { drafter: { findings_surface: true } } }), 'utf8')
+  const rSurf = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--dry-run', promptFile], { encoding: 'utf8', cwd: badCfgDir, timeout: 5_000, killSignal: 'SIGKILL' })
+  const surfaceGateOk = rSurf.status === 3 && (rSurf.stderr || '').includes('无 FINDINGS 尾栏要求')
+  record('R5', exitOk && stderrOk && countsOk && ledgerOk && surfaceGateOk,
+    `exit=${r.status}(期2) stderr全源尽=${stderrOk} 事件计数 attempt=${attempts}/${expAttempt} switch=${switches}/${expSwitch} exhaust=${exhaustEvts.length}/1（链长${chainLen}推导）chain=${exhaustEvts[0]?.chain ?? '—'} 账本exhaust=${ledgerOk} 执法面拒启=${surfaceGateOk}`)
   if (!keepTmp) rmSync(tmp, { recursive: true, force: true })
 }
 
@@ -385,9 +393,15 @@ t('findings:标准尾栏解析', JSON.stringify(parseFindings('报告正文\\nFI
 t('findings:无尾栏→null（不伪造）', parseFindings('普通产出无尾栏') === null)
 t('findings:尾栏后有杂行（末5行回扫窗）仍命中', parseFindings('FINDINGS: B=0 W=1 N=0 VERDICT=FAIL\\n\\n备注行') !== null)
 t('findings:verdict 归一大写+零值形态', parseFindings('FINDINGS: B=0 W=0 N=2 VERDICT=pass').verdict === 'PASS' && parseFindings('FINDINGS: B=0 W=0 N=2 VERDICT=pass').N === 2)
-// 回炉 N1 向量：verdict 尾随标点不污染（字母集捕获）+第 6 行前不命中（5 行窗）
+// 回炉 N1 向量：verdict 尾随标点不污染（字符集捕获）+第 6 行前不命中（5 行窗）
 t('N1 findings：尾随全角句号不并入 verdict', parseFindings('FINDINGS: B=0 W=0 N=1 VERDICT=PASS。').verdict === 'PASS')
 t('N1 findings：5 行回扫窗外（第 6 行）不命中', parseFindings('FINDINGS: B=0 W=0 N=1 VERDICT=PASS\\n一\\n二\\n三\\n四\\n五\\n六') === null)
+// 修复批（2026-09-19 escaped-defect ①）向量：verdict 字符集兼容各岗 DoD 词表——
+// gate1-reviewer=PASS|FAIL、auditor-readonly=放行|有条件放行|返工（向量按岗 DoD 出，不从解析器假设出）
+t('findings:auditor DoD 中文词表 返工', parseFindings('FINDINGS: B=2 W=9 N=4 VERDICT=返工').verdict === '返工')
+t('findings:auditor DoD 中文词表 有条件放行', parseFindings('FINDINGS: B=0 W=1 N=0 VERDICT=有条件放行').verdict === '有条件放行') // 归一化行为锁（回炉 r1 B-1/r2 N-1）：全串捕获断言——未来引入词表分支归一即红
+t('findings:auditor DoD 中文词表 放行', parseFindings('FINDINGS: B=0 W=0 N=0 VERDICT=放行').verdict === '放行')
+t('N1 findings：中文 verdict 尾随全角句号不并入', parseFindings('FINDINGS: B=0 W=0 N=1 VERDICT=放行。').verdict === '放行')
 // selfiter 批（B5 流式化）向量：响应体双形态解析
 t('B5 parseResponseBody：anthropic SSE 文本→同构最终对象', (() => { const o = parseResponseBody({ kind: 'anthropic' }, 'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"VEC"}}\\ndata: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":2}}\\ndata: [DONE]'); return o.content?.[0]?.text === 'VEC' && o.stop_reason === 'end_turn' })())
 t('B5 parseResponseBody：非 SSE JSON 原语义回退', parseResponseBody({ kind: 'anthropic' }, '{"content":[{"type":"text","text":"J"}],"stop_reason":"end_turn"}').content[0].text === 'J')
