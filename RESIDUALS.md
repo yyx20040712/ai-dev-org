@@ -21,9 +21,55 @@
 | log-triage-import-side-effect | log-triage.mjs 顶层无 import.meta.main 守卫，import 即跑 CLI 主流程（门二实证 M5-M7 注入命令实录；批前既有） | 出现模块化消费该文件的需求时加守卫（当前消费面=CLI+自检，无受损） |
 | volta-exitcode-mask | volta run 将任意非零退出码掩成 126（本机实证 2026-09-17：1/2/3→126、0 正常、裸 node 透传无误；DEPLOY.md §0 已提示） | 出现脚本化消费精确退出码且须经 volta run 的封装时处置（volta pin 固定默认或直跑 node） |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
+| edfix-r1-e2e-gap | escaped-defect 修复批（2026-09-19）R1 标准真跑 SKIP——parseFindings 端到端仅由同批 auditor-readonly 单点真实派发实证（账本 runId 20260919061400-nthy333f，中文 verdict 有条件放行完整附着），回归网对dispatcher→账本链路无持久向量（回炉 W-5） | 下次派发器/parseFindings 变更批或冻结裁决前跑 `regression --r1`；届时本行随批 closed |
 
 ## 修订记
 
+- 2026-09-19 escaped-defect 修复批（ed-fix-①②）：清偿 batch-relay-prod
+  战役登记的两项 org 侧逃逸缺陷——①ds-call-v2 parseFindings verdict
+  字符集 [A-Za-z]→字母∪CJK 基本区（v2.3.2；原与 auditor-readonly DoD
+  中文词表 放行|有条件放行|返工 结构性失配=auditor 尾栏永不附着+health-scan
+  ⑥ 连锁误 RED）；②health-scan ⑥ FINDINGS 缺栏执法面拆挂 org-config
+  新字段 `roles.<id>.findings_surface`（gate1-reviewer/auditor-readonly
+  挂、drafter 不挂——原 audit_surface 一标志双语义把无尾栏 DoD 的拟定岗
+  拉进执法面=每行真实 drafter ok 永久误 RED；④截断执法面仍挂
+  audit_surface 不弱化）。逃逸根因记账：R10 向量当年从解析器假设出发
+  而非各岗 DoD 契约——本批按岗 DoD 词表补向量（中文三词+中文尾随标点
+  N1）+health-scan 自测拆标志夹具（20/20）。验证：regression 8/8+
+  hardcode strict 零命中+anchors 0/0+战役项目 residual RED 实测归零
+  （findings 分布={"返工":1} 正常汇总）。战役账本 escaped-defect 行由
+  主控补 ruling 偿还行闭环。
+  回炉轮1（auditor-readonly 有条件放行 B1/W5/N3、门一 k1 PASS B0/W2/N4）：
+  B-1 证伪降 N——parseFindings 为全串捕获、下游无词表归一分支（⑥ 仅
+  精确键计数），「有条件放行」不可能被「放行」吞并，铁证=同批真实派发
+  账本行 verdict 原样「有条件放行」+R10 既有全串断言向量；W-1 答复——
+  战役 auditor 旧行缺栏系批内 15:05 ruling 人工核对回填（值逐字取自
+  审出件），残 RED×1 本就只有 drafter 行，修复后归零非重扫语义取巧；
+  W-2/W-3 实修——org-config validate 增 validateRoleSurfaces 双向
+  一致性机检（findings_surface⇔DoD 尾栏行，挂错/漏挂任一方向 exit 3，
+  +4 自测向量）；W-4 证据——gate1-reviewer.dod.md 第 14 行即全型
+  FINDINGS 尾栏（B/W/N+PASS|FAIL）；W-5 登记——本册触发器行
+  edfix-r1-e2e-gap；N-3 采纳——02 §10 ④ 注 audit_surface 名实注记。
+  验证补面：org-config validate+--self-test 全过、regression 8/8。
+  回炉轮2（auditor-readonly 二轮 B0/W4/N4 有条件放行→全处置）：W-1
+  实修=validateRoleSurfaces 补 registry↔cfg.roles 差集向遍历（+1 自测
+  向量）；W-2 实修=hasTail 裸子串改行首锚定 `/^\s*`?FINDINGS:\s*B=/m`
+  （防说明性提及假通过/假误报）；W-3 成文=02 §9 人工回填例外条款
+  （ruling 留痕+复验双轨口径）；W-4 实修=validateRoleSurfaces 挂入
+  ds-call-v2 loadSources 前置关卡（派发拒启 exit 3——validate 不再仅
+  人工/CI 触发）；N-1 采纳=R10 有条件放行向量标注「归一化行为锁」；
+  N-2 采纳=错误文案分型（无 dod_file 字段/文件不存在/不可读三型）；
+  N-3 补件=SKILL v2.0.2 与本修订段原文随呈批包内联（门一 k1 二过
+  核对）；N-4 采纳=02 §9 词表两域独立注记。门一 k1 二过（delta 包
+  B0/W1/N3 PASS）：W1 实修=R5 增集成行为锁向量（bad-surface 覆盖件
+  cwd 下断言派发 exit 3+stderr 点名——防 loadSources 接线被误删后
+  纯函数向量仍全绿的 fail-open 静默）；N1 采纳=hasTail 全形代理
+  （B=/W=/N=/VERDICT= 同构，防截断尾栏改道逃逸）；N3 采纳=def?.
+  可选链+花括号块；N2 记档=差集向无豁免口（registry≡roles 同集纪律
+  下正确，形态演进时再议）。回炉两轮=默认上限
+  【SY】≤2 收口，二轮后残余处置不再开第三轮对抗审（终态=门一 k1
+  首审 B0/W2/N4→补证闭环 B0/W0/N4→二过 delta B0/W1/N3→W1 补锁；
+  门二 probe 7/7；auditor 两轮 B1→B0 收敛有条件放行，残余 N 级记档）。
 - 2026-09-19 随宿主批（host-follow）：用户裁决「所有 GLM 绑定岗默认
   跟随宿主会话模型」（宿主已配 coding plan 服务商）——ops-executor/
   ops-probe/ops-diagnostics 三岗六件（模板+已装档案）删 frontmatter model

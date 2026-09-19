@@ -157,7 +157,25 @@ tier 记法：外部岗取 org-config
 
 ## 版本与状态（selfiter 批 B3 起自含——历史指针化）
 
-- **当前版本=v2.0.1（2026-09-17 修复批）**：外部全局对抗审出 7 中+18 低
+- **当前版本=v2.0.2（2026-09-19 escaped-defect ①② 修复批）**：清偿
+  batch-relay-prod 战役登记的两项 org 侧逃逸——①派发器 parseFindings
+  verdict 字符集 [A-Za-z]→字母∪CJK（与 auditor-readonly DoD 中文词表
+  放行|有条件放行|返工 结构性失配=auditor 尾栏永不附着+health-scan ⑥
+  连锁误 RED；v2.3.2）；②health-scan ⑥ 执法面拆挂 org-config 新字段
+  `roles.<id>.findings_surface`（原 audit_surface 一标志双语义，把无
+  尾栏 DoD 的拟定岗拉进执法面=每行真实 drafter ok 永久误 RED；④截断
+  执法面不动）。R10/health-scan 向量按各岗 DoD 词表补齐（逃逸根因=
+  向量从解析器假设出发而非 DoD 契约）。战役项目 residual RED 实测归零。
+  回炉轮1（门一 k1 PASS B0/W2/N4、auditor-readonly 有条件放行 B1/W5/N3）：
+  B-1 全串捕获证伪；W-2/W-3 实修=org-config validate 增 validateRoleSurfaces
+  （findings_surface⇔DoD 尾栏双向机检，挂错/漏挂 exit 3）；W-5 登记
+  RESIDUALS 触发器 edfix-r1-e2e-gap。回炉轮2（auditor 二轮 B0/W4/N4）：
+  W-1 差集向遍历+W-2 尾栏行首锚定+W-4 挂入派发 loadSources 前置（运行期
+  强制拒启）+W-3 人工回填例外条款成文（02 §9）+N 全采纳；两轮上限收口，
+  终态=k1 B0/W0/N4 PASS（W1/W2 补证闭环）+probe 7/7+auditor B1→B0 收敛。
+  k1 二过（delta B0/W1/N3 PASS）：W1=R5 补执法面拒启 exit3 集成行为锁
+  向量；N1=hasTail 全形代理；N3=健壮性可选链——全实施，N2 记档。
+- v2.0.1（2026-09-17 修复批）：外部全局对抗审出 7 中+18 低
   脚本缺陷与 2 处文档双源漂移全数清偿——派发器 stdout 产物路径改自然退出/
   log-triage switch 死数据收割+②段输出+窗口互斥/regression 期望配置源对齐+
   R10 注入面零触碰共享件/四脚本 cliFlag 收编/org-config CLI 装载守卫/

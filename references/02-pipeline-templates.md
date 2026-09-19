@@ -252,8 +252,18 @@ anthropic 格式未适配）。
   人工事件行不要求——R4 按 schema_version 分代）；`truncated`=**派生布尔**
   （finish 唯一真相源在流水，账本只存判定结果，非双源）；`mocked`=演练行
   甄别（W-2）；`findings?`=ok 行可选（selfiter 批 findings-parser）——
-  审出件末栏「FINDINGS: B= W= N= VERDICT=」解析产物 `{B,W,N,verdict}`，
-  仅审计岗产出携带（R4 不强制——非审计岗无此字段；缺栏执法=本件 §10 ⑥）。落账原子性=跨进程建议锁
+  审出件末栏「FINDINGS: B= W= N= VERDICT=」解析产物 `{B,W,N,verdict}`
+  （verdict 词表=各岗 .dod 单源且**两域独立**：门一域 PASS|FAIL / 审核者域
+  放行|有条件放行|返工，非全岗统一词表——解析器字符集=字母∪CJK 类覆盖，
+  非词表复制），仅
+  `findings_surface` 岗（org-config `roles.<id>.findings_surface`——DoD
+  含尾栏契约的岗；escaped-defect ② 修复批 2026-09-19 拆标志）产出携带
+  （R4 不强制——非该岗无此字段；缺栏执法=本件 §10 ⑥）。
+  **人工回填例外条款（回炉 r2 W-3 成文）**：解析失配/通道故障时主控可
+  人工核对审出件逐字回填 findings，属机写例外——必须同刻补 ruling 行
+  留痕（值来源+根因），且收口复验结论须双轨陈述「机写行 RED×0 /
+  含人工回填行的 RED×0」两口径，禁把含人工行的绿值表述为全机证。
+  落账原子性=跨进程建议锁
   （org-config withFileLock——多写入者行交错纵深防御，selfiter B4）。
   tier 记法统一口径——**外部派发岗**取 org-config `roles.<role>.tier`
   （枚举：prime/audit/debt-readonly）；**会话内岗与欠账行**按
@@ -306,17 +316,29 @@ anthropic 格式未适配）。
   - ③预算超限（RED，给了阈值时）：`--budget <alias>:<maxOutTokens>`
     各源累计 out 超阈即红；无阈值时输出各源用量汇总（INFO）；
   - ④审计产出截断（RED，2026-09-14 P0-2/W-3）：audit_surface 岗（从
-    org-config `roles.<id>.audit_surface` 派生，脚本零硬编码）的 ok 行
+    org-config `roles.<id>.audit_surface` 派生，脚本零硬编码——该标志现仅
+    驱动本 ④ 截断执法面，命名系历史沿承；⑥ 尾栏执法面=findings_surface，
+    两标志正交：长推理岗可只挂④、审计岗两挂，回炉 W-2 裁）的 ok 行
     `truncated=true`——**截断报告=假成功，信任根污染**；判据白名单反转
     （仅 `finish_vocab.complete` 为完整，未知终态按非完整）；历史行
     （无 truncated 字段）豁免，不追认不改写（08 §3）；
   - ⑤设计链同源（WARN，2026-09-14，W-8 降级待归因）：同日同 project
     的 drafter 与 auditor-readonly 同源——02 §8.6 三段通道要求异构；
   - ⑥审计行缺机读 FINDINGS 栏（RED，selfiter 批 findings-parser，
-    2026-09-17）：截止时点后 audit_surface 岗真实 ok 行（非 mocked）
+    2026-09-17；执法面 2026-09-19 修复批拆挂 findings_surface）：截止时点后
+    findings_surface 岗（org-config `roles.<id>.findings_surface` 派生，
+    脚本零硬编码——仅 DoD 含 FINDINGS 尾栏契约的岗；原误用 audit_surface
+    一标志双语义，把无尾栏 DoD 的拟定岗拉进执法面=每行真实 drafter ok
+    永久误 RED，escaped-defect ②）真实 ok 行（非 mocked）
     缺 findings 字段——DoD 机读尾栏「FINDINGS: B= W= N= VERDICT=」未带
-    或解析失配（字段语义=本件 §9 `findings?` 条；截止前存量行豁免
-    不追认，08 §3）；
+    或解析失配（字段语义=本件 §9 `findings?` 条；verdict 词表=各岗 .dod
+    单源，解析器字符集失配吃不下中文词表=escaped-defect ① 已修，
+    v2.3.2；截止前存量行豁免不追认，08 §3）。**不变量（回炉 W-2/W-3
+    闭合）**：findings_surface⇔该岗 DoD 含 FINDINGS 尾栏要求，双向；
+    `org-config validate` 内置机检（validateRoleSurfaces——DoD 路径真源=
+    registry dod_file，只探尾栏行存在性，词表不复制防双源），挂错/漏挂
+    任一方向=validate exit 3；解析器对 verdict 全串捕获无词表归一分支
+    （「有条件放行」不可能被「放行」吞并——回炉 B-1 证伪依据）；
   - ⑦人工事件消费+逃逸率（WARN/INFO，selfiter 批接线，2026-09-17）：
     escaped-defect（门禁放行后缺陷）在册=WARN 如实点名；
     ruling/stopped 等人工事件计数汇总与逃逸率粗口径=INFO（窗口=账本
