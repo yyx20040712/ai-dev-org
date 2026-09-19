@@ -24,6 +24,18 @@
 
 ## 修订记
 
+- 2026-09-19 随宿主批（host-follow）：用户裁决「所有 GLM 绑定岗默认
+  跟随宿主会话模型」（宿主已配 coding plan 服务商）——ops-executor/
+  ops-probe/ops-diagnostics 三岗六件（模板+已装档案）删 frontmatter model
+  字段（未绑定形态=回落宿主默认），正文绑定句与机读尾栏同步
+  MODEL-SELF/EXECUTOR=model-field:…→session:host-tier（E3 欠账行恢复）；
+  异构对抗三岗（gate1-k1/k2=Kimi、adjudicator=deepseek）绑定不动。
+  文档同步：SKILL.md 绑定段+07 §1 双承载注记/§4 随宿主批注记+06 §6
+  补遗注记；顺手 2 处：ops-executor 正文「六段简报」对齐七段口径。
+  验证：deploy-check ④ 六件 sha256 相符+pre-commit 快扫+regression
+  （本会话=代理档案旧快照，未绑定形态真实派发核对=下会话首场小任务+
+  log-triage ③，会话快照纪律 06 §6 补遗④）。
+
 - 2026-09-17 漂移清偿批（drift-clear-2026-09-17）：外部评估批出 9 项文档
   双源漂移+1 项环境交互事实，本批清偿——02 §10 机检面收全 ①-⑦+呈现
   排序归一（原乱序①④②③⑤且⑥⑦散落 §9 括注）/§5+§9 回炉上限默认口径

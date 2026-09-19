@@ -184,6 +184,10 @@ legacy 行维持外来跳过）；④argv 收编 cliFlag 单源（缺值/重复/
 新会话验证；⑤首部署纪律=日志核对一次（`log-triage.mjs` ③ 静默回退检测
 机检化：声明 vs 实际路由不符=RED）。六 ops-* 代理（executor/diagnostics/
 probe/adjudicator/gate1-k1/k2）已按此入役，清单见 07 §4 补遗。
+**随宿主批（2026-09-19 用户裁决）**：其中 executor/diagnostics/probe
+三岗改**未绑定形态**（删 model 字段=回落宿主会话默认模型——宿主已配
+coding plan 服务商），属下段「未绑定岗维持 E3 原条款」合法形态（账本
+session:host-tier+欠账行）；adjudicator/gate1-k1/k2 维持绑定。
 **与 E3 的关系澄清（审核 W-3）**：绑定岗免记「环境限制统一档」欠账行——
 frontmatter model 绑定值经日志核对零回退后，LEDGER-CLAIM 尾栏
 EXECUTOR=model-field:＜值＞ 即机读证据（W-2 双印证非双源）；未绑定岗

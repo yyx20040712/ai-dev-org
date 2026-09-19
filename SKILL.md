@@ -60,7 +60,12 @@ model=`<provider>/<model-key>$<档位>`——`$` 后缀=显式思考档位声明
 即派发拒启 reasoning-level-missing（2026-09-17 宿主代码实证），现役档案
 一律 `$max`；上游枚举值=假绑定禁用；空 tools=
 泄漏全工具面禁用；代理档案会话启动快照无热加载——改档须新会话验证+
-`log-triage.mjs` 日志核对零回退）。外部派发器=健康探针+后备通道，
+`log-triage.mjs` 日志核对零回退）。**2026-09-19 用户裁决**：原 GLM 绑定三岗（实现者/门二实证部/
+SRE 诊断=ops-executor/probe/diagnostics）改**随宿主会话模型**——未绑定
+形态（无 model 字段=回落宿主默认/coding plan 服务商），账本记
+`session:host-tier`+E3 欠账行恢复；绑定纪律与 `$max` 档位仅约束设
+model 字段的岗（现役=门一 k1/k2+裁决部三件，异构对抗位不动）。
+外部派发器=健康探针+后备通道，
 不拆除（迁移期双承载，org-config roles.*.migration_note）。子代理失败
 接续纪律=杀岗→`log-triage.mjs --health` 归因→额度类换源继任（读进度
 落盘）/窗口类同源瘦身/无工具岗同包重跑（runbook 真源=references/06
