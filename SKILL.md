@@ -33,7 +33,7 @@ loop-engineering-archive-2026-09/`——路径相对 skills 根，非技能根�
 
 供应商事实（源序、端点、套餐、配给）一律看 org-config（默认件 + 项目
 覆盖件 `.zcode/org-config.json`），本件零硬编码。会话内子代理没有
-model 参数属环境限制：如实按「意图档位声明 + 环境限制统一档」记欠账
+model 参数属环境限制（宿主事实单源=references/10 §2）：如实按「意图档位声明 + 环境限制统一档」记欠账
 （账本强制输出项），禁止伪装已定档。
 
 ## 派发与自检（scripts/）
@@ -57,10 +57,10 @@ node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测�
 node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点甄别=org-config vision_channels 分区+--list-sources；单次调用 20min 上限、非429的4xx立断、scrub 脱敏；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
 ```
 
-**子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗；门一 2026-09-22 三岗制）**：文本岗/
+**子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗；门一 2026-09-22 三岗制；宿主语义细则单源=references/10 §2）**：文本岗/
 异构岗/门一三岗已挂 `~/.zcode/agents/ops-*.md` 绑定子代理（frontmatter
 model=`<provider>/<model-key>$<档位>`——`$` 后缀=显式思考档位声明，缺省
-即派发拒启 reasoning-level-missing（2026-09-17 宿主代码实证），绑定岗现役档案
+即派发拒启 reasoning-level-missing（实证=references/10 §2），绑定岗现役档案
 一律 `$max`（未绑定岗无 model 字段，见随宿主批）；上游枚举值=假绑定禁用；空 tools=
 泄漏全工具面禁用；代理档案会话启动快照无热加载——改档须新会话验证+
 `log-triage.mjs` 日志核对零回退）。**2026-09-19 用户裁决**：原 GLM 绑定三岗（实现者/门二实证部/
@@ -75,8 +75,8 @@ model 字段的岗（现役=门一 k1/k2+裁决部三件，异构对抗位不动
 §6 补遗二——selfiter 批迁入技能内）。
 
 无 `--role` 报错；源装载双校验（uuid_prefix+entry_name）不符即 exit 3，
-无 fallback。宿主 Node 25（已证档）下 ds-call-v2 在退出阶段有 libuv
-断言崩溃（RESIDUALS/HOST-node25）——外部派发一律用 Node 24 跑，脚本
+无 fallback。宿主 Node 25 兼容面（libuv 退出崩溃实证/Node 24
+规避/守卫）单源=references/10 §1——外部派发一律用 Node 24 跑，脚本
 启动时带版本守卫。**传输层与超时（v2.2.1，06 §5.7）**：node:http(s)
 直连（弃 global fetch——undici headersTimeout≈300s 是非流式长推理
 客户端侧隐形杀手）、signal=唯一超时源、后台调用上限 20 分钟（用户
@@ -100,7 +100,8 @@ tier 记法：外部岗取 org-config
 03 机器强制 ｜ 04 教训库 WP/SY/MG/ORG 四系 ｜ 05 移植指南+差异回灌协议 ｜
 06 模型路由+换源状态机+派发器 v2 ｜ 07 角色卡终表+主控 PM 四子模式 ｜
 08 文档群治理（事实分层/指针化手册/历史件红线/体检/产出入仓纪律） ｜
-09 产品文档编制面（需求五问/手册骨架/API 锚定生成物/tech-writer 子模式）
+09 产品文档编制面（需求五问/手册骨架/API 锚定生成物/tech-writer 子模式） ｜
+10 宿主兼容事实单源册（宿主版本耦合——实证戳+异机重验清单）
 （01/04 条数单源=`scripts/.golden/doc-counts.json`，check-anchors 对账，
 正文不落数字——A3 防双源）
 

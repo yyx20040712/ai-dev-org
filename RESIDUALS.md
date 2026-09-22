@@ -16,14 +16,14 @@
 | PostToolUse-livefire | hook 实弹触发验证 | 需机检强制（hook 拦截）的批次首场核对 |
 | killed-agent-metadata-gap | 被杀岗 metadata 无声明值可核 | 机检化（编排会话派发记录回填）后续批 |
 | check-anchors-calibration | 全角冒号形态/dod.md 扫描面/点名豁免漂移面 | check-anchors 升 --strict 决策前置批 |
-| host-metadata-schema-drift | 宿主子代理 metadata schema 演进使 ③ 检测面失明（在册实例：2026-09-17 profileSnapshot.model 字符串→modelSelection 结构体，旧 ③ 静默跳过新格式绑定岗——declaredModelOf 已收编两格式） | 宿主升级后首场绑定岗派发核对 metadata 形态仍被 declaredModelOf 认识；常驻 tripwire=log-triage ③ WARN「格式漂移疑似」（detectMetadataShapeDrift：model 键非字符串/modelSelection 残缺）出现即触发处置 |
-| empty-declared-blindspot | 空字符串 model 声明被当非绑定岗静默跳过（tripwire 只查非字符串形态；批前既有行为，宿主空串语义未确证——门二裁决 B3 登记） | 宿主 metadata 实证出现 model:"" 时处置（先确证语义再定跳过/漂移口径） |
+| host-metadata-schema-drift | 宿主子代理 metadata schema 演进使 ③ 检测面失明（在册实例：2026-09-17 profileSnapshot.model 字符串→modelSelection 结构体，旧 ③ 静默跳过新格式绑定岗——declaredModelOf 已收编两格式；真源=10 §3） | 宿主升级后首场绑定岗派发核对 metadata 形态仍被 declaredModelOf 认识；常驻 tripwire=log-triage ③ WARN「格式漂移疑似」（detectMetadataShapeDrift：model 键非字符串/modelSelection 残缺）出现即触发处置 |
+| empty-declared-blindspot | 空字符串 model 声明被当非绑定岗静默跳过（tripwire 只查非字符串形态；批前既有行为，宿主空串语义未确证——门二裁决 B3 登记；真源=10 §3） | 宿主 metadata 实证出现 model:"" 时处置（先确证语义再定跳过/漂移口径） |
 | log-triage-import-side-effect | log-triage.mjs 顶层无 import.meta.main 守卫，import 即跑 CLI 主流程（门二实证 M5-M7 注入命令实录；批前既有） | 出现模块化消费该文件的需求时加守卫（当前消费面=CLI+自检，无受损） |
-| volta-exitcode-mask | volta run 将任意非零退出码掩成 126（本机实证 2026-09-17：1/2/3→126、0 正常、裸 node 透传无误；DEPLOY.md §0 已提示） | 出现脚本化消费精确退出码且须经 volta run 的封装时处置（volta pin 固定默认或直跑 node） |
+| volta-exitcode-mask | volta run 将任意非零退出码掩成 126（本机实证 2026-09-17：1/2/3→126、0 正常、裸 node 透传无误；DEPLOY.md §0 已提示；真源=10 §1） | 出现脚本化消费精确退出码且须经 volta run 的封装时处置（volta pin 固定默认或直跑 node） |
 | k2-deepseek-rebind | **已撤销（2026-09-22 批中用户澄清：k2 系 k1 额度兜底位，不改绑；终态=增设独立岗 d1）**——历史行保留至本批收口后清理 | 无（撤销） |
 | gate1-d1-firstdispatch | 新岗 ops-gate1-d1（deepseek 按量档绑定，2026-09-22 用户裁决增设；绑定值单源=agents/ops-gate1-d1.md frontmatter）——代理档案会话启动快照，设立会话内不可派发 | 新会话首场 d1 派发：metadata 声明模型核对+`log-triage.mjs` ③ 静默回退检测零回退+MODEL-SELF 尾栏一致，三项齐=closed（对齐 selfiter-k1k2-reasoninglevel 闭合形态）。另：观察项（不门控 closed）——同场记录 k1/d1 报告发现并集覆盖度，供异构价值评估 |
 | r2-drywindow-livefire | ds-call-v2 干涸窗记忆（2026-09-22 R2）：自检 6/6+mock 功能演练已证（R11），**真实 429/403 触发路径未实弹** | 首次真实配额族失败后核对三件：source-dry.json 落标/次派发 [dry] 跳过行/窗口过期或成功调用自恢复——齐=closed |
-| probe-bc-metadata-residue | 历史会话残留（probe-b 声明=sonnet 枚举伪值/probe-c=deepseek 无档位后缀——盘上无对应档案，纯 CLI metadata 痕迹）污染 log-triage ③ 输出噪声（2026-09-22 全局诊断批发现，R6 登记） | log-triage ③ 呈现面升级时加无档案过滤；新同形态会话复发即升宿主排查批 |
+| probe-bc-metadata-residue | 历史会话残留（probe-b 声明=sonnet 枚举伪值/probe-c=deepseek 无档位后缀——盘上无对应档案，纯 CLI metadata 痕迹）污染 log-triage ③ 输出噪声（2026-09-22 全局诊断批发现，R6 登记；真源=10 §3） | log-triage ③ 呈现面升级时加无档案过滤；新同形态会话复发即升宿主排查批 |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
 | edfix-r1-e2e-gap | escaped-defect 修复批（2026-09-19）R1 标准真跑 SKIP——parseFindings 端到端仅由同批 auditor-readonly 单点真实派发实证（账本 runId 20260919061400-nthy333f，中文 verdict 有条件放行完整附着），回归网对dispatcher→账本链路无持久向量（回炉 W-5） | 下次派发器/parseFindings 变更批或冻结裁决前跑 `regression --r1`；届时本行随批 closed |
 

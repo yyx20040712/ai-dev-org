@@ -167,8 +167,8 @@ verify 真退出码亲验）；账本单写者。
 
 纪律五条：①model 禁上游枚举值（静默回退=假绑定，负面清单⑤）；档位=model
 串 `$` 后缀显式声明（`provider/model-key$max` 形态——缺档位=宿主派发拒启
-reasoning-level-missing，2026-09-17 宿主代码实证 resolveProfileModelSelection/
-parseModelPickerValue，现役 ops-* 档案与模板已统一 `$max`（双侧同步纪律：模板面=templates/agents/，部署面=~/.zcode/agents/，deploy-check sha256 对账），闭合验证=新会话真实小
+reasoning-level-missing（宿主代码实证=references/10 §2），绑定岗档案
+与模板已统一 `$max`（双侧同步纪律：模板面=templates/agents/，部署面=~/.zcode/agents/，deploy-check sha256 对账），闭合验证=新会话真实小
 任务+log-triage 零回退）；②首部署/
 改档须新会话跑真实小任务+日志核对零回退（代理档案=会话启动快照，无热加载）；
 ③报告末两行机读尾栏（MODEL-SELF + LEDGER-CLAIM / FINDINGS）；④接续纪律
