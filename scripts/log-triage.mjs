@@ -363,7 +363,7 @@ function run() {
     t('跨门终判：同族→WARN', crossGateVerdict('deepseek', 'deepseek') === 'WARN')
     t('跨门终判：异族→ok', crossGateVerdict('kimi', 'deepseek') === 'ok')
     t('跨门终判：任一侧未解析→?（不构成异构性证据）', crossGateVerdict('?', 'deepseek') === '?' && crossGateVerdict('kimi', '?') === '?')
-    t('agents 目录覆写：env ZCODE_AGENTS_DIR 优先（缺省=宿主惯例路径）', (() => { const saved = process.env.ZCODE_AGENTS_DIR; process.env.ZCODE_AGENTS_DIR = 'demo-agents-rel'; const a = agentsDirOf(); process.env.ZCODE_AGENTS_DIR = saved; return resolve(a).endsWith(join('demo-agents-rel')) })())
+    t('agents 目录覆写：env 优先（相对值 resolve）/缺席回落宿主惯例路径（轮2 N-2 补缺省分支）', (() => { const had = Object.prototype.hasOwnProperty.call(process.env, 'ZCODE_AGENTS_DIR'); const saved = process.env.ZCODE_AGENTS_DIR; process.env.ZCODE_AGENTS_DIR = 'demo-agents-rel'; const a = agentsDirOf(); if (had) process.env.ZCODE_AGENTS_DIR = saved; else delete process.env.ZCODE_AGENTS_DIR; const d = agentsDirOf(); return resolve(a).endsWith('demo-agents-rel') && d === join(homedir(), '.zcode', 'agents') })())
     t('合法绑定形态（uuid/model）', VALID_MODEL_RE.test('aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash'))
     t('合法绑定形态（builtin:model/key）', VALID_MODEL_RE.test('builtin:bigmodel-coding-plan/GLM-5.3'))
     // 2026-09-17 档位批向量：`$档位` 后缀（宿主 model 串扩展语法）与 account: 前缀族

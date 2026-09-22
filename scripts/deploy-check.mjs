@@ -72,7 +72,10 @@ export function renderAgentTemplate(text, bindings) {
     return v
   })
   // 畸形占位=非标准形态的 binding 残留（空格/点号等——替换正则未认=按无占位直装的
-  // 逃逸面）；标准形态的「缺绑定保留占位」已在上一段点名，不重复计
+  // 逃逸面）；标准形态的「缺绑定保留占位」已在上一段点名，不重复计；
+  // 未闭合形态（漏 }}）二次检测（回炉轮2 d1 W-2）
+  const closed = out.replace(/\{\{binding:[A-Za-z0-9_-]+\}\}/g, '').replace(/\{\{[^}]*binding[^}]*\}\}/gi, '')
+  if (/\{\{[^}]*binding/i.test(closed)) missing.push('malformed:未闭合占位')
   for (const residue of out.match(/\{\{[^}]*binding[^}]*\}\}/gi) || [])
     if (!/^\{\{binding:[A-Za-z0-9_-]+\}\}$/.test(residue)) missing.push(`malformed:${residue}`)
   return { text: out, missing }
@@ -83,10 +86,13 @@ export const lastLine = (s) => String(s || '').trim().split('\n').filter(Boolean
 
 // ── 纯函数（--self-test 向量注入位）──
 
-/** ① 主版本判禁：major ∈ forbid_major → FAIL；配置缺省/空=恒 ok（判据读配置禁硬编码）。 */
+/** ① 主版本判禁：major ∈ forbid_major → FAIL；配置缺省/空=**warn**（回炉轮2 W-5：
+ *  守卫值缺失=恒通过属静默降级——如实告警指引填本机件，判据读配置禁硬编码）。 */
 export function checkNodeMajor(nodeVersion, forbidMajor) {
   const major = Number.parseInt(String(nodeVersion).replace(/^v/, '').split('.')[0], 10)
   const list = Array.isArray(forbidMajor) ? forbidMajor : []
+  if (!list.length)
+    return { level: 'warn', line: `node-major——supported_node.forbid_major 未配置（本机件）——守卫此态恒通过（填值守值后复跑；语义与经验=references/10 §1）` }
   const hit = list.includes(major)
   return {
     level: hit ? 'FAIL' : 'ok',
@@ -196,7 +202,8 @@ export function runChecks(agentsDir, cfg) {
     const hashEqual = existsSync(dst) && sha256Text(norm(rendered)) === sha256Text(norm(readFileSync(dst, 'utf8')))
     const cls = classifyAgent({ exists: existsSync(dst), hashEqual })
     if (missing.length) {
-      push({ level: 'warn', line: `agents——${name}（${agentsDir}）占位缺绑定/畸形（${[...new Set(missing)].join('、')}）——渲染对账此态不可信（非漂移判定）；填本机件 agent_bindings 后复跑` })
+      // 回炉轮2 N-6：占位异常时部署件缺失仍 FAIL（装好≠绑定对——两害分报，不整项跳过）
+      push({ level: existsSync(dst) ? 'warn' : 'FAIL', line: `agents——${name}（${agentsDir}）${existsSync(dst) ? '占位缺绑定/畸形' : '缺失'}（${[...new Set(missing)].join('、')}）——渲染对账此态不可信；填本机件 agent_bindings 后复跑` })
       continue
     }
     push({ level: cls.level, line: `agents——${name}（${agentsDir}）${cls.line}${cls.reason === 'drift' ? '——若为改绑后残留：删除该部署件后 --install 重装即按 agent_bindings 渲染（回炉 W7a）' : ''}（渲染后对账）` })
@@ -381,7 +388,7 @@ function selfTest() {
   // 向量1：forbid 判定正反例（注入配置对象）
   t('forbid 正例（v25.2.1 ∈ [25] → FAIL）', checkNodeMajor('v25.2.1', [25]).level === 'FAIL')
   t('forbid 反例（v24.21.0 ∉ [25] → ok）', checkNodeMajor('v24.21.0', [25]).level === 'ok')
-  t('forbid 配置缺省（无 forbid_major → 恒 ok）', checkNodeMajor('v25.2.1', undefined).level === 'ok')
+  t('forbid 配置缺省（无 forbid_major → warn 静默降级如实告警——回炉轮2 W-5）', checkNodeMajor('v25.2.1', undefined).level === 'warn' && checkNodeMajor('v25.2.1', undefined).line.includes('未配置'))
 
   // 向量2：agents 清单派生（fixture 目录）
   const fx = mkdtempSync(join(tmpdir(), 'deploy-check-fx-'))
@@ -519,7 +526,7 @@ function selfTest() {
   t('v2.1.0 渲染：全部占位一次替换（frontmatter+尾栏同串）', (() => { const r = renderAgentTemplate('model: {{binding:ops-x}}\nSELF: model-field:{{binding:ops-x}}', { 'ops-x': 'aaaa/k3$max' }); return r.text === 'model: aaaa/k3$max\nSELF: model-field:aaaa/k3$max' && r.missing.length === 0 })())
   t('v2.1.0 渲染：缺绑定→占位保留+点名（禁静默带占位部署）', (() => { const r = renderAgentTemplate('model: {{binding:ops-y}}', { 'ops-x': 'v' }); return r.text === 'model: {{binding:ops-y}}' && r.missing.join() === 'ops-y' })())
   t('v2.1.0 渲染：无占位模板恒等（未绑定岗模板不受影响）', (() => { const r = renderAgentTemplate('无占位模板正文', {}); return r.text === '无占位模板正文' && r.missing.length === 0 })())
-  t('v2.1.0 回炉：畸形占位（空格/点号形态）→渲染后残留 tripwire 计入 missing（k1 W-2）', (() => { const r1 = renderAgentTemplate('model: {{binding: ops-x}}', {}); const r2 = renderAgentTemplate('model: {{binding:ops.x}}', {}); return r1.missing.some((m) => m.startsWith('malformed:')) && r2.missing.some((m) => m.startsWith('malformed:')) && r1.text.includes('{{binding: ops-x}}') })())
+  t('v2.1.0 回炉：畸形占位（空格/点号/未闭合形态）→渲染后残留 tripwire 计入 missing（k1 W-2/轮2 W-2）', (() => { const r1 = renderAgentTemplate('model: {{binding: ops-x}}', {}); const r2 = renderAgentTemplate('model: {{binding:ops.x}}', {}); const r3 = renderAgentTemplate('model: {{binding:ops-x', {}); return r1.missing.some((m) => m.startsWith('malformed:')) && r2.missing.some((m) => m.startsWith('malformed:')) && r3.missing.some((m) => m.includes('未闭合')) && r1.text.includes('{{binding: ops-x}}') })())
   t('v2.1.0 渲染：sha256Text 稳定（64 hex）', /^[0-9a-f]{64}$/.test(sha256Text('x')) && sha256Text('x') === sha256Text('x'))
 
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)

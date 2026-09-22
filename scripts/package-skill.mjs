@@ -14,7 +14,7 @@
  * 可 import 纯函数零副作用（isMain guard 惯例；自检向量禁动真实状态）。
  */
 import { existsSync, readFileSync, readdirSync, statSync, mkdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
-import { join, resolve, relative } from 'node:path'
+import { join, resolve, relative, isAbsolute } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -26,7 +26,6 @@ const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
 // ——`FINDINGS:\s*B=`（\s+量词）放过，`E:\src\x`（\s 后跟词字符=真路径）命中；
 // 正斜杠形态无转义歧义恒命中）。v=\v 补入转义族。
 const DRIVE_RE = /(?<![A-Za-z0-9])[A-Za-z]:[\\/](?![sdwbntrvSDWBNTRv](?![A-Za-z0-9]))/
-const NEVER_RE = /$^/ // 永不命中（维度禁用形态）
 
 /** 门禁词表（回炉 W1/W2/k1 W-4 修正）：①entry_name——剔 TODO 占位与供应商家族名
  *  **整词等值**剔除（子串剔除对「my-kimi-acct」类复合名构成逃逸面；分工链描述
@@ -42,7 +41,8 @@ export function buildSharePatterns(cfg, termExemptions = []) {
     const u = def?.uuid_prefix
     if (typeof u === 'string' && /^[0-9a-f]{8}$/i.test(u)) terms.push(u)
   }
-  for (const v of Object.values(cfg?.agent_bindings || {})) {
+  for (const [k, v] of Object.entries(cfg?.agent_bindings || {})) {
+    if (k === 'note') continue // 域声明键（骨架/本机件惯例）非绑定值——入表会自咬脚手架源码（回炉轮2 W-4）
     if (typeof v === 'string' && v && v !== 'TODO') terms.push(v)
   }
   return { uuid: UUID_RE, drive: DRIVE_RE, terms: [...new Set(terms)] }
@@ -79,6 +79,15 @@ export function lineExempt(relPath, line, entries = []) {
 export function validateWhitelist(wl, patterns) {
   const errors = []
   const KNOWN = new Set(['file', 'file_prefix', 'contains', 'reason', 'synthetic_exempt'])
+  // 回炉轮2 W-8：term_exemptions=第三维度的剔除通道——限纯小写字母词（供应商家族名
+  // 形态），写入真实 entry_name（含 CJK/数字/下划线）即拒收；打包时逐项回显供主控过目
+  const terms8 = wl?.term_exemptions
+  if (terms8 !== undefined) {
+    if (!Array.isArray(terms8) || !terms8.length) errors.push('term_exemptions 须为非空数组（供应商家族名）')
+    else
+      for (const x of terms8)
+        if (typeof x !== 'string' || !/^[a-z]{2,16}$/.test(x)) errors.push(`term_exemptions 条目「${String(x)}」非纯小写字母词（家族名形态）——真实 entry_name 混入剔除表即拒收（回炉轮2 W-8）`)
+  }
   const entries = Array.isArray(wl?.entries) ? wl.entries : null
   if (!entries) { errors.push('share-whitelist 缺 entries 数组'); return errors }
   entries.forEach((e, i) => {
@@ -86,7 +95,11 @@ export function validateWhitelist(wl, patterns) {
     if (unknown.length) errors.push(`entries[${i}] 含未声明键 ${unknown.join(',')}——疑似拼错（键域=file/file_prefix/contains/reason/synthetic_exempt）`)
     if (!(e.file || e.file_prefix || e.contains)) errors.push(`entries[${i}] 零条件条目=全局豁免 fail-open——拒收（回炉 B2）`)
     if (!e.reason || !String(e.reason).trim()) errors.push(`entries[${i}] 缺 reason（豁免须写理由）`)
-    if (e.synthetic_exempt) return // 声明为合成样例的自检豁免（如门禁自检向量样例）
+    if (e.synthetic_exempt) {
+      // 回炉轮2 W-6：合成样例豁免收紧——仅限 scripts/ 域（扫描器自身向量/注释），他域声明即错误
+      if (!String(e.file || '').startsWith('scripts/')) errors.push(`entries[${i}] synthetic_exempt 限 scripts/ 自检域——他域合成声明拒收`)
+      return
+    }
     const selfText = `${e.contains ?? ''} ${e.reason ?? ''}`
     if (patterns.uuid.test(selfText)) errors.push(`entries[${i}] 条件/理由含 uuid 形态——注册面禁真实标识（合成样例加 synthetic_exempt:true 声明）`)
     for (const t of patterns.terms) if (selfText.toLowerCase().includes(t.toLowerCase())) errors.push(`entries[${i}] 条件/理由含本机标识「${t}」——注册面禁真实标识`)
@@ -152,7 +165,10 @@ function selfTest() {
   t('词表：本机 entry_name 收录', pats.terms.includes('acct-demo-x'))
   t('词表：供应商家族名整词等值剔除（Kimi）', !pats.terms.includes('Kimi'))
   t('词表：复合名不逃逸（my-kimi-acct 保留——回炉 k1 W-4a）', pats.terms.includes('my-kimi-acct'))
-  t('词表：TODO 占位剔除（entry_name 与 uuid_prefix 双面）', !pats.terms.includes('TODO') && !pats.terms.some((x) => x === 'aaaa1111' ? false : /^TODO$/.test(x)))
+  t('词表：TODO 占位不入表（entry_name 与 uuid_prefix 双面）', !pats.terms.includes('TODO') && !pats.terms.some((x) => /^TODO$/i.test(x)))
+  t('词表回炉轮2 W-4：agent_bindings.note 域声明键不入词表（防脚手架源码自咬）', !buildSharePatterns({ agent_bindings: { note: '绑定岗实值（键=代理名）', 'ops-x': 'v/k3$max' } }, []).terms.some((x) => x.includes('绑定岗实值')))
+  t('校验回炉轮2 W-6：synthetic_exempt 限 scripts/ 自检域', (() => { const e = validateWhitelist({ entries: [{ file: 'SKILL.md', contains: 'aaaaaaaa-0000-4000-8000-000000000001', reason: 'r', synthetic_exempt: true }] }, pats); return e.some((x) => x.includes('synthetic_exempt 限 scripts/')) })())
+  t('校验回炉轮2 W-8：term_exemptions 非纯小写字母词→拒收（防真实 entry_name 混入剔除表）', (() => { const e1 = validateWhitelist({ term_exemptions: ['kimi', 'glm'], entries: [{ file: 'a.md', contains: 'x', reason: 'r' }] }, pats); const e2 = validateWhitelist({ term_exemptions: ['梁圣', 'my-acct2'], entries: [{ file: 'a.md', contains: 'x', reason: 'r' }] }, pats); return e1.length === 0 && e2.some((x) => x.includes('梁圣')) && e2.some((x) => x.includes('my-acct2')) })())
   t('词表：裸 uuid 前缀 8-hex 入词表（回炉 k1 W-4b）', pats.terms.includes('aaaa1111') && pats.terms.includes('dddd2222'))
   t('词表：绑定值含家族名不剔（account/builtin 形态无 uuid 兜底——回炉 W1）', pats.terms.some((x) => x.includes('deepseek-flash$max')))
   t('扫描：uuid 形态命中', scanLine('见 aaaaaaaa-0000-4000-8000-000000000001/k3', pats).includes('uuid形态'))
@@ -165,7 +181,7 @@ function selfTest() {
   t('豁免：file_prefix+contains 同时满足才豁免', lineExempt('references/06-x.md', '批档=E:/zcode_md/a', [{ file_prefix: 'references/', contains: 'E:/zcode_md' }]) && !lineExempt('references/06-x.md', '其他行', [{ file_prefix: 'references/', contains: 'E:/zcode_md' }]) && !lineExempt('SKILL.md', '批档=E:/zcode_md/a', [{ file_prefix: 'references/', contains: 'E:/zcode_md' }]))
   t('豁免回炉 B2：零条件条目=fail-closed 不豁免', !lineExempt('a.md', '任意行', [{}]) && !lineExempt('a.md', '任意行', [{ reason: '只有理由' }]) && !lineExempt('a.md', '任意行', [{ contains_text: '拼错键' }]))
   t('校验回炉 B2：零条件/缺理由/拼错键→装载错误行', (() => { const e = validateWhitelist({ entries: [{}, { file: 'a.md' }, { file: 'a.md', contains: 'x', reason: '' }, { file: 'a.md', contains: 'x', reason: 'r', contains_text: 'y' }] }, pats); return e.some((x) => x.includes('entries[0] 零条件')) && e.some((x) => x.includes('entries[1] 缺 reason')) && e.some((x) => x.includes('entries[3] 含未声明键')) })())
-  t('校验回炉 W3a：注册面理由含真实标识/uuid→错误行；synthetic_exempt 放行', (() => { const e1 = validateWhitelist({ entries: [{ file: 'a.md', contains: 'x', reason: '见 aaaaaaaa-0000-4000-8000-000000000001' }] }, pats); const e2 = validateWhitelist({ entries: [{ file: 'a.md', contains: 'aaaaaaaa-0000-4000-8000', reason: '合成样例', synthetic_exempt: true }] }, pats); return e1.some((x) => x.includes('uuid 形态')) && e2.length === 0 })())
+  t('校验回炉 W3a：注册面理由含真实标识/uuid→错误行；synthetic_exempt（scripts/ 域，轮2 W-6）放行', (() => { const e1 = validateWhitelist({ entries: [{ file: 'a.md', contains: 'x', reason: '见 aaaaaaaa-0000-4000-8000-000000000001' }] }, pats); const e2 = validateWhitelist({ entries: [{ file: 'scripts/x.mjs', contains: 'aaaaaaaa-0000-4000-8000', reason: '合成样例', synthetic_exempt: true }] }, pats); return e1.some((x) => x.includes('uuid 形态')) && e2.length === 0 })())
   t('校验回炉 W3a：注册面理由含盘符路径→错误行', validateWhitelist({ entries: [{ file: 'a.md', contains: 'x', reason: '先例 E:/x/a.md' }] }, pats).some((x) => x.includes('理由含盘符绝对路径')))
   // scanTree+manifest 集成（fixture 临时目录）
   const fx = mkdtempSync(join(tmpdir(), 'pkg-fx-'))
@@ -206,9 +222,10 @@ if (isMain) {
   if (dirty.error || dirty.status !== 0) { console.error('[装载错] git 不可用——打包基线无法核验（06 §5.8 行 3）'); process.exit(3) }
   if (String(dirty.stdout || '').trim()) { console.error(`[装载错] 工作树非净（打包基线须为已提交态——先 commit 或丢弃改动后复跑）：\n${String(dirty.stdout).trim().slice(0, 500)}`); process.exit(3) }
   if (existsSync(outDir) && readdirSync(outDir).length) { console.error(`[装载错] 输出目录非空（${outDir}）——拒绝覆盖既有内容，换空目录`); process.exit(3) }
-  // 回炉 W4：导出副本落在仓库内=泄漏物残留面（git add -A 即入索引+脏树阻断后续打包）
+  // 回炉 W4→轮2 W-3：仓内输出拒收——relative 跨盘符返回绝对路径（=仓外合法态），
+  // 仅同盘相对形态才判「在仓内」（relOut==''=输出目录即仓库根，亦拒）
   const relOut = relative(SKILL_ROOT, outDir)
-  if (relOut !== '' && !relOut.startsWith('..')) { console.error(`[装载错] 输出目录在技能仓内（${outDir}）——导出副本会污染工作树，请指向仓外目录`); process.exit(3) }
+  if (!isAbsolute(relOut) && (relOut === '' || !relOut.startsWith('..'))) { console.error(`[装载错] 输出目录在技能仓内（${outDir}）——导出副本会污染工作树，请指向仓外目录`); process.exit(3) }
   const head = String(spawnSync('git', ['rev-parse', 'HEAD'], { cwd: SKILL_ROOT, encoding: 'utf8' }).stdout || '').trim()
   if (!head) { console.error('[装载错] git rev-parse HEAD 失败——打包基线不可定（06 §5.8 行 3）'); process.exit(3) }
 
