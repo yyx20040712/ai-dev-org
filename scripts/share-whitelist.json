@@ -73,6 +73,24 @@
       "contains": "acct-demo-x",
       "reason": "门禁自检合成本机标识样例（同上）",
       "synthetic_exempt": true
+    },
+    {
+      "file": "scripts/package-skill.mjs",
+      "contains": "真路径）命中",
+      "reason": "回炉 B1 修复注释中的盘符形态示例（转义族排除语义说明）",
+      "synthetic_exempt": true
+    },
+    {
+      "file": "scripts/package-skill.mjs",
+      "contains": "排除族首字母真实路径仍命中",
+      "reason": "回炉 B1 负向向量行（五种排除族首字母真实路径样例）",
+      "synthetic_exempt": true
+    },
+    {
+      "file": "scripts/package-skill.mjs",
+      "contains": "单字母目录形态",
+      "reason": "回炉 B1 已知残留向量行（单字母目录形态样例）",
+      "synthetic_exempt": true
     }
   ]
 }
