@@ -8,10 +8,11 @@
  *                  scripts/org-config.mjs/scripts/roles/registry.json）
  *   ③ org-config   spawn org-config.mjs validate（cwd=SKILL_ROOT）rc≠0 → FAIL
  *                  并透传其末行
- *   ④ agents       清单单源=templates/agents/ops-*.md 枚举；逐件对 --agents-dir
- *                  （缺省 ~/.zcode/agents）：缺失=FAIL（--install 可补）；
- *                  存在但 sha256 不等=[warn] 漂移（人工比对，--install 不覆盖
- *                  ——保护本机定制）
+ *   ④ agents       清单单源=templates/agents/ops-*.md 枚举；绑定模板按本机件
+ *                  org-config agent_bindings 渲染（{{binding:岗}}→实值，v2.1.0 批4）
+ *                  后逐件对 --agents-dir（缺省 ~/.zcode/agents）：缺失=FAIL
+ *                  （--install 可补）；存在但渲染后 sha256 不等=[warn] 漂移
+ *                  （人工比对，--install 不覆盖——保护本机定制）
  *   ⑤ hook         git config core.hooksPath：.githooks→ok；未设=FAIL
  *                  （--install 可补）；自定义值=[warn]（不改只提示）；
  *                  git 不可用/非 git 仓=[warn]（zip 安装形态，跳过）
@@ -33,7 +34,7 @@
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 可 import 纯函数零副作用（isMain guard 惯例；自检向量禁动真实状态）。
  */
-import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync, copyFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync, mkdtempSync, rmSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -52,6 +53,24 @@ export class SelfLoadError extends Error {}
 /** 文件 sha256（双侧对账/漂移判定单源）。 */
 export function sha256File(p) {
   return createHash('sha256').update(readFileSync(p)).digest('hex')
+}
+
+/** 文本 sha256（渲染后对账用——v2.1.0 批4）。 */
+export function sha256Text(s) {
+  return createHash('sha256').update(String(s)).digest('hex')
+}
+
+/** ④渲染（v2.1.0 批4）：模板占位 `{{binding:<岗>}}` → 本机件 agent_bindings 实值
+ *  （org-config 三层的 merged.agent_bindings）。全部占位一次替换；缺绑定的占位
+ *  原样保留并点名（消费端 fail-fast——禁静默带占位部署）。无占位模板=恒等。 */
+export function renderAgentTemplate(text, bindings) {
+  const missing = []
+  const out = String(text).replace(/\{\{binding:([A-Za-z0-9_-]+)\}\}/g, (m, agent) => {
+    const v = bindings?.[agent]
+    if (typeof v !== 'string' || !v.trim()) { missing.push(agent); return m }
+    return v
+  })
+  return { text: out, missing }
 }
 
 /** 多行输出的末行（透传 org-config validate 尾行用）。 */
@@ -164,8 +183,10 @@ export function runChecks(agentsDir, cfg) {
 
   for (const name of listAgentTemplates()) {
     const dst = join(agentsDir, name)
-    const cls = classifyAgent({ exists: existsSync(dst), hashEqual: existsSync(dst) && sha256File(dst) === sha256File(join(TEMPLATES_AGENTS, name)) })
-    push({ level: cls.level, line: `agents——${name}（${agentsDir}）${cls.line}` })
+    const { text: rendered, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), cfg?.agent_bindings || {})
+    const cls = classifyAgent({ exists: existsSync(dst), hashEqual: existsSync(dst) && sha256File(dst) === sha256Text(rendered) })
+    const miss = missing.length ? `｜模板占位缺绑定（agent_bindings 未填：${[...new Set(missing)].join('、')}）——渲染对账此态不可信，填本机件后复跑` : ''
+    push({ level: cls.level, line: `agents——${name}（${agentsDir}）${cls.line}（渲染后对账）${miss}` })
   }
 
   const git = gitState()
@@ -188,19 +209,23 @@ export function runChecks(agentsDir, cfg) {
   return results
 }
 
-/** --install 动作一：补缺失代理件（逐件复制+sha256 复核；漂移件不覆盖）。 */
-export function installAgents(agentsDir) {
+/** --install 动作一：补缺失代理件（渲染部署+sha256 复核；漂移件不覆盖；v2.1.0 批4
+ *  起绑定模板按 agent_bindings 渲染——缺绑定的占位模板不装=FAIL 指引）。 */
+export function installAgents(agentsDir, bindings = {}) {
   const missing = listAgentTemplates().filter((n) => !existsSync(join(agentsDir, n)))
   if (!missing.length) return { level: 'ok', line: 'install-agents——无缺失件（已存在漂移件不覆盖——保护本机定制）' }
   mkdirSync(agentsDir, { recursive: true })
   const bad = []
+  const unbound = []
   for (const n of missing) {
-    copyFileSync(join(TEMPLATES_AGENTS, n), join(agentsDir, n))
-    if (sha256File(join(TEMPLATES_AGENTS, n)) !== sha256File(join(agentsDir, n))) bad.push(n)
+    const { text, missing: miss } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, n), 'utf8'), bindings)
+    if (miss.length) { unbound.push(n); continue }
+    writeFileSync(join(agentsDir, n), text, 'utf8')
+    if (sha256Text(text) !== sha256File(join(agentsDir, n))) bad.push(n)
   }
-  return bad.length
-    ? { level: 'FAIL', line: `install-agents——复制后 sha256 复核不符：${bad.join('、')}（重试或人工核查磁盘/权限）` }
-    : { level: 'ok', line: `install-agents——补齐 ${missing.length} 件（${missing.join('、')}，逐件 sha256 复核相等）` }
+  return bad.length || unbound.length
+    ? { level: 'FAIL', line: `install-agents——${bad.length ? `部署后 sha256 复核不符：${bad.join('、')}` : ''}${bad.length && unbound.length ? '；' : ''}${unbound.length ? `占位缺绑定未装：${unbound.join('、')}（填本机件 agent_bindings 实值后复跑）` : ''}` }
+    : { level: 'ok', line: `install-agents——补齐 ${missing.length} 件（${missing.join('、')}，渲染部署+sha256 复核相等）` }
 }
 
 /** --install 动作二：hooksPath 未设时补设（已设含自定义=不动）。 */
@@ -459,6 +484,12 @@ function selfTest() {
     }
   }
 
+  // 向量8：v2.1.0 批4 渲染（占位→实值全替换；缺绑定保留+点名；无占位恒等）
+  t('v2.1.0 渲染：全部占位一次替换（frontmatter+尾栏同串）', (() => { const r = renderAgentTemplate('model: {{binding:ops-x}}\nSELF: model-field:{{binding:ops-x}}', { 'ops-x': 'aaaa/k3$max' }); return r.text === 'model: aaaa/k3$max\nSELF: model-field:aaaa/k3$max' && r.missing.length === 0 })())
+  t('v2.1.0 渲染：缺绑定→占位保留+点名（禁静默带占位部署）', (() => { const r = renderAgentTemplate('model: {{binding:ops-y}}', { 'ops-x': 'v' }); return r.text === 'model: {{binding:ops-y}}' && r.missing.join() === 'ops-y' })())
+  t('v2.1.0 渲染：无占位模板恒等（未绑定岗模板不受影响）', (() => { const r = renderAgentTemplate('无占位模板正文', {}); return r.text === '无占位模板正文' && r.missing.length === 0 })())
+  t('v2.1.0 渲染：sha256Text 稳定（64 hex）', /^[0-9a-f]{64}$/.test(sha256Text('x')) && sha256Text('x') === sha256Text('x'))
+
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
 }
@@ -500,7 +531,9 @@ if (isMain) {
       lcLine = `install-localconfig——跳过：默认件装载失败（${e.message}）——处置=核对 org-config.default.json 后复跑`
     }
     console.log(`[install] ${lcLine}`)
-    console.log(`[install] ${installAgents(agentsDir).line}`)
+    let tplBindings = {}
+    try { tplBindings = loadOrgConfig(SKILL_ROOT).merged.agent_bindings || {} } catch { /* 装载失败由后续 hostfacts 段按三元组归因 */ }
+    console.log(`[install] ${installAgents(agentsDir, tplBindings).line}`)
     console.log(`[install] ${installHook()}`)
     // g3 动作③（回炉轮 1 R1/R2 重构错误处置——门一 W2/W3）：三源分行归因——
     // ① org-config 装载失败（默认件/覆盖件坏）→干净跳过（warn+指引，不裸崩

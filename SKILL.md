@@ -61,7 +61,8 @@ node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.m
 
 **子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗；门一 2026-09-22 三岗制；宿主语义细则单源=references/10 §2）**：文本岗/
 异构岗/门一三岗已挂 `~/.zcode/agents/ops-*.md` 绑定子代理（frontmatter
-model=`<provider>/<model-key>$<档位>`——`$` 后缀=显式思考档位声明，缺省
+model=`<provider>/<model-key>$<档位>`——模板面存 `{{binding:岗}}` 占位、
+部署面=org-config 本机件 `agent_bindings` 渲染实值（v2.1.0 批4），`$` 后缀=显式思考档位声明，缺省
 即派发拒启 reasoning-level-missing（实证=references/10 §2），绑定岗现役档案
 一律 `$max`（未绑定岗无 model 字段，见随宿主批）；上游枚举值=假绑定禁用；空 tools=
 泄漏全工具面禁用；代理档案会话启动快照无热加载——改档须新会话验证+
