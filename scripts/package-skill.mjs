@@ -22,10 +22,11 @@ import { fileURLToPath } from 'node:url'
 import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError } from './org-config.mjs'
 
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
-// 盘符绝对路径（回炉 B1 修正：正则转义族排除仅对「转义字母后非词字符」形态生效
-// ——`FINDINGS:\s*B=`（\s+量词）放过，`E:\src\x`（\s 后跟词字符=真路径）命中；
-// 正斜杠形态无转义歧义恒命中）。v=\v 补入转义族。
-const DRIVE_RE = /(?<![A-Za-z0-9])[A-Za-z]:[\\/](?![sdwbntrvSDWBNTRv](?![A-Za-z0-9]))/
+// 盘符绝对路径（回炉 B1 修正+轮2b N-1 收口：正则转义族排除=「转义字母后接
+// **非字母数字**字符」的量词/边界形态——`FINDINGS:\s*B=`（\s+量词）放过，
+// `E:\src\x`（\s 后接字母数字=真路径）命中；排除语义对正/反斜杠同律；
+// 转义族大小写成对（v=\v 补入，V 同律）。
+const DRIVE_RE = /(?<![A-Za-z0-9])[A-Za-z]:[\\/](?![sdwbntrvSDWBNTRV](?![A-Za-z0-9]))/
 
 /** 门禁词表（回炉 W1/W2/k1 W-4 修正）：①entry_name——剔 TODO 占位与供应商家族名
  *  **整词等值**剔除（子串剔除对「my-kimi-acct」类复合名构成逃逸面；分工链描述
@@ -91,7 +92,8 @@ export function validateWhitelist(wl, patterns) {
   const entries = Array.isArray(wl?.entries) ? wl.entries : null
   if (!entries) { errors.push('share-whitelist 缺 entries 数组'); return errors }
   entries.forEach((e, i) => {
-    const unknown = Object.keys(e || {}).filter((k) => !KNOWN.has(k))
+    if (e == null || typeof e !== 'object') { errors.push(`entries[${i}] 为 ${e === null ? 'null' : typeof e}——须为对象（k1 二过 W-2：装载器自身禁被畸形条目打崩）`); return }
+    const unknown = Object.keys(e).filter((k) => !KNOWN.has(k))
     if (unknown.length) errors.push(`entries[${i}] 含未声明键 ${unknown.join(',')}——疑似拼错（键域=file/file_prefix/contains/reason/synthetic_exempt）`)
     if (!(e.file || e.file_prefix || e.contains)) errors.push(`entries[${i}] 零条件条目=全局豁免 fail-open——拒收（回炉 B2）`)
     if (!e.reason || !String(e.reason).trim()) errors.push(`entries[${i}] 缺 reason（豁免须写理由）`)
@@ -101,7 +103,7 @@ export function validateWhitelist(wl, patterns) {
       return
     }
     const selfText = `${e.contains ?? ''} ${e.reason ?? ''}`
-    if (patterns.uuid.test(selfText)) errors.push(`entries[${i}] 条件/理由含 uuid 形态——注册面禁真实标识（合成样例加 synthetic_exempt:true 声明）`)
+    if (patterns.uuid.test(selfText)) errors.push(`entries[${i}] 条件/理由含 uuid 形态——注册面禁真实标识（确属门禁自检合成样例且经人工核对后方可 synthetic_exempt 声明——限 scripts/ 自检域）`)
     for (const t of patterns.terms) if (selfText.toLowerCase().includes(t.toLowerCase())) errors.push(`entries[${i}] 条件/理由含本机标识「${t}」——注册面禁真实标识`)
     if (patterns.drive.test(String(e.reason ?? ''))) errors.push(`entries[${i}] 理由含盘符绝对路径——注册面 reason 禁路径（contains 字段豁免串除外——回炉 W3a）`)
   })
@@ -174,13 +176,14 @@ function selfTest() {
   t('扫描：uuid 形态命中', scanLine('见 aaaaaaaa-0000-4000-8000-000000000001/k3', pats).includes('uuid形态'))
   t('扫描：正则转义族不误伤（FINDINGS:\\s*B= / \\d+ 形态）', !scanLine('锚定 `/^\\s*`?FINDINGS:\\s*B=/m` 与 \\d+ 行', pats).length)
   t('扫描：盘符路径命中（正斜杠/反斜杠）', scanLine('先例 E:/x/a.md 与 C:\\y', pats).includes('盘符绝对路径'))
-  t('扫描回炉 B1：排除族首字母真实路径仍命中（E:\\report/D:\\src/C:\\temp/C:\\Windows/E:\\work）', ['E:\\report\\a.md', 'D:\\src', 'C:\\temp/x', 'C:\\Windows\\sys', 'E:\\work'].every((s) => scanLine(`批档=${s}`, pats).includes('盘符绝对路径')))
+  t('扫描回炉 B1：排除族首字母真实路径仍命中（E:\\report/D:\\src/C:\\temp/C:\\Windows/E:\\work/E:\\Vista）', ['E:\\report\\a.md', 'D:\\src', 'C:\\temp/x', 'C:\\Windows\\sys', 'E:\\work', 'E:\\Vista\\x'].every((s) => scanLine(`批档=${s}`, pats).includes('盘符绝对路径')))
   t('扫描回炉 B1：单字母目录形态（E:\\s\\foo）已知残留——登记不强求', scanLine('E:\\s\\foo', pats).length === 0)
   t('扫描：本机标识命中（entry_name，大小写不敏感——回炉 W1 对称）', scanLine('源=ACCT-DEMO-X 端点', pats).some((h) => h.startsWith('本机标识')))
   t('扫描：绑定值命中（含 uuid 前缀串）', scanLine('绑定=bbbbbbbb-0000-4000-8000-000000000002/deepseek-flash$max', pats).length >= 1)
   t('豁免：file_prefix+contains 同时满足才豁免', lineExempt('references/06-x.md', '批档=E:/zcode_md/a', [{ file_prefix: 'references/', contains: 'E:/zcode_md' }]) && !lineExempt('references/06-x.md', '其他行', [{ file_prefix: 'references/', contains: 'E:/zcode_md' }]) && !lineExempt('SKILL.md', '批档=E:/zcode_md/a', [{ file_prefix: 'references/', contains: 'E:/zcode_md' }]))
   t('豁免回炉 B2：零条件条目=fail-closed 不豁免', !lineExempt('a.md', '任意行', [{}]) && !lineExempt('a.md', '任意行', [{ reason: '只有理由' }]) && !lineExempt('a.md', '任意行', [{ contains_text: '拼错键' }]))
   t('校验回炉 B2：零条件/缺理由/拼错键→装载错误行', (() => { const e = validateWhitelist({ entries: [{}, { file: 'a.md' }, { file: 'a.md', contains: 'x', reason: '' }, { file: 'a.md', contains: 'x', reason: 'r', contains_text: 'y' }] }, pats); return e.some((x) => x.includes('entries[0] 零条件')) && e.some((x) => x.includes('entries[1] 缺 reason')) && e.some((x) => x.includes('entries[3] 含未声明键')) })())
+  t('校验回炉轮2b（k1 二过 W-2）：null/非对象条目→装载错误行（装载器禁被打崩）', (() => { const e = validateWhitelist({ entries: [null, 'x', { file: 'a.md', contains: 'x', reason: 'r' }] }, pats); return e.some((x) => x.includes('entries[0] 为 null')) && e.some((x) => x.includes('entries[1] 为 string')) && !e.some((x) => x.includes('entries[2]')) })())
   t('校验回炉 W3a：注册面理由含真实标识/uuid→错误行；synthetic_exempt（scripts/ 域，轮2 W-6）放行', (() => { const e1 = validateWhitelist({ entries: [{ file: 'a.md', contains: 'x', reason: '见 aaaaaaaa-0000-4000-8000-000000000001' }] }, pats); const e2 = validateWhitelist({ entries: [{ file: 'scripts/x.mjs', contains: 'aaaaaaaa-0000-4000-8000', reason: '合成样例', synthetic_exempt: true }] }, pats); return e1.some((x) => x.includes('uuid 形态')) && e2.length === 0 })())
   t('校验回炉 W3a：注册面理由含盘符路径→错误行', validateWhitelist({ entries: [{ file: 'a.md', contains: 'x', reason: '先例 E:/x/a.md' }] }, pats).some((x) => x.includes('理由含盘符绝对路径')))
   // scanTree+manifest 集成（fixture 临时目录）

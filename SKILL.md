@@ -177,7 +177,22 @@ subagent tokens；代位审包不自带实件自由读授权，否则 4.5M token
 
 ## 版本与状态（selfiter 批 B3 起自含——历史指针化）
 
-- **当前版本=v2.0.2（2026-09-19 escaped-defect ①② 修复批）**：清偿
+- **当前版本=v2.1.0（2026-09-22 完善与分离战役，六批+回炉两轮）**：①矛盾清偿
+  （烤验表纯配置行 R5 carve-out 消双源/门二编制行双部制成文/铁律1显式指定
+  三形态枚举/02 §8.1 意图实配口径注）；②宿主版本耦合事实收拢 references/10
+  单源册（三栏：事实/实证环境戳/异机重验——正文全指针化）；③org-config 三层化
+  （通用默认件←本机件 local(gitignore)←项目覆盖件——git 跟踪面零个人事实，
+  占位拒验 fail-fast+③a 最小骨架脚手架）；④绑定模板 {{binding:岗}} 占位化+
+  deploy-check 渲染后对账+agent_bindings 配置面单源；⑤分享打包 package-skill.mjs
+  （索引面导出+三维门禁 uuid/盘符/本机标识+文件名通道+MANIFEST）+PACKAGING.md；
+  ⑥跨门异构纪律⑤成文+cross_gate_pairs 机检（log-triage ⑧ WARN+计数——现役
+  d1=adjudicator 同族退化面如实可见，升格=用户裁决位）。对抗链=门一双审
+  （k1 B1W4N8/d1 B3W12N4 双 FAIL）→回炉轮1 全处置→二过（d1 B0W8N9 PASS，
+  B1/B2 门禁级缺陷实修：盘符正则排除族漏报+白名单 fail-open 双闸）→回炉轮2
+  （d1 二过 8W 全处置）→probe 实证 10/10 全绿（node24 对照可部署）。
+  B3（本机件包外不可裁决）裁决=主控机检逐键 diff 亲验（仅 note 级差异+预期新增），
+  隔离墙代价登记在册。
+- v2.0.2（2026-09-19 escaped-defect ①② 修复批）：清偿
   batch-relay-prod 战役登记的两项 org 侧逃逸——①派发器 parseFindings
   verdict 字符集 [A-Za-z]→字母∪CJK（与 auditor-readonly DoD 中文词表
   放行|有条件放行|返工 结构性失配=auditor 尾栏永不附着+health-scan ⑥

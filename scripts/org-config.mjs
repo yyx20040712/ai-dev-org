@@ -438,12 +438,13 @@ if (isMain) {
       const d = { a: 1, arr: [1, 2], nest: { x: 1, keep: 'd' }, doomed: 'x' }
       const l = { b: 2, arr: [3], nest: { x: 2 } }
       const p = { c: 3, nest: null, doomed: null }
+      const dSnap = JSON.stringify(d) // 合并前快照（k1 二过 N-6：恒真自比较修正）
       const m1 = mergeOrgLayers(d, l, p)
       const m2 = mergeOrgLayers(d, l, null)
       t('v2.1.0 三层：project>local>default 优先级（local 压 default、未提及沿用）', m2.a === 1 && m2.b === 2 && m2.nest.x === 2 && m2.nest.keep === 'd')
       t('v2.1.0 三层：数组整体替换（local [3] 压 default [1,2]）', JSON.stringify(m2.arr) === '[3]')
       t('v2.1.0 三层：显式 null 删除跨层生效（project 删 nest/doomed，其余 project 键在场）', m1.nest === undefined && m1.doomed === undefined && m1.c === 3)
-      t('v2.1.0 三层：local/project 缺席=仅默认件', JSON.stringify(mergeOrgLayers(d, null, null)) === JSON.stringify(d))
+      t('v2.1.0 三层：local/project 缺席=仅默认件（快照比对+首参无突变）', JSON.stringify(mergeOrgLayers(d, null, null)) === dSnap && JSON.stringify(d) === dSnap)
       t('v2.1.0 三层：local 缺席时 project 直压默认件', mergeOrgLayers(d, null, { a: 9 }).a === 9)
     }
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)

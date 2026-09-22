@@ -26,8 +26,31 @@
 | probe-bc-metadata-residue | 历史会话残留（probe-b 声明=sonnet 枚举伪值/probe-c=deepseek 无档位后缀——盘上无对应档案，纯 CLI metadata 痕迹）污染 log-triage ③ 输出噪声（2026-09-22 全局诊断批发现，R6 登记；真源=10 §3） | log-triage ③ 呈现面升级时加无档案过滤；新同形态会话复发即升宿主排查批 |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
 | edfix-r1-e2e-gap | escaped-defect 修复批（2026-09-19）R1 标准真跑 SKIP——parseFindings 端到端仅由同批 auditor-readonly 单点真实派发实证（账本 runId 20260919061400-nthy333f，中文 verdict 有条件放行完整附着），回归网对dispatcher→账本链路无持久向量（回炉 W-5） | 下次派发器/parseFindings 变更批或冻结裁决前跑 `regression --r1`；届时本行随批 closed |
+| cross-gate-samefamily | 现役跨门岗对同族（门一 d1=deepseek↔门二裁决部 adjudicator=deepseek）——异构对抗退化形态，log-triage --health ⑧ 常态 WARN（v2.1.0 批纪律⑤机检挂载，计数行在册；申报面=收口呈报包） | 升格 RED=跨门异构护栏落地或裁决部改绑异族源（改绑=用户裁决位）；每场收口 --health 复检计数 |
+| share-gate-drive-residual | 分享门禁盘符维度已知漏报族：目录段首字符为转义字母且次字符非字母数字的形态（如单字母目录/下划线/连字符开头段，正反斜杠同律——v2.1.0 回炉轮2 口径成文，PACKAGING §1 在册） | 真实泄漏事件或扫描器升级批处置；日常按门禁其余两维+文件名通道覆盖 |
+| d1-secondpass-w1-falsified | d1 二过 W-1（疑 share-whitelist 残留目录级 E:\\ 宽豁免）——主控机检证伪：两条 E:\\ 条目均文件定址（04/05），references/ 前缀条目仅 E:/zcode_md 与 E:/class 具体串（裁决记录，防复发复猜） | 无（证伪结案；白名单变更批随批复核该面） |
+| render-typo-key-residual | 绑定模板占位键笔误形态（{{bind:…}}/{{bindnig:…}}——不含 binding 子串）绕过渲染 tripwire 静默直装（k1 二过 N-3；标准/畸形/未闭合三形态已覆盖，此为键名拼写面） | 模板占位键重构批或首见笔误实害时处置（放宽为全 {{…}} 残留检测+标准形白名单）；deploy-check ④ 渲染对账可兜底发现（部署后漂移位） |
 
 ## 修订记
+
+- 2026-09-22 v2.1.0 完善与分离战役（用户裁决「只要保证方向符合软件工程业务目标
+  即可，赞同你的决策，请开工」）：六批（矛盾清偿/宿主耦合分离 10 号册/org-config
+  三层化/模板绑定占位化/分享打包+三维门禁/收口）+回炉两轮。对抗链=门一双审
+  k1（B1W4N8 FAIL）+d1（B3W12N4 FAIL）→轮1 全处置（B1 盘符正则排除族漏报/
+  B2 白名单 fail-open 双闸/k1 畸形占位 tripwire/词表整词剔除+裸前缀入表等
+  19+12 条全裁）→d1 二过 B0W8N9 PASS（W-1 机检证伪=d1-secondpass-w1-falsified
+  在册）→轮2 d1 二过 8W 全处置（跨盘误拒/骨架 note 自咬/node 守卫缺省 warn 化/
+  synthetic_exempt 收紧 scripts/ 域/term_exemptions 加闸/未闭合占位检测）。
+  probe 实证 10/10 全绿+node24 对照可部署（证据=Temp/probe-v210-progress.md
+  仓外档）。B3 裁决=三层等价性主控机检逐键 diff 亲验（canonicalize 对比仅 note
+  级差异+cross_gate_pairs 预期新增，输出在主控会话实录归档）；本机件
+  org-config.local.json=gitignore 个人事实层，**备份=用户责任**（建议私有副本）。
+  先例两笔：①门一审包「单文件=审包本体」授权载体形态（派发工具截断的补救，
+  例外声明记档）；②门一异构位与门二裁决部同族=纪律⑤ WARN 常态（触发器行
+  cross-gate-samefamily）。机检终态：org-config 48/deploy-check 39/log-triage
+  全过/package-skill 24 向量；validate PASS；regression 9/9（R1 配给 SKIP）；
+  hardcode strict 零命中；anchors 0/0；health-scan RED=0；实包门禁零命中
+  +MANIFEST 65 件；deploy-check@node24 ok13。
 
 - 2026-09-22 全量修复批（用户裁决「全部修复」，承接同日全局诊断报告
   R1-R6）：**R2 干涸窗记忆**——ds-call-v2 v2.4.0 增 dry-until 标记

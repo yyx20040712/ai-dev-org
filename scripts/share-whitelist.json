@@ -1,5 +1,5 @@
 {
-  "_note": "package-skill 分享面门禁白名单（v2.1.0 批5；回炉轮1窄化）。规则与 hardcode-whitelist 同语义：一条规则对单个行生效当且仅当全部已声明条件同时满足（file=相对包根路径匹配/file_prefix=前缀匹配/contains=行内子串）——豁免=行级非文件级，须逐条写理由+至少一个定位条件（零条件条目=装载侧拒收，fail-closed——回炉 B2）。synthetic_exempt=true=门禁自检的合成样例豁免（其 contains/reason 允许含 uuid 形态/合成标识——装载侧注册件自检放行）。term_exemptions=供应商家族名（**整词等值**剔除——子串剔除对复合名构成逃逸面，回炉 k1 W-4a；分工链描述属安排性提及，08 §1 判例）。注册件自身的 contains/reason 由 validateWhitelist 自检（禁真实 uuid/本机标识/理由含盘符路径——回炉 W3a），整文件在包扫描中 skip（自指性）。",
+  "_note": "package-skill 分享面门禁白名单（v2.1.0 批5；回炉轮1窄化）。规则与 hardcode-whitelist 同语义：一条规则对单个行生效当且仅当全部已声明条件同时满足（file=相对包根路径**后缀**匹配/file_prefix=前缀匹配/contains=行内子串）——豁免=行级非文件级，须逐条写理由+至少一个定位条件（零条件条目=装载侧拒收，fail-closed——回炉 B2）。synthetic_exempt=true=门禁自检的合成样例豁免（限 scripts/ 自检域——回炉轮2 W-6；其 contains/reason 允许含 uuid 形态/合成标识，装载侧注册件自检放行）。term_exemptions=供应商家族名（**整词等值**剔除+限纯小写字母词——回炉轮2 W-8；分工链描述属安排性提及，08 §1 判例）。注册件自身的 contains/reason 由 validateWhitelist 自检（禁真实 uuid/本机标识/理由含盘符路径——回炉 W3a），整文件在包扫描中 skip（自指性）。",
   "term_exemptions": ["kimi", "glm", "deepseek", "claude", "gpt", "gemini"],
   "entries": [
     {
