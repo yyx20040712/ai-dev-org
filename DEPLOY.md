@@ -40,7 +40,9 @@ node scripts/deploy-check.mjs
 node scripts/deploy-check.mjs --install
 ```
 
-仅三动作（序号=对应检查项）：④ 补 `~/.zcode/agents/ops-*` 六代理
+四动作（序号=对应检查项；v2.1.0 三层化批起）：③a **本机件脚手架**——
+`org-config.local.json` 缺失时从默认件复制占位全量（note 声明用户配置域；
+已存在绝不覆盖），随后按 §3 填实值；④ 补 `~/.zcode/agents/ops-*` 代理
 （templates/agents/ 单源复制，逐件 sha256 复核；已存在漂移件**不覆盖**
 ——保护本机定制）；⑤ 提交钩子（`git config core.hooksPath .githooks`，
 已设含自定义值时不重复设置）；③ 宿主事实派生项目覆盖件（g3 批 v1.7.6
@@ -49,10 +51,16 @@ node scripts/deploy-check.mjs --install
 
 ## 3 供应商对齐（用户裁决面）
 
-org-config providers 双校验不符（deploy-check ③ FAIL 或 validate 输出
-alias/期望/实际三元组）时：按三元组改 `org-config.default.json`，或建项目
-覆盖件 `.zcode/org-config.json` 深合并覆盖（推荐——默认件保持仓库基线）。
-宿主 config（key/端点事实）**永不改、不入库**。
+org-config 三层（v2.1.0 批，06 §0）：默认件 `org-config.default.json`
+（通用/随包，providers 为 TODO 占位）← 本机件 `org-config.local.json`
+（个人实值，gitignore）← 项目覆盖件 `.zcode/org-config.json`。
+
+providers 双校验不符或占位拒验（deploy-check ③ FAIL / validate 输出
+alias/期望/实际三元组或「尚未本机化」指引）时：**首选填本机件**
+`org-config.local.json` 各源实值（uuid_prefix=宿主注册表条目 id 前 8
+字符/entry_name=条目名/kind/billing/model_family——deploy-check
+--install 动作③a 可脚手架），或建项目覆盖件 `.zcode/org-config.json`
+深合并覆盖。宿主 config（key/端点事实）**永不改、不入库**。
 
 自动化路（deploy-check --install 动作③，g3 批 v1.7.6）：从宿主供应商注册表
 按 entry_name 找唯一命中，派生各 alias 的 uuid_prefix（宿主条目 id 前 8
@@ -69,7 +77,7 @@ alias/期望/实际三元组）时：按三元组改 `org-config.default.json`�
 随后跑：
 
 ```
-node scripts/regression.mjs        # 自包含 8 项
+node scripts/regression.mjs        # 自包含回归（项数以实时输出为准——A3）
 node scripts/log-triage.mjs --health
 ```
 

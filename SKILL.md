@@ -31,8 +31,10 @@ loop-engineering-archive-2026-09/`——路径相对 skills 根，非技能根�
 
 （编制表注/tier 记法/禁令/职责/交接物一律看 07 §1，本表不复制——v1.7.5 收敛。）
 
-供应商事实（源序、端点、套餐、配给）一律看 org-config（默认件 + 项目
-覆盖件 `.zcode/org-config.json`），本件零硬编码。会话内子代理没有
+供应商事实（源序、端点、套餐、配给）一律看 org-config（三层装载：
+通用默认件←本机件 `org-config.local.json`（个人实值，gitignore 不随
+分享包——v2.1.0 批）←项目覆盖件 `.zcode/org-config.json`，06 §0），
+本件零硬编码。会话内子代理没有
 model 参数属环境限制（宿主事实单源=references/10 §2）：如实按「意图档位声明 + 环境限制统一档」记欠账
 （账本强制输出项），禁止伪装已定档。
 

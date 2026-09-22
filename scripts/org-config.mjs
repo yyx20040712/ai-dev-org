@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url'
 
 export const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_CFG = join(SKILL_ROOT, 'org-config.default.json')
+const LOCAL_CFG = join(SKILL_ROOT, 'org-config.local.json')
 
 /** JSON 读取（剥 UTF-8 BOM——Windows 编辑器常见，审核链 ds-N2；语法错误带路径上下文）。
  *  返回值语义归档（g3-w1r1）：合法 JSON 字面 null → 返 null 非 throw——
@@ -73,12 +74,16 @@ export function cfgHash(cfg) {
   return createHash('sha256').update(JSON.stringify(canonicalize(cfg))).digest('hex').slice(0, 12)
 }
 
-/** 装载合并配置：默认件 + <projectDir>/.zcode/org-config.json（存在时）。 */
+/** 装载合并配置（三层，v2.1.0 批）：默认件（通用/随包）← 本机件
+ *  org-config.local.json（个人实值，gitignore 不随分享包，缺席=仅默认件）
+ *  ← <projectDir>/.zcode/org-config.json（存在时）。深合并语义层内不变。 */
 export function loadOrgConfig(projectDir) {
   const base = readJson(DEFAULT_CFG)
+  const hasLocal = existsSync(LOCAL_CFG)
+  const withLocal = hasLocal ? deepMerge(base, readJson(LOCAL_CFG)) : base
   const overPath = join(projectDir, '.zcode', 'org-config.json')
-  const merged = existsSync(overPath) ? deepMerge(base, readJson(overPath)) : base
-  return { merged, hasOverride: existsSync(overPath), overPath }
+  const merged = existsSync(overPath) ? deepMerge(withLocal, readJson(overPath)) : withLocal
+  return { merged, hasOverride: existsSync(overPath), overPath, hasLocal, localPath: LOCAL_CFG }
 }
 
 /** 读宿主配置（单点封装，供派发器与校验共用——K-W3 单次读入）。 */
@@ -201,6 +206,10 @@ export function validateProviders(cfg, hostCfg) {
       errors.push(`providers.${alias} 值为 ${def === null ? 'null' : typeof def}——须为对象（uuid_prefix/entry_name）；null/非对象条目=配置损坏（evolve-E2 b4 守卫：原裸取 uuid_prefix 即 TypeError 崩溃）`)
       continue
     }
+    if (def.uuid_prefix === 'TODO' || def.entry_name === 'TODO') {
+      errors.push(`providers.${alias} 仍为模板占位（uuid_prefix/entry_name=TODO）——org-config 尚未本机化：填 org-config.local.json（本机件，gitignore；deploy-check --install 可脚手架）同名键实值（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名），指引=DEPLOY.md §3（06 §0 三层）`)
+      continue
+    }
     const hit = entries.find(([id, p]) => id.startsWith(def.uuid_prefix) && p && p.name === def.entry_name)
     if (!hit) {
       const near = entries.find(([id]) => id.startsWith(def.uuid_prefix))
@@ -260,6 +269,25 @@ export function validateRoleSurfaces(cfg) {
     const { dodText } = dodOf(role)
     if (hasTail(dodText)) errors.push(`registry 岗位 ${role} 未入 org-config roles 但其 DoD 有 FINDINGS 尾栏要求——⑥ 执法面无配置承载（回炉 r2 W-1 差集向逃逸）`)
   }
+  return errors
+}
+
+/** 跨门岗对结构校验（v2.1.0 批，07 §4 纪律⑤）：source_health.cross_gate_pairs
+ *  须为二元代理名对数组（[["代理A","代理B"],…]）；绑定实况同族核对=log-triage
+ *  --health ⑧ 的职责（读部署面 frontmatter），此处只管配置结构——挂错形态
+ *  即 exit 3，防实况核对面静默空转。缺席=合法（可选项）。返回错误数组。 */
+export function validateCrossGatePairs(cfg) {
+  const errors = []
+  const pairs = cfg?.source_health?.cross_gate_pairs
+  if (pairs === undefined) return errors
+  if (!Array.isArray(pairs)) {
+    errors.push('source_health.cross_gate_pairs 须为数组（[["代理A","代理B"],…] 二元代理名对）')
+    return errors
+  }
+  pairs.forEach((p, i) => {
+    if (!Array.isArray(p) || p.length !== 2 || p.some((x) => typeof x !== 'string' || !x.trim()))
+      errors.push(`source_health.cross_gate_pairs[${i}] 须为二元代理名对（收到 ${JSON.stringify(p)}）`)
+  })
   return errors
 }
 
@@ -346,6 +374,14 @@ if (isMain) {
     const oCol = collectOpenaiSse([{ choices: [{ delta: { content: 'A' } }] }, { choices: [{ delta: { content: 'B' }, finish_reason: 'stop' }] }, { choices: [{ delta: {} }], usage: { prompt_tokens: 3, completion_tokens: 4 } }])
     t('B5 openai 收割：delta 累积+finish+末块 usage', oCol.choices[0].message.content === 'AB' && oCol.choices[0].finish_reason === 'stop' && oCol.usage.prompt_tokens === 3)
     t('B5 空事件流→空形态不崩（保守）', collectAnthropicSse([]).content.length === 0 && collectOpenaiSse([]).choices[0].message.content === '' && collectOpenaiSse([]).choices[0].finish_reason === null)
+    // v2.1.0 三层化批向量：占位源 fail-fast 指引+跨门岗对结构校验
+    const vpTodo = validateProviders({ providers: { demo: { uuid_prefix: 'TODO', entry_name: 'TODO' } } }, { provider: {} })
+    t('v2.1.0 占位源→尚未本机化指引错误行（不进双校验）', vpTodo.some((e) => e.includes('providers.demo') && e.includes('尚未本机化') && e.includes('org-config.local.json')))
+    t('v2.1.0 跨门对：合法二元对→零错误', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-a', 'ops-b']] } }).length === 0)
+    t('v2.1.0 跨门对：三元对→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 'b', 'c']] } }).some((e) => e.includes('cross_gate_pairs[0]')))
+    t('v2.1.0 跨门对：非字符串成员→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 1]] } }).length === 1)
+    t('v2.1.0 跨门对：非数组形态→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: 'x' } }).some((e) => e.includes('须为数组')))
+    t('v2.1.0 跨门对：缺席→零错误（可选项）', validateCrossGatePairs({}).length === 0)
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
   }
@@ -360,16 +396,17 @@ if (isMain) {
     console.error(`[fatal] org-config 装载失败（${projectDir}）: ${e.message}（06 §5.8 行 3=配置/装载错）`)
     process.exit(3)
   }
-  const { merged, hasOverride } = loaded
+  const { merged, hasOverride, hasLocal } = loaded
   if (cmd === 'resolve') {
     console.log(JSON.stringify(merged, null, 2))
-    console.error(`[override] ${hasOverride ? '项目覆盖件已合并' : '无项目覆盖件（纯默认件）'}`)
+    console.error(`[local] ${hasLocal ? '本机件已合并（org-config.local.json）' : '本机件缺失（默认件占位将拒派——deploy-check --install 可脚手架）'}`)
+    console.error(`[override] ${hasOverride ? '项目覆盖件已合并' : '无项目覆盖件'}`)
   } else if (cmd === 'hash') {
     console.log(`cfg:${cfgHash(merged)}`)
   } else if (cmd === 'validate') {
     let errors
     try {
-      errors = [...validateProviders(merged), ...validateRoleSurfaces(merged)]
+      errors = [...validateProviders(merged), ...validateRoleSurfaces(merged), ...validateCrossGatePairs(merged)]
     } catch (e) {
       console.error(`[fatal] validate 途中宿主配置装载失败: ${e.message}（06 §5.8 行 3=配置/装载错）`)
       process.exit(3)

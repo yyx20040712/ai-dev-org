@@ -2,104 +2,58 @@
   "version": "1.0.0",
   "ledger_path": ".zcode/org-ledger.jsonl",
   "projects": {
-    "synapse": "synapse",
-    "E:/class/智水蓝图/waterprint": "waterprint",
-    "ai-dev-org": "ai-dev-org",
-    "note": "project_id 映射（selfiter 批 B4 project-id-migration 清偿）：键=账本 raw project 名（自由文本史），值=归一化 id；派发器写入账本行 project_id（schema v3），读侧按 project_id ?? project 归一；新项目覆盖件可增映射，缺映射=raw 名透传不阻断"
+    "note": "project_id 映射（selfiter 批 B4 project-id-migration 清偿）：键=账本 raw project 名（自由文本史），值=归一化 id；派发器写入账本行 project_id（schema v3），读侧按 project_id ?? project 归一；映射实值住本机件 local/项目覆盖件可增，缺映射=raw 名透传不阻断"
   },
+  "note": "通用默认件（v2.1.0 三层化批起随包分发，零个人事实）：供应商/项目/视觉通道实值一律住 org-config.local.json（本机件，gitignore 不随包）——深合并序=默认件←本机件←项目覆盖件（语义与规范化哈希=06 §0）。新机首跑=DEPLOY.md（deploy-check --install 脚手架本机件）。",
   "providers": {
     "kimi-main": {
-      "uuid_prefix": "b2466f8b",
-      "entry_name": "Kimi",
-      "kind": "anthropic",
-      "billing": "enterprise",
-      "model_family": "kimi",
-      "note": "K3 企业版主源"
+      "uuid_prefix": "TODO",
+      "entry_name": "TODO",
+      "note": "模板占位——本机实值（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名/kind/billing/model_family）填 org-config.local.json 同名键"
     },
     "kimi-backup": {
-      "uuid_prefix": "5e1abd9d",
-      "entry_name": "zipoo",
-      "kind": "anthropic",
-      "billing": "second-quota",
-      "model_family": "kimi",
-      "note": "同端点第二配额备源（门一 k2 额度兜底位+通用链换源位）"
+      "uuid_prefix": "TODO",
+      "entry_name": "TODO",
+      "note": "模板占位——同 kimi-main 填法"
     },
     "deepseek": {
-      "uuid_prefix": "8ad55776",
-      "entry_name": "梁圣",
-      "kind": "openai",
-      "billing": "payg",
-      "model_family": "deepseek",
-      "note": "审计兜底（套餐外按量）+门一 d1 常设双审第二位绑定源（2026-09-22 终态）"
+      "uuid_prefix": "TODO",
+      "entry_name": "TODO",
+      "note": "模板占位——同 kimi-main 填法"
     }
   },
-  "source_chain": [
-    "kimi-main",
-    "kimi-backup",
-    "deepseek"
-  ],
+  "source_chain": ["kimi-main", "kimi-backup", "deepseek"],
   "finish_vocab": {
-    "complete": [
-      "end_turn",
-      "stop",
-      "stop_sequence"
-    ],
-    "truncation": [
-      "max_tokens",
-      "length"
-    ],
+    "complete": ["end_turn", "stop", "stop_sequence"],
+    "truncation": ["max_tokens", "length"],
     "note": "W-3 白名单反转：仅 complete 视为完整终态；truncation 及一切未知终态=非完整（审计岗 RED）。词表住此处，脚本禁硬编码（A3/06 §0）。"
   },
   "supported_node": {
-    "forbid_major": [
-      25
-    ],
-    "note": "HOST-node25：宿主 Node 25.2.1 下 ds-call-v2 退出阶段 libuv 断言崩溃（残留册 HOST-node25）。外部派发用 Node 24。守卫读本项，脚本禁硬编码路径（W-12）。"
+    "forbid_major": [25],
+    "note": "值守值（语义与经验单源=references/10 §1）：受禁主版本下外部派发器退出阶段 libuv 断言崩溃（残留册 HOST-node25）。外部派发用受支持主版本跑。守卫读本项，脚本禁硬编码路径（W-12）。"
   },
   "thresholds": {
     "source_share_warn": 0.6,
     "source_share_note": "单源占比超此值=配给红线可能失守（P2-3；初始值 0.6，按实测两批后调整）"
   },
   "source_health": {
-    "dual_groups": [
-      [
-        "kimi-main",
-        "kimi-backup"
-      ]
-    ],
+    "dual_groups": [["kimi-main", "kimi-backup"]],
     "gate1_subagent_of": {
       "kimi-main": "ops-gate1-k1",
       "kimi-backup": "ops-gate1-k2",
       "deepseek": "ops-gate1-d1"
     },
-    "standing_pair": [
-      "kimi-main",
-      "deepseek"
-    ],
+    "standing_pair": ["kimi-main", "deepseek"],
+    "cross_gate_pairs": [["ops-gate1-d1", "ops-adjudicator"]],
     "dry_minutes": 60,
-    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义，非常设双审组；standing_pair=常设双审对（2026-09-22 三岗批 R3：对内两源 model_family 必须异族——health-scan 启动校验 RED，防异构退化静默漂移；在册事故=门一双审同 Kimi K3 双配额数周无人报警）；dry_minutes=干涸窗记忆时长（R2：ds-call-v2 对 429/403 配额族失败源落 dry-until 标记，窗内派发直接跳过——掐断干涸窗内对死源重打的浪费）"
+    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义，非常设双审组；standing_pair=常设双审对（2026-09-22 三岗批 R3：对内两源 model_family 必须异族——health-scan 启动校验 RED，防异构退化静默漂移）；cross_gate_pairs=跨门岗对（v2.1.0 批，07 §4 纪律⑤：门一常设双审 vs 门二裁决部同族=异构退化 WARN+申报——log-triage --health ⑧ 核对实况，org-config validate 校结构）；dry_minutes=干涸窗记忆时长（R2）。model_family 实值住本机件 local（同 providers）。"
   },
   "vision_channels": {
-    "glm": {
-      "model": "GLM-5.3-Flash",
-      "endpoint_contains": "/anthropic",
-      "prefer_hosts": [
-        "open.bigmodel.cn",
-        "z.ai",
-        "zcode"
-      ],
-      "stream": true
-    },
-    "ds": {
-      "model": "deepseek-flash",
-      "endpoint_contains": "deepseek",
-      "stream": true
-    },
-    "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数。字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）。通道命中=模型名∧端点子串双条件（通道互斥由模型名区分，聚合网关代发他厂模型属配置面可改）。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实（模型名/偏好序/端点形态）住本件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。项目覆盖件无须复制本分区（深合并未提及沿用默认件）。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑；stream=看图通道流式位（selfiter B5，同 dispatch_request.stream 语义）"
+    "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数分区模板：本默认件只留结构说明，通道实值（model/endpoint_contains/prefer_hosts/stream）住本机件 local——字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）；通道命中=模型名∧端点子串双条件。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实住配置件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑。"
   },
   "hardcode_scan": {
     "forbidden_terms": [],
-    "note": "check-hardcode 的额外扫描名单（正则字面量，扫 .md 正文）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。事实分层（同 vision_channels.note，终审 auditor-B 统一口径）：身份/甄别类供应商事实住本件（providers/vision_channels/source_health），连接/密钥类住宿主 config，.md 正文禁一切 live 事实——实配模型名词表由 check-hardcode 从宿主注册表实时派生，故本名单默认空；项目覆盖件可加自有禁词；strict=升格位（selfiter B6 清偿 check-hardcode-promotion：判据=B3 白名单收缩后经 B4/B5 两批全门禁零误报+零命中——已满足；缺省 RED 生效，--warn 逃生口=试点校准期专用）",
+    "note": "check-hardcode 的额外扫描名单（正则字面量，扫 .md 正文）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。事实分层（同 vision_channels.note，终审 auditor-B 统一口径）：身份/甄别类供应商事实住配置件（providers/vision_channels/source_health），连接/密钥类住宿主 config，.md 正文禁一切 live 事实——实配模型名词表由 check-hardcode 从宿主注册表实时派生，故本名单默认空；项目覆盖件可加自有禁词；strict=升格位（selfiter B6 清偿 check-hardcode-promotion：判据=B3 白名单收缩后经 B4/B5 两批全门禁零误报+零命中——已满足；缺省 RED 生效，--warn 逃生口=试点校准期专用）",
     "strict": true
   },
   "dispatch_request": {
@@ -109,21 +63,11 @@
     "stream": true
   },
   "regression_cfg": {
-    "r1_sources": [
-      "kimi-main",
-      "deepseek"
-    ],
+    "r1_sources": ["kimi-main", "deepseek"],
     "note": "R1 双源抽样源名单单源（v1.7.4 m4 清偿）：源别名须 ∈ providers；改名单=R1 语义变更须重验"
   },
   "anchors_exempt": {
-    "project_names": [
-      "scripts/run_gates.py",
-      "scripts/check_model_names.py",
-      "scripts/check-model-names.mjs",
-      "scripts/check-locks.mjs",
-      "check-tickets.mjs",
-      "__init__.py"
-    ],
+    "project_names": ["scripts/run_gates.py", "scripts/check_model_names.py", "scripts/check-model-names.mjs", "scripts/check-locks.mjs", "check-tickets.mjs", "__init__.py"],
     "note": "check-anchors 项目侧裸文件名豁免点名单单源（v1.7.4 m4 清偿）：项目侧路径不属技能根存在性检查域（同段 PROJECT_PREFIX 正则为语法形态留脚本内）"
   },
   "roles": {
@@ -153,7 +97,7 @@
   },
   "ration_redlines": {
     "kimi-main": {
-      "note": "必保面=路线级拟定+受锁面/安全面/跨模块接缝/数据批/迁移/回炉第二轮起/新依赖；可省面=≤3 文件小批/纯文档批。数字红线由项目覆盖件按订阅事实填。"
+      "note": "必保面=路线级拟定+受锁面/安全面/跨模块接缝/数据批/迁移/回炉第二轮起/新依赖；可省面=≤3 文件小批/纯文档批。数字红线由本机件/项目覆盖件按订阅事实填。"
     }
   },
   "exhaustion_fallback": "readonly-audit-debt"

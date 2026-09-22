@@ -18,7 +18,9 @@
  *   ⑥ remote       git remote 非空=ok；空=[warn]（备份面）；非 git 仓=[warn]
  *   ⑦ ledger-dir   SKILL_ROOT/.zcode/ 试写临时文件后删 → ok/FAIL
  * 汇总行：deploy-check 汇总：ok X/warn Y/FAIL Z——<可部署/处置后复跑/阻断>
- * --install 三动作：④缺失清单逐件复制 templates→agents-dir+sha256 复核；
+ * --install 四动作（v2.1.0 三层化批起）：③a本机件 org-config.local.json
+ *   缺失时脚手架（默认件占位复制+note 声明用户配置域；已存在绝不覆盖）；
+ *   ④缺失清单逐件复制 templates→agents-dir+sha256 复核；
  *   ⑤hooksPath 未设时 git config core.hooksPath .githooks；③宿主事实派生
  *   项目覆盖件 .zcode/org-config.json（g3 批 deploy-hostfacts-split 清偿
  *   ——按 entry_name 唯一命中派生 uuid_prefix；已存在绝不覆盖/有零命中或
@@ -157,7 +159,7 @@ export function runChecks(agentsDir, cfg) {
   else
     push({
       level: 'FAIL',
-      line: `org-config——validate exit ${oc.status}：${lastLine(oc.stderr || oc.stdout)}｜新机最常见断点=providers uuid_prefix/entry_name 与宿主注册表双校验不符——处置=按三元组（alias/期望/实际）对齐 org-config.default.json，或建项目覆盖件 .zcode/org-config.json（深合并覆盖）；宿主 config（key/端点事实）永不改、不入库`,
+      line: `org-config——validate exit ${oc.status}：${lastLine(oc.stderr || oc.stdout)}｜新机最常见断点=providers 占位未本机化或 uuid_prefix/entry_name 与宿主注册表双校验不符——处置=填 org-config.local.json 本机实值（deploy-check --install 可脚手架；uuid 前缀=宿主注册表条目 id 前 8 字符）或建项目覆盖件 .zcode/org-config.json（深合并覆盖）；宿主 config（key/端点事实）永不改、不入库`,
     })
 
   for (const name of listAgentTemplates()) {
@@ -211,6 +213,30 @@ export function installHook() {
   return r.status === 0
     ? 'install-hook——已设 core.hooksPath=.githooks（提交门禁挂入）'
     : `install-hook——设置失败（exit ${r.status}：${String(r.stderr || '').trim()}）——手跑 git config core.hooksPath .githooks`
+}
+
+// ── v2.1.0 三层化批：本机件脚手架（动作③a）──
+// org-config.local.json（本机个人事实层，gitignore）缺失时从默认件复制一份
+// 供用户填实值（providers/vision_channels/projects 的 TODO 占位）；已存在=
+// 绝不覆盖（用户配置域）。写盘段自包 try/catch（同 installHostFacts 处置纪律）。
+
+/** ③a 纯写盘：脚手架本机件（fixture 可注入路径；禁动真实状态向量用临时目录）。 */
+export function installLocalConfig(defaultCfg, localPath) {
+  if (existsSync(localPath))
+    return { wrote: false, level: 'ok', line: `install-localconfig——本机件已存在（${localPath}）——绝不覆盖（用户配置域）` }
+  const payload = {
+    ...defaultCfg,
+    note: '本机个人事实层（deploy-check --install 脚手架，v2.1.0 三层化批）——用户配置域，装后自由改写：填 providers 各源（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名/kind/billing/model_family）与 vision_channels/projects 实值后复跑 deploy-check；指引=DEPLOY.md §3',
+  }
+  try {
+    writeFileSync(localPath, JSON.stringify(payload, null, 2) + '\n')
+    const back = readJson(localPath)
+    return back && typeof back === 'object' && back.providers
+      ? { wrote: true, level: 'ok', line: `install-localconfig——已脚手架本机件 ${localPath}（默认件占位全量复制；填 TODO 实值后复跑 deploy-check）` }
+      : { wrote: true, level: 'FAIL', line: `install-localconfig——本机件写盘回读不符（${localPath}）——重跑 --install 或人工核查` }
+  } catch (e) {
+    return { wrote: false, level: 'FAIL', line: `install-localconfig——本机件写盘/回读失败（${localPath}：${e.message}）——重跑 --install 或人工核查磁盘/权限` }
+  }
 }
 
 // ── g3 批（deploy-hostfacts-split 残留清偿）：宿主事实派生项目覆盖件 ──
@@ -410,6 +436,29 @@ function selfTest() {
     t('g3 install：installHostFacts 已导出（红态=函数未落）', false)
   }
 
+  // 向量7：v2.1.0 三层化批 installLocalConfig（fixture=临时目录，禁动真实状态）
+  {
+    const fxDir = mkdtempSync(join(tmpdir(), 'deploy-check-lc-'))
+    try {
+      const def = { providers: { a: { uuid_prefix: 'TODO', entry_name: 'TODO', note: 'x' } }, source_chain: ['a'] }
+      const p1 = join(fxDir, 'case1.json')
+      writeFileSync(p1, '{"providers":{"keep":1}}')
+      const r1 = installLocalConfig(def, p1)
+      t('v2.1.0 ③a：本机件已存在→绝不覆盖（原内容不动）', r1.wrote === false && r1.level === 'ok' && readFileSync(p1, 'utf8').includes('"keep"'))
+      const p2 = join(fxDir, 'case2.json')
+      const r2 = installLocalConfig(def, p2)
+      const back2 = existsSync(p2) ? JSON.parse(readFileSync(p2, 'utf8')) : null
+      t('v2.1.0 ③a：缺失→脚手架（note 声明用户配置域+默认件全量复制+回读一致）', r2.wrote === true && r2.level === 'ok' && !!back2 && typeof back2.note === 'string' && back2.note.includes('用户配置域') && back2.providers?.a?.uuid_prefix === 'TODO')
+      const blocker = join(fxDir, 'blocker-file')
+      writeFileSync(blocker, 'x')
+      const p3 = join(blocker, 'nested', 'case3.json') // 父级是文件→写盘必抛 IO 错
+      const r3 = (() => { try { return { r: installLocalConfig(def, p3) } } catch (e) { return { e } } })()
+      t('v2.1.0 ③a：写盘 IO 抛错→FAIL 结果带真因（不裸抛）', r3.r?.level === 'FAIL' && r3.r.line.includes('写盘/回读失败'))
+    } finally {
+      rmSync(fxDir, { recursive: true, force: true })
+    }
+  }
+
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
 }
@@ -442,7 +491,15 @@ if (isMain) {
 
   let installFailCount = 0
   if (argv.includes('--install')) {
-    console.log('[install] 首装模式——三动作：④补缺失代理件 / ⑤hooksPath 未设时补设 / ③宿主事实派生项目覆盖件（护栏：不覆盖漂移件/不改 org-config.default.json 与宿主配置）')
+    console.log('[install] 首装模式——四动作：③a本机件脚手架（org-config.local.json，v2.1.0 三层化批）/ ④补缺失代理件 / ⑤hooksPath 未设时补设 / ③宿主事实派生项目覆盖件（护栏：不覆盖已存在件/不改 org-config.default.json 与宿主配置）')
+    // ③a 先行：本机件就位后，后续 loadOrgConfig 的合并结果才含本机实值
+    let lcLine = 'install-localconfig——跳过：默认件装载失败'
+    try {
+      lcLine = installLocalConfig(readJson(join(SKILL_ROOT, 'org-config.default.json')), join(SKILL_ROOT, 'org-config.local.json')).line
+    } catch (e) {
+      lcLine = `install-localconfig——跳过：默认件装载失败（${e.message}）——处置=核对 org-config.default.json 后复跑`
+    }
+    console.log(`[install] ${lcLine}`)
     console.log(`[install] ${installAgents(agentsDir).line}`)
     console.log(`[install] ${installHook()}`)
     // g3 动作③（回炉轮 1 R1/R2 重构错误处置——门一 W2/W3）：三源分行归因——

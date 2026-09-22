@@ -547,6 +547,28 @@ function run() {
               : `   [ok] 常设双审对异族（${fams[0]} vs ${fams[1]}）——异构成立（R3）\n`)
         }
       }
+      // v2.1.0 批（07 §4 纪律⑤）：跨门岗对同族核对——门一常设双审 vs 门二裁决部
+      // 同族=异构对抗退化形态（WARN+申报入档，升格条件登记在册）；任一侧未解析=[?] 人工核。
+      for (const pair of Array.isArray(sh.cross_gate_pairs) ? sh.cross_gate_pairs : []) {
+        if (!Array.isArray(pair) || pair.length !== 2) continue
+        const famOfAgent = (agent) => {
+          try {
+            const fm = readFileSync(join(homedir(), '.zcode', 'agents', `${agent}.md`), 'utf8')
+            const mv = /^model:\s*(\S+)/m.exec(fm)
+            const front = mv ? mv[1].replace(/^['"]|['"]$/g, '') : ''
+            const prefix = /^([0-9a-f]{8})/i.exec((front.split('/')[0] || '').trim())
+            const prov = prefix ? Object.entries(merged.providers || {}).find(([, p]) => String(p.uuid_prefix || '').toLowerCase() === prefix[1].toLowerCase()) : null
+            return prov ? String(prov[1].model_family || '?').toLowerCase() : '?'
+          } catch { return '?' }
+        }
+        const fa = famOfAgent(pair[0]), fb = famOfAgent(pair[1])
+        W(
+          fa === '?' || fb === '?'
+            ? `   [?] 跨门岗对无法核对（${pair.join('↔')}——${fa === '?' ? pair[0] : pair[1]} 侧档案缺失/未解析）——不构成异构性证据，人工核绑定（纪律⑤）\n`
+            : fa === fb
+              ? `   [WARN] 跨门岗对同族（${pair.join('↔')} family=${fa}）——异构对抗退化形态：WARN+申报入档，禁静默（07 §4 纪律⑤；升格 RED=跨门护栏落地或裁决部改绑异族源=用户裁决位）\n`
+              : `   [ok] 跨门岗对异族（${pair.join('↔')} ${fa} vs ${fb}）——跨门异构成立（纪律⑤）\n`)
+      }
     } else {
       // ── B-0 全量分诊 ──
       W(`== log-triage 分诊（内链路 ${logFiles.join(',')} ×${cliLines.length} 行 + 外链路流水；窗口=${dateStr || `近 ${hours}h`}）==\n`)

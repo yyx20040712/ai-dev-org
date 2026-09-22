@@ -1,9 +1,11 @@
 # 06 · 模型路由与换源状态机（ai-dev-org 视图）
 
 > **零硬编码声明**：供应商事实（源序/端点/套餐/额度/配给）一律以
-> org-config 为唯一真相源——技能默认件 `org-config.default.json` +
-> 项目覆盖件 `<项目>/.zcode/org-config.json`（深合并语义：对象逐字段
-> 覆盖、未提及字段沿用默认、数组整体替换、显式 null=删除；规范化
+> org-config 为唯一真相源——**三层装载（v2.1.0 批）**：默认件
+> `org-config.default.json`（通用/随包，个人事实为 TODO 占位）← 本机件
+> `org-config.local.json`（个人实值，gitignore 不随分享包）← 项目覆盖件
+> `<项目>/.zcode/org-config.json`（深合并语义：对象逐字段
+> 覆盖、未提及字段沿用下层、数组整体替换、显式 null=删除；规范化
 > 哈希=递归键排序+剔 null+紧凑序列化的 sha256 前 12 位，工具
 > `scripts/org-config.mjs hash`）。本件与 SKILL.md 均不含任何具体
 > 端点/套餐数字。
