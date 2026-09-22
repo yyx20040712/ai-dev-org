@@ -16,10 +16,11 @@ node scripts/package-skill.mjs --out <空输出目录>
   agent_bindings 实值）、`.zcode/`（账本/干涸窗标记）、`scripts/model-routing-log.jsonl`
   （派发流水）、`.git/`。
 - **分享面门禁**（零命中才出包，命中=exit 1 保留目录供排查）：
-  ①uuid 形态（8-4-4-4-12 hex）；②盘符绝对路径（`E:/…`/`C:\…`——正则转义族
+  ①uuid 形态（8-4-4-4-12 hex）；②盘符绝对路径（正/反斜杠形态——正则转义族
   如 `FINDINGS:\s*` 不误伤）；③本机标识（org-config 本机件 entry_name+绑定值，
   剔除供应商家族名——分工链描述属安排性提及，08 §1 判例）。
-  白名单=`scripts/share-whitelist.json`（行级豁免，逐条理由——历史批档指针类）。
+  白名单=`scripts/share-whitelist.json`（行级豁免，逐条理由——历史批档指针类；
+  自检 fixture 合成样例豁免在册；白名单注册件自身=代码级 skip 防自咬）。
 - 产出含 `MANIFEST.txt`（逐文件 sha256+基线 git 哈希——生成物，09 §1 语义）。
 - **有意形态（非缺陷，勿"修"）**：`org-config.default.json` 的 `TODO` 占位与
   `templates/agents/*.md` 的 `{{binding:岗}}` 占位——受赠机填自己的实值。

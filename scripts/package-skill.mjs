@@ -60,8 +60,9 @@ export function lineExempt(relPath, line, entries = []) {
   })
 }
 
-/** 目录树扫描：返回命中列表 [{file, line, no, hits}]（豁免行不计）。 */
-export function scanTree(root, patterns, entries = []) {
+/** 目录树扫描：返回命中列表 [{file, line, no, hits}]（豁免行不计；skip=整文件
+ *  跳过名单——自指性文件如白名单注册件本身存豁免串，代码级跳过防自咬）。 */
+export function scanTree(root, patterns, entries = [], skip = []) {
   const found = []
   const walk = (dir) => {
     for (const name of readdirSync(dir).sort()) {
@@ -70,6 +71,7 @@ export function scanTree(root, patterns, entries = []) {
       const st = statSync(p)
       if (st.isDirectory()) { walk(p); continue }
       const rel = relative(root, p).replaceAll('\\', '/')
+      if (skip.includes(rel)) continue
       const lines = readFileSync(p, 'utf8').split('\n')
       lines.forEach((line, i) => {
         if (lineExempt(rel, line, entries)) return
@@ -106,16 +108,16 @@ function selfTest() {
   let n = 0
   const t = (name, cond) => (n++, console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`), cond || fails++)
   const pats = buildSharePatterns(
-    { providers: { a: { entry_name: '梁圣' }, b: { entry_name: 'Kimi' }, c: { entry_name: 'TODO' } }, agent_bindings: { x: 'bbbbbbbb-0000-4000-8000-000000000002/k3-demo$max' } },
+    { providers: { a: { entry_name: 'acct-demo-x' }, b: { entry_name: 'Kimi' }, c: { entry_name: 'TODO' } }, agent_bindings: { x: 'bbbbbbbb-0000-4000-8000-000000000002/k3-demo$max' } },
     ['kimi', 'glm', 'deepseek'],
   )
-  t('词表：本机 entry_name 收录', pats.terms.includes('梁圣'))
+  t('词表：本机 entry_name 收录', pats.terms.includes('acct-demo-x'))
   t('词表：供应商家族名剔除（Kimi）', !pats.terms.includes('Kimi'))
   t('词表：TODO 占位剔除', !pats.terms.includes('TODO'))
   t('扫描：uuid 形态命中', scanLine('见 aaaaaaaa-0000-4000-8000-000000000001/k3', pats).includes('uuid形态'))
   t('扫描：正则转义族不误伤（FINDINGS:\\s*B=）', !scanLine('锚定 `/^\\s*`?FINDINGS:\\s*B=/m` 行', pats).length)
   t('扫描：盘符路径命中（正斜杠/反斜杠）', scanLine('先例 E:/x/a.md 与 C:\\y', pats).includes('盘符绝对路径'))
-  t('扫描：本机标识命中（entry_name）', scanLine('源=梁圣 端点', pats).some((h) => h.startsWith('本机标识')))
+  t('扫描：本机标识命中（entry_name）', scanLine('源=acct-demo-x 端点', pats).some((h) => h.startsWith('本机标识')))
   t('扫描：绑定值命中（含 uuid 前缀串）', scanLine('绑定=bbbbbbbb-0000-4000-8000-000000000002/k3-demo$max', pats).length >= 1)
   t('豁免：file_prefix+contains 同时满足才豁免', lineExempt('references/06-x.md', '批档=E:/zcode_md/a', [{ file_prefix: 'references/', contains: 'E:/zcode_md' }]) && !lineExempt('references/06-x.md', '其他行', [{ file_prefix: 'references/', contains: 'E:/zcode_md' }]) && !lineExempt('SKILL.md', '批档=E:/zcode_md/a', [{ file_prefix: 'references/', contains: 'E:/zcode_md' }]))
   // scanTree+manifest 集成（fixture 临时目录）
@@ -123,9 +125,11 @@ function selfTest() {
   try {
     mkdirSync(join(fx, 'references'))
     writeFileSync(join(fx, 'references', 'a.md'), '干净行\n批档=E:/zcode_md/hist（历史指针）\nuuid=aaaaaaaa-0000-4000-8000-000000000001\n', 'utf8')
-    writeFileSync(join(fx, 'b.md'), '本机账号=梁圣\n', 'utf8')
+    writeFileSync(join(fx, 'b.md'), '本机账号=acct-demo-x\n', 'utf8')
     const hits = scanTree(fx, pats, [{ file_prefix: 'references/', contains: 'E:/zcode_md', reason: '历史' }])
-    t('树扫：豁免行不计、命中行定位 file:行号', hits.length === 2 && hits.some((h) => h.file === 'references/a.md' && h.no === 3 && h.hits.includes('uuid形态')) && hits.some((h) => h.file === 'b.md' && h.hits.some((x) => x.includes('梁圣'))))
+    t('树扫：豁免行不计、命中行定位 file:行号', hits.length === 2 && hits.some((h) => h.file === 'references/a.md' && h.no === 3 && h.hits.includes('uuid形态')) && hits.some((h) => h.file === 'b.md' && h.hits.some((x) => x.includes('acct-demo-x'))))
+    const hitsSk = scanTree(fx, pats, [], ['b.md'])
+    t('树扫：skip 整文件跳过（自指性注册件形态）', hitsSk.length === 1 && hitsSk[0].file === 'references/a.md')
     const mf = buildManifest(fx, 'deadbeef', 'MANIFEST.txt')
     t('清单：逐文件 sha256+豁免自身', mf.includes('references/a.md') && mf.includes('b.md') && /^[0-9a-f]{64}  references\/a\.md$/m.test(mf))
   } finally {
@@ -169,7 +173,8 @@ if (isMain) {
   let cfg
   try { cfg = loadOrgConfig(SKILL_ROOT).merged } catch (e) { console.error(`[装载错] org-config 装载失败: ${e.message}`); process.exit(3) }
   const patterns = buildSharePatterns(cfg, wl.term_exemptions || [])
-  const hits = scanTree(outDir, patterns, wl.entries || [])
+  // skip=自指性文件：白名单注册件本身存豁免串（含盘符样例），扫则自咬
+  const hits = scanTree(outDir, patterns, wl.entries || [], ['scripts/share-whitelist.json'])
   if (hits.length) {
     console.error(`[RED] 分享面门禁未过（${hits.length} 命中——个人/本机事实泄漏面；输出目录保留供排查）：`)
     for (const h of hits) console.error(`  ${h.file}:${h.no} [${h.hits.join('|')}] ${h.line}`)

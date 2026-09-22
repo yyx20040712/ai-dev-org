@@ -31,6 +31,41 @@
       "file": "SKILL.md",
       "contains": "E:/",
       "reason": "版本与状态节历史批档指针（08 §3 禁改写）——如出现即豁免，现行段不应新增"
+    },
+    {
+      "file": "scripts/log-triage.mjs",
+      "contains": "aaaaaaaa-0000-4000-8000",
+      "reason": "自检 fixture 合成 uuid（v2.1.0 批5 个人 uuid 中性化产物，非真实账号标识）"
+    },
+    {
+      "file": "scripts/log-triage.mjs",
+      "contains": "bbbbbbbb-0000-4000-8000",
+      "reason": "同上"
+    },
+    {
+      "file": "scripts/package-skill.mjs",
+      "contains": "aaaaaaaa-0000-4000-8000",
+      "reason": "门禁自检 fixture 合成 uuid/盘符样例（扫描器自身向量，非真实事实）"
+    },
+    {
+      "file": "scripts/package-skill.mjs",
+      "contains": "bbbbbbbb-0000-4000-8000",
+      "reason": "同上"
+    },
+    {
+      "file": "scripts/package-skill.mjs",
+      "contains": "E:/x/",
+      "reason": "门禁自检合成盘符样例（同上）"
+    },
+    {
+      "file": "scripts/package-skill.mjs",
+      "contains": "E:/zcode_md",
+      "reason": "门禁自检豁免语义向量字符串（同上）"
+    },
+    {
+      "file": "scripts/package-skill.mjs",
+      "contains": "acct-demo-x",
+      "reason": "门禁自检合成本机标识样例（同上）"
     }
   ]
 }
