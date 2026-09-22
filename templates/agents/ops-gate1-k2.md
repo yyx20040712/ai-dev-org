@@ -1,6 +1,6 @@
 ---
 name: ops-gate1-k2
-description: 门一隔离一审（源B=zipoo 第二配额备源，ops-gate1-k2）——对抗式代码审查，只收自包含 diff 审计包（随简报内联）。当主控派发门一审包且健康检查推荐源B（源A额度耗尽/不可达）时使用。Use for 门一审包、隔离审计、备源承载。
+description: 门一隔离一审（源B=第二配额备源（kimi-backup），ops-gate1-k2）——对抗式代码审查，只收自包含 diff 审计包（随简报内联）。当主控派发门一审包且健康检查推荐源B（源A额度耗尽/不可达）时使用。Use for 门一审包、隔离审计、备源承载。
 tools: Read
 color: purple
 model: {{binding:ops-gate1-k2}}

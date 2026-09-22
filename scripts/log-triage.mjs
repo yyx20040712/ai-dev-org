@@ -14,7 +14,7 @@
  *   ⑥岗×源用量汇总（含 Kimi 双源分列——org-ledger 补记数据源）
  *   ⑦finish 终态派生（子代理通道截断信号——保守口径，词表读 org-config finish_vocab）
  *   --health：源健康检查（A'③）——按供应商五类分诊 → k1/k2 推荐+分类处置建议
- *     （额度类→换源；504 窗口类→不换源、瘦身——zipoo 同端点共模，05 §九纠偏②）
+ *     （额度类→换源；504 窗口类→不换源、瘦身——第二配额备源同端点共模，05 §九纠偏②）
  * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--self-test]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
@@ -345,26 +345,26 @@ function run() {
     t('403→quota（v2.0.1 修复批 L4：对齐类目标签「配额限流(429/403)」——原落 config 分支=标签撒谎）', classifyError({ statusCode: 403 }) === 'quota')
     t('ECONNRESET→transport', classifyError({ statusMessage: 'fetch failed: ECONNRESET' }) === 'transport')
     t('枚举值判定（sonnet 非 <uuid>/<model> 形态）', !VALID_MODEL_RE.test('sonnet'))
-    t('合法绑定形态（uuid/model）', VALID_MODEL_RE.test('8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash'))
+    t('合法绑定形态（uuid/model）', VALID_MODEL_RE.test('aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash'))
     t('合法绑定形态（builtin:model/key）', VALID_MODEL_RE.test('builtin:bigmodel-coding-plan/GLM-5.3'))
     // 2026-09-17 档位批向量：`$档位` 后缀（宿主 model 串扩展语法）与 account: 前缀族
-    t('合法绑定形态（uuid/model$档位——宿主 $ 后缀语法）', VALID_MODEL_RE.test('b2466f8b-9d89-4428-a38e-c2aca1c41d0e/k3$max'))
+    t('合法绑定形态（uuid/model$档位——宿主 $ 后缀语法）', VALID_MODEL_RE.test('bbbbbbbb-0000-4000-8000-000000000002/k3$max'))
     t('合法绑定形态（account: 前缀族）', VALID_MODEL_RE.test('account:bigmodel-individual-coding-plan/GLM-5.3$max'))
     const fbLvl = detectSilentFallback({
-      metas: [{ profileId: 'probe-lvl-x', childSessionId: 's3', profileSnapshot: { model: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e/k3$max' } }],
-      subagentNet: { s3: { alias: 'kimi-main', providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+      metas: [{ profileId: 'probe-lvl-x', childSessionId: 's3', profileSnapshot: { model: 'bbbbbbbb-0000-4000-8000-000000000002/k3$max' } }],
+      subagentNet: { s3: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
     })
     t('$档位后缀不误报回退（声明 k3$max/实际 k3=剥档位后一致）', fbLvl.length === 0)
     // 2026-09-17 档位批新会话首验暴露的检测盲区向量：宿主 metadata 新格式
     // profileSnapshot.modelSelection 结构体（$档位 解析落 options.reasoningLevel）
     // ——③ 原只读 model 字符串=新格式绑定岗静默跳过（恰好漏掉要盯的对象）
     t('sel 新格式（含档位）合成串可比对且不误报（provider/model$level）', detectSilentFallback({
-      metas: [{ profileId: 'probe-sel-ok', childSessionId: 's5', profileSnapshot: { modelSelection: { providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', options: { reasoningLevel: 'max' } } } }],
-      subagentNet: { s5: { alias: 'kimi-main', providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+      metas: [{ profileId: 'probe-sel-ok', childSessionId: 's5', profileSnapshot: { modelSelection: { providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', options: { reasoningLevel: 'max' } } } }],
+      subagentNet: { s5: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
     }).length === 0)
     t('sel 新格式回退可抓（声明 k3/实际宿主他模=RED 静默回退）', (() => {
       const r = detectSilentFallback({
-        metas: [{ profileId: 'probe-sel-bad', childSessionId: 's6', profileSnapshot: { modelSelection: { providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3' } } }],
+        metas: [{ profileId: 'probe-sel-bad', childSessionId: 's6', profileSnapshot: { modelSelection: { providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3' } } }],
         subagentNet: { s6: { alias: '(宿主)', providerId: 'builtin:bigmodel-coding-plan', modelId: 'GLM-5.3', lastFinish: 'end_turn', fails: 0 } },
       })
       return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('静默回退')
@@ -373,36 +373,36 @@ function run() {
       const d = declaredModelOf({ modelSelection: { providerId: 'account:bigmodel-individual-coding-plan', modelId: 'GLM-5.3' } })
       return d === 'account:bigmodel-individual-coding-plan/GLM-5.3' && VALID_MODEL_RE.test(d)
     })())
-    t('sel 残缺形态（缺 modelId）=null 非绑定岗跳过，不合成伪值', declaredModelOf({ modelSelection: { providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e' } }) === null && declaredModelOf(null) === null)
+    t('sel 残缺形态（缺 modelId）=null 非绑定岗跳过，不合成伪值', declaredModelOf({ modelSelection: { providerId: 'bbbbbbbb-0000-4000-8000-000000000002' } }) === null && declaredModelOf(null) === null)
     const fb = detectSilentFallback({
       metas: [{ profileId: 'probe-b-x', childSessionId: 's1', profileSnapshot: { model: 'sonnet' } },
-              { profileId: 'probe-c-x', childSessionId: 's2', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash' } }],
-      subagentNet: { s2: { alias: 'deepseek', providerId: '8ad55776-2296-4f1a-bc46-05755c8f1300', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
+              { profileId: 'probe-c-x', childSessionId: 's2', profileSnapshot: { model: 'aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash' } }],
+      subagentNet: { s2: { alias: 'deepseek', providerId: 'aaaaaaaa-0000-4000-8000-000000000001', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
     })
     t('probe-b 假绑定零流量=WARN（档案面问题不污染退出码——评估批修正：原一律 RED 致历史探针永久阻断）', fb.length === 1 && fb[0].level === 'WARN' && fb[0].kind.includes('枚举'))
     t('probe-b 假绑定有流量=RED（枚举+窗口内实际请求=路由不可信）', detectSilentFallback({
       metas: [{ profileId: 'probe-b-live', childSessionId: 's7', profileSnapshot: { model: 'sonnet' } }],
-      subagentNet: { s7: { alias: 'kimi-main', providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+      subagentNet: { s7: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
     })[0]?.level === 'RED')
     t('metadata 形态漂移 tripwire：model 键成对象→WARN 未识形态', detectSilentFallback({
       metas: [{ profileId: 'probe-drift', childSessionId: 's8', profileSnapshot: { model: { providerId: 'x', modelId: 'y' } } }],
       subagentNet: {},
     })[0]?.kind.includes('漂移') === true)
     t('metadata 形态漂移 tripwire：modelSelection 残缺结构→WARN（检测面失明前哨）', detectSilentFallback({
-      metas: [{ profileId: 'probe-drift2', childSessionId: 's9', profileSnapshot: { modelSelection: { providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e' } } }],
+      metas: [{ profileId: 'probe-drift2', childSessionId: 's9', profileSnapshot: { modelSelection: { providerId: 'bbbbbbbb-0000-4000-8000-000000000002' } } }],
       subagentNet: {},
     })[0]?.kind.includes('漂移') === true)
     t('tripwire 双键同场不漏报（门一 W-1 回炉：合法 model+畸形 modelSelection→漂移 WARN 且绑定核对照走）', (() => {
       const r = detectSilentFallback({
-        metas: [{ profileId: 'probe-dual', childSessionId: 's10', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash', modelSelection: { providerId: 123 } } }],
-        subagentNet: { s10: { alias: 'deepseek', providerId: '8ad55776-2296-4f1a-bc46-05755c8f1300', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
+        metas: [{ profileId: 'probe-dual', childSessionId: 's10', profileSnapshot: { model: 'aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash', modelSelection: { providerId: 123 } } }],
+        subagentNet: { s10: { alias: 'deepseek', providerId: 'aaaaaaaa-0000-4000-8000-000000000001', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
       })
       return r.length === 1 && r[0].kind.includes('漂移') // 漂移 WARN 留痕+声明=实际无回退发现=绑定核对未被漂移顶替
     })())
     t('tripwire 与比对并行（门二裁决 P3-②：合法声明+漂移+声明≠实际→漂移 WARN+回退 RED 双条——漂移留痕不替代绑定核对）', (() => {
       const r = detectSilentFallback({
-        metas: [{ profileId: 'probe-drift-mismatch', childSessionId: 's11', profileSnapshot: { model: '8ad55776-2296-4f1a-bc46-05755c8f1300/deepseek-flash', modelSelection: { providerId: 123 } } }],
-        subagentNet: { s11: { alias: 'kimi-main', providerId: 'b2466f8b-9d89-4428-a38e-c2aca1c41d0e', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+        metas: [{ profileId: 'probe-drift-mismatch', childSessionId: 's11', profileSnapshot: { model: 'aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash', modelSelection: { providerId: 123 } } }],
+        subagentNet: { s11: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
       })
       return r.length === 2 && r.some((f) => f.kind.includes('漂移') && f.level === 'WARN') && r.some((f) => f.kind.includes('静默回退') && f.level === 'RED')
     })())

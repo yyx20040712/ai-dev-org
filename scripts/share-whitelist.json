@@ -1,0 +1,36 @@
+{
+  "_note": "package-skill 分享面门禁白名单（v2.1.0 批5）。规则与 hardcode-whitelist 同语义：一条规则对单个行生效当且仅当全部已声明条件同时满足（file=相对包根路径后缀匹配/file_prefix=前缀匹配/contains=行内子串）——豁免=行级非文件级，须逐条写理由。term_exemptions=供应商家族名（分工链描述属安排性提及——08 §1 判例，非本机个人事实），从扫描词表整体剔除（子串命中即剔）。",
+  "term_exemptions": ["kimi", "glm", "deepseek", "claude", "gpt", "gemini"],
+  "entries": [
+    {
+      "file_prefix": "references/",
+      "contains": "E:/zcode_md",
+      "reason": "历史批档/修订记指针（08 §3 禁改写）——受赠机视作归档编号即可，路径无本机外含义"
+    },
+    {
+      "file_prefix": "references/",
+      "contains": "E:\\",
+      "reason": "同上（反斜杠形态；04·MG-1 教训事件叙述/05 §5 整合基准指针）"
+    },
+    {
+      "file_prefix": "references/",
+      "contains": "E:/class",
+      "reason": "08 §5/§6 本机档案区先例指针（现行段——受赠机按自身档案区理解同名概念）"
+    },
+    {
+      "file": "RESIDUALS.md",
+      "contains": "E:/",
+      "reason": "修订记历史叙述（08 §3 禁改写）"
+    },
+    {
+      "file": "RESIDUALS.md",
+      "contains": "E:\\",
+      "reason": "同上（反斜杠形态）"
+    },
+    {
+      "file": "SKILL.md",
+      "contains": "E:/",
+      "reason": "版本与状态节历史批档指针（08 §3 禁改写）——如出现即豁免，现行段不应新增"
+    }
+  ]
+}
