@@ -129,7 +129,7 @@ function selfTest() {
     const hits = scanTree(fx, pats, [{ file_prefix: 'references/', contains: 'E:/zcode_md', reason: '历史' }])
     t('树扫：豁免行不计、命中行定位 file:行号', hits.length === 2 && hits.some((h) => h.file === 'references/a.md' && h.no === 3 && h.hits.includes('uuid形态')) && hits.some((h) => h.file === 'b.md' && h.hits.some((x) => x.includes('acct-demo-x'))))
     const hitsSk = scanTree(fx, pats, [], ['b.md'])
-    t('树扫：skip 整文件跳过（自指性注册件形态）', hitsSk.length === 1 && hitsSk[0].file === 'references/a.md')
+    t('树扫：skip 整文件跳过（自指性注册件形态）', hitsSk.length === 2 && hitsSk.every((h) => h.file === 'references/a.md') && !hitsSk.some((h) => h.file === 'b.md'))
     const mf = buildManifest(fx, 'deadbeef', 'MANIFEST.txt')
     t('清单：逐文件 sha256+豁免自身', mf.includes('references/a.md') && mf.includes('b.md') && /^[0-9a-f]{64}  references\/a\.md$/m.test(mf))
   } finally {
