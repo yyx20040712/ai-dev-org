@@ -24,7 +24,7 @@ loop-engineering-archive-2026-09/`——路径相对 skills 根，非技能根�
 | 拟定者 drafter | 派发器 `--role drafter` |
 | 实现者 | 会话内子代理 |
 | 门一 gate1-reviewer | 会话内绑定子代理（常设双审 ops-gate1-k1+d1；k2=额度兜底）＋派发器后备 |
-| 门二 | 会话内子代理 |
+| 门二（双部制） | 会话内子代理：实证部＋裁决部（07 §1） |
 | 审核者 auditor-readonly | 派发器 `--role auditor-readonly` |
 | SRE 诊断岗 sre-diagnostic | 会话内只读子代理 |
 | 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look，细则=07 §4 设计岗卡） |
@@ -60,8 +60,8 @@ node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.m
 **子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗；门一 2026-09-22 三岗制）**：文本岗/
 异构岗/门一三岗已挂 `~/.zcode/agents/ops-*.md` 绑定子代理（frontmatter
 model=`<provider>/<model-key>$<档位>`——`$` 后缀=显式思考档位声明，缺省
-即派发拒启 reasoning-level-missing（2026-09-17 宿主代码实证），现役档案
-一律 `$max`；上游枚举值=假绑定禁用；空 tools=
+即派发拒启 reasoning-level-missing（2026-09-17 宿主代码实证），绑定岗现役档案
+一律 `$max`（未绑定岗无 model 字段，见随宿主批）；上游枚举值=假绑定禁用；空 tools=
 泄漏全工具面禁用；代理档案会话启动快照无热加载——改档须新会话验证+
 `log-triage.mjs` 日志核对零回退）。**2026-09-19 用户裁决**：原 GLM 绑定三岗（实现者/门二实证部/
 SRE 诊断=ops-executor/probe/diagnostics）改**随宿主会话模型**——未绑定
@@ -128,7 +128,7 @@ tier 记法：外部岗取 org-config
 | 数据批 | 独立复算 + 专家追认（02 §6） |
 | 路线级设计 | 三段通道：拟定 + 对抗审核 + 主控终裁（02 §8.6） |
 | 已审面修改 | 该面随批重过——给首审档呈 diff，「改了就要再审」（08 §7 惯例） |
-| 纯配置变更批（org-config/路由/配给） | 按「已审面修改」处理：配置 diff+预期行为变化呈 auditor-readonly 复核（W5 审 B' 双源 B1） |
+| 纯配置变更批（org-config/路由/配给） | 单点配置批（改 1 个配置件 ≤10 行）=门一单审（k1）+主控亲验全机检矩阵（分级烤验 R5 carve-out，与分级段同源）；其余纯配置批按「已审面修改」处理：配置 diff+预期行为变化呈 auditor-readonly 复核（W5 审 B' 双源 B1） |
 | 收口/交付批 | 烤验证据随呈报包复核：各对抗位报告 + health-scan RED=0 + 基线数字对账（W5 审 ds-B1）+ 入仓工件污染面零命中（08 §6——项目仓门禁+命名过目） |
 
 复合批取命中各行对抗位的**并集**：一个批次踩多类，逐类全过，禁择一。
