@@ -60,9 +60,10 @@ export function sha256Text(s) {
   return createHash('sha256').update(String(s)).digest('hex')
 }
 
-/** ④渲染（v2.1.0 批4）：模板占位 `{{binding:<岗>}}` → 本机件 agent_bindings 实值
- *  （org-config 三层的 merged.agent_bindings）。全部占位一次替换；缺绑定的占位
- *  原样保留并点名（消费端 fail-fast——禁静默带占位部署）。无占位模板=恒等。 */
+/** ④渲染（v2.1.0 批4；回炉 k1 W-2 强化石）：模板占位 `{{binding:<岗>}}` → 本机件
+ *  agent_bindings 实值。已声明占位一次替换，缺绑定保留+点名；**渲染后残留任何
+ *  `{{…binding…` 形态（空格/点号等畸形占位，正则未认=按无占位直装的逃逸面）
+ *  一并计入 missing（malformed: 前缀）——禁静默带占位部署**。无占位模板=恒等。 */
 export function renderAgentTemplate(text, bindings) {
   const missing = []
   const out = String(text).replace(/\{\{binding:([A-Za-z0-9_-]+)\}\}/g, (m, agent) => {
@@ -70,6 +71,10 @@ export function renderAgentTemplate(text, bindings) {
     if (typeof v !== 'string' || !v.trim()) { missing.push(agent); return m }
     return v
   })
+  // 畸形占位=非标准形态的 binding 残留（空格/点号等——替换正则未认=按无占位直装的
+  // 逃逸面）；标准形态的「缺绑定保留占位」已在上一段点名，不重复计
+  for (const residue of out.match(/\{\{[^}]*binding[^}]*\}\}/gi) || [])
+    if (!/^\{\{binding:[A-Za-z0-9_-]+\}\}$/.test(residue)) missing.push(`malformed:${residue}`)
   return { text: out, missing }
 }
 
@@ -184,9 +189,17 @@ export function runChecks(agentsDir, cfg) {
   for (const name of listAgentTemplates()) {
     const dst = join(agentsDir, name)
     const { text: rendered, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), cfg?.agent_bindings || {})
-    const cls = classifyAgent({ exists: existsSync(dst), hashEqual: existsSync(dst) && sha256File(dst) === sha256Text(rendered) })
-    const miss = missing.length ? `｜模板占位缺绑定（agent_bindings 未填：${[...new Set(missing)].join('、')}）——渲染对账此态不可信，填本机件后复跑` : ''
-    push({ level: cls.level, line: `agents——${name}（${agentsDir}）${cls.line}（渲染后对账）${miss}` })
+    // 回炉 W7b：对账前内容归一化（剥 BOM+CRLF→LF——WP-4 行尾哈希地雷同律；部署件被
+    // 记事本改写不再永久假漂移）；回炉 k1 N-8：缺绑定=独立的「占位缺绑定」warn 位，
+    // 不混入真漂移计数
+    const norm = (s) => String(s).replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
+    const hashEqual = existsSync(dst) && sha256Text(norm(rendered)) === sha256Text(norm(readFileSync(dst, 'utf8')))
+    const cls = classifyAgent({ exists: existsSync(dst), hashEqual })
+    if (missing.length) {
+      push({ level: 'warn', line: `agents——${name}（${agentsDir}）占位缺绑定/畸形（${[...new Set(missing)].join('、')}）——渲染对账此态不可信（非漂移判定）；填本机件 agent_bindings 后复跑` })
+      continue
+    }
+    push({ level: cls.level, line: `agents——${name}（${agentsDir}）${cls.line}${cls.reason === 'drift' ? '——若为改绑后残留：删除该部署件后 --install 重装即按 agent_bindings 渲染（回炉 W7a）' : ''}（渲染后对账）` })
   }
 
   const git = gitState()
@@ -245,19 +258,33 @@ export function installHook() {
 // 供用户填实值（providers/vision_channels/projects 的 TODO 占位）；已存在=
 // 绝不覆盖（用户配置域）。写盘段自包 try/catch（同 installHostFacts 处置纪律）。
 
-/** ③a 纯写盘：脚手架本机件（fixture 可注入路径；禁动真实状态向量用临时目录）。 */
+/** ③a 纯写盘：脚手架本机件（回炉 W6：**最小骨架**——只落个人事实分区占位
+ *  （providers TODO/agent_bindings/vision_channels/projects 域声明），不复制的
+ *  finish_vocab/thresholds/source_health 等通用分区——防本机件陈旧快照静默压住
+ *  默认件后续演进=铁律1「静默继承」形态）。已存在=绝不覆盖+可解析性核对
+ *  （回炉 W10c：坏 JSON 报 warn 非假 ok）。 */
 export function installLocalConfig(defaultCfg, localPath) {
-  if (existsSync(localPath))
-    return { wrote: false, level: 'ok', line: `install-localconfig——本机件已存在（${localPath}）——绝不覆盖（用户配置域）` }
+  if (existsSync(localPath)) {
+    try {
+      readJson(localPath)
+      return { wrote: false, level: 'ok', line: `install-localconfig——本机件已存在且可解析（${localPath}）——绝不覆盖（用户配置域）` }
+    } catch (e) {
+      return { wrote: false, level: 'warn', line: `install-localconfig——本机件存在但不可解析（${e.message}）——修复 JSON 后复跑（此态下 providers 占位将拒派）` }
+    }
+  }
+  const providerAliases = Object.keys(defaultCfg?.providers || {})
   const payload = {
-    ...defaultCfg,
-    note: '本机个人事实层（deploy-check --install 脚手架，v2.1.0 三层化批）——用户配置域，装后自由改写：填 providers 各源（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名/kind/billing/model_family）与 vision_channels/projects 实值后复跑 deploy-check；指引=DEPLOY.md §3',
+    note: '本机个人事实层（deploy-check --install 脚手架，v2.1.0 三层化批·最小骨架）——用户配置域，装后自由改写。填法：①providers 各源（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名/kind/billing/model_family——五键全填，model_family 缺=validate 拒）；②agent_bindings（绑定岗实值，键=代理名=templates/agents 文件名，值=<uuid>/<model>$<档位>——四绑定模板渲染消费）；③vision_channels 通道实值；④projects 映射。填后复跑 deploy-check；指引=DEPLOY.md §3/PACKAGING.md',
+    providers: Object.fromEntries(providerAliases.map((a) => [a, { uuid_prefix: 'TODO', entry_name: 'TODO', note: '填本机实值（五键）' }])),
+    agent_bindings: { note: '绑定岗实值（键=代理名）' },
+    vision_channels: { note: '通道实值（model/endpoint_contains/prefer_hosts/stream）' },
+    projects: { note: 'project_id 映射' },
   }
   try {
     writeFileSync(localPath, JSON.stringify(payload, null, 2) + '\n')
     const back = readJson(localPath)
     return back && typeof back === 'object' && back.providers
-      ? { wrote: true, level: 'ok', line: `install-localconfig——已脚手架本机件 ${localPath}（默认件占位全量复制；填 TODO 实值后复跑 deploy-check）` }
+      ? { wrote: true, level: 'ok', line: `install-localconfig——已脚手架本机件 ${localPath}（最小骨架：仅个人事实分区，通用分区随默认件演进；填 TODO 实值后复跑 deploy-check）` }
       : { wrote: true, level: 'FAIL', line: `install-localconfig——本机件写盘回读不符（${localPath}）——重跑 --install 或人工核查` }
   } catch (e) {
     return { wrote: false, level: 'FAIL', line: `install-localconfig——本机件写盘/回读失败（${localPath}：${e.message}）——重跑 --install 或人工核查磁盘/权限` }
@@ -473,7 +500,11 @@ function selfTest() {
       const p2 = join(fxDir, 'case2.json')
       const r2 = installLocalConfig(def, p2)
       const back2 = existsSync(p2) ? JSON.parse(readFileSync(p2, 'utf8')) : null
-      t('v2.1.0 ③a：缺失→脚手架（note 声明用户配置域+默认件全量复制+回读一致）', r2.wrote === true && r2.level === 'ok' && !!back2 && typeof back2.note === 'string' && back2.note.includes('用户配置域') && back2.providers?.a?.uuid_prefix === 'TODO')
+      t('v2.1.0 ③a：缺失→最小骨架脚手架（个人分区占位+域声明；不含通用分区——回炉 W6）', r2.wrote === true && r2.level === 'ok' && !!back2 && typeof back2.note === 'string' && back2.note.includes('用户配置域') && back2.providers?.a?.uuid_prefix === 'TODO' && 'agent_bindings' in back2 && !('finish_vocab' in back2) && !('thresholds' in back2))
+      const p2b = join(fxDir, 'case2b.json')
+      writeFileSync(p2b, '{broken json')
+      const r2b = installLocalConfig(def, p2b)
+      t('v2.1.0 ③a：本机件存在但坏 JSON→warn 非假 ok（回炉 W10c）', r2b.wrote === false && r2b.level === 'warn' && r2b.line.includes('不可解析'))
       const blocker = join(fxDir, 'blocker-file')
       writeFileSync(blocker, 'x')
       const p3 = join(blocker, 'nested', 'case3.json') // 父级是文件→写盘必抛 IO 错
@@ -488,6 +519,7 @@ function selfTest() {
   t('v2.1.0 渲染：全部占位一次替换（frontmatter+尾栏同串）', (() => { const r = renderAgentTemplate('model: {{binding:ops-x}}\nSELF: model-field:{{binding:ops-x}}', { 'ops-x': 'aaaa/k3$max' }); return r.text === 'model: aaaa/k3$max\nSELF: model-field:aaaa/k3$max' && r.missing.length === 0 })())
   t('v2.1.0 渲染：缺绑定→占位保留+点名（禁静默带占位部署）', (() => { const r = renderAgentTemplate('model: {{binding:ops-y}}', { 'ops-x': 'v' }); return r.text === 'model: {{binding:ops-y}}' && r.missing.join() === 'ops-y' })())
   t('v2.1.0 渲染：无占位模板恒等（未绑定岗模板不受影响）', (() => { const r = renderAgentTemplate('无占位模板正文', {}); return r.text === '无占位模板正文' && r.missing.length === 0 })())
+  t('v2.1.0 回炉：畸形占位（空格/点号形态）→渲染后残留 tripwire 计入 missing（k1 W-2）', (() => { const r1 = renderAgentTemplate('model: {{binding: ops-x}}', {}); const r2 = renderAgentTemplate('model: {{binding:ops.x}}', {}); return r1.missing.some((m) => m.startsWith('malformed:')) && r2.missing.some((m) => m.startsWith('malformed:')) && r1.text.includes('{{binding: ops-x}}') })())
   t('v2.1.0 渲染：sha256Text 稳定（64 hex）', /^[0-9a-f]{64}$/.test(sha256Text('x')) && sha256Text('x') === sha256Text('x'))
 
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
@@ -532,7 +564,9 @@ if (isMain) {
     }
     console.log(`[install] ${lcLine}`)
     let tplBindings = {}
-    try { tplBindings = loadOrgConfig(SKILL_ROOT).merged.agent_bindings || {} } catch { /* 装载失败由后续 hostfacts 段按三元组归因 */ }
+    let tplLoadErr = null
+    try { tplBindings = loadOrgConfig(SKILL_ROOT).merged.agent_bindings || {} } catch (e) { tplLoadErr = e.message /* 回炉 W10a：真因分行呈现，不并入「缺绑定」误归因 */ }
+    if (tplLoadErr) console.log(`[warn] agent_bindings 装载失败（${tplLoadErr}）——下行如报「占位缺绑定」可能为误归因，先修本机件 JSON`)
     console.log(`[install] ${installAgents(agentsDir, tplBindings).line}`)
     console.log(`[install] ${installHook()}`)
     // g3 动作③（回炉轮 1 R1/R2 重构错误处置——门一 W2/W3）：三源分行归因——

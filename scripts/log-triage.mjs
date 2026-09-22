@@ -25,7 +25,7 @@
  *   =正常态，与 check-hardcode 词表缺失降级 exit 5 分界：彼为扫描能力受损）。
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
 import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile, UsageError } from './org-config.mjs'
@@ -220,6 +220,20 @@ export function recommendHealth(cnt, sh = {}) {
 // 显式思考档位声明——2026-09-17 宿主 zcode.cjs 实证 parseModelPickerValue；档位段
 // 仅格式校验不参与回退比对）；provider 段=uuid / builtin: / account: 三前缀族。
 const VALID_MODEL_RE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|builtin:[^\s/]+|account:[^\s/]+)\/[^\s/]+(?:\$[\w-]+)?$/
+
+/** 代理档案目录（v2.1.0 回炉 W12：⑧/⑧前哨的 agents 目录单源——env ZCODE_AGENTS_DIR
+ *  可覆写，与 deploy-check --agents-dir 的定制部署面同构，缺省=宿主惯例路径）。 */
+export function agentsDirOf() {
+  return process.env.ZCODE_AGENTS_DIR ? resolve(process.env.ZCODE_AGENTS_DIR) : join(homedir(), '.zcode', 'agents')
+}
+
+/** 跨门岗对终判纯函数（v2.1.0 回炉 W8：三态单源——'?' 任一侧未解析（不构成异构性
+ *  证据，人工核）/ 'WARN' 同族=异构对抗退化形态（07 §4 纪律⑤，申报入档禁静默）/
+ *  'ok' 异族成立）。自检可注入向量。 */
+export function crossGateVerdict(fa, fb) {
+  if (fa === '?' || fb === '?') return '?'
+  return fa === fb ? 'WARN' : 'ok'
+}
 /** 声明绑定值归一（纯函数，自检可注入）：旧格式 profileSnapshot.model 字符串原样
  *  透传；新格式 profileSnapshot.modelSelection 结构体（宿主把 `provider/model$档位`
  *  解析后落 providerId/modelId/options.reasoningLevel——2026-09-17 档位批新会话首验
@@ -345,6 +359,11 @@ function run() {
     t('403→quota（v2.0.1 修复批 L4：对齐类目标签「配额限流(429/403)」——原落 config 分支=标签撒谎）', classifyError({ statusCode: 403 }) === 'quota')
     t('ECONNRESET→transport', classifyError({ statusMessage: 'fetch failed: ECONNRESET' }) === 'transport')
     t('枚举值判定（sonnet 非 <uuid>/<model> 形态）', !VALID_MODEL_RE.test('sonnet'))
+    // v2.1.0 回炉（W8/W12）：跨门终判三态纯函数+agents 目录覆写
+    t('跨门终判：同族→WARN', crossGateVerdict('deepseek', 'deepseek') === 'WARN')
+    t('跨门终判：异族→ok', crossGateVerdict('kimi', 'deepseek') === 'ok')
+    t('跨门终判：任一侧未解析→?（不构成异构性证据）', crossGateVerdict('?', 'deepseek') === '?' && crossGateVerdict('kimi', '?') === '?')
+    t('agents 目录覆写：env ZCODE_AGENTS_DIR 优先（缺省=宿主惯例路径）', (() => { const saved = process.env.ZCODE_AGENTS_DIR; process.env.ZCODE_AGENTS_DIR = 'C:/demo-agents'; const a = agentsDirOf(); process.env.ZCODE_AGENTS_DIR = saved; return a === 'C:\\demo-agents' || a === 'C:/demo-agents' })())
     t('合法绑定形态（uuid/model）', VALID_MODEL_RE.test('aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash'))
     t('合法绑定形态（builtin:model/key）', VALID_MODEL_RE.test('builtin:bigmodel-coding-plan/GLM-5.3'))
     // 2026-09-17 档位批向量：`$档位` 后缀（宿主 model 串扩展语法）与 account: 前缀族
@@ -529,7 +548,7 @@ function run() {
             let front = '(未映射子代理)'
             if (agent) {
               try {
-                const fm = readFileSync(join(homedir(), '.zcode', 'agents', `${agent}.md`), 'utf8')
+                const fm = readFileSync(join(agentsDirOf(), `${agent}.md`), 'utf8')
                 const mv = /^model:\s*(\S+)/m.exec(fm)
                 front = mv ? mv[1].replace(/^['"]|['"]$/g, '') : '(无 model 字段)' // 回炉 N6：剥离包裹引号防前缀匹配假失败
               } catch { front = '(档案缺失)' }
@@ -547,27 +566,38 @@ function run() {
               : `   [ok] 常设双审对异族（${fams[0]} vs ${fams[1]}）——异构成立（R3）\n`)
         }
       }
-      // v2.1.0 批（07 §4 纪律⑤）：跨门岗对同族核对——门一常设双审 vs 门二裁决部
-      // 同族=异构对抗退化形态（WARN+申报入档，升格条件登记在册）；任一侧未解析=[?] 人工核。
-      for (const pair of Array.isArray(sh.cross_gate_pairs) ? sh.cross_gate_pairs : []) {
-        if (!Array.isArray(pair) || pair.length !== 2) continue
-        const famOfAgent = (agent) => {
-          try {
-            const fm = readFileSync(join(homedir(), '.zcode', 'agents', `${agent}.md`), 'utf8')
-            const mv = /^model:\s*(\S+)/m.exec(fm)
-            const front = mv ? mv[1].replace(/^['"]|['"]$/g, '') : ''
-            const prefix = /^([0-9a-f]{8})/i.exec((front.split('/')[0] || '').trim())
-            const prov = prefix ? Object.entries(merged.providers || {}).find(([, p]) => String(p.uuid_prefix || '').toLowerCase() === prefix[1].toLowerCase()) : null
-            return prov ? String(prov[1].model_family || '?').toLowerCase() : '?'
-          } catch { return '?' }
+      // v2.1.0 批（07 §4 纪律⑤）+回炉（W8：畸形对不静默+计数行；W12：目录可覆写）：
+      // 跨门岗对同族核对——门一常设双审 vs 门二裁决部同族=异构对抗退化形态。
+      {
+        const cgCount = { ok: 0, WARN: 0, '?': 0 }
+        for (const pair of Array.isArray(sh.cross_gate_pairs) ? sh.cross_gate_pairs : []) {
+          if (!Array.isArray(pair) || pair.length !== 2 || pair.some((x) => typeof x !== 'string')) {
+            W(`   [?] 跨门岗对配置畸形（${JSON.stringify(pair)}）——org-config validate 应拦（纪律⑤），此处不静默跳过（回炉 W8）\n`)
+            cgCount['?']++
+            continue
+          }
+          const famOfAgent = (agent) => {
+            try {
+              const fm = readFileSync(join(agentsDirOf(), `${agent}.md`), 'utf8')
+              const mv = /^model:\s*(\S+)/m.exec(fm)
+              const front = mv ? mv[1].replace(/^['"]|['"]$/g, '') : ''
+              const prefix = /^([0-9a-f]{8})/i.exec((front.split('/')[0] || '').trim())
+              const prov = prefix ? Object.entries(merged.providers || {}).find(([, p]) => String(p.uuid_prefix || '').toLowerCase() === prefix[1].toLowerCase()) : null
+              return prov ? String(prov[1].model_family || '?').toLowerCase() : '?'
+            } catch { return '?' }
+          }
+          const fa = famOfAgent(pair[0]), fb = famOfAgent(pair[1])
+          const v = crossGateVerdict(fa, fb)
+          cgCount[v]++
+          W(
+            v === '?'
+              ? `   [?] 跨门岗对无法核对（${pair.join('↔')}——${fa === '?' ? pair[0] : pair[1]} 侧档案缺失/未解析）——不构成异构性证据，人工核绑定（纪律⑤）\n`
+              : v === 'WARN'
+                ? `   [WARN] 跨门岗对同族（${pair.join('↔')} family=${fa}）——异构对抗退化形态：WARN+申报入档，禁静默（07 §4 纪律⑤；升格 RED=跨门护栏落地或裁决部改绑异族源=用户裁决位）\n`
+                : `   [ok] 跨门岗对异族（${pair.join('↔')} ${fa} vs ${fb}）——跨门异构成立（纪律⑤）\n`)
         }
-        const fa = famOfAgent(pair[0]), fb = famOfAgent(pair[1])
-        W(
-          fa === '?' || fb === '?'
-            ? `   [?] 跨门岗对无法核对（${pair.join('↔')}——${fa === '?' ? pair[0] : pair[1]} 侧档案缺失/未解析）——不构成异构性证据，人工核绑定（纪律⑤）\n`
-            : fa === fb
-              ? `   [WARN] 跨门岗对同族（${pair.join('↔')} family=${fa}）——异构对抗退化形态：WARN+申报入档，禁静默（07 §4 纪律⑤；升格 RED=跨门护栏落地或裁决部改绑异族源=用户裁决位）\n`
-              : `   [ok] 跨门岗对异族（${pair.join('↔')} ${fa} vs ${fb}）——跨门异构成立（纪律⑤）\n`)
+        if (Array.isArray(sh.cross_gate_pairs) && sh.cross_gate_pairs.length)
+          W(`   -- 跨门核对汇总：ok ${cgCount.ok} / WARN ${cgCount.WARN} / ? ${cgCount['?']}（纪律⑤；WARN≠阻断，申报面=收口呈报包）\n`)
       }
     } else {
       // ── B-0 全量分诊 ──

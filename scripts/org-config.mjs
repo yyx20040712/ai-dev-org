@@ -74,16 +74,30 @@ export function cfgHash(cfg) {
   return createHash('sha256').update(JSON.stringify(canonicalize(cfg))).digest('hex').slice(0, 12)
 }
 
+/** 三层合并纯函数（v2.1.0 回炉 W11：可向量化的层序/优先级单源——loadOrgConfig
+ *  的核心语义抽离，自检可注入合成层验证 project>local>default 优先级、
+ *  数组整体替换、显式 null 删除跨层语义）。 */
+export function mergeOrgLayers(defaultCfg, localCfg, projectCfg) {
+  let out = defaultCfg
+  for (const over of [localCfg, projectCfg]) {
+    if (over == null) continue
+    out = deepMerge(out, over)
+  }
+  return out
+}
+
 /** 装载合并配置（三层，v2.1.0 批）：默认件（通用/随包）← 本机件
  *  org-config.local.json（个人实值，gitignore 不随分享包，缺席=仅默认件）
  *  ← <projectDir>/.zcode/org-config.json（存在时）。深合并语义层内不变。 */
 export function loadOrgConfig(projectDir) {
   const base = readJson(DEFAULT_CFG)
   const hasLocal = existsSync(LOCAL_CFG)
-  const withLocal = hasLocal ? deepMerge(base, readJson(LOCAL_CFG)) : base
+  const localCfg = hasLocal ? readJson(LOCAL_CFG) : null
   const overPath = join(projectDir, '.zcode', 'org-config.json')
-  const merged = existsSync(overPath) ? deepMerge(withLocal, readJson(overPath)) : withLocal
-  return { merged, hasOverride: existsSync(overPath), overPath, hasLocal, localPath: LOCAL_CFG }
+  const hasOverride = existsSync(overPath)
+  const projectCfg = hasOverride ? readJson(overPath) : null
+  const merged = mergeOrgLayers(base, localCfg, projectCfg)
+  return { merged, hasOverride, overPath, hasLocal, localPath: LOCAL_CFG }
 }
 
 /** 读宿主配置（单点封装，供派发器与校验共用——K-W3 单次读入）。 */
@@ -210,6 +224,10 @@ export function validateProviders(cfg, hostCfg) {
       errors.push(`providers.${alias} 仍为模板占位（uuid_prefix/entry_name=TODO）——org-config 尚未本机化：填 org-config.local.json（本机件，gitignore；deploy-check --install 可脚手架）同名键实值（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名），指引=DEPLOY.md §3（06 §0 三层）`)
       continue
     }
+    // 回炉（门一 W-3）：非占位源须带 model_family——standing_pair/跨门同族核对的消费面，
+    // 缺键=异族校验静默降级为 [?]（k1 W-3/d1 W9a 同族面）
+    if (typeof def.model_family !== 'string' || !def.model_family.trim())
+      errors.push(`providers.${alias} 缺 model_family（非空字符串）——standing_pair/跨门同族核对消费此键（org-config source_health），缺键=异构校验静默降级；本机件补填`)
     const hit = entries.find(([id, p]) => id.startsWith(def.uuid_prefix) && p && p.name === def.entry_name)
     if (!hit) {
       const near = entries.find(([id]) => id.startsWith(def.uuid_prefix))
@@ -272,10 +290,10 @@ export function validateRoleSurfaces(cfg) {
   return errors
 }
 
-/** 跨门岗对结构校验（v2.1.0 批，07 §4 纪律⑤）：source_health.cross_gate_pairs
- *  须为二元代理名对数组（[["代理A","代理B"],…]）；绑定实况同族核对=log-triage
- *  --health ⑧ 的职责（读部署面 frontmatter），此处只管配置结构——挂错形态
- *  即 exit 3，防实况核对面静默空转。缺席=合法（可选项）。返回错误数组。 */
+/** 跨门岗对结构校验（v2.1.0 批，07 §4 纪律⑤；回炉 W8 强化）：二元代理名对数组；
+ *  命名空间=代理名（须存在 templates/agents/<名>.md 模板——防与 gate1_subagent_of
+ *  的**别名**命名空间混写）；拒自配对与重复对。绑定实况同族核对=log-triage
+ *  --health ⑧ 的职责（读部署面 frontmatter）。缺席=合法（可选项）。返回错误数组。 */
 export function validateCrossGatePairs(cfg) {
   const errors = []
   const pairs = cfg?.source_health?.cross_gate_pairs
@@ -284,10 +302,35 @@ export function validateCrossGatePairs(cfg) {
     errors.push('source_health.cross_gate_pairs 须为数组（[["代理A","代理B"],…] 二元代理名对）')
     return errors
   }
+  const seen = new Set()
   pairs.forEach((p, i) => {
-    if (!Array.isArray(p) || p.length !== 2 || p.some((x) => typeof x !== 'string' || !x.trim()))
+    if (!Array.isArray(p) || p.length !== 2 || p.some((x) => typeof x !== 'string' || !x.trim())) {
       errors.push(`source_health.cross_gate_pairs[${i}] 须为二元代理名对（收到 ${JSON.stringify(p)}）`)
+      return
+    }
+    if (p[0] === p[1]) errors.push(`source_health.cross_gate_pairs[${i}] 自配对（${p[0]}↔${p[1]}）——无意义形态，拒收`)
+    const key = [...p].sort().join('↔')
+    if (seen.has(key)) errors.push(`source_health.cross_gate_pairs[${i}] 重复对（${key}）`)
+    seen.add(key)
+    for (const agent of p) {
+      if (!existsSync(join(SKILL_ROOT, 'templates', 'agents', `${agent}.md`)))
+        errors.push(`source_health.cross_gate_pairs[${i}] 成员「${agent}」无对应模板（templates/agents/${agent}.md）——命名空间=代理名，勿用源别名（别名域=gate1_subagent_of）`)
+    }
   })
+  return errors
+}
+
+/** 本机事实占位校验（v2.1.0 回炉 W9a）：vision_channels 通道与 agent_bindings 值
+ *  的 TODO 占位=新机静默降级面（看图通道/绑定渲染失效），validate 拒收。 */
+export function validateLocalFacts(cfg) {
+  const errors = []
+  for (const [ch, def] of Object.entries(cfg?.vision_channels || {})) {
+    if (def && typeof def === 'object' && def.model === 'TODO')
+      errors.push(`vision_channels.${ch}.model=TODO 占位——填本机件实值（glm-look 通道甄别消费）`)
+  }
+  for (const [agent, v] of Object.entries(cfg?.agent_bindings || {})) {
+    if (v === 'TODO' || v === '') errors.push(`agent_bindings.${agent} 为占位/空——绑定模板渲染消费（deploy-check ④）`)
+  }
   return errors
 }
 
@@ -377,11 +420,31 @@ if (isMain) {
     // v2.1.0 三层化批向量：占位源 fail-fast 指引+跨门岗对结构校验
     const vpTodo = validateProviders({ providers: { demo: { uuid_prefix: 'TODO', entry_name: 'TODO' } } }, { provider: {} })
     t('v2.1.0 占位源→尚未本机化指引错误行（不进双校验）', vpTodo.some((e) => e.includes('providers.demo') && e.includes('尚未本机化') && e.includes('org-config.local.json')))
-    t('v2.1.0 跨门对：合法二元对→零错误', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-a', 'ops-b']] } }).length === 0)
+    const vpNoFam = validateProviders({ providers: { demo: { uuid_prefix: 'aaaaaaaa', entry_name: 'E-A', model_family: undefined } } }, { provider: { 'aaaaaaaa-1111': { name: 'E-A' } } })
+    t('v2.1.0 回炉：非占位源缺 model_family→错误行（异族校验消费面）', vpNoFam.some((e) => e.includes('providers.demo 缺 model_family')))
+    t('v2.1.0 跨门对：合法二元对（真模板名）→零错误', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-gate1-k1', 'ops-adjudicator']] } }).length === 0)
     t('v2.1.0 跨门对：三元对→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 'b', 'c']] } }).some((e) => e.includes('cross_gate_pairs[0]')))
-    t('v2.1.0 跨门对：非字符串成员→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 1]] } }).length === 1)
+    t('v2.1.0 跨门对：非字符串成员→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 1]] } }).length >= 1)
     t('v2.1.0 跨门对：非数组形态→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: 'x' } }).some((e) => e.includes('须为数组')))
-    t('v2.1.0 跨门对：缺席→零错误（可选项）', validateCrossGatePairs({}).length === 0)
+    t('v2.1.0 回炉：跨门对成员无模板→命名空间错误行（防别名混写）', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['kimi-main', 'ops-adjudicator']] } }).some((e) => e.includes('kimi-main」无对应模板')))
+    t('v2.1.0 回炉：跨门对自配对→拒收', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-gate1-k1', 'ops-gate1-k1']] } }).some((e) => e.includes('自配对')))
+    t('v2.1.0 回炉：跨门对重复对→拒收', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-gate1-k1', 'ops-adjudicator'], ['ops-adjudicator', 'ops-gate1-k1']] } }).some((e) => e.includes('重复对')))
+    t('v2.1.0 回炉：vision 通道 model=TODO→占位错误行', validateLocalFacts({ vision_channels: { glm: { model: 'TODO' } } }).some((e) => e.includes('vision_channels.glm.model=TODO')))
+    t('v2.1.0 回炉：agent_bindings 占位/空→错误行', validateLocalFacts({ agent_bindings: { 'ops-x': 'TODO' } }).some((e) => e.includes('agent_bindings.ops-x')))
+    t('v2.1.0 回炉：本机事实占位校验净配置→零错误', validateLocalFacts({}).length === 0 && validateLocalFacts({ vision_channels: { glm: { model: 'REAL' } }, agent_bindings: { x: 'v/k3$max' } }).length === 0)
+    // v2.1.0 回炉 W11：三层合并序/优先级向量（mergeOrgLayers 单源）
+    {
+      const d = { a: 1, arr: [1, 2], nest: { x: 1, keep: 'd' }, doomed: 'x' }
+      const l = { b: 2, arr: [3], nest: { x: 2 } }
+      const p = { c: 3, nest: null, doomed: null }
+      const m1 = mergeOrgLayers(d, l, p)
+      const m2 = mergeOrgLayers(d, l, null)
+      t('v2.1.0 三层：project>local>default 优先级（local 压 default、未提及沿用）', m2.a === 1 && m2.b === 2 && m2.nest.x === 2 && m2.nest.keep === 'd')
+      t('v2.1.0 三层：数组整体替换（local [3] 压 default [1,2]）', JSON.stringify(m2.arr) === '[3]')
+      t('v2.1.0 三层：显式 null 删除跨层生效（project 删 nest/doomed，其余 project 键在场）', m1.nest === undefined && m1.doomed === undefined && m1.c === 3)
+      t('v2.1.0 三层：local/project 缺席=仅默认件', JSON.stringify(mergeOrgLayers(d, null, null)) === JSON.stringify(d))
+      t('v2.1.0 三层：local 缺席时 project 直压默认件', mergeOrgLayers(d, null, { a: 9 }).a === 9)
+    }
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
   }
@@ -406,7 +469,7 @@ if (isMain) {
   } else if (cmd === 'validate') {
     let errors
     try {
-      errors = [...validateProviders(merged), ...validateRoleSurfaces(merged), ...validateCrossGatePairs(merged)]
+      errors = [...validateProviders(merged), ...validateRoleSurfaces(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged)]
     } catch (e) {
       console.error(`[fatal] validate 途中宿主配置装载失败: ${e.message}（06 §5.8 行 3=配置/装载错）`)
       process.exit(3)

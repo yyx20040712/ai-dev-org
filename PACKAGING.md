@@ -9,18 +9,23 @@
 node scripts/package-skill.mjs --out <空输出目录>
 ```
 
-- 导出面=**git 跟踪面**（checkout-index）：工作树非净（未提交改动）=拒绝打包
-  exit 3——打包基线必须是已提交态；输出目录非空=拒绝覆盖。
+- 导出面=**git 索引面**（checkout-index；工作树非净=拒绝打包 exit 3——打包基线必须
+  是已提交态，此检查同时排除未提交改动与未追踪件）；输出目录非空=拒绝覆盖，
+  **且不得位于技能仓内**（导出副本污染工作树——回炉 W4）。导出后另有三件
+  在位断言（本机件/账本目录/派发流水——枚举式护栏，非结构保证）。
 - 天然不随包（gitignore 运行产物/本机件，导出后另有在位断言）：
   `org-config.local.json`（本机个人事实层——providers/projects/vision_channels/
   agent_bindings 实值）、`.zcode/`（账本/干涸窗标记）、`scripts/model-routing-log.jsonl`
   （派发流水）、`.git/`。
-- **分享面门禁**（零命中才出包，命中=exit 1 保留目录供排查）：
-  ①uuid 形态（8-4-4-4-12 hex）；②盘符绝对路径（正/反斜杠形态——正则转义族
-  如 `FINDINGS:\s*` 不误伤）；③本机标识（org-config 本机件 entry_name+绑定值，
-  剔除供应商家族名——分工链描述属安排性提及，08 §1 判例）。
-  白名单=`scripts/share-whitelist.json`（行级豁免，逐条理由——历史批档指针类；
-  自检 fixture 合成样例豁免在册；白名单注册件自身=代码级 skip 防自咬）。
+- **分享面门禁**（零命中才出包，命中=exit 1 保留目录供排查——勿提交、排查后删除）：
+  ①uuid 形态（36 字符全形+裸 8-hex 前缀词表兜底）；②盘符绝对路径（正/反斜杠形态；
+  正则转义族如 `FINDINGS:\s*` 不误伤——已知残留：`X:\单字母目录` 形态）；③本机标识
+  （org-config 本机件 entry_name+uuid_prefix+绑定值——绑定串不剔家族名；供应商家族名
+  按整词等值剔除，08 §1 判例）。**文件名通道同扫**（文件名含个人事实同等拦截）。
+  本机件未就位时③维词表为空=降级两维并在结语如实声明（不冒充三维）。
+  白名单=`scripts/share-whitelist.json`（行级豁免，逐条理由+至少一个定位条件；
+  零条件/缺理由/拼错键=装载侧拒收 fail-closed；注册件 contains/reason 自检禁真实
+  标识；自检合成样例须 synthetic_exempt 声明）。
 - 产出含 `MANIFEST.txt`（逐文件 sha256+基线 git 哈希——生成物，09 §1 语义）。
 - **有意形态（非缺陷，勿"修"）**：`org-config.default.json` 的 `TODO` 占位与
   `templates/agents/*.md` 的 `{{binding:岗}}` 占位——受赠机填自己的实值。

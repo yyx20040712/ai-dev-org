@@ -29,8 +29,7 @@
     "note": "W-3 白名单反转：仅 complete 视为完整终态；truncation 及一切未知终态=非完整（审计岗 RED）。词表住此处，脚本禁硬编码（A3/06 §0）。"
   },
   "supported_node": {
-    "forbid_major": [25],
-    "note": "值守值（语义与经验单源=references/10 §1）：受禁主版本下外部派发器退出阶段 libuv 断言崩溃（残留册 HOST-node25）。外部派发用受支持主版本跑。守卫读本项，脚本禁硬编码路径（W-12）。"
+    "note": "值守值住本机件 local（v2.1.0 回炉归层：宿主耦合事实不驻通用件——语义与经验单源=references/10 §1）。本机件形态示例：{\"forbid_major\":[25]}；缺省=恒通过（不阻断）。守卫读本项，脚本禁硬编码路径（W-12）。"
   },
   "thresholds": {
     "source_share_warn": 0.6,
@@ -49,7 +48,7 @@
     "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义，非常设双审组；standing_pair=常设双审对（2026-09-22 三岗批 R3：对内两源 model_family 必须异族——health-scan 启动校验 RED，防异构退化静默漂移）；cross_gate_pairs=跨门岗对（v2.1.0 批，07 §4 纪律⑤：门一常设双审 vs 门二裁决部同族=异构退化 WARN+申报——log-triage --health ⑧ 核对实况，org-config validate 校结构）；dry_minutes=干涸窗记忆时长（R2）。model_family 实值住本机件 local（同 providers）。"
   },
   "vision_channels": {
-    "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数分区模板：本默认件只留结构说明，通道实值（model/endpoint_contains/prefer_hosts/stream）住本机件 local——字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）；通道命中=模型名∧端点子串双条件。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实住配置件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑。"
+    "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数分区模板：本默认件只留结构说明，通道实值（model/endpoint_contains/prefer_hosts/stream）住本机件 local——字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）；stream=看图通道流式位（selfiter B5，同 dispatch_request.stream 语义）；通道命中=模型名∧端点子串双条件。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实住配置件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑。"
   },
   "hardcode_scan": {
     "forbidden_terms": [],
