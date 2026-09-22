@@ -13,7 +13,7 @@
 | 主控（编排者+PM 子模式） | 主会话 | 会话宿主模型（判断力密集不降档） | 唯一用户对接；intake/立案/排程/呈报裁决；账本维护；终裁亲验 | 禁直写实现码；禁跨部门墙喂全文；禁跳审自裁设计 | 工单/战役简报/呈报包/账本行 |
 | 拟定者 `drafter` | 外部派发器 | `roles.drafter.tier=prime`（长上下文+重推理） | 路线级设计书拟定（候选≥2+权衡） | 零仓库接触（只收自包含任务书）；不终裁；不指挥实现 | 设计书 |
 | 实现者 | 会话内子代理 | 意图档位+欠账记账 | 按七段任务书（1-6 段惯称「六段简报」）TDD 实现+分笔 commit+报告 | 禁派子代理；禁越白名单；禁碰锁定/控制面（git/registry）；自裁必申报 | diff+报告（含自裁申报） |
-| 门一 `gate1-reviewer` | 外部派发器 | `roles.gate1-reviewer.tier=audit` | 对抗式隔离一审 | 只喂自包含 diff 包，禁仓库访问/跑命令/臆测包外事实 | 审查报告（[B\|W\|N]+file:line） |
+| 门一 `gate1-reviewer` | 会话内绑定子代理（常设双审 ops-gate1-k1+d1；k2=额度兜底）＋派发器后备 | `roles.gate1-reviewer.tier=audit` | 对抗式隔离一审 | 只喂自包含 diff 包，禁仓库访问/跑命令/臆测包外事实 | 审查报告（[B\|W\|N]+file:line） |
 | 门二 | 会话内子代理 | 意图档位+欠账记账（异构优先） | 终审实证：逐条裁决+独立复算+亲跑矩阵 | 禁只审不跑；禁预设立场；禁与实现者同上下文（=必须独立派发全新子代理会话，审计输入=净增量 diff 包+门一报告；禁在同一会话先后兼任实现与终审） | 裁决报告（含回炉建议） |
 | 审核者 `auditor-readonly` | 外部派发器 | `roles.auditor-readonly.tier=debt-readonly` | 设计对抗审核/兜底审/源尽欠账只读审 | 只挑错不改写；禁实现 | 审核意见 |
 | SRE 诊断岗 `sre-diagnostic` | 会话内只读子代理 | 不定档（升档承载=结论将直接写入票面/裁决链时，由主控改挂外部派发器通道——按本件 §3「外部岗位角色档案（索引）」新增档案+org-config 条目——或主控亲验复核；默认会话内不定档+欠账记账） | 故障取证（日志/WAL/DB 数据指纹）/上下文冻结提取/e2e 非确定红 triage/事故时间线重建 | 禁写任何文件；禁无机器证据定性 | 排查报告（时间线+证据链+候选根因排序） |
@@ -24,8 +24,10 @@
 实现者/门二/SRE 诊断/门一均挂 ops-* 子代理承载（现役名单=§4 补遗）。
 其中实现者/门二实证部/SRE 诊断三岗 2026-09-19 起改**随宿主会话模型**
 （未绑定形态——用户裁决：宿主已配 coding plan 服务商，账本记
-`session:host-tier`+E3 欠账行恢复，06 §6 补遗）；门一双源维持
-frontmatter model 绑定（绑定岗免欠账行）。本表 tier 列仍记**意图档位
+`session:host-tier`+E3 欠账行恢复，06 §6 补遗）；门一为三岗制
+（2026-09-22 用户裁决）：常设双审 ops-gate1-k1（kimi-main）+
+ops-gate1-d1（deepseek 按量档）——frontmatter model 绑定（绑定岗免欠账行），
+ops-gate1-k2=kimi-backup 额度兜底位。本表 tier 列仍记**意图档位
 口径**（承载切换=配置项，org-config `roles.*.migration_note`），两读不可混。
 
 裁决权限三分法（沿用）：有先例→主控独裁；无先例可逆→预裁+申报；
@@ -160,12 +162,13 @@ verify 真退出码亲验）；账本单写者。
 | 门二·实证部 | ops-probe | 读+写+Bash | E2 协议墙（如实声明，非工具面强制——批档 subagent-plan 05-ruling §一 B-1 终裁） |
 | 门二·裁决部 | ops-adjudicator | 只读 | E2 证据包墙（异构裁决位） |
 | 门一·源A | ops-gate1-k1 | Read | 物理（仅 Read）+协议（禁读任何文件，输入即包）双墙 |
-| 门一·源B | ops-gate1-k2 | 同上 | 同上（Kimi 双源，健康检查择源） |
+| 门一·源B | ops-gate1-k2 | 同上 | 同上（kimi-backup 额度兜底位——源A耗尽承载） |
+| 门一·异构二审 | ops-gate1-d1 | 同上 | 同上（deepseek 绑定，与源A成常设双审对——2026-09-22 三岗批用户裁决） |
 
 纪律四条：①model 禁上游枚举值（静默回退=假绑定，负面清单⑤）；档位=model
 串 `$` 后缀显式声明（`provider/model-key$max` 形态——缺档位=宿主派发拒启
 reasoning-level-missing，2026-09-17 宿主代码实证 resolveProfileModelSelection/
-parseModelPickerValue，七档案与六模板已统一 `$max`，闭合验证=新会话真实小
+parseModelPickerValue，现役 ops-* 档案与模板已统一 `$max`（双侧同步纪律：模板面=templates/agents/，部署面=~/.zcode/agents/，deploy-check sha256 对账），闭合验证=新会话真实小
 任务+log-triage 零回退）；②首部署/
 改档须新会话跑真实小任务+日志核对零回退（代理档案=会话启动快照，无热加载）；
 ③报告末两行机读尾栏（MODEL-SELF + LEDGER-CLAIM / FINDINGS）；④接续纪律

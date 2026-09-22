@@ -133,7 +133,9 @@ if (want('R5')) {
   const chainLen = (merged.source_chain || []).length
   const expAttempt = 4 * chainLen, expSwitch = chainLen - 1
   // cwd=tmp：账本随派发器 cwd 落 tmp/.zcode/（--project 仅是条目名，不改变落点）
-  const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--mock-source', (merged.source_chain || []).map((a) => `${a}:429`).join(','), '--project', 'r5-drill', promptFile], { encoding: 'utf8', cwd: tmp, timeout: 5_000, killSignal: 'SIGKILL' })
+  // R2 干涸窗隔离（2026-09-22 三岗批）：DS_DRY_FILE 重定向至 tmp 空位——生产标记
+  // 活跃时演练不得被跳源干扰（标记文件全局落 SKILL_ROOT/.zcode/，与 cwd 无关）
+  const r = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--mock-source', (merged.source_chain || []).map((a) => `${a}:429`).join(','), '--project', 'r5-drill', promptFile], { encoding: 'utf8', cwd: tmp, timeout: 5_000, killSignal: 'SIGKILL', env: { ...process.env, DS_DRY_FILE: join(tmp, 'dry-neutral-r5.json') } })
   const exitOk = r.status === 2
   const stderrOk = (r.stderr || '').includes('全源尽')
   const lines = existsSync(LOG_PATH) ? readFileSync(LOG_PATH, 'utf8').split('\n').filter(Boolean) : []
@@ -160,6 +162,46 @@ if (want('R5')) {
   if (!keepTmp) rmSync(tmp, { recursive: true, force: true })
 }
 
+// ═══ R11：干涸窗记忆（R2）+常设双审对同族 tripwire（R3）——2026-09-22 三岗批 ═══
+if (want('R11')) {
+  const tmp = mkdtempSync(join(tmpdir(), 'r11-'))
+  const promptFile = join(tmp, 'p.txt')
+  writeFileSync(promptFile, 'R11 干涸窗与同族 tripwire 演练（零成本）', 'utf8')
+  const { merged } = loadOrgConfig(SKILL_ROOT)
+  // a) 原语自检：ds-call-v2 --self-test（mark/clear/roundtrip/过期豁免，零网络）
+  const rSelf = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--self-test'], { encoding: 'utf8', cwd: tmp, timeout: 10_000, killSignal: 'SIGKILL' })
+  const selfOk = rSelf.status === 0 && (rSelf.stderr || '').includes('6/6 过')
+  // b) 功能演练：预置「非常设第二源」干涸标记（名单=source_chain 减 standing_pair[1]，
+  //    全配置派生零字面别名——回炉 W-1/adjudicator W-1：原版字面 'deepseek' 违 A3 自述）
+  //    → mock standing_pair[1]:429 → 期望 [dry] 跳过行=预置源数、实际走源数=1、exhaust 链=单源
+  const sp = merged.source_health?.standing_pair || []
+  const famOf = (a) => merged.providers?.[a]?.model_family
+  if (sp.length !== 2) { recordSkip('R11', 'standing_pair 未配置为二元——R11b/c 向量跳过（配置面由 health-scan 执法）') }
+  else {
+  const dryFile = join(tmp, 'source-dry.json')
+  const sec = sp[1]
+  const drySources = (merged.source_chain || []).filter((a) => a !== sec)
+  writeFileSync(dryFile, JSON.stringify(Object.fromEntries(drySources.map((a) => [a, { until: Date.now() + 600_000, at: new Date().toISOString(), reason: 'R11 演练预置' }])), null, 2) + '\n', 'utf8')
+  const rDry = spawnSync(node()[0], [join(SCRIPTS, 'ds-call-v2.mjs'), '--role', 'gate1-reviewer', '--mock-source', `${sec}:429`, '--project', 'r11-drill', promptFile], { encoding: 'utf8', cwd: tmp, timeout: 10_000, killSignal: 'SIGKILL', env: { ...process.env, DS_DRY_FILE: dryFile } })
+  const drySkipN = (rDry.stderr || '').split('[dry] 源').length - 1
+  const walkedN = (rDry.stderr || '').split('尝试源').length - 1
+  const dryOk = rDry.status === 2 && drySkipN === drySources.length && walkedN === 1 && (rDry.stderr || '').includes('全源尽(deepseek')
+  // c) R3 负例：同族对=「与 standing_pair[0] 同族的另一源」（配置派生；单族配置=响亮跳过）
+  const sameFam = (merged.source_chain || []).find((a) => a !== sp[0] && famOf(a) && famOf(a) === famOf(sp[0]))
+  if (!sameFam) recordSkip('R11c', `链内无与 ${sp[0]} 同族的他源——同族负例向量跳过（响亮跳过非静默，回炉 W-1）`)
+  else {
+    const badFamDir = join(tmp, 'bad-fam')
+    mkdirSync(join(badFamDir, '.zcode'), { recursive: true })
+    writeFileSync(join(badFamDir, '.zcode', 'org-config.json'), JSON.stringify({ source_health: { standing_pair: [sp[0], sameFam] } }), 'utf8')
+    const rFam = spawnSync(node()[0], [join(SCRIPTS, 'health-scan.mjs'), '--project', badFamDir], { encoding: 'utf8', cwd: badFamDir, timeout: 10_000, killSignal: 'SIGKILL' })
+    const famOk = rFam.status === 3 && (rFam.stderr || '').includes('同模型族')
+    record('R11', selfOk && dryOk && famOk,
+      `自检=${selfOk} 干涸跳过=${drySkipN}/${drySources.length} 走源=${walkedN}/1 exhaust单源=${dryOk ? '是' : '否'} R3同族拒启=${famOk}（对=${sp[0]}+${sameFam}，派生）`)
+  }
+  if (!keepTmp) rmSync(tmp, { recursive: true, force: true })
+  }
+}
+
 // ═══ R4'：流水与账本字段完整性 ═══
 if (want('R4')) {
   // 版本真值从 ds-call-v2.mjs 源码提取（复制常量会随升版漂移自我掩蔽——W5 审 Kimi-B1/ds-W4）
@@ -167,7 +209,7 @@ if (want('R4')) {
   const versionMatch = VERSION_RE.exec(readFileSync(join(SCRIPTS, 'ds-call-v2.mjs'), 'utf8'))
   if (!versionMatch) { console.error('FAIL R4 无法从 ds-call-v2.mjs 提取 DISPATCHER_VERSION（源码变更？）'); process.exit(3) }
   const CURRENT_DISPATCHER = versionMatch[1]
-  const ROUTING_REQUIRED = { attempt: ['ts', 'runId', 'event', 'source', 'model', 'attempt', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], ok: ['ts', 'runId', 'event', 'source', 'model', 'usage', 'latencyMs', 'finish', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], switch: ['ts', 'runId', 'event', 'from', 'to', 'error', 'statusCode', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], exhaust: ['ts', 'runId', 'event', 'chain', 'error', 'statusCode', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'] }
+  const ROUTING_REQUIRED = { attempt: ['ts', 'runId', 'event', 'source', 'model', 'attempt', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], ok: ['ts', 'runId', 'event', 'source', 'model', 'usage', 'latencyMs', 'finish', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], switch: ['ts', 'runId', 'event', 'from', 'to', 'error', 'statusCode', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], exhaust: ['ts', 'runId', 'event', 'chain', 'error', 'statusCode', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'], 'dry-skip': ['ts', 'runId', 'event', 'alias', 'until', 'reason', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'] }
   // 账本 schema v2（2026-09-14）：增 schema_version/runId（行级关联键）/mocked；
   // truncated 仅 ok 行有 → 列入 ok 必填（P0-2 截断假成功的机检前置）。
   const LEDGER_REQUIRED = ['ts', 'project', 'event', 'role', 'tier', 'source', 'cfg_hash', 'outcome']

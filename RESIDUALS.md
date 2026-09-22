@@ -22,10 +22,53 @@
 | volta-exitcode-mask | volta run 将任意非零退出码掩成 126（本机实证 2026-09-17：1/2/3→126、0 正常、裸 node 透传无误；DEPLOY.md §0 已提示） | 出现脚本化消费精确退出码且须经 volta run 的封装时处置（volta pin 固定默认或直跑 node） |
 | k2-deepseek-rebind | **已撤销（2026-09-22 批中用户澄清：k2 系 k1 额度兜底位，不改绑；终态=增设独立岗 d1）**——历史行保留至本批收口后清理 | 无（撤销） |
 | gate1-d1-firstdispatch | 新岗 ops-gate1-d1（deepseek 按量档绑定，2026-09-22 用户裁决增设；绑定值单源=agents/ops-gate1-d1.md frontmatter）——代理档案会话启动快照，设立会话内不可派发 | 新会话首场 d1 派发：metadata 声明模型核对+`log-triage.mjs` ③ 静默回退检测零回退+MODEL-SELF 尾栏一致，三项齐=closed（对齐 selfiter-k1k2-reasoninglevel 闭合形态）。另：观察项（不门控 closed）——同场记录 k1/d1 报告发现并集覆盖度，供异构价值评估 |
+| r2-drywindow-livefire | ds-call-v2 干涸窗记忆（2026-09-22 R2）：自检 6/6+mock 功能演练已证（R11），**真实 429/403 触发路径未实弹** | 首次真实配额族失败后核对三件：source-dry.json 落标/次派发 [dry] 跳过行/窗口过期或成功调用自恢复——齐=closed |
+| probe-bc-metadata-residue | 历史会话残留（probe-b 声明=sonnet 枚举伪值/probe-c=deepseek 无档位后缀——盘上无对应档案，纯 CLI metadata 痕迹）污染 log-triage ③ 输出噪声（2026-09-22 全局诊断批发现，R6 登记） | log-triage ③ 呈现面升级时加无档案过滤；新同形态会话复发即升宿主排查批 |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
 | edfix-r1-e2e-gap | escaped-defect 修复批（2026-09-19）R1 标准真跑 SKIP——parseFindings 端到端仅由同批 auditor-readonly 单点真实派发实证（账本 runId 20260919061400-nthy333f，中文 verdict 有条件放行完整附着），回归网对dispatcher→账本链路无持久向量（回炉 W-5） | 下次派发器/parseFindings 变更批或冻结裁决前跑 `regression --r1`；届时本行随批 closed |
 
 ## 修订记
+
+- 2026-09-22 全量修复批（用户裁决「全部修复」，承接同日全局诊断报告
+  R1-R6）：**R2 干涸窗记忆**——ds-call-v2 v2.4.0 增 dry-until 标记
+  （429/403 配额族失败落标、窗内派发跳过、成功即清除、--no-dry 应急、
+  --self-test 6 向量；标记=SKILL_ROOT/.zcode/source-dry.json 全局单
+  文件，DS_DRY_FILE 可重定向；时长=org-config source_health.dry_minutes
+  缺省 60）——掐断「干涸窗内每派发对死源重打」（30 天实数 567 attempts/
+  46 ok/87 switch）。**R3 常设双审对同族 tripwire**——org-config 增
+  model_family+standing_pair；health-scan 启动校验同族=RED exit 3；
+  log-triage --health ⑧ 实况核对（agent frontmatter→uuid→provider→
+  family，现役 k1=kimi/d1=deepseek 异族成立）。**R4 子代理通道补记
+  纪律**——02 §9 成文（ok 行必带 truncated:false+runId）；顺手修复
+  2026-09-19 批 4 行漏 truncated 补记行（数据修复：1 行 source=host+
+  3 行 gate1-k1 子代理通道，R4 闸门逼出）。**R1 文档同步**——SKILL.md
+  速查表门一行/绑定通道段/用法面/log-triage 行、07 §1 表+双承载注记、
+  07 §4 名录（+d1 行，计数改指针式）、06 §6 补遗①（uuid 标识注记）、
+  review-ai-code 门一段（跨仓同步）。**R5 分级烤验**——纯文档/单点
+  配置小批=门一单审（k1）+主控亲验；实现/收口/跨件/红线批仍双审
+  （k1+d1）；审包预算 ≤8k tokens 扩面子代理通道。**R6**——probe-b/c
+  历史会话残留登记触发器行。新增 regression R11（自检/干涸功能演练/
+  R3 负例三向量）+R5 演练 DS_DRY_FILE 隔离（生产标记活跃时演练免疫）
+  +R4 流水 schema 登记 dry-skip 事件。机检：validate PASS/regression
+  9/9（R1 配给保护 SKIP）/hardcode strict 零命中/anchors 0/0/
+  deploy-check@node24 ok13。对抗位=双审：门一 k1（B=0/W=8/N=8 PASS）
+  +异构代位审 ops-adjudicator（deepseek，代 d1 位——d1 设立会话内不可
+  派发，代位申报入档；B=1/W=4/N=7 有条件放行）。回炉一轮全处置：B-1
+  ⑧假绿改三分支终判（?/ok/WARN，旧版把未解析吞成「[ok] 异构成立」）/
+  W2 fail-open 收紧（standing_pair 缺键或缺 model_family=FAIL，非静默
+  通过）/R11 派生化去字面别名（名单=source_chain−standing_pair[1]，同族
+  负例对派生）/W3 06 §4+02 §8.2 不得主动跳过例外成文/W4 R5 小批边界
+  与异构代位组合成文/W1 读容错告警（ENOENT 静默、损坏[dry-warn]）/
+  W2' tmp+rename 原子写/N1 dry_minutes=0 停用语义/N3 全干涸分支落观测/
+  N4 过期条目随写 GC/N6 引号剥离/N8 family 归一化比较/N2' dry-skip 带
+  mocked 标记。复跑全绿：validate/self-test 6/6/regression 9/9/
+  hardcode/anchors/deploy-check ok13+⑧ 新证据行（双侧实解析异族）。
+  实测教训两条入册：①代位审包若授予实件自由读，成本 4.5M tokens 级
+  （adjudicator 本批实跑）——审包自包含纪律对代位岗同样适用；②本批
+  git 分笔=脚本+配置+文档三笔。残留登记：k1-W6 真实 429→落标集成路径
+  无确定性向量（mock 不落标=设计边界），由 r2-drywindow-livefire 触发
+  器承载；k1-W8 脚本体 hardcode 扫描面缺口（.mjs 面无扫描，纪律靠审）；
+  k1-W7 数据修复 before/after 存证=本册 runId 清单（02 §9 注记同步）。
 
 - 2026-09-22 门一异构双审终态批（纯配置变更；用户三段裁决收敛）：
   ①「两个审核一 kimi 一 deepseek（kimi 额度不够）」→ 首案改绑 k2→

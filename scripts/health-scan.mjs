@@ -284,6 +284,23 @@ function cliMain() {
   const { merged } = loadOrgConfig(projectDir)
   if (argv.includes('--self-test')) { process.exitCode = selfTest(merged) ? 0 : 1; return } // 自然退出（门一回炉 W1：自检 PASS/FAIL 行亦 stdout 产物——急退同形禁）
 
+  // R3 常设双审对同族 tripwire（2026-09-22 三岗批；回炉 W5a/W2 收紧）：
+  // standing_pair 两源 model_family 必须异族——同族=异构对抗静默退化（在册事故：
+  // 门一双审同为 Kimi K3 双配额数周，无人报警烧额度）。缺失 standing_pair 键
+  // =绊线被静默拆除（默认件深合并只增不减，缺席即人为删除）——同样 FAIL；
+  // 任一源缺 model_family=校验不可构成，fail-closed 不放行（回炉 W2：原双条件
+  // 短路=静默通过）。配置面校验在账本检查之前；绑定实况面=log-triage --health ⑧。
+  {
+    const sp = merged.source_health?.standing_pair
+    const famRaw = (a) => merged.providers?.[a]?.model_family
+    const fam = (a) => (famRaw(a) == null ? undefined : String(famRaw(a)).trim().toLowerCase() || undefined) // 回炉 N8：归一化比较
+    if (!Array.isArray(sp) || sp.length !== 2) { console.error('FAIL source_health.standing_pair 缺失或非二元数组（常设双审对 tripwire 被移除=静默退化通道，R3）——修 org-config'); process.exit(3) }
+    const unknown = sp.filter((a) => !merged.providers?.[a])
+    if (unknown.length) { console.error(`FAIL source_health.standing_pair 引用未声明 provider：${unknown.join(',')}——修 org-config`); process.exit(3) }
+    if (!fam(sp[0]) || !fam(sp[1])) { console.error(`FAIL 常设双审对任一源缺 model_family（${sp[0]}=${famRaw(sp[0]) ?? '缺'}，${sp[1]}=${famRaw(sp[1]) ?? '缺'}）——异族校验不可构成，fail-closed（R3 回炉 W2）`); process.exit(3) }
+    if (fam(sp[0]) === fam(sp[1])) { console.error(`FAIL 常设双审对同模型族（${sp[0]}=${fam(sp[0])}，${sp[1]}=${fam(sp[1])}）——异构对抗已退化，改绑定或修 org-config（R3）`); process.exit(3) }
+  }
+
   const LOG_PATH = join(SKILL_ROOT, 'scripts', 'model-routing-log.jsonl')
   // 读行器收敛=org-config readJsonlFile 单源（v1.6 批 P2-3）；保留原「缺失=null」语义（下游 FAIL 分支依赖）
   const readLines = (p) => (existsSync(p) ? readJsonlFile(p) : null)

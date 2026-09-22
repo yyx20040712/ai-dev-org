@@ -23,7 +23,7 @@ loop-engineering-archive-2026-09/`——路径相对 skills 根，非技能根�
 | 主控（+PM 子模式） | 主会话（唯一用户对接岗） |
 | 拟定者 drafter | 派发器 `--role drafter` |
 | 实现者 | 会话内子代理 |
-| 门一 gate1-reviewer | 派发器 `--role gate1-reviewer` |
+| 门一 gate1-reviewer | 会话内绑定子代理（常设双审 ops-gate1-k1+d1；k2=额度兜底）＋派发器后备 |
 | 门二 | 会话内子代理 |
 | 审核者 auditor-readonly | 派发器 `--role auditor-readonly` |
 | SRE 诊断岗 sre-diagnostic | 会话内只读子代理 |
@@ -40,8 +40,11 @@ model 参数属环境限制：如实按「意图档位声明 + 环境限制统�
 
 ```
 node scripts/ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>]
-     [--dry-run|--list-roles|--list-sources] [--mock-source <alias>:<status>]
+     [--dry-run|--list-roles|--list-sources] [--mock-source <alias>:<status>] [--no-dry]
      <prompt文件> [输出文件]        # --role 必填（v1 内嵌提示已废止）
+                                   # R2 干涸窗记忆（2026-09-22）：429/403 后源自动落 dry 标记
+                                   # （时长=org-config source_health.dry_minutes），窗内派发跳过该
+                                   # 源、成功即清除；--no-dry=应急忽略标记
 node scripts/org-config.mjs [resolve|hash|validate|--self-test]
 node scripts/check-hardcode.mjs [--strict]   # .md 正文供应商 live 事实扫描（名单从 org-config 派生；命中=WARN，--strict 按 RED 退 1）
 node scripts/check-anchors.mjs [--update|--strict]   # 08 §4 文档腐化体检机检化：NN §M 断锚+路径存在性+01/04 条目计数 vs doc-counts golden（WARN 试点校准期；计数失守=FAIL；--update=重冻结随批提交）
@@ -50,12 +53,12 @@ node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空
 node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目防线日脚手架（05 §4）
 node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden] [--project <dir>]   # 自包含回归（06 §5 R 清单内化；R1 真实派发须 --r1）
 node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（RED=0 方可收口；告警分类单源=02 §10）
-node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊（B-0）：cli/log+派发器流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查（A'③）出 k1/k2 派发推荐（额度类→换源；504 窗口类→不换源瘦身）
+node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊（B-0）：cli/log+派发器流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查（A'③）出 k1/k2 派发推荐（额度类→换源；504 窗口类→不换源瘦身）+干涸窗标记呈现（R2）+常设双审对绑定同族核对（R3）
 node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点甄别=org-config vision_channels 分区+--list-sources；单次调用 20min 上限、非429的4xx立断、scrub 脱敏；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
 ```
 
-**子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗）**：文本岗/
-异构岗/门一双源已挂 `~/.zcode/agents/ops-*.md` 绑定子代理（frontmatter
+**子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗；门一 2026-09-22 三岗制）**：文本岗/
+异构岗/门一三岗已挂 `~/.zcode/agents/ops-*.md` 绑定子代理（frontmatter
 model=`<provider>/<model-key>$<档位>`——`$` 后缀=显式思考档位声明，缺省
 即派发拒启 reasoning-level-missing（2026-09-17 宿主代码实证），现役档案
 一律 `$max`；上游枚举值=假绑定禁用；空 tools=
@@ -129,6 +132,18 @@ tier 记法：外部岗取 org-config
 | 收口/交付批 | 烤验证据随呈报包复核：各对抗位报告 + health-scan RED=0 + 基线数字对账（W5 审 ds-B1）+ 入仓工件污染面零命中（08 §6——项目仓门禁+命名过目） |
 
 复合批取命中各行对抗位的**并集**：一个批次踩多类，逐类全过，禁择一。
+
+**分级烤验（2026-09-22 用户裁决 R5；回炉 W-4 边界成文）**：「小批」
+定义=纯文档/纯注释批且改动 ≤3 文件、无逻辑行变更；单点配置批=改 1 个
+配置件的 ≤10 行变更。满足者=门一单审（k1）+主控亲验全机检矩阵；**其余
+一切批次（实现/收口/跨件/涉脚本/涉红线/复合批）仍取全对抗位（双审
+k1+d1，复合批按并集）**。额度受限期的替代组合成文：门一单审+**异构代位
+审**（异源岗代位+申报入档，如 adjudicator 代 d1）+主控亲验——例外须
+申报，不得静默降级。**审包预算纪律扩面至子代理通道**（ORG-12 同款）：
+自包含包输入面目标 ≤8k tokens，可指针化的既有事实（golden/契约/先例
+文本）不内联——审包体积=额度主变量（30 天实数：双审单批 ≈40-50k
+subagent tokens；代位审包不自带实件自由读授权，否则 4.5M tokens 级
+爆炸——2026-09-22 实测教训）。
 
 派发前自检三问：①本批命中表中哪些对抗位？②各位源可用且与实现者
 异构吗？③欠账清单有无本批必须补还项？收口前必跑

@@ -508,6 +508,45 @@ function run() {
       if (!Object.keys(routing.exhaust).length) W(`   （窗口内无 exhaust 事件）\n`)
       const { rec, why } = recommendHealth(cnt, { primary: subOf[dual[0]], secondary: subOf[dual[1]] })
       W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}（双源组=${dual.join('↔') || '未配置'}）\n`)
+      // R2 干涸窗现状（全局标记文件直读——ds-call-v2 跳过面；DS_DRY_FILE 同源重定向）
+      try {
+        const dryPath = process.env.DS_DRY_FILE || join(SKILL_ROOT, '.zcode', 'source-dry.json')
+        const dm = JSON.parse(readFileSync(dryPath, 'utf8'))
+        const act = Object.entries(dm).filter(([, v]) => v && Number(v.until) > Date.now())
+        W(`-- 干涸窗标记（R2，时长=${merged.source_health?.dry_minutes ?? 60}min）：${act.length ? act.map(([a, v]) => `${a} 至 ${new Date(v.until).toISOString()}（${v.reason}）`).join('；') : '无活跃标记'}\n`)
+      } catch { W(`-- 干涸窗标记（R2）：无（标记文件缺失=从未触发）\n`) }
+      // R3 ⑧ 常设双审对绑定实况核对（agent frontmatter model → uuid 前缀 → provider → model_family；
+      //    配置面同族 RED=health-scan 启动校验，此处查实际绑定漂移——两读不混）。
+      //    回炉 B-1：终判三分支——已核对异族=ok／同族=WARN／任一侧未解析=[?] 无法核对
+      //    （原 else 分支把「?」吞成「[ok] 异构成立」=无证据打正向结论的假绿）。
+      {
+        const sp = sh.standing_pair || []
+        if (sp.length === 2) {
+          const norm = (v) => (v == null ? undefined : String(v).trim().toLowerCase() || undefined)
+          const famOfCfg = (a) => norm(merged.providers?.[a]?.model_family)
+          const rows = sp.map((alias) => {
+            const agent = subOf[alias]
+            let front = '(未映射子代理)'
+            if (agent) {
+              try {
+                const fm = readFileSync(join(homedir(), '.zcode', 'agents', `${agent}.md`), 'utf8')
+                const mv = /^model:\s*(\S+)/m.exec(fm)
+                front = mv ? mv[1].replace(/^['"]|['"]$/g, '') : '(无 model 字段)' // 回炉 N6：剥离包裹引号防前缀匹配假失败
+              } catch { front = '(档案缺失)' }
+            }
+            const prefix = /^([0-9a-f]{8})/i.exec((front.split('/')[0] || '').trim())
+            const prov = prefix ? Object.entries(merged.providers || {}).find(([, p]) => String(p.uuid_prefix || '').toLowerCase() === prefix[1].toLowerCase()) : null
+            return { alias, agent, front, family: prov ? (norm(prov[1].model_family) || '?') : '?' }
+          })
+          for (const r of rows) W(`   [${r.alias}] 子代理=${r.agent || '?'} family=${r.family}（配置期望=${famOfCfg(r.alias) ?? '?'}）front=${r.front.slice(0, 40)}\n`)
+          const fams = rows.map((r) => r.family)
+          W(fams.includes('?')
+            ? `   [?] 常设双审对无法核对（${fams.map((f, i) => (f === '?' ? sp[i] : null)).filter(Boolean).join(',')} 侧档案缺失/未映射/前缀漂移）——不构成异构性证据，人工核绑定（R3 回炉 B-1：旧版此态误打 [ok]）\n`
+            : fams[0] === fams[1]
+              ? `   [WARN] 常设双审对绑定同族（${fams[0]}）——异构对抗已退化（R3 tripwire；health-scan 收口位配置面同款 RED）\n`
+              : `   [ok] 常设双审对异族（${fams[0]} vs ${fams[1]}）——异构成立（R3）\n`)
+        }
+      }
     } else {
       // ── B-0 全量分诊 ──
       W(`== log-triage 分诊（内链路 ${logFiles.join(',')} ×${cliLines.length} 行 + 外链路流水；窗口=${dateStr || `近 ${hours}h`}）==\n`)

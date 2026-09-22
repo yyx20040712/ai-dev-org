@@ -53,17 +53,72 @@
  *   覆盖≠枚举词表复制，不构成 DoD 双源；N1 尾随标点防污染仍由字符集
  *   边界保证（全角标点不在集内）。回归向量=R10 按各岗 DoD 词表补齐。
  */
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, mkdtempSync, rmSync, renameSync } from 'node:fs'
 import { join, dirname, resolve, isAbsolute, relative, basename } from 'node:path'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { tmpdir } from 'node:os'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import { SKILL_ROOT, loadOrgConfig, cfgHash, validateProviders, validateRoleSurfaces, readHostConfig, readJson, cliFlag, UsageError, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse } from './org-config.mjs'
 
-const DISPATCHER_VERSION = '2.3.2'
+const DISPATCHER_VERSION = '2.4.0'
 const LEDGER_SCHEMA_VERSION = 3 // v3（selfiter 批 B4）：增 project_id（归一化 id——映射单源=org-config projects，缺映射 raw 透传）
 const LOG_PATH = join(dirname(fileURLToPath(import.meta.url)), 'model-routing-log.jsonl')
+
+// ── 干涸窗记忆（2026-09-22 三岗批 R2）：配额族失败后落 dry-until 标记，窗内派发直接跳过该源 ──
+// 动机=30 天实数（log-triage 2026-09-22）：attempts 567/ok 46/switch 87——5h 干涸窗内
+// 每次新派发对死源重打 429/403（source_chain[0] 不得主动跳过铁律的盲区：跨 run 无记忆）。
+// 标记=全局单文件（配额按供应商账号计，非按项目）；DS_DRY_FILE 环境重定向=自检/回归用
+// （同 REGISTRY_PATH 先例）；成功调用即清除（恢复探测随真实流量自然发生）。
+const DRY_FILE = () => (process.env.DS_DRY_FILE ? resolve(process.env.DS_DRY_FILE) : join(SKILL_ROOT, '.zcode', 'source-dry.json'))
+function readDryMap() {
+  try { return JSON.parse(readFileSync(DRY_FILE(), 'utf8')) }
+  catch (e) { if (e.code !== 'ENOENT') console.error(`[dry-warn] 标记文件不可读（${scrub(e.message)}）——本次按无标记处理，干涸窗记忆可能已失效，请人工核 ${DRY_FILE()}`); return {} } // 回炉 W1：ENOENT=从未触发，静默；损坏/权限=显式告警防无声归零
+}
+function writeDryMap(m) {
+  try {
+    mkdirSync(dirname(DRY_FILE()), { recursive: true })
+    const t = DRY_FILE() + '.tmp' + process.pid
+    writeFileSync(t, JSON.stringify(m, null, 2) + '\n', 'utf8')
+    renameSync(t, DRY_FILE()) // 回炉 W2：tmp+rename 原子写（并发丢标/崩溃截断防线，对齐账本 withFileLock 先例意图）
+  } catch { /* 本地 IO 降级：标记面失败不阻断派发主链 */ }
+}
+function markDry(alias, minutes, reason) {
+  const m = readDryMap()
+  const now = Date.now()
+  for (const k of Object.keys(m)) if (!m[k] || Number(m[k].until) <= now) delete m[k] // 回炉 N4：过期条目随写 GC（防退役源条目永滞）
+  m[alias] = { until: now + minutes * 60_000, at: new Date().toISOString(), reason: scrub(String(reason)).slice(0, 120) }
+  writeDryMap(m)
+}
+function clearDry(alias) { const m = readDryMap(); if (m[alias]) { delete m[alias]; writeDryMap(m) } }
+function dryEntries() { const now = Date.now(); return Object.entries(readDryMap()).filter(([, v]) => v && Number(v.until) > now) }
+/** 干涸窗自检（--self-test）：mark/clear/roundtrip/过期豁免/未标记源 六断言，零网络（回炉 N1 文案与计数对齐）。 */
+function drySelfTest() {
+  const dir = mkdtempSync(join(tmpdir(), 'ds-dry-selftest-'))
+  const prev = process.env.DS_DRY_FILE
+  process.env.DS_DRY_FILE = join(dir, 'dry.json')
+  const fails = []
+  const t = (name, got, want) => { if (got !== want) fails.push(`${name}:got=${got} want=${want}`) }
+  try {
+    markDry('alpha', 30, 'HTTP 429 quota')
+    t('mark→活跃', dryEntries().some(([a]) => a === 'alpha'), true)
+    const m = readDryMap()
+    t('roundtrip-reason', String(m.alpha?.reason || '').includes('429'), true)
+    t('until>now', Number(m.alpha?.until) > Date.now(), true)
+    clearDry('alpha')
+    t('clear→清空', dryEntries().length, 0)
+    writeDryMap({ beta: { until: Date.now() - 1000, reason: 'stale' } })
+    t('过期豁免', dryEntries().length, 0)
+    t('未标记源不受影响', dryEntries().some(([a]) => a === 'gamma'), false)
+  } finally {
+    if (prev === undefined) delete process.env.DS_DRY_FILE; else process.env.DS_DRY_FILE = prev
+    rmSync(dir, { recursive: true, force: true })
+  }
+  if (fails.length) { console.error(`[dry-self-test] FAIL ×${fails.length}: ${fails.join('; ')}`); return false }
+  console.error('[dry-self-test] 6/6 过（mark/clear/roundtrip/过期豁免/未标记不受影响）')
+  return true
+}
 // env 重定向钩子（v2.3.1 修复批——内部测试设施，R10④ 坏件注入零触碰共享
 // registry；glm-look GLM_LOOK_HOST_CONFIG 先例）：不设 env 时落点与原硬编码
 // 完全一致；prod 路径禁依赖。
@@ -559,10 +614,33 @@ async function cliMain() {
   let switches = 0
   const paygOf = (alias) => merged.providers?.[alias]?.billing === 'payg'
   if (paygOf(chain[0].alias)) console.error(`[payg] 首源 ${chain[0].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁：换源不放宽任务书，但禁止静默烧钱）`)
-  for (let i = 0; i < chain.length; i++) {
-    const s = chain[i]
+  // R2 干涸窗过滤（2026-09-22）：窗内源跳过；--no-dry=显式忽略标记（应急通道）；
+  // 全干涸=不过滤照走全链（保守：标记永不构成拒派理由，只省死源重打）。
+  // 回炉 N1：dry_minutes 显式 0=停用干涸窗（禁用语义可表达）；缺省/非法回退 60
+  const rawDry = merged.source_health?.dry_minutes
+  const dryMinutes = rawDry === 0 ? 0 : (Number.isFinite(Number(rawDry)) && Number(rawDry) > 0 ? Number(rawDry) : 60)
+  let walk = chain
+  if (dryMinutes > 0 && !process.argv.includes('--no-dry')) {
+    const drySet = new Map(dryEntries())
+    if (drySet.size) {
+      const filtered = chain.filter((s) => !drySet.has(s.alias))
+      if (filtered.length) {
+        for (const s of chain.filter((x) => drySet.has(x.alias)))
+          console.error(`[dry] 源 ${s.alias} 干涸窗内（至 ${new Date(drySet.get(s.alias).until).toISOString()}，因 ${drySet.get(s.alias).reason}）——跳过（R2 干涸窗记忆；--no-dry 可忽略标记）`)
+        for (const s of chain.filter((x) => drySet.has(x.alias)))
+          logger.routing('dry-skip', { alias: s.alias, until: new Date(drySet.get(s.alias).until).toISOString(), reason: drySet.get(s.alias).reason, mocked: mock ? true : undefined }) // 回炉 N2'：演练行可甄别（对齐 attempt/switch 的 mocked 语义）
+        walk = filtered
+      } else {
+        console.error('[dry] 全部源处于干涸窗——忽略标记照走全链（保守：不因标记而拒绝派发）')
+        for (const s of chain.filter((x) => drySet.has(x.alias))) logger.routing('dry-skip', { alias: s.alias, until: new Date(drySet.get(s.alias).until).toISOString(), reason: drySet.get(s.alias).reason, ignored: true }) // 回炉 N3：全干涸分支同样落观测（恰是浪费最高场景）
+      }
+    }
+  }
+  if (paygOf(walk[0].alias)) console.error(`[payg] 干涸过滤后首源 ${walk[0].alias}=套餐外按量计费（payg）——费用面留痕`)
+  for (let i = 0; i < walk.length; i++) {
+    const s = walk[i]
     const srcMocked = !!(mock && mock[s.alias] !== undefined) // mock 标志贯穿 switch/exhaust 行（v1.6 批 C2：attempt 行有而 exhaust 行漏——log-triage --health 曾把演练 429 计入真实失效出假换源推荐）
-    console.error(`[routing] run=${runId} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} 尝试源 ${i + 1}/${chain.length}: ${s.alias}(${s.modelName})`)
+    console.error(`[routing] run=${runId} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} 尝试源 ${i + 1}/${walk.length}: ${s.alias}(${s.modelName})`)
     let result
     try {
       result = await callSource(s, prompt, system, logger, mock, dispatchReq)
@@ -571,19 +649,22 @@ async function cliMain() {
       // P0-4 真因 2：网络级失败（fetch failed）无 HTTP 状态码——显式写 null，
       // 保字段存在（R4 schema 要求 statusCode；缺字段=坏行）。
       const statusCode = e.statusCode ?? null
-      if (i === chain.length - 1) {
-        logger.routing('exhaust', { chain: chain.map((x) => x.alias).join('→'), error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
-        logger.ledger('exhaust', { source: chain.map((x) => x.alias).join('→'), outcome: 'exhaust-debt（同源审计欠账，主控回退只读审）' })
-        console.error(`[routing] 全源尽(${chain.map((x) => x.alias).join('→')}): ${scrub(e.message)}——主控按「同源审计欠账」处置`)
+      // R2：配额族失败落干涸标记（真实调用才落——mock 演练不污染真实状态面）
+      if (dryMinutes > 0 && !srcMocked && (statusCode === 429 || statusCode === 403)) markDry(s.alias, dryMinutes, e.message) // dry_minutes=0 停用（回炉 N1）
+      if (i === walk.length - 1) {
+        logger.routing('exhaust', { chain: walk.map((x) => x.alias).join('→'), error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked })
+        logger.ledger('exhaust', { source: walk.map((x) => x.alias).join('→'), outcome: 'exhaust-debt（同源审计欠账，主控回退只读审）' })
+        console.error(`[routing] 全源尽(${walk.map((x) => x.alias).join('→')}): ${scrub(e.message)}——主控按「同源审计欠账」处置`)
         process.exit(2)
       }
       switches++
-      if (paygOf(chain[i + 1].alias)) console.error(`[payg] 换源至 ${chain[i + 1].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁）`)
-      logger.routing('switch', { from: s.alias, to: chain[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked, payg: paygOf(chain[i + 1].alias) || undefined })
+      if (paygOf(walk[i + 1].alias)) console.error(`[payg] 换源至 ${walk[i + 1].alias}=套餐外按量计费（payg）——本次调用将产生费用（费用面显式留痕，v1.6 批预裁）`)
+      logger.routing('switch', { from: s.alias, to: walk[i + 1].alias, error: scrub(e.message).slice(0, 300), statusCode, mocked: srcMocked, payg: paygOf(walk[i + 1].alias) || undefined })
       logger.ledger('switch', { source: s.alias, outcome: scrub(e.message).slice(0, 200) })
-      console.error(`[routing] 换源 ${s.alias} → ${chain[i + 1].alias}: ${scrub(e.message).slice(0, 200)}`)
+      console.error(`[routing] 换源 ${s.alias} → ${walk[i + 1].alias}: ${scrub(e.message).slice(0, 200)}`)
       continue
     }
+    clearDry(s.alias) // R2：成功即解除干涸（恢复探测随真实流量自然发生）
     // 输出写入在远程调用与重试语义之外（ds-W5：本地 IO 失败不触发换源/重复调用）
     const header = `[routing]: run=${runId} source=${s.alias} model=${s.modelName} role=${role.id}@${role.sig} cfg=${cfgHash(merged)} switches=${switches} usage=in=${result.usage.in ?? '?'},out=${result.usage.out ?? '?'} latency=${result.latencyMs}ms (by ds-call-v2 链)\n\n`
     const body = header + result.text
@@ -603,4 +684,7 @@ async function cliMain() {
 }
 const isMain =
   process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
-if (isMain) await cliMain()
+if (isMain) {
+  if (process.argv.includes('--self-test')) process.exitCode = drySelfTest() ? 0 : 1 // 自然退出（M1 同族纪律：exitCode 不急退，防 stdout 截尾）
+  else await cliMain()
+}

@@ -13,6 +13,7 @@
       "entry_name": "Kimi",
       "kind": "anthropic",
       "billing": "enterprise",
+      "model_family": "kimi",
       "note": "K3 企业版主源"
     },
     "kimi-backup": {
@@ -20,6 +21,7 @@
       "entry_name": "zipoo",
       "kind": "anthropic",
       "billing": "second-quota",
+      "model_family": "kimi",
       "note": "同端点第二配额备源（门一 k2 额度兜底位+通用链换源位）"
     },
     "deepseek": {
@@ -27,6 +29,7 @@
       "entry_name": "梁圣",
       "kind": "openai",
       "billing": "payg",
+      "model_family": "deepseek",
       "note": "审计兜底（套餐外按量）+门一 d1 常设双审第二位绑定源（2026-09-22 终态）"
     }
   },
@@ -69,7 +72,12 @@
       "kimi-backup": "ops-gate1-k2",
       "deepseek": "ops-gate1-d1"
     },
-    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义，非常设双审组（常设双审=k1+d1，见 roles.gate1-reviewer.migration_note 2026-09-22 终态）"
+    "standing_pair": [
+      "kimi-main",
+      "deepseek"
+    ],
+    "dry_minutes": 60,
+    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义，非常设双审组；standing_pair=常设双审对（2026-09-22 三岗批 R3：对内两源 model_family 必须异族——health-scan 启动校验 RED，防异构退化静默漂移；在册事故=门一双审同 Kimi K3 双配额数周无人报警）；dry_minutes=干涸窗记忆时长（R2：ds-call-v2 对 429/403 配额族失败源落 dry-until 标记，窗内派发直接跳过——掐断干涸窗内对死源重打的浪费）"
   },
   "vision_channels": {
     "glm": {
