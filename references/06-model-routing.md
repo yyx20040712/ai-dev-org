@@ -173,7 +173,9 @@ legacy 行维持外来跳过）；④argv 收编 cliFlag 单源（缺值/重复/
 
 **§6 补遗（2026-09-16 试金石+七代理首场验证，子代理绑定批）**：
 `~/.zcode/agents/*.md` frontmatter **model 字段**=上述限制的绕行通道，已双证据实证：
-①跨供应商绑定生效——格式=`<provider>/<model-key>$<档位>`（`$` 后缀=
+①跨供应商绑定生效——格式=`<provider>/<model-key>$<档位>`（首段=宿主
+供应商注册表的 provider uuid 标识而非别名——2026-09-22 三岗批 k1 审
+N1 补注；`$` 后缀=
 显式思考档位声明，缺=宿主派发拒启 reasoning-level-missing——格式细则与
 现役档位单源=07 §4 补遗纪律①，2026-09-17 宿主代码实证；Kimi 双源与 deepseek
 三源绑定值均日志实证零回退——具体值以 ~/.zcode/agents/ops-*.md frontmatter

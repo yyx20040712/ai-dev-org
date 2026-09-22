@@ -20,10 +20,36 @@
 | empty-declared-blindspot | 空字符串 model 声明被当非绑定岗静默跳过（tripwire 只查非字符串形态；批前既有行为，宿主空串语义未确证——门二裁决 B3 登记） | 宿主 metadata 实证出现 model:"" 时处置（先确证语义再定跳过/漂移口径） |
 | log-triage-import-side-effect | log-triage.mjs 顶层无 import.meta.main 守卫，import 即跑 CLI 主流程（门二实证 M5-M7 注入命令实录；批前既有） | 出现模块化消费该文件的需求时加守卫（当前消费面=CLI+自检，无受损） |
 | volta-exitcode-mask | volta run 将任意非零退出码掩成 126（本机实证 2026-09-17：1/2/3→126、0 正常、裸 node 透传无误；DEPLOY.md §0 已提示） | 出现脚本化消费精确退出码且须经 volta run 的封装时处置（volta pin 固定默认或直跑 node） |
+| k2-deepseek-rebind | **已撤销（2026-09-22 批中用户澄清：k2 系 k1 额度兜底位，不改绑；终态=增设独立岗 d1）**——历史行保留至本批收口后清理 | 无（撤销） |
+| gate1-d1-firstdispatch | 新岗 ops-gate1-d1（deepseek 按量档绑定，2026-09-22 用户裁决增设；绑定值单源=agents/ops-gate1-d1.md frontmatter）——代理档案会话启动快照，设立会话内不可派发 | 新会话首场 d1 派发：metadata 声明模型核对+`log-triage.mjs` ③ 静默回退检测零回退+MODEL-SELF 尾栏一致，三项齐=closed（对齐 selfiter-k1k2-reasoninglevel 闭合形态）。另：观察项（不门控 closed）——同场记录 k1/d1 报告发现并集覆盖度，供异构价值评估 |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
 | edfix-r1-e2e-gap | escaped-defect 修复批（2026-09-19）R1 标准真跑 SKIP——parseFindings 端到端仅由同批 auditor-readonly 单点真实派发实证（账本 runId 20260919061400-nthy333f，中文 verdict 有条件放行完整附着），回归网对dispatcher→账本链路无持久向量（回炉 W-5） | 下次派发器/parseFindings 变更批或冻结裁决前跑 `regression --r1`；届时本行随批 closed |
 
 ## 修订记
+
+- 2026-09-22 门一异构双审终态批（纯配置变更；用户三段裁决收敛）：
+  ①「两个审核一 kimi 一 deepseek（kimi 额度不够）」→ 首案改绑 k2→
+  deepseek 执行四面后；②批中澄清「k2 是应对 k1 额度耗尽设计的，子代理
+  不动」→ 改绑全数回滚（部署档/模板/org-config 结构/本册，k2 恢复
+  kimi-backup 绑定原值）；③「deepseek 也走独立子代理，方便管理」→
+  终态落三岗制：**常设双审=ops-gate1-k1（kimi-main 子代理）+ops-gate1-d1
+  （deepseek 按量档独立子代理，新增岗，绑定值取 adjudicator 现役同款
+  零回退先例；部署档+模板双侧 sha256 一致）；ops-gate1-k2=kimi-backup
+  额度兜底位（源A耗尽承载）**。净变更：新增 agents/ops-gate1-d1.md
+  （双侧）+org-config（gate1_subagent_of 增 deepseek 映射+migration_note
+  终态+kimi-backup note 补角色注）+本册 gate1-d1-firstdispatch 触发器行。
+  运行时欠账=d1 新会话首派三项核对（见触发器行）。另：本批 deploy-check
+  的 node-major FAIL=系统 node25 触发受禁检查（在册 HOST-node25 环境残留，
+  先于本批存在），volta node24 下复跑全绿——非本批引入。
+  门一 k1 复核（代行 auditor-readonly，payg 规避+额度敏感预裁）出件
+  B=0/W=4/N=6 PASS 全数处置：W1 deepseek note 对称补注/W2 互补性核对
+  改观察项不门控 closed/W3 降级形态入 migration_note（链退 deepseek=
+  d1 独立一审+账本单源降级标注）/W4 回滚证据=k2 模板 git 零 diff+
+  部署档 sha256 与模板相等（deploy-check ok 行），双证成立；N1 绑定
+  纪律首段=uuid 标识注记（06 §6 补遗①随批补）/N2 档位成本未量化
+  （$max 按在册纪律，降档=一行改绑+新会话验证，用户裁决位）/N3
+  dual_groups 语义注记入 source_health.note/N5「恢复」改「落位」/
+  N6 代行缺口=d1 首派后额度允许时对本批终态补一次复核（可选）。
 
 - 2026-09-19 escaped-defect 修复批（ed-fix-①②）：清偿 batch-relay-prod
   战役登记的两项 org 侧逃逸缺陷——①ds-call-v2 parseFindings verdict

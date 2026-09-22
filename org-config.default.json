@@ -20,14 +20,14 @@
       "entry_name": "zipoo",
       "kind": "anthropic",
       "billing": "second-quota",
-      "note": "同端点第二配额备源"
+      "note": "同端点第二配额备源（门一 k2 额度兜底位+通用链换源位）"
     },
     "deepseek": {
       "uuid_prefix": "8ad55776",
       "entry_name": "梁圣",
       "kind": "openai",
       "billing": "payg",
-      "note": "审计兜底（套餐外按量）"
+      "note": "审计兜底（套餐外按量）+门一 d1 常设双审第二位绑定源（2026-09-22 终态）"
     }
   },
   "source_chain": [
@@ -66,9 +66,10 @@
     ],
     "gate1_subagent_of": {
       "kimi-main": "ops-gate1-k1",
-      "kimi-backup": "ops-gate1-k2"
+      "kimi-backup": "ops-gate1-k2",
+      "deepseek": "ops-gate1-d1"
     },
-    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件"
+    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义，非常设双审组（常设双审=k1+d1，见 roles.gate1-reviewer.migration_note 2026-09-22 终态）"
   },
   "vision_channels": {
     "glm": {
@@ -131,7 +132,7 @@
       "audit_surface": true,
       "findings_surface": true,
       "tier_note": "门一隔离一审（与实现者异构对抗）",
-      "migration_note": "2026-09-16 A'批起迁移期双承载并存：主承载试点=会话内子代理 ops-gate1-k1/k2（frontmatter 绑定 Kimi 双源）；派发器=健康探针（log-triage --health）+后备通道，不拆除。roles.* 不删；health-scan audit_surface 判定以实际承载通道的记账源为准（迁移批逐岗改挂）"
+      "migration_note": "2026-09-16 A'批起迁移期双承载并存：主承载试点=会话内子代理 ops-gate1-k1/k2（frontmatter 绑定 Kimi 双源）；派发器=健康探针（log-triage --health）+后备通道，不拆除。roles.* 不删；health-scan audit_surface 判定以实际承载通道的记账源为准（迁移批逐岗改挂）。2026-09-22 用户裁决（门一异构双审落位，终态=独立子代理三岗制）：常设双审=ops-gate1-k1（kimi-main）+ops-gate1-d1（deepseek 按量档，绑定值单源=agents frontmatter）；ops-gate1-k2 维持 kimi-backup 额度兜底位（源A耗尽承载）。降级形态：链退至 deepseek 时 d1 独立承载一审，该批账本须标注单源降级（异构双审退化），health-scan ② 同源执法不豁免。裁决过程：首案改绑 k2→批中澄清（k2 系额度兜底位）回滚→终态增设 d1 独立岗（明细=RESIDUALS 修订记 2026-09-22 行）"
     },
     "auditor-readonly": {
       "source": "deepseek",
