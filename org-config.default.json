@@ -42,7 +42,7 @@
       "kimi-backup": "ops-gate1-k2",
       "deepseek": "ops-gate1-d1"
     },
-    "standing_pair": ["kimi-main", "deepseek"],
+    "standing_pair": ["kimi-backup", "deepseek"],
     "cross_gate_pairs": [["ops-gate1-d1", "ops-adjudicator"]],
     "dry_minutes": 60,
     "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义，非常设双审组；standing_pair=常设双审对（2026-09-22 三岗批 R3：对内两源 model_family 必须异族——health-scan 启动校验 RED，防异构退化静默漂移）；cross_gate_pairs=跨门岗对（v2.1.0 批，07 §4 纪律⑤：门一常设双审 vs 门二裁决部同族=异构退化 WARN+申报——log-triage --health ⑧ 核对实况，org-config validate 校结构）；dry_minutes=干涸窗记忆时长（R2）。model_family 实值住本机件 local（同 providers）。"
@@ -83,7 +83,7 @@
       "audit_surface": true,
       "findings_surface": true,
       "tier_note": "门一隔离一审（与实现者异构对抗）",
-      "migration_note": "2026-09-16 A'批起迁移期双承载并存：主承载试点=会话内子代理 ops-gate1-k1/k2（frontmatter 绑定 Kimi 双源）；派发器=健康探针（log-triage --health）+后备通道，不拆除。roles.* 不删；health-scan audit_surface 判定以实际承载通道的记账源为准（迁移批逐岗改挂）。2026-09-22 用户裁决（门一异构双审落位，终态=独立子代理三岗制）：常设双审=ops-gate1-k1（kimi-main）+ops-gate1-d1（deepseek 按量档，绑定值单源=agents frontmatter）；ops-gate1-k2 维持 kimi-backup 额度兜底位（源A耗尽承载）。降级形态：链退至 deepseek 时 d1 独立承载一审，该批账本须标注单源降级（异构双审退化），health-scan ② 同源执法不豁免。裁决过程：首案改绑 k2→批中澄清（k2 系额度兜底位）回滚→终态增设 d1 独立岗（明细=RESIDUALS 修订记 2026-09-22 行）"
+      "migration_note": "2026-09-16 A'批起迁移期双承载并存：主承载试点=会话内子代理 ops-gate1-k1/k2（frontmatter 绑定 Kimi 双源）；派发器=健康探针（log-triage --health）+后备通道，不拆除。roles.* 不删；health-scan audit_surface 判定以实际承载通道的记账源为准（迁移批逐岗改挂）。2026-09-22 用户裁决（门一异构双审落位，终态=独立子代理三岗制）：常设双审=ops-gate1-k1（kimi-main）+ops-gate1-d1（deepseek 按量档，绑定值单源=agents frontmatter）；ops-gate1-k2 维持 kimi-backup 额度兜底位（源A耗尽承载）。降级形态：链退至 deepseek 时 d1 独立承载一审，该批账本须标注单源降级（异构双审退化），health-scan ② 同源执法不豁免。裁决过程：首案改绑 k2→批中澄清（k2 系额度兜底位）回滚→终态增设 d1 独立岗（明细=RESIDUALS 修订记 2026-09-22 行）。〔前段 2026-09-22 注记的座位分配至此废止〕2026-10-02 用户裁决换位：门一审核座 k1→k2（源B=第二配额备源）——常设双审=k2+d1、单点配置批单审=k2（分级烤验修订二），k1（kimi-main）退额度兜底位（源序关系反转），frontmatter 绑定均不动；standing_pair 同批改 [kimi-backup, deepseek]（换位逐字原文=当日账本 ruling 行承载）"
     },
     "auditor-readonly": {
       "source": "deepseek",
