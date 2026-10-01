@@ -34,11 +34,6 @@
       "reason": "02 §8 历史条款安排性提及（分面放行语义描述）；实配以 org-config 为准"
     },
     {
-      "file": "RESIDUALS.md",
-      "contains": "deepseek-flash$max",
-      "reason": "2026-10-02 gate1-d1-firstdispatch 触发器闭合证据链引用实配绑定值（同 2026-09-17 selfiter-k1k2-reasoninglevel 闭合先例的行级豁免形态——08 §1 判例：RESIDUALS 历史件证据引用；锚串在本文件 grep 计 2，均为闭合证据行；值正确性由 log-triage ③⑥ 核对+agents/ops-gate1-d1.md frontmatter 单源保障，强于正文扫描）"
-    },
-    {
       "file_prefix": "agents/ops-",
       "contains": "MODEL-SELF: model-field:",
       "reason": "代理文件机读契约行（A 批纪律）：绑定值自报行——锚定 agents/ops-* 前缀+行内契约串双条件（审核 B-1 修复：豁免不外溢到普通行）；其正确性由 log-triage ③ 声明vs实际路由核对保障（强于正文扫描）；frontmatter 已剥离不扫"

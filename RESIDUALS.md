@@ -120,10 +120,11 @@
   +WARN×3（继承/预期面，cfg 漂移随本批账本行落账消除）+R4 坏 0 行。
   **触发器闭合：gate1-d1-firstdispatch closed**（2026-10-02 本场=设立后
   首个新会话 d1 真实派发×2 轮）——证据链三项齐：①metadata 声明模型核对
-  （log-triage ③ 呈现 ops-gate1-d1 声明=8ad55776…/deepseek-flash$max=
-  绑定值）②③ 零静默回退（本场 d1 两轮派发均不在 ③ WARN 清单+⑥ 归因
+  （log-triage ③ 呈现 ops-gate1-d1 声明=绑定值——实值单源=agents/
+  ops-gate1-d1.md frontmatter，不落追踪面）②③ 零静默回退（本场 d1 两轮
+  派发均不在 ③ WARN 清单+⑥ 归因
   ops-gate1-d1 @ deepseek 与绑定一致）③MODEL-SELF 尾栏逐字一致（两轮
-  报告尾栏=8ad55776…/deepseek-flash$max）；观察项（不门控）已载=
+  报告尾栏=绑定值逐字相等）；观察项（不门控）已载=
   本条「异构价值观察项」段。
 
 - 2026-09-29 矛盾清偿+小批单审换源批（两笔合审）：**批A 矛盾清偿**——02 §1
