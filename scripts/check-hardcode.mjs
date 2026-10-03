@@ -27,8 +27,8 @@
  */
 import { readFileSync, existsSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { join, relative, basename } from 'node:path'
-import { homedir, tmpdir } from 'node:os'
-import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError } from './org-config.mjs'
+import { tmpdir } from 'node:os'
+import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError, readHostConfig, mergeHostRegistries } from './org-config.mjs'
 
 const argv = process.argv.slice(2)
 // flag 解析收编 cliFlag 单源（v2.0.1 修复批 M4：原裸 argv[i+1] 误吃下一 flag——
@@ -50,7 +50,6 @@ const warnMode = argv.includes('--warn')
 let DEGRADED = false // 降级运行位（宿主配置/白名单损坏——显式留痕退出码 5，v1.6 批 P2-2：原静默吞错=strict 下假 RED/非 strict 假绿）
 const agentsDir = argv.includes('--agents') ? agentsFlag : null // 门一回炉 W3：cliFlag 缺值即抛=裸 --agents 不可达回退（原「|| 默认目录」死代码已删——行为收紧申报：旧版裸 flag 静默扫默认目录，现=用法错 exit 1，g3「假动作面」立场一致）
 const whitelistPath = whitelistFlag || join(SKILL_ROOT, 'scripts', 'hardcode-whitelist.json')
-const HOST_CFG = join(homedir(), '.zcode', 'v2', 'config.json')
 
 const GENERIC = [
   { name: 'URL', re: /https?:\/\/[^\s`"')\]]+/g },
@@ -72,14 +71,29 @@ export function modelVariants(name) {
   return new RegExp(`(?<![\\w-])${body}(?![\\w-])`, 'gi')
 }
 
-/** 从宿主供应商注册表派生实配模型名词表（B-1；词表数据源=host config，脚本零硬编码）。 */
-export function deriveHostModelTerms(hostCfgPath = HOST_CFG) {
+/** 从宿主供应商注册表派生实配模型名词表（B-1；词表数据源=host config，脚本零硬编码）。
+ *  B3（2026-10-03 k1default 批）：读取面改单源复用 org-config readHostConfig（双注册表
+ *  合并=mergeHostRegistries——旧件打底+新件 personalModelIds 物化为 models 键；宿主
+ *  新供应商只落 v2/provider_config.json，单读旧件=新源模型键漏检面，禁写第三份读取）。
+ *  降级语义同面：两件全缺/不可读=DEGRADED 退出码 5（readHostConfig 两件全缺显式抛→
+ *  此处捕获降级；BOM 剥离由 readJson 承接）。cfg 参数=自检注入宿主合并配置对象
+ *  （缺省=真实读取）。 */
+export function deriveHostModelTerms(cfg = null) {
   const terms = []
-  if (!existsSync(hostCfgPath)) { console.error('[degraded] 宿主配置不存在——扫描降级为通用语法形态（漏检面=供应商词表，与损坏同面），退出码 5（终审 W4：原静默返回空词表）'); DEGRADED = true; return terms }
-  let cfg
-  try { cfg = JSON.parse(readFileSync(hostCfgPath, 'utf8').replace(/^\uFEFF/, '')) } catch (e) { console.error(`[degraded] 宿主配置不可读（${e.message}）——扫描降级为通用语法形态（漏检面=供应商词表），退出码 5`); DEGRADED = true; return terms }
+  let hostCfg = cfg
+  // 回炉 d1-W-4：入参类型守卫——旧路径串契约已随 B3 退役，字符串/数组入参会静默
+  // 得空词表（'str'.provider=undefined）无 DEGRADED=终审 W4 消除过的静默漏检面
+  // 复活，显式降级留痕（exit 5）拒静默。回炉 k2-N-3'：null=出合约哨兵（缺省
+  // 真实读取的唯一下游=readHostConfig，其双缺=throw 不返 null），非静默豁免。
+  if (hostCfg !== null && (typeof hostCfg !== 'object' || Array.isArray(hostCfg))) {
+    console.error('[degraded] deriveHostModelTerms 入参形态非宿主合并配置对象（旧路径串契约已随 B3 退役——须传 mergeHostRegistries 返回形态或缺省真实读取）——按不可读降级为通用语法形态，退出码 5')
+    DEGRADED = true; return terms
+  }
+  if (hostCfg === null) {
+    try { hostCfg = readHostConfig() } catch (e) { console.error(`[degraded] 宿主配置不可读（${e.message}）——扫描降级为通用语法形态（漏检面=供应商词表），退出码 5`); DEGRADED = true; return terms }
+  }
   const seen = new Set()
-  for (const p of Object.values(cfg.provider || {})) {
+  for (const p of Object.values(hostCfg.provider || {})) {
     if (!p || typeof p !== 'object') { console.error('[degraded] 宿主配置 provider 含 null/非对象条目——该条目词表跳过、其余源继续扫（漏检面=该条目模型名），退出码 5（evolve-E2 b4：原 null 条目 TypeError 崩溃）'); DEGRADED = true; continue }
     for (const mk of Object.keys(p.models || {})) {
       if (seen.has(mk)) continue
@@ -206,22 +220,33 @@ function selfTest() {
   const vw = typeof validateWhitelistRules === 'function' ? validateWhitelistRules([{ contains: 'x' }, {}, { file: '' }, null, { file_prefix: 'agents/' }]) : null
   t('L12 空条件规则（{}/空串/null）判无效、有条件规则放行', vw != null && vw.valid.length === 2 && vw.invalid.length === 3)
   // b4 向量（evolve-E2）：null provider 宿主条目→降级行（stderr 留痕）+其余源词表继续派生（exit 5 语义族，不崩溃）
+  // B3（k1default 批 2026-10-03）起注入形态=宿主合并配置对象（原临时文件路径参数随读取面双注册表化退役）
   let hmTerms = null, hmErr = null, hmDegraded = false
   const hmBuf = []
   const hmOrigErr = console.error
-  let hmDir = null
   try {
-    hmDir = mkdtempSync(join(tmpdir(), 'hc-b4-'))
-    const f = join(hmDir, 'host.json')
-    writeFileSync(f, JSON.stringify({ provider: { dead: null, live: { models: { 'B4Guard-Model': {} } } } }), 'utf8')
     console.error = (...a) => hmBuf.push(a.join(' '))
-    hmTerms = deriveHostModelTerms(f)
-  } catch (e) { hmErr = e.message } finally {
-    console.error = hmOrigErr
-    if (hmDir) rmSync(hmDir, { recursive: true, force: true }) // 回炉 N3：自检临时目录清理（参照 regression R10/R5 形态）
-  }
+    hmTerms = deriveHostModelTerms({ provider: { dead: null, live: { models: { 'B4Guard-Model': {} } } } })
+  } catch (e) { hmErr = e.message } finally { console.error = hmOrigErr }
   hmDegraded = hmBuf.some((s) => s.includes('[degraded]') && s.includes('null'))
   t('b4 null provider→降级行+其余源词表继续派生（不崩）', hmErr === null && Array.isArray(hmTerms) && hmTerms.length === 1 && hmTerms[0].name.includes('B4Guard-Model') && hmDegraded)
+  // B3 向量（k1default 批）：宿主新注册表独有模型键（personalModelIds 经
+  // mergeHostRegistries 物化为 models 键）进词表——红态=单读旧件时该键漏检
+  t('B3 新注册表独有模型键进词表（mergeHostRegistries 物化→变体正则派生）', (() => {
+    const merged = mergeHostRegistries(null, { config: { providerConfigRules: { providerRules: [{ providerId: 'nonuuid-prov-b3', providerName: 'B3-N', config: { api: { baseUrl: 'https://new/n' }, personalModelIds: ['B3OnlyModel'] } }] } } })
+    const terms = deriveHostModelTerms(merged)
+    return terms.length === 1 && terms[0].name.includes('B3OnlyModel')
+  })())
+  // 回炉 d1-W-4 向量：旧路径串入参（退役契约误用）→ 显式降级非静默空词表
+  t('B3 退役路径串入参=降级留痕非静默空词表（d1-W-4）', (() => {
+    let degraded = false
+    const orig = console.error, buf = []
+    console.error = (...a) => buf.push(a.join(' '))
+    let terms = null
+    try { terms = deriveHostModelTerms('C:/fake/host.json') } finally { console.error = orig }
+    degraded = buf.some((s) => s.includes('[degraded]') && s.includes('B3'))
+    return Array.isArray(terms) && terms.length === 0 && degraded
+  })())
   // selfiter 批（evolve-l3-sort）向量：清单确定性排序——红态=排序缺位时目录序
   // 原样透出（NTFS 常按建盘序非字典序），乱序建盘 fixture 拷打
   let l3ok = null

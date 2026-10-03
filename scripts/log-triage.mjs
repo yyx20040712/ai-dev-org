@@ -104,6 +104,24 @@ const aliasOf = (providerId, aliasMap) => {
   return providerId // builtin:… 等宿主源原样显示
 }
 
+/** 绑定/声明串的 provider 段 → org-config provider 条目解析（B1，2026-10-03
+ *  k1default 批）：按 providers 的 uuid_prefix 值表 startsWith 匹配——弃
+ *  hex-only 正则（宿主注册表存在非 uuid 条目 id，8-hex 前缀解析对其失明=③ 误报
+ *  伪值/⑧ [?] 态，批A k1 首派实证）。空/非串 uuid_prefix 跳过（startsWith('')
+ *  恒真=通配吞配回归面，k1 预审 B-1）；双侧 trim+lowercase 归一（k1 预审 W-2）；
+ *  多命中取最长前缀定序（前缀包含关系，k1 预审 W-1）。纯函数可注入。 */
+export function resolveProviderByFront(frontValue, providers) {
+  const seg = String(frontValue || '').split('/')[0].trim().toLowerCase()
+  if (!seg) return null
+  let best = null
+  for (const [alias, p] of Object.entries(providers || {})) {
+    const px = typeof p?.uuid_prefix === 'string' ? p.uuid_prefix.trim().toLowerCase() : ''
+    if (!px || !seg.startsWith(px)) continue
+    if (!best || px.length > best.px.length) best = { alias, p, px }
+  }
+  return best
+}
+
 // ── ① 五类分诊核心（纯函数，可注入 fixture） ──
 export function classifyError({ statusCode, reason, statusMessage, providerMessage, durationMs }) {
   const code = Number(statusCode) || 0
@@ -264,7 +282,7 @@ export function detectMetadataShapeDrift(profileSnapshot) {
   if (sel !== undefined && !(sel && typeof sel === 'object' && typeof sel.providerId === 'string' && typeof sel.modelId === 'string')) return true
   return false
 }
-export function detectSilentFallback({ metas, subagentNet }) {
+export function detectSilentFallback({ metas, subagentNet, providers }) {
   const findings = []
   for (const m of metas) {
     const ps = m?.profileSnapshot
@@ -275,7 +293,13 @@ export function detectSilentFallback({ metas, subagentNet }) {
     // 可解析时另一键畸形漏报；漂移留痕不替代绑定核对，两者并行不互斥）
     if (detectMetadataShapeDrift(ps)) findings.push({ level: 'WARN', profile: m.profileId, sid, declared: '(未识形态)', actual: act ? `${act.alias}/${act.modelId}` : '(窗口内无请求记录)', kind: '宿主 metadata 格式漂移疑似——③ 检测面可能失明，请核对 declaredModelOf（触发器行 host-metadata-schema-drift）' })
     if (!declared) continue // 无 model/modelSelection=宿主默认，非绑定岗
-    if (!VALID_MODEL_RE.test(declared)) {
+    // B1 ③ 扩展（2026-10-03 k1default 批）：provider 段按 uuid_prefix 值表可解析=合法
+    // 非 uuid 条目 id 声明（宿主注册表非 uuid 条目，批A k1 首派实证——原 hex-only
+    // 判定对正确路由误报「疑似伪值」RED）；值表不命中才落伪值分支。回炉 d1-B-1：
+    // 值表命中前置结构复验 declared 含 '/'——无斜杠裸前缀串（截断形态）RE 本就不容
+    // 且后续 split('/') 比对会遇 undefined.split 崩溃，维持伪值分支不进比对。
+    const hit = declared.includes('/') ? resolveProviderByFront(declared, providers) : null
+    if (!VALID_MODEL_RE.test(declared) && !hit) {
       // 枚举/伪值按流量分级（评估批修正：原一律 RED——历史测试探针零流量也永久
       // 污染退出码，全时段 metadata 扫描窗口化流量天然错位）：窗口内有实际请求=
       // RED（声明形态非法，路由不可信）；无请求=WARN（档案面问题非窗口内路由
@@ -286,11 +310,13 @@ export function detectSilentFallback({ metas, subagentNet }) {
       continue
     }
     if (!act) { findings.push({ level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '无可核对请求' }); continue }
-    // 声明的供应商段（uuid/builtin:/account:）须与实际 providerId 一致；模型段剥除
-    // `$档位` 后缀后须与 modelId 一致（档位不参与回退判定——网络日志无档位维度）
+    // 声明的供应商段（uuid/builtin:/account:/值表命中的非 uuid 条目 id）须与实际
+    // 路由一致；模型段剥除 `$档位` 后缀后须与 modelId 一致（档位不参与回退判定
+    // ——网络日志无档位维度）。B1 ③ 扩展：非 uuid 声明段经值表解析出的别名与
+    // 实际路由别名等值=一致（收割面 aliasOf 同款 startsWith 口径，两侧对齐）。
     const [declaredProv, declaredModelRaw] = declared.split('/')
     const declaredModel = declaredModelRaw.split('$')[0]
-    const match = (act.providerId === declaredProv || act.alias === declaredProv) && act.modelId === declaredModel
+    const match = (act.providerId === declaredProv || act.alias === declaredProv || (hit && hit.alias === act.alias)) && act.modelId === declaredModel
     if (!match) findings.push({ level: 'RED', profile: m.profileId, sid, declared, actual: `${act.alias}/${act.modelId}`, kind: '静默回退（声明≠实际路由）' })
   }
   return findings
@@ -403,6 +429,72 @@ function run() {
       metas: [{ profileId: 'probe-b-live', childSessionId: 's7', profileSnapshot: { model: 'sonnet' } }],
       subagentNet: { s7: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
     })[0]?.level === 'RED')
+    // ── B1 向量组（k1default 批 2026-10-03）：uuid_prefix 值表 startsWith 解析 + ③ 非
+    //    uuid 声明合法面（批A k1 首派实证的误报根因）——k1 预审 W-3 全组
+    const b1Prov = { 'third-syn': { uuid_prefix: 'new-prov', model_family: 'kimi' }, 'short-syn': { uuid_prefix: 'new' } }
+    t('B1 非 uuid id 命中（非 8-hex provider 段 startsWith uuid_prefix→条目）', resolveProviderByFront('new-provider/k3$max', b1Prov)?.alias === 'third-syn')
+    t('B1 空 uuid_prefix 不通配（startsWith(\'\') 恒真=吞配回归面，k1 预审 B-1）', resolveProviderByFront('whatever/x', { bad: { uuid_prefix: '', model_family: 'x' }, worse: { model_family: 'y' } }) === null)
+    t('B1 双命中最长前缀定序（new/new-prov 并存→长者为先）', resolveProviderByFront('new-provider/m', { a: { uuid_prefix: 'new' }, b: { uuid_prefix: 'new-prov' } })?.alias === 'b')
+    t('B1 大小写互配（双侧 trim+lowercase 归一——k1 预审 W-2）', resolveProviderByFront('ABC-DEF/x', { ok: { uuid_prefix: ' abc-def ' } })?.alias === 'ok')
+    t('B1 哨兵 front 不误命中（无斜杠全串/空串——(档案缺失) 类不进值表）', resolveProviderByFront('(档案缺失)', b1Prov) === null && resolveProviderByFront('', b1Prov) === null)
+    t('B1 ③ 非 uuid 声明命中+路由一致=零误报（批A k1 实派形态——原误报疑似伪值 RED）', detectSilentFallback({
+      metas: [{ profileId: 'b1-live', childSessionId: 's10', profileSnapshot: { model: 'new-provider/k3$max' } }],
+      subagentNet: { s10: { alias: 'third-syn', providerId: 'new-provider-host', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+      providers: b1Prov,
+    }).length === 0)
+    t('B1 ③ 非 uuid 声明命中但路由不一致=RED 回退可抓（检测不弱化）', (() => {
+      const r = detectSilentFallback({
+        metas: [{ profileId: 'b1-fb', childSessionId: 's11', profileSnapshot: { model: 'new-provider/k3$max' } }],
+        subagentNet: { s11: { alias: 'other-syn', providerId: 'zzz', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+        providers: b1Prov,
+      })
+      return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('静默回退')
+    })())
+    t('B1 ③ 值表不命中仍伪值分支（行为锁：providers 未声明段不因 B1 放行）', detectSilentFallback({
+      metas: [{ profileId: 'b1-fake', childSessionId: 's12', profileSnapshot: { model: 'sonnet-x/k3' } }],
+      subagentNet: { s12: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+      providers: b1Prov,
+    })[0]?.kind.includes('伪值') === true)
+    // 回炉 d1-B-1 向量：无斜杠裸前缀串（值表可命中）→ 伪值分支不进比对（红态=旧放行后 undefined.split 崩溃）
+    t('B1 ③ 无斜杠命中前缀串=伪值不崩（d1-B-1：结构复验先行）', (() => {
+      const r = detectSilentFallback({
+        metas: [{ profileId: 'b1-bare', childSessionId: 's14', profileSnapshot: { model: 'new-provider' } }],
+        subagentNet: { s14: { alias: 'third-syn', providerId: 'new-provider-host', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+        providers: b1Prov,
+      })
+      return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('伪值')
+    })())
+    // 回炉 k2-W-1 向量：同根前缀变体+路由一致=零报告（取舍行为锁——值表同根=同源，
+    // 与收割面 aliasOf startsWith 口径对齐；逐字比对 provider 段在此口径下不成立）。
+    // 回炉 k2-W-1'：act.providerId 不参与归因（比对三臂均不含按 providerId 查注册表），
+    // 数据任意填充不架空本锁——注释钉明防误读。
+    t('B1 ③ 同根前缀变体声明+路由一致=零报告（k2-W-1 取舍行为锁）', detectSilentFallback({
+      metas: [{ profileId: 'b1-typo', childSessionId: 's13', profileSnapshot: { model: 'new-provider-typo/k3$max' } }],
+      subagentNet: { s13: { alias: 'third-syn', providerId: 'zzz', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+      providers: b1Prov,
+    }).length === 0)
+    // 回炉 d1-W#1 向量：斜杠后空模型段（'new-provider/'）——结构安全（split 得 ''非
+    // undefined 不崩）+空段≠modelId=回退 RED 可抓，落点钉死非静默。
+    t('B1 ③ 斜杠后空模型段=RED 回退不崩（d1-W#1 落点钉死）', (() => {
+      const r = detectSilentFallback({
+        metas: [{ profileId: 'b1-emptymodel', childSessionId: 's15', profileSnapshot: { model: 'new-provider/' } }],
+        subagentNet: { s15: { alias: 'third-syn', providerId: 'new-provider-host', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+        providers: b1Prov,
+      })
+      return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('静默回退')
+    })())
+    // ── B2 向量（k1default 批）：推荐方向源=standing_pair（原 dual_groups[0] 反向滞后面）──
+    t('B2 推荐读 standing_pair 首元（quota=0→primary=常设座）', (() => {
+      const subOf = { 'third-syn': 'ops-gate1-k1', ds: 'ops-gate1-d1' }
+      const recPair = ['third-syn', 'ds']
+      return recommendHealth({ quota: 0, window504: 0, mockN: 0 }, { primary: subOf[recPair[0]], secondary: subOf[recPair[1]] }).rec === 'ops-gate1-k1'
+    })())
+    t('B2 standing_pair 缺省空对不崩（k1 预审 B-2：内建兜底文案承接）', (() => {
+      const sh = {}
+      const recPair = Array.isArray(sh.standing_pair) ? sh.standing_pair : []
+      const subOf = {}
+      return recPair.length === 0 && recommendHealth({ quota: 1, window504: 0, mockN: 0 }, { primary: subOf[recPair[0]], secondary: subOf[recPair[1]] }).rec === '备源'
+    })())
     t('metadata 形态漂移 tripwire：model 键成对象→WARN 未识形态', detectSilentFallback({
       metas: [{ profileId: 'probe-drift', childSessionId: 's8', profileSnapshot: { model: { providerId: 'x', modelId: 'y' } } }],
       subagentNet: {},
@@ -502,8 +594,9 @@ function run() {
     const metasAll = harvestAgents(null) // 全时段 metadata 单次收割复用（原三重全量遍历——v1.6 批收敛）
     const W = process.stdout.write.bind(process.stdout)
 
-    // ③ 静默回退检测（全时段 metadata——历史探针也要盯）
-    const fallbacks = detectSilentFallback({ metas: metasAll, subagentNet })
+    // ③ 静默回退检测（全时段 metadata——历史探针也要盯）；providers 值表注入=
+    // B1 ③ 扩展（非 uuid 条目 id 声明的合法解析面，批A k1 首派实证）
+    const fallbacks = detectSilentFallback({ metas: metasAll, subagentNet, providers: merged.providers })
 
     if (argv.includes('--health')) {
       // ── A'③ 源健康检查：分诊 + 推荐（结构参数=org-config source_health，v1.6 批去硬编码别名） ──
@@ -513,6 +606,19 @@ function run() {
       // 启动校验（终审 auditor-W2）：dual 组别名不在 providers 声明面=配置漂移，显式报错勿静默
       const unknownAliases = dual.filter((a) => !merged.providers?.[a])
       if (unknownAliases.length) console.error(`[config] source_health.dual_groups 引用了 providers 未声明的别名：${unknownAliases.join(', ')}——推荐将按未映射回退，请修 org-config`)
+      // B2（2026-10-03 k1default 批）：门一派发推荐方向源改读 standing_pair（常设
+      // 双审对）首元——原读 dual_groups[0]（换源兜底组语义）与常设审核座方向相反
+      // （在册滞后：RESIDUALS gate1-seat-swap-livefire 已知滞后面，本批闭合）；
+      // dual_groups 保留 ⑥ 双源分列组定义职不动。防护（k1 预审 B-2/W-4）：非数组/
+      // 缺省→空对不崩（recommendHealth 内建兜底文案）；二元结构执法面=health-scan
+      // 启动校验（非二元数组 FAIL exit 3），此处防御性呈现不重复执法。
+      const recPair = Array.isArray(sh.standing_pair) ? sh.standing_pair : []
+      const unknownSp = recPair.filter((a) => !merged.providers?.[a])
+      if (unknownSp.length) console.error(`[config] source_health.standing_pair 引用了 providers 未声明的别名：${unknownSp.join(', ')}——推荐席将按未映射回退，请修 org-config`)
+      // 别名∈providers 但未映射门一子代理=推荐席缺位（k1 预审 W-7：映射缺失须告警，
+      // 勿静默 undefined 进推荐）
+      const unmappedSp = recPair.filter((a) => merged.providers?.[a] && !subOf[a])
+      if (unmappedSp.length) console.error(`[config] source_health.standing_pair 别名未映射门一子代理（gate1_subagent_of 缺键）：${unmappedSp.join(', ')}——推荐席缺位，请修 org-config`)
       W(`== 源健康检查（窗口=${dateStr || `近 ${hours}h`}，cfg:${cfgHash(merged)}）==\n`)
       if (deduped) W(`（request.failed 同秒剔重 ×${deduped}——终审 N2 暴露面，人工判读置信度用）\n`)
       for (const [alias, st] of Object.entries(perProvider)) {
@@ -525,8 +631,11 @@ function run() {
       const cnt = countRealFailures(routing.exhaust)
       if (cnt.mockN) W(`   （另检出 mock 演练行 ×${cnt.mockN}——R5 换源演练注入，不构成真实源健康信号）\n`)
       if (!Object.keys(routing.exhaust).length) W(`   （窗口内无 exhaust 事件）\n`)
-      const { rec, why } = recommendHealth(cnt, { primary: subOf[dual[0]], secondary: subOf[dual[1]] })
-      W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}（双源组=${dual.join('↔') || '未配置'}）\n`)
+      const { rec, why } = recommendHealth(cnt, { primary: subOf[recPair[0]], secondary: subOf[recPair[1]] })
+      // 输出标签改「常设对=」（k1 预审 N-3：勿与 ⑥ 双源组语义混淆）；单元素/
+      // 超长形态如实呈现（二元契约执法在 health-scan 启动校验）
+      const spNote = recPair.length === 1 ? '——次席未配置' : (recPair.length > 2 ? `——长度${recPair.length}（二元契约面，取前两元；health-scan 启动校验应拦）` : '')
+      W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}（常设对=${recPair.join('↔') || '未配置'}${spNote}）\n`)
       // R2 干涸窗现状（全局标记文件直读——ds-call-v2 跳过面；DS_DRY_FILE 同源重定向）
       try {
         const dryPath = process.env.DS_DRY_FILE || join(SKILL_ROOT, '.zcode', 'source-dry.json')
@@ -553,9 +662,10 @@ function run() {
                 front = mv ? mv[1].replace(/^['"]|['"]$/g, '') : '(无 model 字段)' // 回炉 N6：剥离包裹引号防前缀匹配假失败
               } catch { front = '(档案缺失)' }
             }
-            const prefix = /^([0-9a-f]{8})/i.exec((front.split('/')[0] || '').trim())
-            const prov = prefix ? Object.entries(merged.providers || {}).find(([, p]) => String(p.uuid_prefix || '').toLowerCase() === prefix[1].toLowerCase()) : null
-            return { alias, agent, front, family: prov ? (norm(prov[1].model_family) || '?') : '?' }
+            // B1（2026-10-03 k1default 批）：uuid_prefix 值表 startsWith 解析（弃 hex-only
+            // 正则——k1 入 standing 后非 uuid 条目 id 8-hex 失明=[?] 态，先修此面）
+            const hit = resolveProviderByFront(front, merged.providers)
+            return { alias, agent, front, family: hit ? (norm(hit.p.model_family) || '?') : '?' }
           })
           for (const r of rows) W(`   [${r.alias}] 子代理=${r.agent || '?'} family=${r.family}（配置期望=${famOfCfg(r.alias) ?? '?'}）front=${r.front.slice(0, 40)}\n`)
           const fams = rows.map((r) => r.family)
@@ -581,9 +691,9 @@ function run() {
               const fm = readFileSync(join(agentsDirOf(), `${agent}.md`), 'utf8')
               const mv = /^model:\s*(\S+)/m.exec(fm)
               const front = mv ? mv[1].replace(/^['"]|['"]$/g, '') : ''
-              const prefix = /^([0-9a-f]{8})/i.exec((front.split('/')[0] || '').trim())
-              const prov = prefix ? Object.entries(merged.providers || {}).find(([, p]) => String(p.uuid_prefix || '').toLowerCase() === prefix[1].toLowerCase()) : null
-              return prov ? String(prov[1].model_family || '?').toLowerCase() : '?'
+              // B1：同款值表解析（两 site 单源=resolveProviderByFront）
+              const hit = resolveProviderByFront(front, merged.providers)
+              return hit ? String(hit.p.model_family || '?').toLowerCase() : '?'
             } catch { return '?' }
           }
           const fa = famOfAgent(pair[0]), fb = famOfAgent(pair[1])
