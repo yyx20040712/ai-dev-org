@@ -243,7 +243,7 @@ function selfTest() {
     const orig = console.error, buf = []
     console.error = (...a) => buf.push(a.join(' '))
     let terms = null
-    try { terms = deriveHostModelTerms('C:/fake/host.json') } finally { console.error = orig }
+    try { terms = deriveHostModelTerms('syn-fake-host.json') } finally { console.error = orig }
     degraded = buf.some((s) => s.includes('[degraded]') && s.includes('B3'))
     return Array.isArray(terms) && terms.length === 0 && degraded
   })())
