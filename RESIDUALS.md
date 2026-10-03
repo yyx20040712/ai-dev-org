@@ -31,15 +31,67 @@
 | synapse-skill-consolidation-window | 用户裁决 2026-10-01：脉络图战役收口后集中维护技能——「打造软件工程领域综合大型技能，使其他技能功能均被本技能覆盖，简化流程+保证单一信息源」。随批两件：①下批开工纪律技能清点表增「消费点」列（微改动，F-LGRAPH-01 ①批简报携带）；②主控建议四组入档（战术知识消费现成技能/技能=判断力编译+机检优先+事故锚点+窄而深+技能过自门/真实缺口=视觉回归常驻+性能预算+消费接线/移植判据=防什么风险而非大厂都这么做）。**主控异议在档**：巨石式「内容覆盖」有四风险——上下文经济学（全域知识单技能=每次加载 95% 无关内容；本技能自身「references 按需读」设计即为此解）/复制即双源（官方/插件技能内容抄入自有技能=第二事实源，上游更新即腐化——恰违反单一信息源本意）/治理面失控（600 字符预算+anchors 机检管得住窄技能，全域巨石=规则冲突+审不过，selfiter 六批两轮回炉治理八个岗位的先例可参）/违反本册刚立的二次实证泛化判据。**主控替代方案**：伞形架构——入口唯一（本技能或新薄路由技能承载「分域消费点索引」：什么场景读哪个现成技能的哪节），内容驻原地零复制，项目特异规范驻项目——「覆盖调度权而非内容」；单一信息源的正解=每个事实恰一个权威出处+指针互联，非物理合并 | 脉络图战役收口（F-LGRAPH-01 ②批 done）后用户启动集中维护期：首场=自有技能库重复面测绘盘点+「伞形 vs 巨石」呈裁（本行异议与两案随呈批包内联），用户裁决后分批实施；实施批照 selfiter 先例过门一对抗审 |
 | synapse-exhaust-debt | Synapse auditor-readonly exhaust 欠账未补还（2026-10-01，runId 20261001051902-fucss5m8，06 §4 回退只读审已处置）——health-scan RED 常驻（2026-10-02 换位批申报继承：先于本批存在，非本批引入；已随批收口呈报面向用户通报一次） | Synapse 下场批首派 auditor-readonly 补还 ok 行→health-scan RED 归零=closed；连续两个关键批未补还=升级用户 |
 | findings-tail-backtick | 〔closed 2026-10-03 纯净化批——机制删除〕原 open 面=parseFindings 与 health-scan hasTail 双函数反引号口径不一致（审出件尾栏被反引号包裹时 findings 静默缺栏）——parseFindings 已随 ds-call-v2 删除，机写解析通道不复存在；现役路径=主控人工回填（02 §9 例外条款，回填时逐字核读尾栏），health-scan hasTail 容错保留 | 永久 closed（机写通道删除）；人工回填遇反引号包裹尾栏=按 02 §9 例外条款处置 |
-| k1default-seatflip-livefire | 2026-10-03 换座批（k1default，裁决=默认优先走新 k1）落地面：部署档（ops-gate1-k1 渲染件 description=常设一审位、ops-gate1-k2=额度兜底位）与 org-config/文档九处已改，但代理档案=会话启动快照——本批同会话派发（批E 双审 k2/d1）仍持旧描述快照（绑定未动，无拒启风险；本批 ops-gate1-k1 与 ops-gate1-k3 派发走批A=活性核对已闭环，k2/d1 派发 MODEL-SELF 自报=各绑定值）。描述快照滞后=2026-10-02 换位批同款已知态 | 新会话首场门一派发核对：①k1 派发 metadata 声明=kimi-third 绑定值+报告载体 description 呈常设位语义②k2（若派发）description 呈兜底位语义③log-triage ③ 零静默回退+⑥ 归因一致④账本新行 cfg_hash 与 validate 输出一致——四项齐=closed |
+| k1default-seatflip-livefire | 〔closed 2026-10-03 comptest 批〕原 open 面=换座批描述快照滞后的新会话四项核对——本批随场核对：①k1 首场真实派发（comptest-s4-k1）metadata 声明=绑定值（⑥ 归因 kimi-third+会话不在 ③ 回退清单）+本会话名录 description 呈常设一审位语义（「复归门一常设审核座…默认使用」）②k2 本批未派发（条件项不适用——若派发）③③ 零静默回退+⑥ 归因一致（k1@kimi-third）④本批账本新行 cfg_hash=1936ff59c236 与 validate 输出逐字一致；证据=账本行 comptest-s4-k1+comptest 修订记 | 已 closed（①③④核对齐，②未派发不适用；四检面首场即 k1 小批单审与 d1 落档批双场覆盖） |
+| gate1-smallbatch-k1-firstdispatch | 〔closed 2026-10-03 comptest 批〕原 open 面=小批单审位 d1→k1 的首场实派核对——本批三项齐：①派发 metadata 声明=k1 绑定值（⑥ 归因+零 ③ 回退）②MODEL-SELF 尾栏=model-field 形态逐字=绑定值③③ 零静默回退+⑥ 归因 kimi 族；载体=comptest-s4-k1（纯文档 3 文件 +5/−5 小批）；证据=账本行 comptest-s4-k1+comptest 修订记。观测项记录（样本 #1）：k1 位小批首审 **B0/W2/N5 PASS**（d1 期在册样本=2026-09-29 修订一批 B0/W3/N5——同量级，样本 ≥3 后呈报） | 已 closed（三项齐）；观测项继续随场记账（每批 W+N 对 d1 期样本定性对比） |
 | r1-verdict-nondeterminism | 〔closed 2026-10-03 纯净化批——机制删除〕原 open 面=R1 真跑 deepseek 轮非确定输出异常的复发观测——R1 项已随派发器族回归项删除（触发条件不可达）；原定性（LLM 输出非确定偶发）与证据链=当日修订记在册，档案=git 历史 | 永久 closed（载体删除）；若未来重建语义抽样回归=新批新行（届时格式容错教训随批移植） |
-| gate1-smallbatch-k1-firstdispatch | 2026-10-03 修订四：小批单审位 d1→k1——生效点=主控派发选座（非派发器路由，沿 gate1-d1-firstdispatch 先例口径）；k1 位活性已由同日 k1default 批A 实证（MODEL-SELF 自报+③ 零回退），小批场景为首增核对面 | 下场纯文档小批实派 k1 时核对三项：①派发 metadata 声明=k1 绑定值 ②MODEL-SELF 尾栏=绑定值 ③log-triage ③ 零静默回退+⑥ 归因 kimi 族——齐=closed；观测项（不门控，d1 位 delta W-Δ4 移驻本行）：闭项后随场记每批 W+N 计数，对 d1 期在册样本（2026-09-29 修订一批 B0/W3/N5）定性对比，样本≥3 呈报升格/回退裁决 |
-| drafter-designdraft-firstdispatch | 2026-10-03 修订四面二：前端设计稿拟定=拟定者通道新投放面——派发纪律（显式指定充裕承载源 kimi-third、不盲走链首真稀缺源）系纯文本约束无机械强制，漏指定即静默回退链首（d1 位首审 W5：验证面与面一不对称）〔注：同日 dispatch-retire 批起拟定者=ops-drafter 绑定子代理（kimi-third 固定），「显式指定源」纪律随派发器退役废止——本行核对①②的源语义改读绑定值〕 | 首场前端设计稿派发核对四项：①账本补记行 source=kimi-third（绑定承载，无派发器流水）②任务书含设计稿契约段且产出=文本形态设计稿 ③设计稿落仓批次的门一单审位=d1（异构护栏，07 §1）④账本行入账（tier=prime）——齐=closed |
-| adjudicator-rebind-livefire | 2026-10-03 dispatch-retire 批：裁决部 ops-adjudicator 改绑 deepseek→kimi-third——代理档案=会话启动快照，本批同会话派发仍持旧绑定（deepseek 快照，无拒启风险），新会话方按新绑定路由（k1default-seatflip 同款已知态） | 新会话首场裁决部派发核对四项：①派发 metadata 声明=kimi-third 绑定值 ②MODEL-SELF 尾栏=绑定值 ③log-triage ③ 零静默回退+⑥ 归因 kimi 族 ④--health ⑧ 跨门异族 ok 维持——四项齐=closed |
-| ops-drafter-firstdispatch | 2026-10-03 dispatch-retire 批新岗：拟定者迁入会话内绑定子代理 ops-drafter（kimi-third 座）——首派前宿主须完成代理名录装载（新会话），岗义契约=templates/agents/ops-drafter.md（自包含任务书墙+DoD 尾栏） | 首场 ops-drafter 派发核对四项：①新会话宿主代理名录含 ops-drafter ②MODEL-SELF 尾栏=kimi-third 绑定值+零 Read 违约（自包含任务书墙）③LEDGER-CLAIM 尾栏在场（executor=model-field 形态，adjudicator 模板同款先例）④账本行补记（role=ops-drafter，tier=prime）——齐=closed |
-| ops-auditor-firstdispatch | 2026-10-03 dispatch-retire 批新岗：审核者迁入会话内绑定子代理 ops-auditor（deepseek 座）——同上装载前提；VERDICT 词表=审核者域（放行\|有条件放行\|返工），勿套门一域 PASS\|FAIL | 首场 ops-auditor 派发核对三项：①新会话宿主代理名录含 ops-auditor ②MODEL-SELF 尾栏=deepseek 绑定值+FINDINGS 尾栏词表正确 ③账本行补记（role=ops-auditor，tier=debt-readonly）——齐=closed |
+| drafter-designdraft-firstdispatch | 〔closed 2026-10-03 comptest 批〕原 open 面=前端设计稿首场派发核对四项——本批四项齐：①账本补记行 source=kimi-third（comptest-s2-draft，绑定承载无派发器流水）②任务书含设计稿契约段（第三节 DoD 六项）且产出=文本形态设计稿（候选 A/B+对照 C/逐组件树/状态×码表/AC-1~20）③设计稿落档批次门一单审位=d1（comptest-s4-d1 承载，与拟定源异构护栏成立——07 §1；落档面=仓外批档区 comptest-2026-10-03/，影子原件+sha256 清单在档）④账本行入账 tier=prime；证据=账本行 comptest-s2-draft/comptest-s4-d1+comptest 修订记 | 已 closed（四项齐） |
+| adjudicator-rebind-livefire | 〔closed 2026-10-03 comptest 批〕原 open 面=改绑后新会话首场裁决部派发四项核对——本批四项齐：①本场⑥ 归因 ops-adjudicator @ kimi-third calls=1（声明=实际，会话不在 ③ 回退清单）②MODEL-SELF 尾栏=model-field 形态逐字=绑定值（实值单源=本机件 agent_bindings，账本行 comptest-s1-adjud 在档；LEDGER-CLAIM executor=model-field 同值在场，outcome=done）③③ 零静默回退（WARN 清单仅历史旧快照「窗口内无请求」，含改绑前 adjudicator 旧会话=预期态非回退）④--health ⑧ 跨门异族 ok 1/WARN 0 维持；同场预埋算术错（12+9 记 22）被复算抓出且结论反转，改绑后裁决职能正常；证据=账本行 comptest-s1-adjud+comptest 修订记 | 已 closed（四项齐）；deepseek 轴复燃监维持 cross-gate-samefamily 行 closed 注记 |
+| ops-drafter-firstdispatch | 〔closed 2026-10-03 comptest 批〕原 open 面=新岗首派四项核对——本批四项齐：①本会话宿主名录含 ops-drafter（阶段0 快照实录）②MODEL-SELF 尾栏=model-field 形态逐字=绑定值（kimi-third 座）+tool_uses=0 零 Read 违约（自包含任务书墙成立，5 处「任务书不足」显式标注）③LEDGER-CLAIM 尾栏在场（executor=model-field 形态，outcome=done）④账本行补记 runId=comptest-s2-draft（role=ops-drafter，tier=prime，source=kimi-third）；证据=账本行+comptest 修订记 | 已 closed（四项齐） |
+| ops-auditor-firstdispatch | 〔closed 2026-10-03 comptest 批〕原 open 面=新岗首派三项核对——本批三项齐：①本会话宿主名录含 ops-auditor（阶段0 快照实录）②MODEL-SELF 尾栏=model-field 形态逐字=绑定值（deepseek 座）+FINDINGS 尾栏词表=审核者域（VERDICT=有条件放行，非门一域 PASS|FAIL，零 escaped-defect）+审核声明前置+tool_uses=0 零 Read 违约③账本行补记 runId=comptest-s3-audit（role=ops-auditor，tier=debt-readonly，source=deepseek，findings 栏齐）；⑥ 归因 ops-auditor @ deepseek calls=1；证据=账本行+comptest 修订记 | 已 closed（三项齐） |
+| d1desc-seatnote-stale | 2026-10-03 comptest 批发现（escaped-defect 账本行 comptest-esc1-d1desc）：ops-gate1-d1 模板（templates/agents/）+部署渲染件（~/.zcode/agents/）description 停留 10-02 换位态（「与源B/ops-gate1-k2 成对派发……对端 2026-10-02 换位 k1→k2」）——k1default 批落地面九处更新 k1/k2 双模板与 07 §1 行时漏 d1 对端注记随批更新（现役常设对=k1+d1，standing_pair=[kimi-third,deepseek]）；同根 07 §4 名录表行已由 comptest 批补正（references 面），模板面按测试批纪律只登记不修（涉模板改动+重渲染部署+新会话快照核对=独立批）。绑定 model 字段未受影响（纯 description 文案漂移，无路由实害） | 修复批处置：templates/agents/ops-gate1-d1.md description 对端注记改现役态→deploy-check --install 重渲染（W7a 删件重装程序）→新会话 d1 派发快照核对 description 语义——纯文案小批可走单审 k1+主控亲验 |
 
 ## 修订记
+
+- 2026-10-03 新会话综合测试批（comptest，runId 前缀 comptest；触发=purge 批交付③
+  「新会话综合测试提示词」——提示词原文=E:/zcode_md/fix/ai-dev-org-新会话综合测试提示词.md，
+  用户批令=按技能自身纪律端到端实弹验证当日五项落地变更）：**阶段0 开工体检**——git 基线
+  ab8dbbc+净树；机检七项全过（validate cfg:1936ff59c236/self-test 52/regression 4=4
+  R4R7R8R10/anchors strict 0-0/hardcode strict 0/deploy-check ok16/warn0/FAIL0；
+  log-triage --health：常设对异族 ok+跨门 ⑧ ok 1/WARN 0+推荐位=ops-gate1-k1）；
+  名录快照=ops-adjudicator/ops-drafter/ops-auditor 三新岗均在册。**阶段1 裁决部改绑
+  livefire**（账本行 comptest-s1-adjud）——自包含证据包 3 条发现内联、预埋算术错
+  （12+9 记 22）：被复算抓出且按「>21k 严格大于」判据结论反转（撤销 B 级阻断）+
+  无佐证断言点名+全称断言降证据不足；四项核对齐（⑥ 归因 kimi-third calls=1/
+  MODEL-SELF=绑定值/③ 零回退〔③ WARN 清单仅历史旧快照，含改绑前 adjudicator 旧会话=
+  预期态〕/⑧ 维持 ok 1）。**阶段2 拟定者首派**（账本行 comptest-s2-draft）——
+  前端设计稿（文本形态，自包含任务书含契约段）：候选 A/B+对照 C/逐组件树/状态×HTTP
+  码表/AC-1~20/5 处「任务书不足」标注（口头期望登出全部设备=API 面缺口→用户裁决位）；
+  四项核对齐（名录/MODEL-SELF+零 Read 违约 tool_uses=0/LEDGER-CLAIM executor=model-field/
+  账本 tier=prime）。**阶段3 审核者首派**（账本行 comptest-s3-audit）——三段通道第二段
+  对抗审核：B=0/W=7/N=12 VERDICT=有条件放行（审核者域词表正确，零 escaped-defect），
+  对主控预审声明第②点独立推翻；三项核对齐+⑥ 归因 deepseek；第三段主控终裁=接受
+  有条件放行（W 级=实施批条件、N 级=负面清单留用户——N4 会话级 429 禁用超契约语义/
+  N9 Intl.supportedValuesOf 第三方案〔浏览器矩阵未知〕/N12 avatar 401 契约缺口）。
+  **阶段4 小批 k1 单审 livefire**（账本行 comptest-s4-k1）——真实小批=纯文档 3 文件
+  +5/−5（07 §4 d1 行对端旧态补正+10 §6 干涸窗死行闭项留痕+RESIDUALS 三行闭项）：
+  B=0/W=2/N=5 PASS；三项核对齐+⑥ 归因 kimi-third。**附面 设计稿落档批 d1 单审**
+  （账本行 comptest-s4-d1，07 §1 异构护栏——与拟定源异源）：B=0/W=1/N=6 PASS；
+  W1=归档无损性缺基准→主控处置=影子原件+sha256 清单落批档区+机器 diff 对照，首轮
+  实出 1 处单字转写漂移（「仅两/仅两个」——归档转写引入）已修正复验 BODY-IDENTICAL
+  （W1 证实力证：审者担忧非假设）；N2/N4 处置=批档区 MANIFEST 口径统一+哈希落盘。
+  **对抗位自裁申报**：本批=测试批（无逻辑行变更，文档面 3 文件）→按分级烤验小批口径
+  单审 k1+主控亲验全机检矩阵；设计稿落档批另取 d1 单审（异构护栏）——非双审 k1+d1
+  并用（同一 diff 未重复送审，两审对象为不同批次面）。**escaped-defect 登记**
+  （账本行 comptest-esc1-d1desc）：ops-gate1-d1 模板+部署件 description 对端注记停
+  10-02 态（k1default 批漏改面）——触发器行新登记 d1desc-seatnote-stale（open），
+  07 §4 表行同根面已由本批补正（小批 diff 组成部分，k1 已审）。**触发器行闭项×6**：
+  adjudicator-rebind-livefire/ops-drafter-firstdispatch/ops-auditor-firstdispatch/
+  gate1-smallbatch-k1-firstdispatch/drafter-designdraft-firstdispatch/k1default-seatflip-livefire
+  （①③④核对齐、②k2 未派发不适用）。**机检终态**：validate PASS（cfg:1936ff59c236，
+  =本批全部账本行 cfg_hash）+self-test 52+regression 4/4+anchors strict 0-0+hardcode
+  strict 0+deploy-check ok16/warn0/FAIL0+health-scan RED×1（Synapse exhaust 继承面
+  申报勿修）+WARN×3（继承×2+escaped-defect 登记×1——cfg 漂移 WARN 已随本批账本行
+  落账消除）+findings 执法 21/21 齐栏。**过程实录三则（教训面）**：①本批组装中
+  hardcode 门禁实弹拦截 1 次（闭项注记初稿内联绑定值字面 4 命中→改指针化复扫归零
+  ——门禁有效性实证）；②k1-N1 抓到审包 diff hunk 头被主控导读化（「机器 diff 原样
+  粘贴」纪律未守住，W8 保真度教训复发——下场批 hunk 头原样）；③volta 退码掩码
+  （126）在本批两次实跑复现（在册 volta-exitcode-mask）。**观测项（不门控）**：
+  log-triage ⑥ 窗口内 ops-adjudicator @ deepseek 出现 in=7.2M 级累计值（改绑前旧快照
+  会话流量，先于本批存在；单请求物理不可能，疑会话累计/聚合口径）——非本批引入，
+  留观测，⑥ 呈现面若升格时一并核。**收口笔申报**：本条+新登记 d1desc-seatnote-stale
+  行+批档区三件（设计稿/影子原件/MANIFEST——仓外 E:/zcode_md/fix/comptest-2026-10-03/）
+  为 k1/d1 审后收口笔（史序=k1-W1 兑现项：修订记含 comptest-s1-adjud/comptest-s2-draft/
+  comptest-s3-audit 三指针逐字呼应）。账本：ok×5+escaped-defect×1 共 6 行（gitignore 层）。
 
 - 2026-10-03 技能纯净化批（purge，用户裁决，账本 ruling 行 purge-ruling；
   原文「代理已刷新。推送后彻底删除死代码和文档以保证技能纯净并再次推送，
