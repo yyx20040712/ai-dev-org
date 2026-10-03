@@ -638,13 +638,8 @@ function run() {
       // 超长形态如实呈现（二元契约执法在 health-scan 启动校验）
       const spNote = recPair.length === 1 ? '——次席未配置' : (recPair.length > 2 ? `——长度${recPair.length}（二元契约面，取前两元；health-scan 启动校验应拦）` : '')
       W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}（常设对=${recPair.join('↔') || '未配置'}${spNote}）\n`)
-      // R2 干涸窗现状（全局标记文件直读——ds-call-v2 跳过面；DS_DRY_FILE 同源重定向）
-      try {
-        const dryPath = process.env.DS_DRY_FILE || join(SKILL_ROOT, '.zcode', 'source-dry.json')
-        const dm = JSON.parse(readFileSync(dryPath, 'utf8'))
-        const act = Object.entries(dm).filter(([, v]) => v && Number(v.until) > Date.now())
-        W(`-- 干涸窗标记（R2，时长=${merged.source_health?.dry_minutes ?? 60}min）：${act.length ? act.map(([a, v]) => `${a} 至 ${new Date(v.until).toISOString()}（${v.reason}）`).join('；') : '无活跃标记'}\n`)
-      } catch { W(`-- 干涸窗标记（R2）：无（标记文件缺失=从未触发）\n`) }
+      // 2026-10-03 纯净化批：R2 干涸窗呈现随派发器删除而删（写入者亡=标记永不再生；
+      // 历史机制档案=git 历史+RESIDUALS r2-drywindow-livefire 行 closed）。
       // R3 ⑧ 常设双审对绑定实况核对（agent frontmatter model → uuid 前缀 → provider → model_family；
       //    配置面同族 RED=health-scan 启动校验，此处查实际绑定漂移——两读不混）。
       //    回炉 B-1：终判三分支——已核对异族=ok／同族=WARN／任一侧未解析=[?] 无法核对

@@ -20,7 +20,7 @@
 | empty-declared-blindspot | 空字符串 model 声明被当非绑定岗静默跳过（tripwire 只查非字符串形态；批前既有行为，宿主空串语义未确证——门二裁决 B3 登记；真源=10 §3） | 宿主 metadata 实证出现 model:"" 时处置（先确证语义再定跳过/漂移口径） |
 | log-triage-import-side-effect | log-triage.mjs 顶层无 import.meta.main 守卫，import 即跑 CLI 主流程（门二实证 M5-M7 注入命令实录；批前既有） | 出现模块化消费该文件的需求时加守卫（当前消费面=CLI+自检，无受损） |
 | volta-exitcode-mask | volta run 将任意非零退出码掩成 126（本机实证 2026-09-17：1/2/3→126、0 正常、裸 node 透传无误；DEPLOY.md §0 已提示；真源=10 §1） | 出现脚本化消费精确退出码且须经 volta run 的封装时处置（volta pin 固定默认或直跑 node） |
-| r2-drywindow-livefire | ds-call-v2 干涸窗记忆（2026-09-22 R2）：自检 6/6+mock 功能演练已证（R11），**真实 429/403 触发路径未实弹** | 首次真实配额族失败后核对三件：source-dry.json 落标/次派发 [dry] 跳过行/窗口过期或成功调用自恢复——齐=closed |
+| r2-drywindow-livefire | 〔closed 2026-10-03 纯净化批〕原 open 面=ds-call-v2 干涸窗记忆（R2）真实 429/403 触发路径未实弹——机制随派发器物理删除（写入者亡=标记永不再生，实弹核对对象不存在），档案=git 历史 | 永久 closed（机制删除）；若未来重建外呼类工具须配额记忆=新裁决新批 |
 | probe-bc-metadata-residue | 历史会话残留（probe-b 声明=sonnet 枚举伪值/probe-c=deepseek 无档位后缀——盘上无对应档案，纯 CLI metadata 痕迹）污染 log-triage ③ 输出噪声（2026-09-22 全局诊断批发现，R6 登记；真源=10 §3） | log-triage ③ 呈现面升级时加无档案过滤；新同形态会话复发即升宿主排查批 |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
 | cross-gate-samefamily | 〔closed 2026-10-03 dispatch-retire 批〕原 open 面=门一 d1↔门二裁决部同族（deepseek 轴）异构退化 WARN 常态（2026-09-22 用户裁决维持，改绑留后续裁决位）——**2026-10-03 用户裁决「裁决部改绑」落地**：ops-adjudicator 改绑 kimi-third，--health ⑧ 实测 ok 1/WARN 0（盘上代理档案即时生效），deepseek 轴闭合。残余邻接申报：邻接轴移至 k1↔裁决部（kimi 族同源）——双族门一×单席裁决部的结构必然恰一同族邻接，经裁决接受 kimi 轴（deepseek 按量退居 d1 单席、裁决部入充裕 kimi-third 池） | ⑧ tripwire（cross_gate_pairs）常驻监 deepseek 轴——复燃即 WARN=本行复开；kimi 轴邻接无 tripwire（结构必然非缺陷），升格门=用户裁决（裁决部双席/第三族承载） |
@@ -30,9 +30,9 @@
 | synapse-temporal-defect-refine | Synapse F-LINEAGE-02 ①a 批（2026-10-01）三教训：CSS 过渡按样式重算周期末计算值判定（禁断→恢复需强制回流分隔）／时间维度缺陷需时间维度断言（多时刻采样）／切片断言采样起点须取被锁行为发生前最后自然采样点后（恒真断言经变异红证证伪实证）。三条候选升级挂账**暂不实施**（用户裁决 2026-10-01「挂账在末尾，检验提炼后再考虑完善技能」）：①禁断→回流→恢复抽共享工具函数 ②瞬态多时刻采样固化为常驻 e2e 用例 ③Synapse methodology §4 ⑤j 候选条款（涉 CSS 过渡/异步视觉状态票面验收段必含时间维度断言形态）。教训本体回流=项目事故档（v105 §3 待回流段在案）；工程升级载体=项目层（代码/测试/methodology），不入本技能 | **短窗检验**=F-LGRAPH-01 ②批（编辑器交互批——useCardDrag 拆分+调线手柄又一处命令式 DOM）收口时盘点：同型时间维度/恒真断言缺陷复现≥1→三条升级立即随批实施+⑤j 正式立条；零复现→教训降级为事故档常规行、⑤j 不立（防过度治理）。**技能泛化**（本技能收录「时间维度缺陷防线」类内容）=第二个前端项目出现同型复现时再议——走 05 §6 差异回灌协议，届时以结论+项目档案指针形态入册不复述细节 |
 | synapse-skill-consolidation-window | 用户裁决 2026-10-01：脉络图战役收口后集中维护技能——「打造软件工程领域综合大型技能，使其他技能功能均被本技能覆盖，简化流程+保证单一信息源」。随批两件：①下批开工纪律技能清点表增「消费点」列（微改动，F-LGRAPH-01 ①批简报携带）；②主控建议四组入档（战术知识消费现成技能/技能=判断力编译+机检优先+事故锚点+窄而深+技能过自门/真实缺口=视觉回归常驻+性能预算+消费接线/移植判据=防什么风险而非大厂都这么做）。**主控异议在档**：巨石式「内容覆盖」有四风险——上下文经济学（全域知识单技能=每次加载 95% 无关内容；本技能自身「references 按需读」设计即为此解）/复制即双源（官方/插件技能内容抄入自有技能=第二事实源，上游更新即腐化——恰违反单一信息源本意）/治理面失控（600 字符预算+anchors 机检管得住窄技能，全域巨石=规则冲突+审不过，selfiter 六批两轮回炉治理八个岗位的先例可参）/违反本册刚立的二次实证泛化判据。**主控替代方案**：伞形架构——入口唯一（本技能或新薄路由技能承载「分域消费点索引」：什么场景读哪个现成技能的哪节），内容驻原地零复制，项目特异规范驻项目——「覆盖调度权而非内容」；单一信息源的正解=每个事实恰一个权威出处+指针互联，非物理合并 | 脉络图战役收口（F-LGRAPH-01 ②批 done）后用户启动集中维护期：首场=自有技能库重复面测绘盘点+「伞形 vs 巨石」呈裁（本行异议与两案随呈批包内联），用户裁决后分批实施；实施批照 selfiter 先例过门一对抗审 |
 | synapse-exhaust-debt | Synapse auditor-readonly exhaust 欠账未补还（2026-10-01，runId 20261001051902-fucss5m8，06 §4 回退只读审已处置）——health-scan RED 常驻（2026-10-02 换位批申报继承：先于本批存在，非本批引入；已随批收口呈报面向用户通报一次） | Synapse 下场批首派 auditor-readonly 补还 ok 行→health-scan RED 归零=closed；连续两个关键批未补还=升级用户 |
-| findings-tail-backtick | parseFindings 正则 `^FINDINGS:` 锚不容忍前导反引号，health-scan 侧 hasTail 却容忍（`^\s*`?FINDINGS:`）——双函数口径不一致；审出件尾栏被反引号包裹时 findings 静默缺栏（实证=hjjc 2026-09-28 delta_receipt.md:41 → 账本行 20260928092435-6sbq82u2 缺栏，2026-10-02 按 02 §9 人工回填清偿+backfill_note 留痕；静默丢失路径在修复前保持武装——d1-N4） | parseFindings 变更批或同形态复发≥1 次：统一两函数口径（剥成对反引号后解析）+补 R10 向量+历史回执全量扫描同形态证伪其他静默缺栏；**下场涉脚本批优先一行修复** |
+| findings-tail-backtick | 〔closed 2026-10-03 纯净化批——机制删除〕原 open 面=parseFindings 与 health-scan hasTail 双函数反引号口径不一致（审出件尾栏被反引号包裹时 findings 静默缺栏）——parseFindings 已随 ds-call-v2 删除，机写解析通道不复存在；现役路径=主控人工回填（02 §9 例外条款，回填时逐字核读尾栏），health-scan hasTail 容错保留 | 永久 closed（机写通道删除）；人工回填遇反引号包裹尾栏=按 02 §9 例外条款处置 |
 | k1default-seatflip-livefire | 2026-10-03 换座批（k1default，裁决=默认优先走新 k1）落地面：部署档（ops-gate1-k1 渲染件 description=常设一审位、ops-gate1-k2=额度兜底位）与 org-config/文档九处已改，但代理档案=会话启动快照——本批同会话派发（批E 双审 k2/d1）仍持旧描述快照（绑定未动，无拒启风险；本批 ops-gate1-k1 与 ops-gate1-k3 派发走批A=活性核对已闭环，k2/d1 派发 MODEL-SELF 自报=各绑定值）。描述快照滞后=2026-10-02 换位批同款已知态 | 新会话首场门一派发核对：①k1 派发 metadata 声明=kimi-third 绑定值+报告载体 description 呈常设位语义②k2（若派发）description 呈兜底位语义③log-triage ③ 零静默回退+⑥ 归因一致④账本新行 cfg_hash 与 validate 输出一致——四项齐=closed |
-| r1-verdict-nondeterminism | regression R1 真跑首场（k1default 批 2026-10-03）deepseek 轮非确定输出异常：首跑全量 S1 判定 PASS（期 FAIL，断言弱化未抓出）+S2 UNPARSEABLE（exit=0 派发成功但判定行不可解析）——两败同聚 deepseek 轮；--only R1 单跑与终验全量均 10/10 PASS（同日三跑两过一败）。定性=真实 LLM 输出非确定偶发（regression.mjs 613 行在册「deepseek 偶发把判定耗在推理通道」同族），非派发器/parseFindings 链路缺陷（R4/R5 流水账本执法面同场全过）。首跑未带 --keep-tmp=原始产物未留档，定性按输出形态+复跑对照成立（主控预裁，d1-W6 申报证据偏弱） | 复发≥1 次（下场任一批 R1 真跑再出 UNPARSEABLE/方向分歧）即 --keep-tmp 取证原文并升级处置（格式容错再扩或样例 prompt 钉死判定行格式）；--keep-tmp 首跑留档=下场 R1 批常态化建议 |
+| r1-verdict-nondeterminism | 〔closed 2026-10-03 纯净化批——机制删除〕原 open 面=R1 真跑 deepseek 轮非确定输出异常的复发观测——R1 项已随派发器族回归项删除（触发条件不可达）；原定性（LLM 输出非确定偶发）与证据链=当日修订记在册，档案=git 历史 | 永久 closed（载体删除）；若未来重建语义抽样回归=新批新行（届时格式容错教训随批移植） |
 | gate1-smallbatch-k1-firstdispatch | 2026-10-03 修订四：小批单审位 d1→k1——生效点=主控派发选座（非派发器路由，沿 gate1-d1-firstdispatch 先例口径）；k1 位活性已由同日 k1default 批A 实证（MODEL-SELF 自报+③ 零回退），小批场景为首增核对面 | 下场纯文档小批实派 k1 时核对三项：①派发 metadata 声明=k1 绑定值 ②MODEL-SELF 尾栏=绑定值 ③log-triage ③ 零静默回退+⑥ 归因 kimi 族——齐=closed；观测项（不门控，d1 位 delta W-Δ4 移驻本行）：闭项后随场记每批 W+N 计数，对 d1 期在册样本（2026-09-29 修订一批 B0/W3/N5）定性对比，样本≥3 呈报升格/回退裁决 |
 | drafter-designdraft-firstdispatch | 2026-10-03 修订四面二：前端设计稿拟定=拟定者通道新投放面——派发纪律（显式指定充裕承载源 kimi-third、不盲走链首真稀缺源）系纯文本约束无机械强制，漏指定即静默回退链首（d1 位首审 W5：验证面与面一不对称）〔注：同日 dispatch-retire 批起拟定者=ops-drafter 绑定子代理（kimi-third 固定），「显式指定源」纪律随派发器退役废止——本行核对①②的源语义改读绑定值〕 | 首场前端设计稿派发核对四项：①账本补记行 source=kimi-third（绑定承载，无派发器流水）②任务书含设计稿契约段且产出=文本形态设计稿 ③设计稿落仓批次的门一单审位=d1（异构护栏，07 §1）④账本行入账（tier=prime）——齐=closed |
 | adjudicator-rebind-livefire | 2026-10-03 dispatch-retire 批：裁决部 ops-adjudicator 改绑 deepseek→kimi-third——代理档案=会话启动快照，本批同会话派发仍持旧绑定（deepseek 快照，无拒启风险），新会话方按新绑定路由（k1default-seatflip 同款已知态） | 新会话首场裁决部派发核对四项：①派发 metadata 声明=kimi-third 绑定值 ②MODEL-SELF 尾栏=绑定值 ③log-triage ③ 零静默回退+⑥ 归因 kimi 族 ④--health ⑧ 跨门异族 ok 维持——四项齐=closed |
@@ -40,6 +40,74 @@
 | ops-auditor-firstdispatch | 2026-10-03 dispatch-retire 批新岗：审核者迁入会话内绑定子代理 ops-auditor（deepseek 座）——同上装载前提；VERDICT 词表=审核者域（放行\|有条件放行\|返工），勿套门一域 PASS\|FAIL | 首场 ops-auditor 派发核对三项：①新会话宿主代理名录含 ops-auditor ②MODEL-SELF 尾栏=deepseek 绑定值+FINDINGS 尾栏词表正确 ③账本行补记（role=ops-auditor，tier=debt-readonly）——齐=closed |
 
 ## 修订记
+
+- 2026-10-03 技能纯净化批（purge，用户裁决，账本 ruling 行 purge-ruling；
+  原文「代理已刷新。推送后彻底删除死代码和文档以保证技能纯净并再次推送，
+  然后拟定新会话综合测试本技能的提示词」——处置①死面物理删除②再推送
+  ③新会话综合测试提示词交付）：**删除集**=scripts/ds-call-v2.mjs+
+  scripts/roles/ 全目录（registry+三岗档案+golden）+org-config 默认件
+  source_chain/dispatch_request/regression_cfg/ration_redlines/
+  exhaustion_fallback/source_health.dry_minutes+roles.*.source 字段+
+  regression 派发器族项（R1 语义抽样/R2 golden/R5 mock 演练/R11 干涸+同族
+  负例/R9 scrub 对账/R10③vecDs 向量/R10④B1 registry 错误面向量）+
+  org-config validateRoleSurfaces（含五自检向量）+validate 源序校验两块+
+  log-triage R2 干涸窗呈现块。**外科集**=regression.mjs 重写（R4 流水分类
+  改三态：glm-look 现役行校验/历史派发器行 08 §3 跳过/极早期行最小校验；
+  cfg 哈希子核对整体退役+校验域真空显式注记）+deploy-check
+  REQUIRED_FILES 四件改三件+fixture 去 source_chain+glm-look 注释标注
+  复制源已删（本件为唯一存活体）。**保留面申报**=glm-look/log-triage/
+  health-scan/model-routing-log.jsonl（历史派发器行禁改写 08 §3，现役
+  写入者=glm-look）/roles.* 意图档位+执法面标志（⑥ 消费）/dual_groups
+  （log-triage ⑥ 分列消费）/04 教训库与 10 事实册历史行/RESIDUALS 历史修订记。
+  **文档净化**=SKILL 派发自检节（CLI 块删+横幅改「退役并物理删除」）+
+  regression/log-triage 用法行+加载地图 06 行／06 §5 收缩重写（退役+删除
+  声明+现役留存面=流水 schema 契约）+§5.7 配置位注／02 §8.1 表行 standing_pair
+  +§9 命令形态行+§10 ⑥ 不变量段（validateRoleSurfaces 退役+同构重建=下场批
+  候选）／00 词条两行改「已删」／10 两行重验动作换活件／org-seg.snippet
+  派发行改子智能体承载。**触发器行**：r2-drywindow-livefire+findings-
+  tail-backtick 双双转 closed（机制删除）。**预裁申报**：①「彻底删除」以
+  git 历史为回滚档案（不另入 _archive——仓内 git 史即档案，恢复须新用户
+  裁决）②执法面双候选重建（findings_surface⇔代理档案尾栏同构机检+roles 键↔ops-* 档案映射哨兵）=下场批候选③死引用
+  复扫实录：活口径残留三处已修（02 表行/02 ⑥段/org-seg.snippet），其余
+  命中=史注/教训库/事实册/脚本风格出处注释（对齐 ConfigError 惯例类——
+  保留为出处史实）。对抗链：授权单文件载体双审 k1+d1 并行→首审 k1 位
+  B0/W6/N5 PASS+d1 位 B0/W7/N7 PASS（无 B）→回炉一轮全处置：W 计数错
+  （k1-W6≡d1-W1：机检证据「+M 12 件」实为 **14 件**——主控手记笔误，本条
+  更正；删除 12 件无误）；W 真空守卫（k1-W1≡d1-W3：R4「全跳过=FAIL」守卫
+  被静默移除）=回炉改**显式呈现**（checkLines 返回 kinds，流水零现役行时
+  detail 追加「⚠校验域真空——低频写入窗口常态非校验失效」；软化理由=派发器
+  删除后尾行全历史为常态，原守卫在该形态下永久假红）；W cfg 措辞互斥
+  （d1-W2：修订记初稿写「核对域改 glm-look 行」与实现〔全退役〕互斥）=修订记
+  对齐实现——**cfg 哈希子核对整体退役**（低频写入面假红，观测移交
+  health-scan cfg 漂移 WARN+账本主控补记即时值）；W deploy-check 头注
+  「四件」漏改（k1-W2≡d1-W6）=改「三件」；W ration_redlines 零注记
+  （k1-W3≡d1-W5）=补 ration_redlines_note；W 02 ⑥ 段「.dod 单源」残句
+  （k1-W4）=改述（escaped-defect ① 时点载体已删——档案=git 历史）；W
+  r1-verdict-nondeterminism 死触发器（k1-W5≡d1-W7）=转 closed（机制删除，
+  与 r2-drywindow/findings-tail-backtick 同构口径）；N1 glm-look --self-test
+  存在性（两岗共疑）=包外核实**无此 flag**——10 两行改「org-config
+  --self-test+regression（R10②=glm-look 回归载体）」+守卫载体钉明
+  deploy-check；N2/N5/N6（R4 边界/02 意图表残词/--only 静默零结果）=
+  --only 未知项 fail-fast 实修+「双源组」改「kimi 族」+边界随真空显式注记
+  申报；N3/N7 vision note 类比引用+scrub 注释残句=措辞修复；N4 06 §5.7
+  证据句=改 R10② 现役载体；d1-W4 ⑥ 校验面失守+roles↔ops-* 映射无哨兵=
+  已申报（同构重建=下场批候选）强化为**双候选**（findings_surface⇔代理档案
+  尾栏同构机检+roles 键↔ops-* 档案映射哨兵）。机检终态（回炉后复跑）：
+  regression 4/4（+--only 未知项拒收实测 R1→exit 1 用法错）+org-config
+  self-test 52/validate PASS（cfg:1936ff59c236——回炉配置变更后新哈希）+
+  log-triage/deploy-check/package-skill 自检全过+anchors strict 0-0+
+  hardcode strict 0+health-scan RED×1（Synapse 继承面申报）+WARN×3（继承×2+
+  cfg 漂移随审出行落账即消）。delta 复核（两岗并行，处置映射+回炉后 staged
+  diff 零裁剪）：k1 位 B0/W1/N3 PASS+d1 位 B0/W1/N5 FAIL——两岗同指唯一 W=
+  修订记外科集互斥原句未随更正改写（更正仅追加段成立）——收口笔一行改写
+  （「cfg 哈希子核对整体退役+校验域真空显式注记」）即闭（两岗共识修法）；
+  N 级收口笔处置：真空注记异常态守卫（a.kinds 在场判定——缺文件早退不再
+  误加注）/06 §5.7「B7 R1 载体」改述（现役核验面=设计岗首用窗口）/KNOWN_
+  ITEMS 注释降称（单源→与 want 块双载须同步）/双候选三处同步（预裁申报②/
+  02 §10/06 §5 banner）；d1-N2 06 §5.7 parseResponse 史段叙述=史注维持申报；
+  d1-N4 处置映射措辞误差=申报。终态：首审双 PASS→回炉一轮全处置→delta
+  （k1 PASS+d1 FAIL 单点）→收口笔微修七处，两轮上限内闭环。账本：ruling 1+
+  首审 ok×2+delta ok×2 共 5 行（gitignore 层）。
 
 - 2026-10-03 派发器退役复合批（dispatch-retire，用户裁决，账本 ruling 行
   dispatch-retire-ruling；原文「裁决部改绑；派发器彻底退役，所有岗位全部

@@ -101,42 +101,37 @@
 
 ## 5. 派发器 v2（角色档案化）与记账
 
-> **退役声明（2026-10-03 用户裁决「派发器彻底退役，所有岗位全部改由子智能体
-> 协作执行」）**：本节自该日起转为工具面/历史档案——ds-call-v2 不再承载任何
-> 岗位（承载迁移终态=07 §1：drafter/auditor-readonly=会话内绑定子代理
-> ops-drafter/ops-auditor，门一后备摘除）；脚本+registry+流水+dry-window（R2）
-> +R1 保留为应急/校验工具面，任何岗位承载启用须新用户裁决；账本事件真源
-> 移交=子代理通道主控补记（02 §9 补记纪律，自此唯一通道）。
+> **退役+删除声明（2026-10-03 用户裁决「派发器彻底退役，所有岗位全部改由
+> 子智能体协作执行」+同日纯净化批「彻底删除死代码和文档」）**：ds-call-v2.mjs
+> 与 scripts/roles/ 注册表已物理删除（档案=git 历史，恢复须新用户裁决）；
+> 承载迁移终态=07 §1（drafter/auditor-readonly=会话内绑定子代理
+> ops-drafter/ops-auditor）；账本事件真源=子代理通道主控补记（02 §9，唯一
+> 通道）；R1/R2/R5/R11/R9 派发器族回归项随删（清单单源=regression.mjs）；
+> R2 干涸窗机制与 dry 配置随删；validateRoleSurfaces 执法面⇔DoD 机检随
+> registry 删（⑥ 执法面仍由 findings_surface 标志承载，双候选重建〔findings_surface⇔
+> 代理档案尾栏同构机检+roles 键↔ops-* 档案映射哨兵〕=下场批候选）。本节现役留存面=流水行 schema 契约（glm-look 写入+log-triage/
+> regression R4 读侧消费）。
 
-- CLI：`node scripts/ds-call-v2.mjs --role <id> [--source <alias>]
-  [--project <名>] [--dry-run|--list-roles|--list-sources]
-  [--mock-source <alias>:<status>] <prompt文件> [输出文件]`。
-- **无 `--role` 即报错**（v1 内嵌系统提示已废止——硬编码缺陷在 v2.0
-  归零）；系统提示+DoD 随 `scripts/roles/registry.json` 装载（路径
-  相对技能根）；DoD 拼接进 system 消息末尾，user 消息保持纯任务包。
-- 每事件记账字段（**运行流水 model-routing-log.jsonl 统一行 schema**：
+- 每事件记账字段（**运行流水 model-routing-log.jsonl 统一行 schema**——
+  现役写入者=glm-look〔channel=glm-look/ds-look 双标记〕；历史派发器行
+  按 08 §3 禁改写：
   ts/runId/event/source/model/+扩展字段 role_id/role_version/role_sig/
   dispatcher_version/org_config_hash——项目账本 org-ledger.jsonl 的行
-  schema 见 SKILL.md 派发节与 02 §9，两账各用各的 schema，勿混）；
-  输出首行 `[routing]: run=… role=<id>@<sig> cfg=<hash> …`。
-- 源装载校验：org-config `providers.<alias>.uuid_prefix`+`entry_name` 与
-  宿主 `~/.zcode/v2/config.json` 条目双校验，不一致即 **exit 3**（语义与
-  全退出码总表=本件 §5.8——本节不复写）并输出 alias/期望/实际三元组，
-  无任何 fallback。
-- 回归前置（全部 R 项过方启用 drafter 复用与项目切换）：R 项清单单源=
-  `scripts/regression.mjs` 现行项集合（--only 可选项）——本节不复写清单，
-  防双源计数腐化（evolve 批 b8 指针化）。
+  schema 见 SKILL.md 派发节与 02 §9，两账各用各的 schema，勿混）。
+- 回归前置：R 项清单单源=`scripts/regression.mjs` 现行项集合（--only 可选
+  项）——本节不复写清单，防双源计数腐化（evolve 批 b8 指针化）。
 
 ### 5.7 传输层与超时（v2.2.1 补遗，2026-09-16；来源=F-TESTREF-00 门一补审 5 轮 17 attempt 排障+本机双臂探针实证）
 
 **B5 流式化（selfiter 批，2026-09-17）**：请求侧加 `stream:true`（openai 形
 并配 `stream_options.include_usage`）——首字节早达根治网关非流式窗口 504 族
-（配置位=org-config `dispatch_request.stream` 与 `vision_channels.<ch>.stream`，
-真窗异常可置 false 配置回退零代码变更）；响应侧 SSE/JSON 双形态解析
+（配置位=org-config `vision_channels.<ch>.stream`——glm-look 消费；
+dispatch_request 分区已随派发器删除〔纯净化批〕，真窗异常可置 false 配置回退零代码变更）；响应侧 SSE/JSON 双形态解析
 （org-config `parseSseText`+双形态收割器——产出与非流式**同构**最终对象，
 parseResponse/normalizeResponse 零改动；服务端忽略 stream 位=JSON 原语义
-回退）。本机证据=R10 SSE mock 双通道端到端+收割器纯函数向量；**真实端点
-流式语义=B7 R1 真外呼窗口核验，未核验前勿断言根治**（同 evolve-b1 纪律）。
+回退）。本机证据=R10② SSE mock 双通道端到端（glm-look 子进程驱动；收割器纯函数向量已随 vecDs 删除——纯净化批）；**真实端点
+流式语义=真外呼窗口核验（原 B7 R1 载体已删——纯净化批；现役核验面=设计岗
+glm-look 首用窗口），未核验前勿断言根治**（同 evolve-b1 纪律）。
 
 **故障形态**：后台派发长推理（5 分钟量级）被掐，服务端记 **499**
 （context canceled——**客户端中断族，非服务端宕**；用户侧后台观察与

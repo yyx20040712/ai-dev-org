@@ -74,8 +74,9 @@ const CALL_TIMEOUT_MS = 20 * 60_000; // 单次调用上限=对齐派发器（06 
 let _orgCfgCache = null;
 const orgCfg = () => { _orgCfgCache ??= loadOrgConfig(SKILL_ROOT).merged; return _orgCfgCache; };
 const chCfg = (ch) => (orgCfg().vision_channels || {})[ch] || {}; // 回炉 W2：未命中通道兜底 {}（旧版恒 {}；discoverSources 解构不崩、走「通道未声明=无源」分支）
-/** 脱敏（受控复制自 ds-call-v2.mjs——A3 受控双源：字面量由 regression R9
- * 对账钉同步；升格共享模块=未来分发重构时再裁，裁决档 W7 统一判据）。 */
+/** 脱敏（原受控复制自 ds-call-v2.mjs——源件已随派发器退役并物理删除
+ * 〔2026-10-03 纯净化批〕，本件为该字面量唯一存活体；受控复制对账者 R9
+ * 已同步删除——升格共享模块=未来分发重构时再裁，裁决档 W7 统一判据）。 */
 const SCRUB_RE = /(Bearer\s+)?[A-Za-z0-9_-]{24,}/g // 日志脱敏：长 token 形态一律掩码（K-N2）
 const scrub = (s) => String(s).replace(SCRUB_RE, '<redacted>')
 /** 通道枚举（glm=anthropic 格式 / ds=OpenAI 格式 image_url——载荷与

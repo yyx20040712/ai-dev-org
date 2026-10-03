@@ -15,7 +15,7 @@
 
 | 事实 | 实证环境戳 | 异机重验动作 |
 |---|---|---|
-| Node 25 下 ds-call-v2 退出阶段 libuv 断言崩溃（HOST-node25）——外部派发一律用 Node 24 跑；脚本启动带版本守卫（守卫读 org-config `supported_node.forbid_major`，禁硬编码） | 本机 Node 25.2.1，2026-09-17 在册 | 异机/升级后跑 `ds-call-v2 --self-test` + `regression`；deploy-check node-major 检查须绿（volta node24 复跑先例在册） |
+| Node 25 下 ds-call-v2 退出阶段 libuv 断言崩溃（HOST-node25）——外部派发一律用 Node 24 跑；脚本启动带版本守卫（守卫读 org-config `supported_node.forbid_major`，禁硬编码） | 本机 Node 25.2.1，2026-09-17 在册 | 异机/升级后跑 `org-config --self-test` + `regression`（R10②=glm-look 回归载体，其无 --self-test flag；ds-call-v2 已删除——纯净化批 2026-10-03）；deploy-check node-major 检查须绿（版本守卫现役载体=deploy-check，volta node24 复跑先例在册） |
 | volta run 将任意非零退出码掩成 126（0 正常透传）——脚本化消费精确退出码时直跑 node 或 volta pin 固定 | 本机 volta 实证 2026-09-17（RESIDUALS volta-exitcode-mask） | 出现退出码消费封装时先跑 1/2/3 退码对照 |
 
 ## 2. 派发与代理档案语义（zcode 宿主）
@@ -54,7 +54,7 @@
 
 | 条目 | 重验动作 | 关联触发器（RESIDUALS） |
 |---|---|---|
-| Node 大版本面 | deploy-check node-major 绿；ds-call-v2 --self-test | HOST-node25（历史行） |
+| Node 大版本面 | deploy-check node-major 绿；org-config --self-test+regression R10 | HOST-node25（历史行） |
 | 绑定语法与拒启行为 | 新会话小任务派发 + log-triage ③ 零回退 | gate1-d1-firstdispatch |
 | metadata 形态 | 首场绑定岗派发核对被 declaredModelOf 认识 | host-metadata-schema-drift |
 | `>` 截断 | 含重定向命令实测（或维持脚本载体规避） | ——（06 §6 补遗二·五） |

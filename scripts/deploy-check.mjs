@@ -4,8 +4,8 @@
  * 七项检查（逐项输出 [ok]/[warn]/[FAIL] 主题——处置指引）：
  *   ① node-major   process 主版本 ∈ org-config supported_node.forbid_major → FAIL
  *                  （判据读配置禁硬编码，W-12 同律）
- *   ② skill-files  必备四件存在（SKILL.md/org-config.default.json/
- *                  scripts/org-config.mjs/scripts/roles/registry.json）
+ *   ② skill-files  必备三件存在（SKILL.md/org-config.default.json/
+ *                  scripts/org-config.mjs——registry 已随派发器退役删除 2026-10-03）
  *   ③ org-config   spawn org-config.mjs validate（cwd=SKILL_ROOT）rc≠0 → FAIL
  *                  并透传其末行
  *   ④ agents       清单单源=templates/agents/ops-*.md 枚举；绑定模板按本机件
@@ -102,8 +102,8 @@ export function checkNodeMajor(nodeVersion, forbidMajor) {
   }
 }
 
-/** ② 必备四件（技能装载链：入口/默认配置/配置装载器/岗位注册表）。 */
-export const REQUIRED_FILES = ['SKILL.md', 'org-config.default.json', 'scripts/org-config.mjs', 'scripts/roles/registry.json']
+/** ② 必备三件（技能装载链：入口/默认配置/配置装载器——岗位注册表已随派发器退役删除 2026-10-03）。 */
+export const REQUIRED_FILES = ['SKILL.md', 'org-config.default.json', 'scripts/org-config.mjs']
 export function checkRequiredFiles(root, files = REQUIRED_FILES) {
   const missing = files.filter((f) => !existsSync(join(root, f)))
   return {
@@ -499,7 +499,7 @@ function selfTest() {
   {
     const fxDir = mkdtempSync(join(tmpdir(), 'deploy-check-lc-'))
     try {
-      const def = { providers: { a: { uuid_prefix: 'TODO', entry_name: 'TODO', note: 'x' } }, source_chain: ['a'] }
+      const def = { providers: { a: { uuid_prefix: 'TODO', entry_name: 'TODO', note: 'x' } } }
       const p1 = join(fxDir, 'case1.json')
       writeFileSync(p1, '{"providers":{"keep":1}}')
       const r1 = installLocalConfig(def, p1)

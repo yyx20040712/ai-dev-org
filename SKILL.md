@@ -40,29 +40,22 @@ model 参数属环境限制（宿主事实单源=references/10 §2）：如实�
 
 ## 派发与自检（scripts/）
 
-**派发器退役（2026-10-03 用户裁决「派发器彻底退役，所有岗位全部改由子智能体协作执行」）**：
-ds-call-v2 自全部岗位路由摘除（drafter/auditor-readonly 迁入绑定子代理
-ops-drafter/ops-auditor，门一派发器后备摘除）；下条命令块转**工具面档案**
-（应急/校验备用，任何岗位承载启用须新用户裁决）；账本事件自此=主控补记
-单源（02 §9）；glm-look（设计岗视觉外呼）=工具不属岗位派发器，不在退役面
-（预裁申报，异议即裁）。
+**派发器退役并物理删除（2026-10-03 用户裁决「派发器彻底退役，所有岗位全部
+改由子智能体协作执行」+同日纯净化批「彻底删除死代码和文档」）**：ds-call-v2.mjs
+与 scripts/roles/ 注册表已删除（档案=git 历史，恢复须新用户裁决）；全部岗位=
+子智能体承载（07 §1）；账本事件=主控补记单源（02 §9）；glm-look（设计岗
+视觉外呼）=工具不属岗位派发器，不在删除面（预裁申报，异议即裁）。
 
 ```
-node scripts/ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>]
-     [--dry-run|--list-roles|--list-sources] [--mock-source <alias>:<status>] [--no-dry]
-     <prompt文件> [输出文件]        # --role 必填（v1 内嵌提示已废止）
-                                   # R2 干涸窗记忆（2026-09-22）：429/403 后源自动落 dry 标记
-                                   # （时长=org-config source_health.dry_minutes），窗内派发跳过该
-                                   # 源、成功即清除；--no-dry=应急忽略标记
 node scripts/org-config.mjs [resolve|hash|validate|--self-test]
 node scripts/check-hardcode.mjs [--strict]   # .md 正文供应商 live 事实扫描（名单从 org-config 派生；命中=WARN，--strict 按 RED 退 1）
 node scripts/check-anchors.mjs [--update|--strict]   # 08 §4 文档腐化体检机检化：NN §M 断锚+路径存在性+01/04 条目计数 vs doc-counts golden（WARN 试点校准期；计数失守=FAIL；--update=重冻结随批提交）
 node scripts/skill-gc.mjs [--apply --delete-redirects|--delete-invalid]   # 技能目录盘点/清理（默认干跑；删除先归档可回滚；active 技能去留=用户裁决不机删）
 node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空白字符
 node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目防线日脚手架（05 §4）
-node scripts/regression.mjs [--only R2,R5,R4] [--r1] [--update-golden] [--project <dir>]   # 自包含回归（06 §5 R 清单内化；R1 真实派发须 --r1）
+node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <dir>]   # 自包含回归（R 清单单源=本脚本；2026-10-03 纯净化批：派发器族项 R1/R2/R5/R11/R9 随死码删除——档案=git 历史）
 node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 收口前健康扫描（RED=0 方可收口；告警分类单源=02 §10）
-node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊（B-0）：cli/log+派发器流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查（A'③）出 k1/k2 派发推荐（额度类→换源；504 窗口类→不换源瘦身）+干涸窗标记呈现（R2）+常设双审对绑定同族核对（R3）
+node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊（B-0）：cli/log+glm-look/历史派发流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查（A'③）出 k1/k2 派发推荐（额度类→换源；504 窗口类→不换源瘦身）+常设双审对绑定同族核对（R3）+跨门岗对核对（纪律⑤；干涸窗呈现已随 R2 机制删除）
 node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点甄别=org-config vision_channels 分区+--list-sources；单次调用 20min 上限、非429的4xx立断、scrub 脱敏；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
 node scripts/package-skill.mjs --out <空目录> [--self-test]   # 分享打包：git 跟踪面导出+分享面门禁（uuid/盘符路径/本机标识零命中）+MANIFEST——受赠机首跑与白名单=PACKAGING.md（v2.1.0 批）
 ```
@@ -111,7 +104,7 @@ tier 记法：外部岗取 org-config
 
 00 术语速查+新手上手图 ｜ 01 原理 A~E 五组 ｜ 02 管道 12 步+任务书七段+回炉+数据专轨+适配注记 ｜
 03 机器强制 ｜ 04 教训库 WP/SY/MG/ORG 四系 ｜ 05 移植指南+差异回灌协议 ｜
-06 模型路由+换源状态机+派发器 v2 ｜ 07 角色卡终表+主控 PM 四子模式 ｜
+06 模型路由+承载切换+外呼记账（派发器已删） ｜ 07 角色卡终表+主控 PM 四子模式 ｜
 08 文档群治理（事实分层/指针化手册/历史件红线/体检/产出入仓纪律） ｜
 09 产品文档编制面（需求五问/手册骨架/API 锚定生成物/tech-writer 子模式） ｜
 10 宿主兼容事实单源册（宿主版本耦合——实证戳+异机重验清单）

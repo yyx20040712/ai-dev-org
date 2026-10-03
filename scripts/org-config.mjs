@@ -281,56 +281,8 @@ export function validateProviders(cfg, hostCfg) {
       )
     }
   }
-  for (const alias of cfg.source_chain || []) {
-    if (!cfg.providers || !cfg.providers[alias]) errors.push(`source_chain 引用未知 alias=${alias}`)
-  }
-  if (!Array.isArray(cfg.source_chain) || (cfg.source_chain || []).length === 0)
-    errors.push('source_chain 为空（覆盖件整体替换后链被清空——无可用派发链）')
-  for (const [role, def] of Object.entries(cfg.roles || {})) {
-    if (def.source === undefined) errors.push(`roles.${role}.source 字段缺失（应显式填 chain 或某 provider alias）`)
-    else if (def.source !== 'chain' && (!cfg.providers || !cfg.providers[def.source]))
-      errors.push(`roles.${role}.source 引用未知 alias=${def.source}`)
-  }
-  return errors
-}
-
-/** 角色执法面一致性校验（escaped-defect ② 修复批回炉 W-2/W-3 闭合，2026-09-19）：
- *  `findings_surface`（⑥ FINDINGS 缺栏执法面）与角色 DoD 尾栏要求必须双向一致——
- *  标志与 DoD 靠人记同步=缺陷②根因结构，本函数机检化：挂标志但 DoD 无尾栏=⑥ 误 RED
- *  形态；DoD 有尾栏但未挂=⑥ 漏执法（静默假绿）形态。DoD 路径真源=scripts/roles/
- *  registry.json dod_file；此处只探尾栏行形态（行首锚定 `FINDINGS: B=`——回炉 r2
- *  W-2：裸子串会把说明性提及误判），词表本身仍各岗 .dod 单源（防双源）。
- *  回炉 r2 W-1：registry 有岗而 org-config roles 未载的差集向亦查（其 DoD 有尾栏=
- *  执法面无配置承载的静默逃逸）。返回错误数组。运行期强制=ds-call-v2 loadSources
- *  前置同关卡（回炉 r2 W-4），validate 命令同检。 */
-export function validateRoleSurfaces(cfg) {
-  const errors = []
-  let registry = null
-  try { registry = readJson(join(SKILL_ROOT, 'scripts', 'roles', 'registry.json'))?.roles || null } catch { registry = null }
-  const hasTail = (dodText) => dodText != null && /^\s*`?FINDINGS:\s*B=.*W=.*N=.*VERDICT=/m.test(dodText) // 全形代理（k1 二过 N1：前缀代理放行截断尾栏=②形态改道；与 parseFindings 实需字段同构，词表仍不复制）
-  const dodOf = (role) => {
-    const reg = registry?.[role]
-    if (!reg) return { reg: null }
-    if (!reg.dod_file) return { reg, dodText: null, reason: 'registry 无 dod_file 字段' }
-    const p = join(SKILL_ROOT, reg.dod_file)
-    if (!existsSync(p)) return { reg, dodText: null, reason: `DoD 文件不存在（${reg.dod_file}）` }
-    try { return { reg, dodText: readFileSync(p, 'utf8') } } catch { return { reg, dodText: null, reason: `DoD 文件不可读（${reg.dod_file}）` } }
-  }
-  for (const [role, def] of Object.entries(cfg.roles || {})) {
-    const { reg, dodText, reason } = dodOf(role)
-    if (def?.findings_surface) {
-      if (!reg) errors.push(`roles.${role}.findings_surface=true 但 registry 无此岗——DoD 尾栏要求无法核实（标志与 DoD 脱钩=escaped-defect ② 根因形态）`)
-      else if (dodText == null) errors.push(`roles.${role}.findings_surface=true 但 ${reason}——⑥ 执法面声明无真源`)
-      else if (!hasTail(dodText)) errors.push(`roles.${role}.findings_surface=true 但其 DoD 无 FINDINGS 尾栏要求（${reg.dod_file}）——⑥ 会对该岗每行真实 ok 误 RED（escaped-defect ② 形态）`)
-    } else if (hasTail(dodText)) {
-      errors.push(`roles.${role} 未挂 findings_surface 但其 DoD 有 FINDINGS 尾栏要求（${reg.dod_file}）——⑥ 漏执法（DoD 失守静默不 RED=W-3 反向逃逸）`)
-    }
-  }
-  for (const role of Object.keys(registry || {})) {
-    if (cfg.roles?.[role] !== undefined) continue
-    const { dodText } = dodOf(role)
-    if (hasTail(dodText)) errors.push(`registry 岗位 ${role} 未入 org-config roles 但其 DoD 有 FINDINGS 尾栏要求——⑥ 执法面无配置承载（回炉 r2 W-1 差集向逃逸）`)
-  }
+  // 2026-10-03 纯净化批：source_chain/roles.source 校验随派发器删除而删
+  // （源序与岗位选源语义=派发器时代概念；现役承载=绑定子代理，档案=git 历史）。
   return errors
 }
 
@@ -416,13 +368,9 @@ if (isMain) {
     t('b4 null provider→校验错误行（不崩）', Array.isArray(vpErr) && vpErr.some((e) => e.includes('providers.dead') && e.includes('null')))
     t('b4 近邻提示 null 宿主条目不崩（near?.[1]?.name）', Array.isArray(vpErr) && vpErr.some((e) => e.includes('alias=nearnull') && e.includes('name=null')))
     t('b4 健康源不受 null 条目影响（live 双校验通过不出错行）', Array.isArray(vpErr) && !vpErr.some((e) => e.includes('alias=live 期望')))
-    // escaped-defect ② 修复批回炉（W-2/W-3）向量：执法面↔DoD 双向一致性（读真实
-    // registry+DoD 文件——守卫性质：现役档案漂移即红）
-    t('执法面：挂 findings_surface 但 DoD 无尾栏（drafter）→ 错误行', (() => { const e = validateRoleSurfaces({ roles: { drafter: { findings_surface: true } } }); return Array.isArray(e) && e.some((x) => x.includes('roles.drafter.findings_surface=true') && x.includes('无 FINDINGS 尾栏要求')) })())
-    t('执法面：DoD 有尾栏但未挂（gate1-reviewer）→ 错误行（W-3 反向）', (() => { const e = validateRoleSurfaces({ roles: { 'gate1-reviewer': {} } }); return Array.isArray(e) && e.some((x) => x.includes('未挂 findings_surface') && x.includes('漏执法')) })())
-    t('执法面：真挂真有尾栏（auditor-readonly）→ 该岗零错误行', (() => { const e = validateRoleSurfaces({ roles: { 'auditor-readonly': { findings_surface: true } } }); return Array.isArray(e) && !e.some((x) => x.includes('auditor-readonly')) })())
-    t('执法面：registry 无此岗且挂标志（ghost）→ 无法核实错误行', (() => { const e = validateRoleSurfaces({ roles: { ghost: { findings_surface: true } } }); return Array.isArray(e) && e.some((x) => x.includes('roles.ghost.findings_surface=true') && x.includes('registry 无此岗')) })())
-    t('执法面：registry 岗未入 cfg roles 差集向（gate1-reviewer）→ 无承载错误行（回炉 r2 W-1）', (() => { const e = validateRoleSurfaces({ roles: {} }); return Array.isArray(e) && e.some((x) => x.includes('gate1-reviewer 未入 org-config roles') && x.includes('无配置承载')) })())
+    // 2026-10-03 纯净化批：validateRoleSurfaces 五向量随 registry/DoD 删除而删
+    // （执法面⇔DoD 同构机检退役；⑥ 执法面仍由 findings_surface 标志承载，
+    //   标志与代理档案尾栏的同构重建=下场批候选）。
     // g3 批（evolve-l4-flags 清偿）向量：cliFlag 三校验——红态=旧实现不抛
     // （重复返回首值/末位取 undefined/值形如 flag 原样返回）→向量 FAIL 不崩
     const g3run = (fn) => { try { return { v: fn() } } catch (e) { return { e } } }
@@ -507,12 +455,12 @@ if (isMain) {
       t('双注册表：新件独有条目映射入表（name/options.baseURL/apiKey/models 形态）', mReg.provider['nonuuid-prov-a']?.name === 'E-N' && mReg.provider['nonuuid-prov-a']?.options?.baseURL === 'https://new/n' && mReg.provider['nonuuid-prov-a']?.options?.apiKey === 'sk-x' && !!mReg.provider['nonuuid-prov-a']?.models?.kx)
       t('双注册表：同 id 覆盖（name 更新/options 键级合并沿用旧值）', mReg.provider['aaaaaaaa-1111']?.name === 'E-A2' && mReg.provider['aaaaaaaa-1111']?.options?.baseURL === 'https://old/a' && mReg.provider['aaaaaaaa-1111']?.options?.apiKey === 'sk-y')
       t('双注册表：models=整体替换非键级合并（新件 personalModelIds=更新事实，旧键 m2 不残留——回炉 k2-W1）', Object.keys(mReg.provider['aaaaaaaa-1111']?.models || {}).join() === 'm1')
-      t('双注册表：派发消费契约——链源映射件齐 options.baseURL/apiKey 与顶层 models 键（ds-call-v2 loadSources 契约面，回炉 d1-W3）', (() => { const e = mReg.provider['nonuuid-prov-a']; return typeof e?.options?.baseURL === 'string' && typeof e?.options?.apiKey === 'string' && Object.keys(e?.models || {}).length > 0 })())
+      t('双注册表：消费契约——源映射件齐 options.baseURL/apiKey 与顶层 models 键（glm-look 源发现契约面，回炉 d1-W3；原 ds-call 消费面已随删除）', (() => { const e = mReg.provider['nonuuid-prov-a']; return typeof e?.options?.baseURL === 'string' && typeof e?.options?.apiKey === 'string' && Object.keys(e?.models || {}).length > 0 })())
       t('双注册表：无 config 模板条目与 null 行不物化（幽灵条目防护——回炉 d1-W2）', mReg.provider['templ-only'] === undefined)
       t('双注册表：v2 缺席=旧件 provider 段原样等价', JSON.stringify(mergeHostRegistries({ provider: { x: { name: 'X' } } }, null).provider) === JSON.stringify({ x: { name: 'X' } }))
       t('双注册表：legacy 缺席=新件独立打底（新机纯迁移形态；顶层非 provider 键随之丢弃——回炉 k2-W2）', (() => { const m = mergeHostRegistries(null, v2Rules([{ providerId: 'nonuuid-prov-a', providerName: 'E-N', config: { api: { baseUrl: 'https://new/n' }, personalModelIds: ['kx'] } }])); return m.provider['nonuuid-prov-a']?.name === 'E-N' && Object.keys(m).join() === 'provider' })())
       t('双注册表：双缺席=空 provider 段打底（readHostConfig 层显式抛）', Object.keys(mergeHostRegistries(null, null).provider).length === 0)
-      t('双注册表：validateProviders 消费合并面——新件独有条目双校验通过（旧单读形态=必败面；前缀匹配对非 uuid 形态 id 同律）', validateProviders({ providers: { third: { uuid_prefix: 'nonuuid-', entry_name: 'E-N', model_family: 'kimi' } }, source_chain: ['third'] }, mReg).length === 0)
+      t('双注册表：validateProviders 消费合并面——新件独有条目双校验通过（旧单读形态=必败面；前缀匹配对非 uuid 形态 id 同律）', validateProviders({ providers: { third: { uuid_prefix: 'nonuuid-', entry_name: 'E-N', model_family: 'kimi' } } }, mReg).length === 0)
     }
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
@@ -538,7 +486,7 @@ if (isMain) {
   } else if (cmd === 'validate') {
     let errors
     try {
-      errors = [...validateProviders(merged), ...validateRoleSurfaces(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged)]
+      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged)]
     } catch (e) {
       console.error(`[fatal] validate 途中宿主配置装载失败: ${e.message}（06 §5.8 行 3=配置/装载错）`)
       process.exit(3)
@@ -547,7 +495,7 @@ if (isMain) {
       errors.forEach((e) => console.error(e))
       process.exit(3)
     }
-    console.log(`validate PASS（${Object.keys(merged.providers || {}).length} 源双校验通过+角色执法面一致性 ${Object.keys(merged.roles || {}).length} 岗通过，cfg:${cfgHash(merged)}）`)
+    console.log(`validate PASS（${Object.keys(merged.providers || {}).length} 源双校验通过+跨门对/本机事实校验通过，cfg:${cfgHash(merged)}）`)
   } else {
     console.error('用法: node org-config.mjs [--project <dir>] resolve|hash|validate|--self-test')
     process.exit(1)
