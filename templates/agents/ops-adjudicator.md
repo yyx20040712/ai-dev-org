@@ -1,6 +1,6 @@
 ---
 name: ops-adjudicator
-description: 门二裁决部岗（ops-adjudicator，异构裁决位）——对证据与发现逐条终裁、独立复算关键数字。当主控派发终裁/裁决/复核判定类任务时使用。Use for 终裁、裁决、复核、回炉判定。
+description: 门二裁决部岗（ops-adjudicator，异构裁决位，kimi-third 座——2026-10-03 用户裁决改绑，原 deepseek 承载）——对证据与发现逐条终裁、独立复算关键数字。当主控派发终裁/裁决/复核判定类任务时使用。Use for 终裁、裁决、复核、回炉判定。
 tools: Read, Glob, Grep
 color: red
 model: {{binding:ops-adjudicator}}

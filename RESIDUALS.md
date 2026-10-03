@@ -23,7 +23,7 @@
 | r2-drywindow-livefire | ds-call-v2 干涸窗记忆（2026-09-22 R2）：自检 6/6+mock 功能演练已证（R11），**真实 429/403 触发路径未实弹** | 首次真实配额族失败后核对三件：source-dry.json 落标/次派发 [dry] 跳过行/窗口过期或成功调用自恢复——齐=closed |
 | probe-bc-metadata-residue | 历史会话残留（probe-b 声明=sonnet 枚举伪值/probe-c=deepseek 无档位后缀——盘上无对应档案，纯 CLI metadata 痕迹）污染 log-triage ③ 输出噪声（2026-09-22 全局诊断批发现，R6 登记；真源=10 §3） | log-triage ③ 呈现面升级时加无档案过滤；新同形态会话复发即升宿主排查批 |
 | synapse-md-expand | Synapse 项目仓 md 面门禁扩面（范围外） | Synapse 项目仓独立批 |
-| cross-gate-samefamily | 现役跨门岗对同族（门一 d1=deepseek↔门二裁决部 adjudicator=deepseek）——异构对抗退化形态，log-triage --health ⑧ 常态 WARN（v2.1.0 批纪律⑤机检挂载，计数行在册；申报面=收口呈报包；2026-09-22 用户裁决「同意裁决」=WARN 常态维持，改绑仍留后续裁决位） | 升格 RED=跨门异构护栏落地或裁决部改绑异族源（改绑=用户裁决位）；每场收口 --health 复检计数 |
+| cross-gate-samefamily | 〔closed 2026-10-03 dispatch-retire 批〕原 open 面=门一 d1↔门二裁决部同族（deepseek 轴）异构退化 WARN 常态（2026-09-22 用户裁决维持，改绑留后续裁决位）——**2026-10-03 用户裁决「裁决部改绑」落地**：ops-adjudicator 改绑 kimi-third，--health ⑧ 实测 ok 1/WARN 0（盘上代理档案即时生效），deepseek 轴闭合。残余邻接申报：邻接轴移至 k1↔裁决部（kimi 族同源）——双族门一×单席裁决部的结构必然恰一同族邻接，经裁决接受 kimi 轴（deepseek 按量退居 d1 单席、裁决部入充裕 kimi-third 池） | ⑧ tripwire（cross_gate_pairs）常驻监 deepseek 轴——复燃即 WARN=本行复开；kimi 轴邻接无 tripwire（结构必然非缺陷），升格门=用户裁决（裁决部双席/第三族承载） |
 | share-gate-drive-residual | 分享门禁盘符维度已知漏报族：目录段首字符为转义字母且次字符非字母数字的形态（如单字母目录/下划线/连字符开头段，正反斜杠同律——v2.1.0 回炉轮2 口径成文，PACKAGING §1 在册） | 真实泄漏事件或扫描器升级批处置；日常按门禁其余两维+文件名通道覆盖 |
 | d1-secondpass-w1-falsified | d1 二过 W-1（疑 share-whitelist 残留目录级 E:\\ 宽豁免）——主控机检证伪：两条 E:\\ 条目均文件定址（04/05），references/ 前缀条目仅 E:/zcode_md 与 E:/class 具体串（裁决记录，防复发复猜） | 无（证伪结案；白名单变更批随批复核该面） |
 | render-typo-key-residual | 绑定模板占位键笔误形态（{{bind:…}}/{{bindnig:…}}——不含 binding 子串）绕过渲染 tripwire 静默直装（k1 二过 N-3；标准/畸形/未闭合三形态已覆盖，此为键名拼写面） | 模板占位键重构批或首见笔误实害时处置（放宽为全 {{…}} 残留检测+标准形白名单）；deploy-check ④ 渲染对账可兜底发现（部署后漂移位） |
@@ -34,9 +34,97 @@
 | k1default-seatflip-livefire | 2026-10-03 换座批（k1default，裁决=默认优先走新 k1）落地面：部署档（ops-gate1-k1 渲染件 description=常设一审位、ops-gate1-k2=额度兜底位）与 org-config/文档九处已改，但代理档案=会话启动快照——本批同会话派发（批E 双审 k2/d1）仍持旧描述快照（绑定未动，无拒启风险；本批 ops-gate1-k1 与 ops-gate1-k3 派发走批A=活性核对已闭环，k2/d1 派发 MODEL-SELF 自报=各绑定值）。描述快照滞后=2026-10-02 换位批同款已知态 | 新会话首场门一派发核对：①k1 派发 metadata 声明=kimi-third 绑定值+报告载体 description 呈常设位语义②k2（若派发）description 呈兜底位语义③log-triage ③ 零静默回退+⑥ 归因一致④账本新行 cfg_hash 与 validate 输出一致——四项齐=closed |
 | r1-verdict-nondeterminism | regression R1 真跑首场（k1default 批 2026-10-03）deepseek 轮非确定输出异常：首跑全量 S1 判定 PASS（期 FAIL，断言弱化未抓出）+S2 UNPARSEABLE（exit=0 派发成功但判定行不可解析）——两败同聚 deepseek 轮；--only R1 单跑与终验全量均 10/10 PASS（同日三跑两过一败）。定性=真实 LLM 输出非确定偶发（regression.mjs 613 行在册「deepseek 偶发把判定耗在推理通道」同族），非派发器/parseFindings 链路缺陷（R4/R5 流水账本执法面同场全过）。首跑未带 --keep-tmp=原始产物未留档，定性按输出形态+复跑对照成立（主控预裁，d1-W6 申报证据偏弱） | 复发≥1 次（下场任一批 R1 真跑再出 UNPARSEABLE/方向分歧）即 --keep-tmp 取证原文并升级处置（格式容错再扩或样例 prompt 钉死判定行格式）；--keep-tmp 首跑留档=下场 R1 批常态化建议 |
 | gate1-smallbatch-k1-firstdispatch | 2026-10-03 修订四：小批单审位 d1→k1——生效点=主控派发选座（非派发器路由，沿 gate1-d1-firstdispatch 先例口径）；k1 位活性已由同日 k1default 批A 实证（MODEL-SELF 自报+③ 零回退），小批场景为首增核对面 | 下场纯文档小批实派 k1 时核对三项：①派发 metadata 声明=k1 绑定值 ②MODEL-SELF 尾栏=绑定值 ③log-triage ③ 零静默回退+⑥ 归因 kimi 族——齐=closed；观测项（不门控，d1 位 delta W-Δ4 移驻本行）：闭项后随场记每批 W+N 计数，对 d1 期在册样本（2026-09-29 修订一批 B0/W3/N5）定性对比，样本≥3 呈报升格/回退裁决 |
-| drafter-designdraft-firstdispatch | 2026-10-03 修订四面二：前端设计稿拟定=拟定者通道新投放面——派发纪律（显式指定充裕承载源 kimi-third、不盲走链首真稀缺源）系纯文本约束无机械强制，漏指定即静默回退链首（d1 位首审 W5：验证面与面一不对称） | 首场前端设计稿派发核对四项：①流水行 source=kimi-third（非链首真稀缺源）②任务书含设计稿契约段且产出=文本形态设计稿 ③设计稿落仓批次的门一单审位=d1（异构护栏，07 §1）④账本行入账（tier=prime）——齐=closed |
+| drafter-designdraft-firstdispatch | 2026-10-03 修订四面二：前端设计稿拟定=拟定者通道新投放面——派发纪律（显式指定充裕承载源 kimi-third、不盲走链首真稀缺源）系纯文本约束无机械强制，漏指定即静默回退链首（d1 位首审 W5：验证面与面一不对称）〔注：同日 dispatch-retire 批起拟定者=ops-drafter 绑定子代理（kimi-third 固定），「显式指定源」纪律随派发器退役废止——本行核对①②的源语义改读绑定值〕 | 首场前端设计稿派发核对四项：①账本补记行 source=kimi-third（绑定承载，无派发器流水）②任务书含设计稿契约段且产出=文本形态设计稿 ③设计稿落仓批次的门一单审位=d1（异构护栏，07 §1）④账本行入账（tier=prime）——齐=closed |
+| adjudicator-rebind-livefire | 2026-10-03 dispatch-retire 批：裁决部 ops-adjudicator 改绑 deepseek→kimi-third——代理档案=会话启动快照，本批同会话派发仍持旧绑定（deepseek 快照，无拒启风险），新会话方按新绑定路由（k1default-seatflip 同款已知态） | 新会话首场裁决部派发核对四项：①派发 metadata 声明=kimi-third 绑定值 ②MODEL-SELF 尾栏=绑定值 ③log-triage ③ 零静默回退+⑥ 归因 kimi 族 ④--health ⑧ 跨门异族 ok 维持——四项齐=closed |
+| ops-drafter-firstdispatch | 2026-10-03 dispatch-retire 批新岗：拟定者迁入会话内绑定子代理 ops-drafter（kimi-third 座）——首派前宿主须完成代理名录装载（新会话），岗义契约=templates/agents/ops-drafter.md（自包含任务书墙+DoD 尾栏） | 首场 ops-drafter 派发核对四项：①新会话宿主代理名录含 ops-drafter ②MODEL-SELF 尾栏=kimi-third 绑定值+零 Read 违约（自包含任务书墙）③LEDGER-CLAIM 尾栏在场（executor=model-field 形态，adjudicator 模板同款先例）④账本行补记（role=ops-drafter，tier=prime）——齐=closed |
+| ops-auditor-firstdispatch | 2026-10-03 dispatch-retire 批新岗：审核者迁入会话内绑定子代理 ops-auditor（deepseek 座）——同上装载前提；VERDICT 词表=审核者域（放行\|有条件放行\|返工），勿套门一域 PASS\|FAIL | 首场 ops-auditor 派发核对三项：①新会话宿主代理名录含 ops-auditor ②MODEL-SELF 尾栏=deepseek 绑定值+FINDINGS 尾栏词表正确 ③账本行补记（role=ops-auditor，tier=debt-readonly）——齐=closed |
 
 ## 修订记
+
+- 2026-10-03 派发器退役复合批（dispatch-retire，用户裁决，账本 ruling 行
+  dispatch-retire-ruling；原文「裁决部改绑；派发器彻底退役，所有岗位全部
+  改由子智能体协作执行。」）：**面一 裁决部改绑**——ops-adjudicator
+  deepseek→kimi-third（激活 qualfirst 批呈报位 a；闭合 2026-09-22 在册
+  cross-gate-samefamily WARN 之 deepseek 轴：--health ⑧ 实测 ok 1/WARN 0
+  ——盘上代理档案即时生效）；残余邻接申报=轴移至 k1↔裁决部（kimi 族），
+  双族门一×单席裁决部结构必然恰一同族邻接，经裁决接受 kimi 轴（deepseek
+  按量退居 d1 单席、裁决部入充裕 kimi-third 池），⑧ tripwire 常驻监
+  deepseek 轴复燃。**面二 派发器彻底退役**——新岗 ops-drafter（kimi-third
+  座，承接 drafter）/ops-auditor（deepseek 座，承接 auditor-readonly）
+  模板+渲染部署（deploy-check --install：adjudicator 旧渲染件 sha 漂移按
+  W7a 在册程序删件重装，终态 ok16/warn0/FAIL0）；门一派发器后备摘除；
+  全部岗位=子智能体承载（绑定七件+随宿主三件）；脚本/registry/流水/
+  dry-window/R1 保留为工具面（应急/校验，任何岗位承载启用须新裁决）；账本
+  事件自此=主控补记单源（02 §9）。落地面清单：SKILL 速查三行+派发自检节
+  退役横幅+绑定通道段（绑定七件/退役终态）／06 §1 承载注记+§2 铁律1①
+  转历史形态+§4 退役承载注记+§5 退役声明横幅+§7 可裁剪行／07 §1 五行
+  （drafter 通道与承载固定注/门一摘后备/门二裁决部座注/auditor/SRE）+
+  双承载注记退役终态段+§3 退役注记+§4 口径注记／02 口径注记+§8.2 历史注+
+  §8.5 记账注+§9 两处／00 词条两行／05 触发线／org-config.default roles
+  三条终态化+本机件 agent_bindings（adjudicator 改绑+两新岗+note）／模板
+  三件（adjudicator description+两新档）／部署档十件（回炉增量面=对抗链段
+  所列：07 §4 名录两行+纪律⑤行使句+随宿主注记／06 §4 payg 注记／02 §9
+  tier 句）。**预裁申报**（留用户
+  复核）：①「派发器」界定=ds-call-v2 角色派发通道；glm-look 视觉外呼=
+  工具不属岗位派发器，不在退役面（异议即裁）②脚本不物理删除（删除将破坏
+  regression/self-test/validator 机检面）——R1 语义冻结=退役工具校验位
+  （默认 SKIP 维持，--r1 启用属工具面演练）③ops-drafter 选 kimi-third 池
+  与 k1/裁决部共用（充裕前提），配额风险面=log-triage ⑥ 用量观测 ④同会话
+  快照滞后：本批会话内派发仍持旧绑定，新会话生效（k1default 先例）。触发器
+  行：新增三行（adjudicator-rebind-livefire/ops-drafter-firstdispatch/
+  ops-auditor-firstdispatch）+drafter-designdraft-firstdispatch 行源语义
+  改读绑定值+cross-gate-samefamily 行转 closed（残余轴注记内联）。对抗链：
+  授权单文件载体（2026-09-22 先例①申报）双审 k1+d1 并行→首审 k1 位
+  B0/W3/N6 PASS+d1 位 B0/W2/N7 FAIL（d1 判据=W 触证据面不得按现状收口；
+  两岗均无 B）→回炉一轮全处置：k1-W1≡d1-N3（02 §9 tier 分类词失效）=
+  tier 记法句改写（org-config roles 岗〔含绑定岗〕承接枚举+随宿主会话内岗
+  分立）；k1-W2≡d1-W1（代理计数 9 vs 10）=主控包外清点实锤：模板/部署档/
+  deploy-check 对账均=**10**——机检证据行「九代理」系主控笔误，本条更正
+  「十代理」（文档面「十件」原即正确，d1 判 FAIL 的证据面据此闭合）；k1-W3
+  （07 §4 补遗名录漏更）=名录补两行（ops-drafter/ops-auditor）+裁决部行
+  座注+纪律⑤改绑行使句+「拟定者/审核者迁移=已完成」+随宿主注记绑定七件
+  改写；d1-W2（payg stderr 告警失载体）=06 §4 payg 条补退役承载注记（主控
+  派发前核对绑定岗源 billing+账本标注分列——费用留痕义务不随退役失效）；
+  k1-N1（座位名精度）=ops-drafter 模板 description 改 kimi-third 座+删旧
+  渲染件 W7a 程序重装（ok16）；k1-N2（触发器行①流水语义）=改「账本补记行
+  （无派发器流水）」；d1-N1（07 §3 新旧两说）=旧句补〔历史句〕标记；d1-N2
+  （「异构对抗位不动」歧义）=SKILL 括注改写（纪律①适用面界定，非座次
+  冻结）；d1-N4（LEDGER-CLAIM 无单源依据）=ops-drafter-firstdispatch 行
+  核对③补「LEDGER-CLAIM 尾栏在场（adjudicator 模板同款先例）」；d1-N5
+  （退役彻底性无扫描）=主控残留扫描实录：全仓「派发器 --role/--source/
+  --dry-run」命中 4 处均位于退役横幅下工具面档案命令块（SKILL 派发自检块+
+  06 §5），零活口径——正向词表机检升格=下场批候选（登记不门控）；d1-N6
+  （票面笔误「改行」）=主控简报笔误申报，模板词表正确（放行|有条件放行|
+  返工）；d1-N7（绑定单源两层级）=统一口径申报：实值单源=本机件
+  agent_bindings，部署档 frontmatter=生效落地面（deploy-check 渲染后对账）
+  ——旧 gate1 注记句系 2026-09-22 史段不改；k1-N3（同池同源+小批链路零
+  异构耦合）=cross-gate 行 closed 注记+假设5 已承载，升格门=用户裁决（裁决
+  部双席/第三族承载）；k1-N5（新岗单座无递进）=如实维持：blocked 处置=
+  LEDGER-CLAIM outcome+主控改派（可异构代位申报），观测面=⑥；其余 N/假设
+  不确定项=随包申报维持。机检终态（回炉后复跑）：deploy-check
+  ok16/warn0/FAIL0+validate PASS（cfg:4cd1a0e20fb7）+anchors strict 0-0+
+  hardcode strict 0 命中+regression 9/9（R1 SKIP 工具面口径）+health-scan
+  RED×1（Synapse 继承面申报）+WARN×3（继承×2+cfg 漂移=本批配置变更所致，
+  审出行落账即消）+退役残留扫描 4 命中均=档案块。delta 复核（两岗并行，
+  处置映射+回炉后终态全量 diff 零裁剪）：k1 位 **B0/W0/N2 PASS**（W-1/W-2/
+  W-3 全消解——02 §9 tier 句/计数实锤三面一致/07 §4 名录落点实；新 N2：
+  ①裁决部为绑定岗但无 roles 条目，02 §9 两分口径下 tier 归类无显式依据
+  〔2026-09-22 既有缝隙显化非本批引入——下场批候选：roles 增 adjudicator
+  条目或 02 §9 补记法〕②落地面清单未并入回炉增量面〔收口笔已补〕）+d1 位
+  **B0/W0/N2 PASS**（W-1 计数证据面闭合=FAIL 依据消解；W-2 payg 注记闭合；
+  N-1~N-7 全消解/采信；新 N2：①残留扫描计数/范围精度——扩面复跑实录：
+  「ds-call/--role/--no-dry」全仓 23 命中逐类定性=退役横幅下档案命令块
+  〔SKILL 派发自检块+06 §5〕/裁决史注与修订记/教训库 04〔ORG-2 历史条〕/
+  宿主事实册 10〔工具自检事实〕/02 §9 带退役标记行——零活口径，散文面
+  证明力=下场正向词表机检升格候选承载〔输出命令+命中清单+计数明细〕
+  ②07 §3「单源=A+B」并列措辞〔收口笔已拆写：座次/编制单源=本件 §1；绑定
+  实值单源=agent_bindings〕；d1-N-7 残余=default 件 gate1 注记旧句
+  「绑定值单源=agents frontmatter」行内历史标记=下场顺手补）。收口笔微修
+  三处（07 §3 拆写/落地面清单并入/本段），两轮上限内闭环。机检终态（收口
+  复跑）：deploy-check ok16/warn0/FAIL0+validate PASS（cfg:4cd1a0e20fb7）+
+  anchors strict 0-0+hardcode strict 0 命中+regression 9/9（R1 SKIP 工具面
+  口径）+health-scan RED×1（Synapse 继承面申报）。账本：ruling 1+首审
+  ok×2+delta ok×2 共 5 行（gitignore 层）。
 
 - 2026-10-03 质量优先修订四批（qualfirst，用户裁决两则，账本 ruling 行
   qualfirst-ruling；原文一（主裁决）：技能初期 kimi 额度有限所做的调整与

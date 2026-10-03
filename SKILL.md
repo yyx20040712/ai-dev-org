@@ -21,11 +21,11 @@ loop-engineering-archive-2026-09/`——路径相对 skills 根，非技能根�
 | 岗位 | 通道 |
 |---|---|
 | 主控（+PM 子模式） | 主会话（唯一用户对接岗） |
-| 拟定者 drafter | 派发器 `--role drafter` |
+| 拟定者 drafter | 会话内绑定子代理 ops-drafter（kimi-third 座，2026-10-03 派发器退役批迁入） |
 | 实现者 | 会话内子代理 |
-| 门一 gate1-reviewer | 会话内绑定子代理（常设双审 ops-gate1-k1+d1；k2=额度兜底（kimi-backup）；ops-gate1-k3=源A深备）＋派发器后备 |
+| 门一 gate1-reviewer | 会话内绑定子代理（常设双审 ops-gate1-k1+d1；k2=额度兜底（kimi-backup）；ops-gate1-k3=源A深备） |
 | 门二（双部制） | 会话内子代理：实证部＋裁决部（07 §1） |
-| 审核者 auditor-readonly | 派发器 `--role auditor-readonly` |
+| 审核者 auditor-readonly | 会话内绑定子代理 ops-auditor（deepseek 座，2026-10-03 派发器退役批迁入） |
 | SRE 诊断岗 sre-diagnostic | 会话内只读子代理 |
 | 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look，细则=07 §4 设计岗卡） |
 
@@ -39,6 +39,13 @@ model 参数属环境限制（宿主事实单源=references/10 §2）：如实�
 （账本强制输出项），禁止伪装已定档。
 
 ## 派发与自检（scripts/）
+
+**派发器退役（2026-10-03 用户裁决「派发器彻底退役，所有岗位全部改由子智能体协作执行」）**：
+ds-call-v2 自全部岗位路由摘除（drafter/auditor-readonly 迁入绑定子代理
+ops-drafter/ops-auditor，门一派发器后备摘除）；下条命令块转**工具面档案**
+（应急/校验备用，任何岗位承载启用须新用户裁决）；账本事件自此=主控补记
+单源（02 §9）；glm-look（设计岗视觉外呼）=工具不属岗位派发器，不在退役面
+（预裁申报，异议即裁）。
 
 ```
 node scripts/ds-call-v2.mjs --role <id> [--source <alias>] [--project <名>]
@@ -71,9 +78,11 @@ model=`<provider>/<model-key>$<档位>`——模板面存 `{{binding:岗}}` 占�
 SRE 诊断=ops-executor/probe/diagnostics）改**随宿主会话模型**——未绑定
 形态（无 model 字段=回落宿主默认/coding plan 服务商），账本记
 `session:host-tier`+E3 欠账行恢复；绑定纪律与 `$max` 档位仅约束设
-model 字段的岗（现役=门一 k1/k2/d1/ops-gate1-k3+裁决部五件，异构对抗位不动）。
-外部派发器=健康探针+后备通道，
-不拆除（迁移期双承载，org-config roles.*.migration_note）。子代理失败
+model 字段的岗（现役=门一 k1/k2/d1/ops-gate1-k3+裁决部+ops-drafter/ops-auditor
+七件；本括注=纪律①适用面界定——随宿主三岗维持未绑定形态，非座次冻结，
+改绑=用户裁决位在册先例三起）。外部派发器已彻底退役（2026-10-03
+用户裁决——全部岗位子智能体承载；工具面保留=应急/校验，启用须新裁决；
+roles.* 迁移注记已终态化）。子代理失败
 接续纪律=杀岗→`log-triage.mjs --health` 归因→额度类换源继任（读进度
 落盘）/窗口类同源瘦身/无工具岗同包重跑（runbook 真源=references/06
 §6 补遗二——selfiter 批迁入技能内）。
