@@ -38,8 +38,9 @@
 ## 修订记
 
 - 2026-10-03 门一 k1 改绑批（用户裁决，账本 ruling 行 gate1-rebind-kimithird-ruling）：
-  k1 改绑本机 kimi-third 源（宿主新注册表条目；别名避用 kimi2=打包门禁
-  entry_name 大小写不敏感子串冲突），原 k1 绑定 kimi-main 迁驻新岗
+  k1 改绑本机 kimi-third 源（宿主新注册表条目；别名避用与宿主条目名同形
+  串=打包门禁 entry_name 大小写不敏感子串冲突——修订记与正文一律禁该
+  字面），原 k1 绑定 kimi-main 迁驻新岗
   ops-gate1-k3（源A深备位，非自动轮换）；常设双审=k2+d1 与 standing_pair
   不动；gate1_subagent_of 本机件覆盖（映射实值住本机件，修订记不内联绑定
   串——d1-delta-N7：词表对模型名变体的扫描面）。随批脚本面=readHostConfig
@@ -53,7 +54,10 @@
   config 行跳过/夹具合成化/06 §3 双翼；口径澄清：validate「3 岗」=角色类
   计数非席位/别名级安排性提及=08 §1 判例惯例维持）→delta 双 PASS（k2
   B0/W0/N4+d1 B0/W3/N7），两轮上限内。挂账：打包门禁 post-commit 实跑
-  =本批收口即还（结果回填本行下方）；d1-delta-W2 loadSources 消费方执行
+  =本批收口即还——首跑 1 命中（本修订记行初稿 reintroduce 条目名同形
+  字面：修订记撰写晚于回炉字面剥离扫描，被门禁当场拦截=门禁有效实证），
+  补笔修复后复跑零命中（结果=补笔批 commit message 承载）；d1-delta-W2
+  loadSources 消费方执行
   零覆盖（形状向量替代）沿 edfix-r1-e2e-gap 触发器行（下场派发器批 R1
   真跑）；d1-delta-W3/N1 映射层窄路径（config 存在但无 options/models →
   loadSources 缺字段拒启=fail-fast 哨兵在位不静默）。机检终态：validate
