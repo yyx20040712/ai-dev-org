@@ -38,9 +38,31 @@
 | adjudicator-rebind-livefire | 〔closed 2026-10-03 comptest 批〕原 open 面=改绑后新会话首场裁决部派发四项核对——本批四项齐：①本场⑥ 归因 ops-adjudicator @ kimi-third calls=1（声明=实际，会话不在 ③ 回退清单）②MODEL-SELF 尾栏=model-field 形态逐字=绑定值（实值单源=本机件 agent_bindings，账本行 comptest-s1-adjud 在档；LEDGER-CLAIM executor=model-field 同值在场，outcome=done）③③ 零静默回退（WARN 清单仅历史旧快照「窗口内无请求」，含改绑前 adjudicator 旧会话=预期态非回退）④--health ⑧ 跨门异族 ok 1/WARN 0 维持；同场预埋算术错（12+9 记 22）被复算抓出且结论反转，改绑后裁决职能正常；证据=账本行 comptest-s1-adjud+comptest 修订记 | 已 closed（四项齐）；deepseek 轴复燃监维持 cross-gate-samefamily 行 closed 注记 |
 | ops-drafter-firstdispatch | 〔closed 2026-10-03 comptest 批〕原 open 面=新岗首派四项核对——本批四项齐：①本会话宿主名录含 ops-drafter（阶段0 快照实录）②MODEL-SELF 尾栏=model-field 形态逐字=绑定值（kimi-third 座）+tool_uses=0 零 Read 违约（自包含任务书墙成立，5 处「任务书不足」显式标注）③LEDGER-CLAIM 尾栏在场（executor=model-field 形态，outcome=done）④账本行补记 runId=comptest-s2-draft（role=ops-drafter，tier=prime，source=kimi-third）；证据=账本行+comptest 修订记 | 已 closed（四项齐） |
 | ops-auditor-firstdispatch | 〔closed 2026-10-03 comptest 批〕原 open 面=新岗首派三项核对——本批三项齐：①本会话宿主名录含 ops-auditor（阶段0 快照实录）②MODEL-SELF 尾栏=model-field 形态逐字=绑定值（deepseek 座）+FINDINGS 尾栏词表=审核者域（VERDICT=有条件放行，非门一域 PASS|FAIL，零 escaped-defect）+审核声明前置+tool_uses=0 零 Read 违约③账本行补记 runId=comptest-s3-audit（role=ops-auditor，tier=debt-readonly，source=deepseek，findings 栏齐）；⑥ 归因 ops-auditor @ deepseek calls=1；证据=账本行+comptest 修订记 | 已 closed（三项齐） |
-| d1desc-seatnote-stale | 2026-10-03 comptest 批发现（escaped-defect 账本行 comptest-esc1-d1desc）：ops-gate1-d1 模板（templates/agents/）+部署渲染件（~/.zcode/agents/）description 停留 10-02 换位态（「与源B/ops-gate1-k2 成对派发……对端 2026-10-02 换位 k1→k2」）——k1default 批落地面九处更新 k1/k2 双模板与 07 §1 行时漏 d1 对端注记随批更新（现役常设对=k1+d1，standing_pair=[kimi-third,deepseek]）；同根 07 §4 名录表行已由 comptest 批补正（references 面），模板面按测试批纪律只登记不修（涉模板改动+重渲染部署+新会话快照核对=独立批）。绑定 model 字段未受影响（纯 description 文案漂移，无路由实害） | 修复批处置：templates/agents/ops-gate1-d1.md description 对端注记改现役态→deploy-check --install 重渲染（W7a 删件重装程序）→新会话 d1 派发快照核对 description 语义——纯文案小批可走单审 k1+主控亲验 |
+| d1desc-seatnote-stale | 〔closed 2026-10-03 d1desc-fix 批〕原 open 面=comptest 批登记的 escaped-defect（账本行 comptest-esc1-d1desc：ops-gate1-d1 模板+部署件对端表述停 10-02 态，k1default 批漏改面；绑定 model 字段未受影响=纯 description 文案漂移）——本修复批处置齐：①模板两处改现役态（description「与常设一审位（ops-gate1-k1）成对派发+席位沿革注」+正文职责注「源B=常设一审位」窗口态等式拆正）②W7a 删件重装（deploy-check --install 补齐 1 件渲染部署+sha256 复核相等，复跑 ok16/warn0/FAIL0）③部署件核验={{binding}} 零残留+model 渲染实值不变（改座不改绑语义保持）④k1 单审 B0/W0/N4 PASS（runId=d1descfix-g1-k1，实体名只用岗名零 live 事实新入；N1 批次名双口径在本条统一：d1desc-seatnote-stale=登记名/d1desc-fix=修复批短名）；主控普查=全仓「源B/对端换位」残扫零陈旧残留（存量命中=史注/裁决史/k2 自指均合法）；新会话快照=磁盘态机械继承（sha 对账已证），下场会话首场 d1 派发随场目验 description 呈现=非门控观测 | 已 closed（处置齐）；下场会话首场 d1 派发目验=观测尾注 |
 
 ## 修订记
+
+- 2026-10-03 d1desc 逃逸修复批（d1desc-fix，承接同日 comptest 批登记的
+  escaped-defect comptest-esc1-d1desc；用户裁决「现在修掉，然后提交并推送。
+  注意本机API相关机密不要被写入技能里」）：**修复面**=templates/agents/
+  ops-gate1-d1.md 两处对端旧态（description「与源B（ops-gate1-k2）成对派发
+  ……对端 2026-10-02 换位 k1→k2」→「与常设一审位（ops-gate1-k1）成对派发
+  ……席位历任 k1→k2〔10-02 换位批〕→k1〔10-03 默认席位换新批=现役〕」+
+  补正注记；正文职责注「源B（kimi 族常设一审位）」窗口态等式拆正为
+  「常设一审位（kimi 族，ops-gate1-k1）」）。**部署面**=W7a 在册程序删旧
+  渲染件→deploy-check --install 补齐 1 件（渲染部署+sha256 复核相等）→
+  复跑 ok16/warn0/FAIL0；部署件 {{binding}} 零残留+model 渲染实值不变
+  （改座不改绑；绑定实值只驻仓外部署件与本机件，仓内模板维持占位）。
+  **对抗位**=小批单审 k1（runId=d1descfix-g1-k1）B0/W0/N4 PASS——hunk 头
+  原生形态本轮零保真度发现（comptest 批 k1-N1 教训落实）；N1 批次名双口径
+  统一（d1desc-seatnote-stale=登记名/d1desc-fix=短名）；主控普查=全仓
+  「源B/对端换位」残扫零陈旧残留（存量=史注/裁决史/k2 自指合法）。
+  **机密面核查（用户批令专项）**：本批 diff 零命中 uuid 形态/绑定值字面/
+  端点/密钥/本机标识模式（grep 实录）+package-skill --self-test 25 向量
+  全过（uuid/盘符/本机标识三维门禁）+check-hardcode strict 0（宿主注册表
+  实配模型名词表面）。**触发器行**：d1desc-seatnote-stale 转 closed。
+  机检终态：validate PASS（cfg:1936ff59c236）+anchors strict 0-0+hardcode
+  strict 0+deploy-check ok16。账本：ok×1（d1descfix-g1-k1，gitignore 层）。
 
 - 2026-10-03 新会话综合测试批（comptest，runId 前缀 comptest；触发=purge 批交付③
   「新会话综合测试提示词」——提示词原文=E:/zcode_md/fix/ai-dev-org-新会话综合测试提示词.md，
