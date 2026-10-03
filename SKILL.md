@@ -23,7 +23,7 @@ loop-engineering-archive-2026-09/`——路径相对 skills 根，非技能根�
 | 主控（+PM 子模式） | 主会话（唯一用户对接岗） |
 | 拟定者 drafter | 派发器 `--role drafter` |
 | 实现者 | 会话内子代理 |
-| 门一 gate1-reviewer | 会话内绑定子代理（常设双审 ops-gate1-k2+d1；k1=额度兜底）＋派发器后备 |
+| 门一 gate1-reviewer | 会话内绑定子代理（常设双审 ops-gate1-k2+d1；k1=额度兜底（kimi-third）；ops-gate1-k3=源A深备）＋派发器后备 |
 | 门二（双部制） | 会话内子代理：实证部＋裁决部（07 §1） |
 | 审核者 auditor-readonly | 派发器 `--role auditor-readonly` |
 | SRE 诊断岗 sre-diagnostic | 会话内只读子代理 |
@@ -60,8 +60,8 @@ node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.m
 node scripts/package-skill.mjs --out <空目录> [--self-test]   # 分享打包：git 跟踪面导出+分享面门禁（uuid/盘符路径/本机标识零命中）+MANIFEST——受赠机首跑与白名单=PACKAGING.md（v2.1.0 批）
 ```
 
-**子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗；门一 2026-09-22 三岗制；宿主语义细则单源=references/10 §2）**：文本岗/
-异构岗/门一三岗已挂 `~/.zcode/agents/ops-*.md` 绑定子代理（frontmatter
+**子代理绑定通道（2026-09-16 起，06 §6 补遗+07 §4 补遗；门一 2026-09-22 三岗制、2026-10-03 改绑批增 ops-gate1-k3 成四岗；宿主语义细则单源=references/10 §2）**：文本岗/
+异构岗/门一四岗已挂 `~/.zcode/agents/ops-*.md` 绑定子代理（frontmatter
 model=`<provider>/<model-key>$<档位>`——模板面存 `{{binding:岗}}` 占位、
 部署面=org-config 本机件 `agent_bindings` 渲染实值（v2.1.0 批4），`$` 后缀=显式思考档位声明，缺省
 即派发拒启 reasoning-level-missing（实证=references/10 §2），绑定岗现役档案
@@ -71,7 +71,7 @@ model=`<provider>/<model-key>$<档位>`——模板面存 `{{binding:岗}}` 占�
 SRE 诊断=ops-executor/probe/diagnostics）改**随宿主会话模型**——未绑定
 形态（无 model 字段=回落宿主默认/coding plan 服务商），账本记
 `session:host-tier`+E3 欠账行恢复；绑定纪律与 `$max` 档位仅约束设
-model 字段的岗（现役=门一 k1/k2+裁决部三件，异构对抗位不动）。
+model 字段的岗（现役=门一 k1/k2/d1/ops-gate1-k3+裁决部五件，异构对抗位不动）。
 外部派发器=健康探针+后备通道，
 不拆除（迁移期双承载，org-config roles.*.migration_note）。子代理失败
 接续纪律=杀岗→`log-triage.mjs --health` 归因→额度类换源继任（读进度

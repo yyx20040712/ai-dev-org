@@ -27,6 +27,7 @@
 | 上游枚举值（sonnet 等）静默回退宿主=假绑定，禁用（负面清单⑤） | 同上批实测 | log-triage ③ 声明 vs 实际路由核对 |
 | `tools: []`（空数组）=泄漏全工具面而非无工具；无工具岗须显式清单或 `tools: Read`+协议墙 | 2026-09-16 子代理绑定批 | 新代理档案部署时核对工具面快照 |
 | 代理档案=会话启动快照，无热加载——改档案对在跑会话不生效，须新会话验证 | 2026-09-16 批（设立会话内不可派发先例） | 改档后首场派发核对（RESIDUALS gate1-d1-firstdispatch 形态） |
+| 宿主供应商注册表=双文件形态：新增供应商只落 `~/.zcode/v2/provider_config.json`（providerConfigRules.providerRules——providerId/providerName/config.access.apiKey/config.api.baseUrl/config.personalModelIds），旧 `~/.zcode/v2/config.json` provider 段不再收新条目——`readHostConfig` 双注册表合并（`mergeHostRegistries` 纯函数：旧件打底+新件映射覆盖同 id，映射形态与旧件消费面同构） | 2026-10-03 kimi-third 改绑批实证（新条目=本机件 kimi-third 所指宿主条目，仅落 provider_config.json，条目名/前缀实值住本机件；单读旧件=validate「无该前缀条目」必败） | 异机/宿主升级后跑 `org-config validate`+`--self-test`（双注册表向量）+`deploy-check`；宿主注册表形态再变=本册追加修订记（历史条目禁改写） |
 
 ## 3. 观测面（metadata/日志形态）
 

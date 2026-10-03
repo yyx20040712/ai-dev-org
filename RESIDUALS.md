@@ -30,12 +30,36 @@
 | render-typo-key-residual | 绑定模板占位键笔误形态（{{bind:…}}/{{bindnig:…}}——不含 binding 子串）绕过渲染 tripwire 静默直装（k1 二过 N-3；标准/畸形/未闭合三形态已覆盖，此为键名拼写面） | 模板占位键重构批或首见笔误实害时处置（放宽为全 {{…}} 残留检测+标准形白名单）；deploy-check ④ 渲染对账可兜底发现（部署后漂移位） |
 | synapse-temporal-defect-refine | Synapse F-LINEAGE-02 ①a 批（2026-10-01）三教训：CSS 过渡按样式重算周期末计算值判定（禁断→恢复需强制回流分隔）／时间维度缺陷需时间维度断言（多时刻采样）／切片断言采样起点须取被锁行为发生前最后自然采样点后（恒真断言经变异红证证伪实证）。三条候选升级挂账**暂不实施**（用户裁决 2026-10-01「挂账在末尾，检验提炼后再考虑完善技能」）：①禁断→回流→恢复抽共享工具函数 ②瞬态多时刻采样固化为常驻 e2e 用例 ③Synapse methodology §4 ⑤j 候选条款（涉 CSS 过渡/异步视觉状态票面验收段必含时间维度断言形态）。教训本体回流=项目事故档（v105 §3 待回流段在案）；工程升级载体=项目层（代码/测试/methodology），不入本技能 | **短窗检验**=F-LGRAPH-01 ②批（编辑器交互批——useCardDrag 拆分+调线手柄又一处命令式 DOM）收口时盘点：同型时间维度/恒真断言缺陷复现≥1→三条升级立即随批实施+⑤j 正式立条；零复现→教训降级为事故档常规行、⑤j 不立（防过度治理）。**技能泛化**（本技能收录「时间维度缺陷防线」类内容）=第二个前端项目出现同型复现时再议——走 05 §6 差异回灌协议，届时以结论+项目档案指针形态入册不复述细节 |
 | synapse-skill-consolidation-window | 用户裁决 2026-10-01：脉络图战役收口后集中维护技能——「打造软件工程领域综合大型技能，使其他技能功能均被本技能覆盖，简化流程+保证单一信息源」。随批两件：①下批开工纪律技能清点表增「消费点」列（微改动，F-LGRAPH-01 ①批简报携带）；②主控建议四组入档（战术知识消费现成技能/技能=判断力编译+机检优先+事故锚点+窄而深+技能过自门/真实缺口=视觉回归常驻+性能预算+消费接线/移植判据=防什么风险而非大厂都这么做）。**主控异议在档**：巨石式「内容覆盖」有四风险——上下文经济学（全域知识单技能=每次加载 95% 无关内容；本技能自身「references 按需读」设计即为此解）/复制即双源（官方/插件技能内容抄入自有技能=第二事实源，上游更新即腐化——恰违反单一信息源本意）/治理面失控（600 字符预算+anchors 机检管得住窄技能，全域巨石=规则冲突+审不过，selfiter 六批两轮回炉治理八个岗位的先例可参）/违反本册刚立的二次实证泛化判据。**主控替代方案**：伞形架构——入口唯一（本技能或新薄路由技能承载「分域消费点索引」：什么场景读哪个现成技能的哪节），内容驻原地零复制，项目特异规范驻项目——「覆盖调度权而非内容」；单一信息源的正解=每个事实恰一个权威出处+指针互联，非物理合并 | 脉络图战役收口（F-LGRAPH-01 ②批 done）后用户启动集中维护期：首场=自有技能库重复面测绘盘点+「伞形 vs 巨石」呈裁（本行异议与两案随呈批包内联），用户裁决后分批实施；实施批照 selfiter 先例过门一对抗审 |
-| gate1-seat-swap-livefire | 2026-10-02 换位裁决落地面：文档/描述/org-config standing_pair 已换座（常设双审=k2+d1、单点配置批单审=k2、k1 退兜底），但代理档案=会话启动快照——裁决批同会话派发仍持旧描述快照（绑定未动，无拒启风险；本批双审 k2/d1 两岗 MODEL-SELF 自报均=各绑定值，但描述快照仍旧文）；部署档已改，新会话快照方生效。**已知滞后面**：log-triage --health 门一派发推荐器仍按 source_chain[0]（kimi-main）出「推荐 ops-gate1-k1」——与换位后常设座（k2）方向相反（2026-10-02 收口核出；推荐器改读 standing_pair 首元或座位映射=脚本变更批，不入本批） | 新会话首场门一派发四项核对：①默认选座=ops-gate1-k2（新描述生效）②metadata 声明模型=绑定值（kimi-backup 通道）③log-triage ③ 零静默回退+⑥ 归因一致 ④cfg 漂移 WARN 消失复检（本批 standing_pair 变更致账本末行 cfg_hash 暂漂，新派发行落账即应消）——四项齐=closed；--health 推荐方向对齐随脚本批另行闭合 |
+| gate1-seat-swap-livefire | 2026-10-02 换位裁决落地面：文档/描述/org-config standing_pair 已换座（常设双审=k2+d1、单点配置批单审=k2、k1 退兜底），但代理档案=会话启动快照——裁决批同会话派发仍持旧描述快照（绑定未动，无拒启风险；本批双审 k2/d1 两岗 MODEL-SELF 自报均=各绑定值，但描述快照仍旧文）；部署档已改，新会话快照方生效。**已知滞后面**：log-triage --health 门一派发推荐器仍按 dual 组首元（kimi-main）出推荐——与换位后常设座（k2）方向相反（2026-10-02 收口核出；推荐器改读 standing_pair 首元或座位映射=脚本变更批，不入本批；2026-10-03 改绑批 gate1_subagent_of 覆盖后推荐输出随之改指 ops-gate1-k3——方向滞后面不变，仍留脚本批） | 新会话首场门一派发四项核对：①默认选座=ops-gate1-k2（新描述生效）②metadata 声明模型=绑定值（kimi-backup 通道）③log-triage ③ 零静默回退+⑥ 归因一致 ④cfg 漂移 WARN 消失复检（本批 standing_pair 变更致账本末行 cfg_hash 暂漂，新派发行落账即应消）——四项齐=closed；--health 推荐方向对齐随脚本批另行闭合 |
 | synapse-exhaust-debt | Synapse auditor-readonly exhaust 欠账未补还（2026-10-01，runId 20261001051902-fucss5m8，06 §4 回退只读审已处置）——health-scan RED 常驻（2026-10-02 换位批申报继承：先于本批存在，非本批引入；已随批收口呈报面向用户通报一次） | Synapse 下场批首派 auditor-readonly 补还 ok 行→health-scan RED 归零=closed；连续两个关键批未补还=升级用户 |
 | findings-tail-backtick | parseFindings 正则 `^FINDINGS:` 锚不容忍前导反引号，health-scan 侧 hasTail 却容忍（`^\s*`?FINDINGS:`）——双函数口径不一致；审出件尾栏被反引号包裹时 findings 静默缺栏（实证=hjjc 2026-09-28 delta_receipt.md:41 → 账本行 20260928092435-6sbq82u2 缺栏，2026-10-02 按 02 §9 人工回填清偿+backfill_note 留痕；静默丢失路径在修复前保持武装——d1-N4） | parseFindings 变更批或同形态复发≥1 次：统一两函数口径（剥成对反引号后解析）+补 R10 向量+历史回执全量扫描同形态证伪其他静默缺栏；**下场涉脚本批优先一行修复** |
+| gate1-rebind-kimithird-livefire | 2026-10-03 改绑裁决落地面：部署档（ops-gate1-k1 渲染件 model=kimi-third 宿主条目+新岗 ops-gate1-k3）与 org-config 已改，但代理档案=会话启动快照——本会话派发 k1 仍持旧快照（本批双审走 k2/d1 不受累）；宿主注册表双文件形态=readHostConfig 合并面首战（10 §2 新行）。kimi-third 宿主条目 id 非 uuid 形态（绑定串前缀段非 8-hex，实值住本机件）→log-triage R3 ⑧ standing 对核对不受累（k1 非 standing 成员）；kimi-third 若未来入 standing_pair/dual_groups，R3 ⑧ 前缀解析（^([0-9a-f]{8})）对其失明=[?] 态 | 新会话首场门一派发核对：①k1 派发 metadata 声明模型=kimi-third 绑定值（宿主条目通道）②ops-gate1-k3 可派发且 MODEL-SELF 自报=绑定值③log-triage ③ 零静默回退④账本新行 cfg_hash 与 validate 输出一致（收口批复核值）——四项齐=closed；kimi-third 入 standing 轮换时先改 R3 ⑧ 前缀解析面 |
 
 ## 修订记
 
+- 2026-10-03 门一 k1 改绑批（用户裁决，账本 ruling 行 gate1-rebind-kimithird-ruling）：
+  k1 改绑本机 kimi-third 源（宿主新注册表条目；别名避用 kimi2=打包门禁
+  entry_name 大小写不敏感子串冲突），原 k1 绑定 kimi-main 迁驻新岗
+  ops-gate1-k3（源A深备位，非自动轮换）；常设双审=k2+d1 与 standing_pair
+  不动；gate1_subagent_of 本机件覆盖（映射实值住本机件，修订记不内联绑定
+  串——d1-delta-N7：词表对模型名变体的扫描面）。随批脚本面=readHostConfig
+  宿主双注册表合并（mergeHostRegistries 纯函数+9 向量；宿主新供应商只落
+  v2/provider_config.json，10 §2 新行）。滞后修正申报：SKILL「现役…三件」
+  为 2026-09-22 三岗批增设 d1 前旧文（该批后未更新，实况应=四件），本批
+  连同 ops-gate1-k3 增设计正为五件并补 d1 入列。对抗链：双审首审双 FAIL
+  （k2 B1/W6/N7：B1=tracked 面残留宿主条目名+打包门禁未跑；d1 B1/W4/N4：
+  B1 同指+R1 口径+幽灵条目+消费面同源）→回炉一轮 13+9 项全处置（实修：
+  字面剥离/三粒度成文+models 替换向量/派发契约向量/(null,v2) 向量/无
+  config 行跳过/夹具合成化/06 §3 双翼；口径澄清：validate「3 岗」=角色类
+  计数非席位/别名级安排性提及=08 §1 判例惯例维持）→delta 双 PASS（k2
+  B0/W0/N4+d1 B0/W3/N7），两轮上限内。挂账：打包门禁 post-commit 实跑
+  =本批收口即还（结果回填本行下方）；d1-delta-W2 loadSources 消费方执行
+  零覆盖（形状向量替代）沿 edfix-r1-e2e-gap 触发器行（下场派发器批 R1
+  真跑）；d1-delta-W3/N1 映射层窄路径（config 存在但无 options/models →
+  loadSources 缺字段拒启=fail-fast 哨兵在位不静默）。机检终态：validate
+  4 源/self-test 57/anchors 0-0/hardcode strict 0/deploy-check ok14/
+  regression 9-9（R1 SKIP 口径修正=装载点语义变更+契约向量钉住+配给保护）。
+  livefire=gate1-rebind-kimithird-livefire 行（新会话四项核对）。
 - 2026-10-02 门一审核位换源批+欠账收口（前两笔：7e54ee9 收口 2026-09-29
   批已审毕未提交面；7a655e6 收口 2026-10-01 Synapse 两触发器行）。换位
   裁决原文：「按照文档指引继续完善，用k2代替k1审核，即〈源B别名〉源。」

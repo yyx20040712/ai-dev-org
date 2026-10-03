@@ -100,9 +100,53 @@ export function loadOrgConfig(projectDir) {
   return { merged, hasOverride, overPath, hasLocal, localPath: LOCAL_CFG }
 }
 
-/** 读宿主配置（单点封装，供派发器与校验共用——K-W3 单次读入）。 */
+/** 宿主双注册表合并（2026-10-03 kimi-third 改绑批；事实单源=references/10 §2）：
+ *  宿主供应商注册表迁移双文件形态——新条目只落 v2/provider_config.json
+ *  （providerRules），旧 config.json provider 段不再收新条目；单读旧件则
+ *  新源双校验必败。合并=旧件 provider 段打底+新件 rules 映射覆盖（同 id
+ *  新件为准——三种粒度成文：name=缺省回退；options=键级合并；models=
+ *  整体替换（personalModelIds=该 id 模型清单的更新事实，旧键残留=死模型，
+ *  替换分支自测向量钉住）。无 config 的模板行（templateId 形）跳过不物化
+ *  ——仅 id 无身份/连接事实，物化=name=undefined 幽灵条目（回炉 k2-W1/d1-W2）。
+ *  映射形态与旧件消费面同构：name/options.baseURL/options.apiKey/models
+ *  ——纯函数供自测注入。 */
+export function mergeHostRegistries(legacyCfg, v2Cfg) {
+  const provider = {}
+  for (const [id, p] of Object.entries(legacyCfg?.provider || {})) provider[id] = p
+  const rules = v2Cfg?.config?.providerConfigRules?.providerRules
+  if (Array.isArray(rules)) {
+    for (const r of rules) {
+      if (!r || typeof r.providerId !== 'string' || !r.providerId || !r.config) continue
+      const c = r.config
+      const prev = provider[r.providerId] || {}
+      provider[r.providerId] = {
+        ...prev,
+        name: typeof r.providerName === 'string' && r.providerName ? r.providerName : prev.name,
+        options: {
+          ...prev.options,
+          ...(c.api?.baseUrl ? { baseURL: c.api.baseUrl } : {}),
+          ...(c.access?.apiKey ? { apiKey: c.access.apiKey } : {}),
+        },
+        models: Array.isArray(c.personalModelIds) && c.personalModelIds.length
+          ? Object.fromEntries(c.personalModelIds.map((m) => [m, { name: m }]))
+          : prev.models,
+      }
+    }
+  }
+  return { ...(legacyCfg || {}), provider }
+}
+
+/** 读宿主配置（单点封装，供派发器与校验共用——K-W3 单次读入）。双注册表
+ *  合并见 mergeHostRegistries 头注；两件全缺=显式抛（保持原 fatal 语义），
+ *  单件缺席=以在场件打底。 */
 export function readHostConfig() {
-  return readJson(join(homedir(), '.zcode', 'v2', 'config.json'))
+  const v2Dir = join(homedir(), '.zcode', 'v2')
+  const legacyPath = join(v2Dir, 'config.json')
+  const v2Path = join(v2Dir, 'provider_config.json')
+  const legacy = existsSync(legacyPath) ? readJson(legacyPath) : null
+  const v2 = existsSync(v2Path) ? readJson(v2Path) : null
+  if (legacy == null && v2 == null) throw new Error(`宿主供应商注册表缺失（${legacyPath} 与 ${v2Path} 均缺席/为空）`)
+  return mergeHostRegistries(legacy, v2)
 }
 
 /** 跨脚本共享小件（v1.6 批 P2-3 收敛：多份逐字复制→单源导出；ds-call-v2
@@ -446,6 +490,29 @@ if (isMain) {
       t('v2.1.0 三层：显式 null 删除跨层生效（project 删 nest/doomed，其余 project 键在场）', m1.nest === undefined && m1.doomed === undefined && m1.c === 3)
       t('v2.1.0 三层：local/project 缺席=仅默认件（快照比对+首参无突变）', JSON.stringify(mergeOrgLayers(d, null, null)) === dSnap && JSON.stringify(d) === dSnap)
       t('v2.1.0 三层：local 缺席时 project 直压默认件', mergeOrgLayers(d, null, { a: 9 }).a === 9)
+    }
+    // 2026-10-03 kimi-third 改绑批向量：宿主双注册表合并（readHostConfig 单点改造；
+    // 夹具全合成值——真实条目名/前缀/uuid 不入自检源码，回炉 k2-W6）
+    {
+      const v2Rules = (rs) => ({ config: { providerConfigRules: { providerRules: rs } } })
+      const mReg = mergeHostRegistries(
+        { provider: { 'aaaaaaaa-1111': { name: 'E-A', options: { baseURL: 'https://old/a' }, models: { m1: { name: 'm1' }, m2: { name: 'm2' } } }, dead: null } },
+        v2Rules([
+          { providerId: 'nonuuid-prov-a', providerName: 'E-N', config: { api: { type: 'anthropic-messages', baseUrl: 'https://new/n' }, access: { apiKey: 'sk-x' }, personalModelIds: ['kx'] } },
+          { providerId: 'aaaaaaaa-1111', providerName: 'E-A2', config: { access: { apiKey: 'sk-y' }, personalModelIds: ['m1'] } },
+          { providerId: 'templ-only', templateId: 'bigmodel-api' },
+          null,
+        ]),
+      )
+      t('双注册表：新件独有条目映射入表（name/options.baseURL/apiKey/models 形态）', mReg.provider['nonuuid-prov-a']?.name === 'E-N' && mReg.provider['nonuuid-prov-a']?.options?.baseURL === 'https://new/n' && mReg.provider['nonuuid-prov-a']?.options?.apiKey === 'sk-x' && !!mReg.provider['nonuuid-prov-a']?.models?.kx)
+      t('双注册表：同 id 覆盖（name 更新/options 键级合并沿用旧值）', mReg.provider['aaaaaaaa-1111']?.name === 'E-A2' && mReg.provider['aaaaaaaa-1111']?.options?.baseURL === 'https://old/a' && mReg.provider['aaaaaaaa-1111']?.options?.apiKey === 'sk-y')
+      t('双注册表：models=整体替换非键级合并（新件 personalModelIds=更新事实，旧键 m2 不残留——回炉 k2-W1）', Object.keys(mReg.provider['aaaaaaaa-1111']?.models || {}).join() === 'm1')
+      t('双注册表：派发消费契约——链源映射件齐 options.baseURL/apiKey 与顶层 models 键（ds-call-v2 loadSources 契约面，回炉 d1-W3）', (() => { const e = mReg.provider['nonuuid-prov-a']; return typeof e?.options?.baseURL === 'string' && typeof e?.options?.apiKey === 'string' && Object.keys(e?.models || {}).length > 0 })())
+      t('双注册表：无 config 模板条目与 null 行不物化（幽灵条目防护——回炉 d1-W2）', mReg.provider['templ-only'] === undefined)
+      t('双注册表：v2 缺席=旧件 provider 段原样等价', JSON.stringify(mergeHostRegistries({ provider: { x: { name: 'X' } } }, null).provider) === JSON.stringify({ x: { name: 'X' } }))
+      t('双注册表：legacy 缺席=新件独立打底（新机纯迁移形态；顶层非 provider 键随之丢弃——回炉 k2-W2）', (() => { const m = mergeHostRegistries(null, v2Rules([{ providerId: 'nonuuid-prov-a', providerName: 'E-N', config: { api: { baseUrl: 'https://new/n' }, personalModelIds: ['kx'] } }])); return m.provider['nonuuid-prov-a']?.name === 'E-N' && Object.keys(m).join() === 'provider' })())
+      t('双注册表：双缺席=空 provider 段打底（readHostConfig 层显式抛）', Object.keys(mergeHostRegistries(null, null).provider).length === 0)
+      t('双注册表：validateProviders 消费合并面——新件独有条目双校验通过（旧单读形态=必败面；前缀匹配对非 uuid 形态 id 同律）', validateProviders({ providers: { third: { uuid_prefix: 'nonuuid-', entry_name: 'E-N', model_family: 'kimi' } }, source_chain: ['third'] }, mReg).length === 0)
     }
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)

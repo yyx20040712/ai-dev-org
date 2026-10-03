@@ -532,7 +532,7 @@ async function cliMain() {
   }
 
   let hostCfg // b2：宿主配置装载失败=配置类 ConfigError（exit 3）
-  try { hostCfg = readHostConfig() } catch (e) { throw new ConfigError(`宿主配置装载失败（~/.zcode/v2/config.json）: ${e.message}`) }
+  try { hostCfg = readHostConfig() } catch (e) { throw new ConfigError(`宿主配置装载失败（~/.zcode/v2/config.json+provider_config.json 双注册表）: ${e.message}`) }
   const sources = loadSources(merged, hostCfg)
   if (listSources) {
     console.log(`源序（org-config source_chain；cfg:${cfgHash(merged)}）：`)
