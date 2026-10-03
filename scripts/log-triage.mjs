@@ -430,22 +430,24 @@ function run() {
       subagentNet: { s7: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
     })[0]?.level === 'RED')
     // ── B1 向量组（k1default 批 2026-10-03）：uuid_prefix 值表 startsWith 解析 + ③ 非
-    //    uuid 声明合法面（批A k1 首派实证的误报根因）——k1 预审 W-3 全组
-    const b1Prov = { 'third-syn': { uuid_prefix: 'new-prov', model_family: 'kimi' }, 'short-syn': { uuid_prefix: 'new' } }
-    t('B1 非 uuid id 命中（非 8-hex provider 段 startsWith uuid_prefix→条目）', resolveProviderByFront('new-provider/k3$max', b1Prov)?.alias === 'third-syn')
+    //    uuid 声明合法面（批A k1 首派实证的误报根因）——k1 预审 W-3 全组。向量数据
+    //    全合成值（syn-provider/k3s 族——2026-09-22 批 W8 先例：禁真实绑定串同形
+    //    入向量；打包门禁本机标识维度首跑 3 命中后补笔合成化，门禁有效性再实证）。
+    const b1Prov = { 'third-syn': { uuid_prefix: 'syn-prov', model_family: 'kimi' }, 'short-syn': { uuid_prefix: 'syn' } }
+    t('B1 非 uuid id 命中（非 8-hex provider 段 startsWith uuid_prefix→条目）', resolveProviderByFront('syn-provider/k3s$max', b1Prov)?.alias === 'third-syn')
     t('B1 空 uuid_prefix 不通配（startsWith(\'\') 恒真=吞配回归面，k1 预审 B-1）', resolveProviderByFront('whatever/x', { bad: { uuid_prefix: '', model_family: 'x' }, worse: { model_family: 'y' } }) === null)
-    t('B1 双命中最长前缀定序（new/new-prov 并存→长者为先）', resolveProviderByFront('new-provider/m', { a: { uuid_prefix: 'new' }, b: { uuid_prefix: 'new-prov' } })?.alias === 'b')
+    t('B1 双命中最长前缀定序（syn/syn-prov 并存→长者为先）', resolveProviderByFront('syn-provider/m', { a: { uuid_prefix: 'syn' }, b: { uuid_prefix: 'syn-prov' } })?.alias === 'b')
     t('B1 大小写互配（双侧 trim+lowercase 归一——k1 预审 W-2）', resolveProviderByFront('ABC-DEF/x', { ok: { uuid_prefix: ' abc-def ' } })?.alias === 'ok')
     t('B1 哨兵 front 不误命中（无斜杠全串/空串——(档案缺失) 类不进值表）', resolveProviderByFront('(档案缺失)', b1Prov) === null && resolveProviderByFront('', b1Prov) === null)
     t('B1 ③ 非 uuid 声明命中+路由一致=零误报（批A k1 实派形态——原误报疑似伪值 RED）', detectSilentFallback({
-      metas: [{ profileId: 'b1-live', childSessionId: 's10', profileSnapshot: { model: 'new-provider/k3$max' } }],
-      subagentNet: { s10: { alias: 'third-syn', providerId: 'new-provider-host', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+      metas: [{ profileId: 'b1-live', childSessionId: 's10', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
+      subagentNet: { s10: { alias: 'third-syn', providerId: 'syn-provider-host', modelId: 'k3s', lastFinish: 'end_turn', fails: 0 } },
       providers: b1Prov,
     }).length === 0)
     t('B1 ③ 非 uuid 声明命中但路由不一致=RED 回退可抓（检测不弱化）', (() => {
       const r = detectSilentFallback({
-        metas: [{ profileId: 'b1-fb', childSessionId: 's11', profileSnapshot: { model: 'new-provider/k3$max' } }],
-        subagentNet: { s11: { alias: 'other-syn', providerId: 'zzz', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+        metas: [{ profileId: 'b1-fb', childSessionId: 's11', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
+        subagentNet: { s11: { alias: 'other-syn', providerId: 'zzz', modelId: 'k3s', lastFinish: 'end_turn', fails: 0 } },
         providers: b1Prov,
       })
       return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('静默回退')
@@ -458,8 +460,8 @@ function run() {
     // 回炉 d1-B-1 向量：无斜杠裸前缀串（值表可命中）→ 伪值分支不进比对（红态=旧放行后 undefined.split 崩溃）
     t('B1 ③ 无斜杠命中前缀串=伪值不崩（d1-B-1：结构复验先行）', (() => {
       const r = detectSilentFallback({
-        metas: [{ profileId: 'b1-bare', childSessionId: 's14', profileSnapshot: { model: 'new-provider' } }],
-        subagentNet: { s14: { alias: 'third-syn', providerId: 'new-provider-host', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+        metas: [{ profileId: 'b1-bare', childSessionId: 's14', profileSnapshot: { model: 'syn-provider' } }],
+        subagentNet: { s14: { alias: 'third-syn', providerId: 'syn-provider-host', modelId: 'k3s', lastFinish: 'end_turn', fails: 0 } },
         providers: b1Prov,
       })
       return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('伪值')
@@ -469,16 +471,16 @@ function run() {
     // 回炉 k2-W-1'：act.providerId 不参与归因（比对三臂均不含按 providerId 查注册表），
     // 数据任意填充不架空本锁——注释钉明防误读。
     t('B1 ③ 同根前缀变体声明+路由一致=零报告（k2-W-1 取舍行为锁）', detectSilentFallback({
-      metas: [{ profileId: 'b1-typo', childSessionId: 's13', profileSnapshot: { model: 'new-provider-typo/k3$max' } }],
-      subagentNet: { s13: { alias: 'third-syn', providerId: 'zzz', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+      metas: [{ profileId: 'b1-typo', childSessionId: 's13', profileSnapshot: { model: 'syn-provider-typo/k3s$max' } }],
+      subagentNet: { s13: { alias: 'third-syn', providerId: 'zzz', modelId: 'k3s', lastFinish: 'end_turn', fails: 0 } },
       providers: b1Prov,
     }).length === 0)
-    // 回炉 d1-W#1 向量：斜杠后空模型段（'new-provider/'）——结构安全（split 得 ''非
+    // 回炉 d1-W#1 向量：斜杠后空模型段（'syn-provider/'）——结构安全（split 得 ''非
     // undefined 不崩）+空段≠modelId=回退 RED 可抓，落点钉死非静默。
     t('B1 ③ 斜杠后空模型段=RED 回退不崩（d1-W#1 落点钉死）', (() => {
       const r = detectSilentFallback({
-        metas: [{ profileId: 'b1-emptymodel', childSessionId: 's15', profileSnapshot: { model: 'new-provider/' } }],
-        subagentNet: { s15: { alias: 'third-syn', providerId: 'new-provider-host', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
+        metas: [{ profileId: 'b1-emptymodel', childSessionId: 's15', profileSnapshot: { model: 'syn-provider/' } }],
+        subagentNet: { s15: { alias: 'third-syn', providerId: 'syn-provider-host', modelId: 'k3s', lastFinish: 'end_turn', fails: 0 } },
         providers: b1Prov,
       })
       return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('静默回退')
