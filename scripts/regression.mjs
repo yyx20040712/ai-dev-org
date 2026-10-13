@@ -306,6 +306,27 @@ process.exit(fails === 0 ? 0 : 1)
     const nullOk = rNull5.status === 5 && (rNull5.stderr || '').includes('[degraded]') && (rNull5.stdout || '').includes('mock-glm')
     if (!nullOk) ok = false
     det.push(`⑤null守卫(mock发现面):${nullOk ? `✓(exit=5 降级行+其余源续列)` : `✗(exit=${rNull5.status} stderr尾=${(rNull5.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
+    // vmware 迁移批（2026-10-13）向量：宿主真源路径（env 钩子缺席）readHostConfig 双注册表
+    // 容错——⑥双件全缺=降级行+exit 5（红态=旧 legacy 直读 ENOENT 栈崩）；⑦v2-only 真源
+    // 发现=新机纯装形态（mergeHostRegistries 物化 providerRules 后通道命中；门一双审
+    // W1/W-1 测试盲区处置——HOME 重定向隔离，零外呼）
+    const envNoHook = { ...process.env }
+    delete envNoHook.GLM_LOOK_HOST_CONFIG
+    const emptyHome = join(r10tmp, 'home-empty')
+    mkdirSync(join(emptyHome, '.zcode', 'v2'), { recursive: true }) // 目录在而双件缺=纯装空形态
+    const rDeg5 = r10Spawn([join(SCRIPTS, 'glm-look.mjs'), '--list-sources'], { env: { ...envNoHook, HOME: emptyHome, GLM_LOOK_LOG_DIR: logDir } })
+    const degOk = rDeg5.status === 5 && (rDeg5.stderr || '').includes('[degraded] 宿主注册表读取失败')
+    if (!degOk) ok = false
+    det.push(`⑥双件全缺降级:${degOk ? `✓(exit=5 降级行)` : `✗(exit=${rDeg5.status} stderr尾=${(rDeg5.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
+    const v2Home = join(r10tmp, 'home-v2only')
+    mkdirSync(join(v2Home, '.zcode', 'v2'), { recursive: true })
+    writeFileSync(join(v2Home, '.zcode', 'v2', 'provider_config.json'), JSON.stringify({ config: { providerConfigRules: { providerRules: [
+      { providerId: 'mock-v2-ds', providerName: 'mock-v2-ds', config: { api: { baseUrl: `http://127.0.0.1:${port}/deepseek` }, access: { apiKey: 'r10-v2-key-dddddddddddddddd' }, personalModelIds: ['deepseek-flash'] } },
+    ] } } }), 'utf8')
+    const rV2 = r10Spawn([join(SCRIPTS, 'glm-look.mjs'), '--list-sources'], { env: { ...envNoHook, HOME: v2Home, GLM_LOOK_LOG_DIR: logDir } })
+    const v2Ok = rV2.status === 0 && (rV2.stdout || '').includes('mock-v2-ds') && (rV2.stdout || '').includes('deepseek-flash')
+    if (!v2Ok) ok = false
+    det.push(`⑦v2-only真源发现:${v2Ok ? `✓(exit=0 ds 通道命中 v2 物化源)` : `✗(exit=${rV2.status} stdout尾=${(rV2.stdout || '').slice(-120).replace(/\n/g, ' ')})`}`)
     server.close()
   } else {
     ok = false

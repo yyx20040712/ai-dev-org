@@ -54,9 +54,9 @@ import process from "node:process";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { fileURLToPath } from "node:url";
-import { loadOrgConfig, cliFlag, UsageError, cfgHash, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse } from "./org-config.mjs";
+import { loadOrgConfig, cliFlag, UsageError, cfgHash, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse, readHostConfig } from "./org-config.mjs";
 
-const DISPATCHER_VERSION = "glm-look/1.3.1"; // 自版本号（写入者身份——流水 ctx 对齐面）。1.3.1=v2.0.1 修复批：截断重试触发词表化/流水写失败留痕/倍升记账修正
+const DISPATCHER_VERSION = "glm-look/1.3.2"; // 自版本号（写入者身份——流水 ctx 对齐面）。1.3.2=vmware 迁移批 2026-10-13：宿主真源读取改 readHostConfig 双注册表合并（legacy config.json 缺席容错——新机纯装形态 ENOENT 崩点实测清偿）；env 重定向 mock 路径（R10 钩子）维持直读单件
 let DEGRADED = false; // 降级运行位（宿主 provider null 条目——发现面部分可用，显式留痕 exit 5）
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url)); // 规范解析（percent-decode）——原 URL pathname 手拼在含空格/中文路径下必坏（v1.6 批 P0-B e）
@@ -166,7 +166,22 @@ function logEvent(event, fields) {
 function discoverSources(channel) {
   const { model, endpoint_contains: endpointContains, prefer_hosts: preferHosts } = chCfg(channel);
   if (!model || !endpointContains) return [] // 通道未在 org-config vision_channels 声明=无源（禁脚本兜底）
-  const cfg = JSON.parse(fs.readFileSync(CONFIG, "utf-8").replace(/^\uFEFF/, "")); // BOM 剥离（对齐 org-config.readJson——v1.6 批 P2）
+  let cfg
+  if (process.env.GLM_LOOK_HOST_CONFIG) {
+    // env 重定向=子进程驱动/mock 路径（R10 回归钩子）：直读单件+BOM 剥离（v1.6 批 P2 原语义保持）
+    cfg = JSON.parse(fs.readFileSync(CONFIG, "utf-8").replace(/^\uFEFF/, ""))
+  } else {
+    // 宿主真源：双注册表合并+单件缺席容错（org-config.readHostConfig 单点封装——glm-look 未随
+    // 2026-10-03 kimi-third 双注册表批跟进的欠账，新机纯装形态（无 legacy config.json）ENOENT
+    // 栈崩于 2026-10-13 VMware 迁移实测；双件全缺=降级零源 exit 5 留痕，非崩）
+    try {
+      cfg = readHostConfig()
+    } catch (e) {
+      console.error(`[degraded] 宿主注册表读取失败（${e.message}）——零源继续（漏检面=全部通道源），退出码 5`)
+      DEGRADED = true
+      return []
+    }
+  }
   const found = [];
   for (const [pid, prov] of Object.entries(cfg.provider || {})) {
     // null/非对象宿主条目守卫（selfiter 批 evolve-glmlook-150-null 清偿——M3 族
