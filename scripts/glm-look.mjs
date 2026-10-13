@@ -56,7 +56,7 @@ import { request as httpsRequest } from "node:https";
 import { fileURLToPath } from "node:url";
 import { loadOrgConfig, cliFlag, UsageError, cfgHash, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse, readHostConfig } from "./org-config.mjs";
 
-const DISPATCHER_VERSION = "glm-look/1.3.2"; // 自版本号（写入者身份——流水 ctx 对齐面）。1.3.2=vmware 迁移批 2026-10-13：宿主真源读取改 readHostConfig 双注册表合并（legacy config.json 缺席容错——新机纯装形态 ENOENT 崩点实测清偿）；env 重定向 mock 路径（R10 钩子）维持直读单件
+const DISPATCHER_VERSION = "glm-look/1.3.3"; // 自版本号（写入者身份——流水 ctx 对齐面）。1.3.3=failover 批 2026-10-13：源级失效换源（sources[0] 单源→偏好序逐源，源内语义不变，末源穷尽才 exit 1——「免费源优先+付费源兜底」用户裁决承载）；1.3.2=vmware 迁移批：真源读取 readHostConfig 双注册表合并
 let DEGRADED = false; // 降级运行位（宿主 provider null 条目——发现面部分可用，显式留痕 exit 5）
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url)); // 规范解析（percent-decode）——原 URL pathname 手拼在含空格/中文路径下必坏（v1.6 批 P0-B e）
@@ -317,9 +317,6 @@ async function main() {
     console.error(`[glm-look] channel=${channel} 未发现可用源——检查 ~/.zcode/v2/config.json`);
     return 3;
   }
-  const src = sources[0];
-  console.error(`[${channelTag(channel)}] source=${src.pid} model=${src.model} images=${images.length} max_tokens=${maxTokens}`);
-
   const mediaOf = (p) => {
     const ext = path.extname(p).toLowerCase();
     if (ext === ".png") return "image/png";
@@ -348,7 +345,15 @@ async function main() {
           })),
         ];
 
-  const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`; // 后缀 8 字符（selfiter B4：对齐派发器，消同秒碰撞窗）
+  const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`; // 后缀 8 字符（selfiter B4：对齐派发器，消同秒碰撞窗）；跨源共用（failover 批——行内 source 字段区分源）
+  // 源级失效换源（failover 批 2026-10-13，用户裁决「周末免费 start-plan 优先+付费
+  // Coding Plan 兜底」）：按 discoverSources 偏好序逐源尝试，源内语义不变（非 429 4xx
+  // 立断=不再同源重试；429/5xx/网络瞬断=源内 3 次退避；截断=3 轮倍升）；源级穷尽→
+  // continue 换下一源，末源穷尽才循环尾汇总 exit 1。截断/成功产出不换源（证据保全
+  // 语义保持）。循环体维持原缩进（两空格平移未做）——审包按语义 diff（-w 口径）。
+  sourceLoop:
+  for (const src of sources) {
+  console.error(`[${channelTag(channel)}] source=${src.pid} model=${src.model} images=${images.length} max_tokens=${maxTokens}${sources.length > 1 ? `（候选 ${sources.length} 源，序位 ${sources.indexOf(src) + 1}）` : ""}`);
   const url = channel === "glm" ? `${src.base}/v1/messages` : `${src.base}/chat/completions`;
   const started = Date.now();
   // finish 词表集合（单源=org-config finish_vocab；终态判定与截断重试触发共用——
@@ -404,7 +409,7 @@ async function main() {
         if (netTry === 3 || noretry) {
           logEvent("fail", { runId, channel, source: src.pid, model: src.model, statusCode: err.statusCode ?? null, error: scrub(String(err)).slice(0, 200) });
           console.error(`[${channelTag(channel)}] 调用失败（${noretry ? "立断类（4xx 非 429/超时）" : "3 次网络重试后"}）: ${scrub(err.message)}`);
-          return 1;
+          continue sourceLoop; // 源级穷尽=换下一源（failover 批）；末源穷尽落循环尾汇总 exit 1
         }
         console.error(`[${channelTag(channel)}] 网络瞬断重试 ${netTry}/2（${scrub(err.message)}）——5s 退避`);
         await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -462,6 +467,10 @@ async function main() {
     return 1;
   }
   return DEGRADED ? 5 : 0;
+  }
+  // 全源穷尽（failover 批）：各源失败已逐源落 fail 行——此处仅汇总口径
+  console.error(`[${channelTag(channel)}] ${sources.length} 个源全穷尽（${sources.map((s) => s.pid).join(" → ")}）——无可用产出`);
+  return 1;
 }
 
 // isMain guard（evolve 批 b1，范式=org-config.mjs:124-126）：import 消费纯函数

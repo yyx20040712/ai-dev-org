@@ -239,6 +239,9 @@ process.exit(fails === 0 ? 0 : 1)
       const chunks = []
       req.on('data', (c) => chunks.push(c))
       req.on('end', () => {
+        // failover 批（2026-10-13）⑧向量：/anthropic-dead 恒 401（次序在通道甄别前
+        // ——该路径含 /anthropic 子串，glm 通道源发现会命中它）
+        if (req.url.includes('/anthropic-dead')) { res.writeHead(401, { 'content-type': 'application/json' }); res.end('{"error":"mock unauthorized"}'); return }
         const glmForm = req.url.includes('/anthropic') // 通道甄别=org-config endpoint_contains 同串拟真
         // selfiter 批（B5）拟真扩展：请求体带 stream:true → 应答 SSE 流（首字节早达
         // 语义拟真；收割器/同构断言经 glm-look 端到端走通）
@@ -327,6 +330,55 @@ process.exit(fails === 0 ? 0 : 1)
     const v2Ok = rV2.status === 0 && (rV2.stdout || '').includes('mock-v2-ds') && (rV2.stdout || '').includes('deepseek-flash')
     if (!v2Ok) ok = false
     det.push(`⑦v2-only真源发现:${v2Ok ? `✓(exit=0 ds 通道命中 v2 物化源)` : `✗(exit=${rV2.status} stdout尾=${(rV2.stdout || '').slice(-120).replace(/\n/g, ' ')})`}`)
+    // failover 批（2026-10-13）⑧向量：glm 双源——首源（pid 字典序 mock-glm-dead 排前）
+    // 恒 401、次源正常。期望=exit 0+正文 MOCK-GLM-OK+流水 fail(mock-glm-dead,401)+
+    // ok(mock-glm-live)。红态=旧码 sources[0] 立断 exit 1 无换源。
+    const hostCfgFailover = join(r10tmp, 'host-config-failover.json')
+    writeFileSync(hostCfgFailover, JSON.stringify({
+      provider: {
+        'mock-glm-dead': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-fo-key-eeeeeeeeeeeeeeeeee' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-glm-live': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-fo-key-ffffffffffffff' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+      },
+    }), 'utf8')
+    const rFo = await r10SpawnAsync([join(SCRIPTS, 'glm-look.mjs'), '--prompt', promptFile, imgFile, '--channel', 'glm', '-o', join(r10tmp, 'fo-report.md')], { env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgFailover, GLM_LOOK_LOG_DIR: logDir } })
+    const foLogLines = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
+    const foOk = rFo.status === 0 && (rFo.stdout || '').includes('MOCK-GLM-OK') &&
+      foLogLines.some((e) => e.event === 'fail' && e.source === 'mock-glm-dead' && e.statusCode === 401) &&
+      foLogLines.some((e) => e.event === 'ok' && e.source === 'mock-glm-live')
+    if (!foOk) ok = false
+    det.push(`⑧源级换源:${foOk ? `✓(exit=0 首源401→次源出活+流水双行)` : `✗(exit=${rFo.status} stderr尾=${(rFo.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
+    // failover 批回炉轮1（k1-W3/d1-W1 处置）：⑨全灭序列=双死源→exit 1+汇总行含
+    // 全部 pid（序=偏好序）；⑩首源成活不触次源=活源 pid 排前（字典序 mock-glm-a<
+    // mock-glm-z）→exit 0+ok 归 a+流水零行涉 z。红态=⑨循环尾汇总缺失或 exit≠1/
+    // ⑩成活后误触次源。
+    const hostCfgAllDead = join(r10tmp, 'host-config-alldead.json')
+    writeFileSync(hostCfgAllDead, JSON.stringify({
+      provider: {
+        'mock-glm-dead1': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-ad-key-1111111111111111' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-glm-dead2': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-ad-key-2222222222222222' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+      },
+    }), 'utf8')
+    const rAd = await r10SpawnAsync([join(SCRIPTS, 'glm-look.mjs'), '--prompt', promptFile, imgFile, '--channel', 'glm'], { env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgAllDead, GLM_LOOK_LOG_DIR: logDir } })
+    const adLog = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
+    const adOk = rAd.status === 1 &&
+      (rAd.stderr || '').includes('2 个源全穷尽（mock-glm-dead1 → mock-glm-dead2）') &&
+      adLog.filter((e) => e.event === 'fail' && (e.source === 'mock-glm-dead1' || e.source === 'mock-glm-dead2')).length === 2
+    if (!adOk) ok = false
+    det.push(`⑨全源穷尽:${adOk ? `✓(exit=1 汇总行+双 fail 行)` : `✗(exit=${rAd.status} stderr尾=${(rAd.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
+    const hostCfgLiveFirst = join(r10tmp, 'host-config-livefirst.json')
+    writeFileSync(hostCfgLiveFirst, JSON.stringify({
+      provider: {
+        'mock-glm-a': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-lf-key-3333333333333333' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-glm-z': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-lf-key-4444444444444444' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+      },
+    }), 'utf8')
+    const rLf = await r10SpawnAsync([join(SCRIPTS, 'glm-look.mjs'), '--prompt', promptFile, imgFile, '--channel', 'glm'], { env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgLiveFirst, GLM_LOOK_LOG_DIR: logDir } })
+    const lfLog = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
+    const lfOk = rLf.status === 0 && (rLf.stdout || '').includes('MOCK-GLM-OK') &&
+      lfLog.some((e) => e.event === 'ok' && e.source === 'mock-glm-a') &&
+      !lfLog.some((e) => e.source === 'mock-glm-z')
+    if (!lfOk) ok = false
+    det.push(`⑩首源成活不触次源:${lfOk ? `✓(exit=0 ok 归首源+次源零流水行)` : `✗(exit=${rLf.status} stderr尾=${(rLf.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
     server.close()
   } else {
     ok = false
