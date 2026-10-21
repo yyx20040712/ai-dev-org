@@ -253,6 +253,14 @@ export function withFileLock(lockPath, fn, { staleMs = 10_000, tries = 60, waitM
   }
 }
 
+/** 族统一读取（P1 批）：新配置用 family，旧配置沿用 model_family——
+ *  返回 def.family || def.model_family（去空白、小写）；非字符串/缺失=空串
+ *  （消费点按空值 fail-closed）。providers 族校验与 slot 跨族检查同走此单源。 */
+export function familyOf(def) {
+  const raw = def && typeof def === 'object' ? (def.family || def.model_family) : undefined
+  return typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+}
+
 /** 与宿主 config.json 交叉校验：uuid 前缀+条目名双命中。返回错误数组（空=通过）。
  *  校验 providers 全集（未入链的已声明源亦须通过——防漂移，审核链 K-N4 口径）。 */
 export function validateProviders(cfg, hostCfg) {
@@ -268,10 +276,11 @@ export function validateProviders(cfg, hostCfg) {
       errors.push(`providers.${alias} 仍为模板占位（uuid_prefix/entry_name=TODO）——org-config 尚未本机化：填 org-config.local.json（本机件，gitignore；deploy-check --install 可脚手架）同名键实值（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名），指引=DEPLOY.md §3（06 §0 三层）`)
       continue
     }
-    // 回炉（门一 W-3）：非占位源须带 model_family——standing_pair/跨门同族核对的消费面，
-    // 缺键=异族校验静默降级为 [?]（k1 W-3/d1 W9a 同族面）
-    if (typeof def.model_family !== 'string' || !def.model_family.trim())
-      errors.push(`providers.${alias} 缺 model_family（非空字符串）——standing_pair/跨门同族核对消费此键（org-config source_health），缺键=异构校验静默降级；本机件补填`)
+    // 回炉（门一 W-3）：非占位源须带族字段——standing_pair/跨门同族核对的消费面，
+    // 缺键=异族校验静默降级为 [?]（k1 W-3/d1 W9a 同族面）。P1 批起统一读
+    // family || model_family（familyOf 单源；旧键沿用 model_family 不破）。
+    if (!familyOf(def))
+      errors.push(`providers.${alias} 缺 model_family（family/model_family 二者之一须为非空字符串）——standing_pair/跨门同族核对消费此键（org-config source_health），缺键=异构校验静默降级；本机件补填`)
     const hit = entries.find(([id, p]) => id.startsWith(def.uuid_prefix) && p && p.name === def.entry_name)
     if (!hit) {
       const near = entries.find(([id]) => id.startsWith(def.uuid_prefix))
@@ -327,6 +336,158 @@ export function validateLocalFacts(cfg) {
   for (const [agent, v] of Object.entries(cfg?.agent_bindings || {})) {
     if (v === 'TODO' || v === '') errors.push(`agent_bindings.${agent} 为占位/空——绑定模板渲染消费（deploy-check ④）`)
   }
+  return errors
+}
+
+/** slot schema 校验（P1 批，09-migration-plan §4.1）：agent_slots/agent_defaults/
+ *  role_fallbacks 结构与语义。返回错误数组（空=通过），不抛（CLI 汇总并列）。
+ *  唯一事实源=docs/agent-matrix.json（生成期）；本函数只校结构一致性与跨族/视觉约束：
+ *  ① slot 键=ops-<role>-<provider>-<level> 且与值三字段完全一致；角色集须等于固定
+ *     七角色集（不由现存 slot 反推——缺任一角色=错误）；
+ *  ② provider 须在 cfg.providers 以**自有键**声明且为普通对象，禁 legacy:true
+ *     （只允许短名；own-property 判定防 constructor/toString 等原型链键冒充）；
+ *  ③ level∈low/high/max、model 非空字符串；
+ *  ④ agent_defaults 键集=固定七角色集（全覆盖、无多余键），默认档存在且角色一致；
+ *  ⑤ role_fallbacks 键集=固定七角色集、非空、无重复、首元素=默认档、成员存在且角色一致；
+ *  ⑥ 默认 executor 与 reviewer/adjudicator 跨族（familyOf；slot/provider/family
+ *     任一不可解析=显式错误，fail-closed）；
+ *  ⑦ 默认 vision 的 slot/provider 必须可解析且 provider.multimodal===true
+ *     （解析失败、缺键、非 true 均报错）。
+ *  回炉轮 1（审核 B-1/B-2）：必需角色集固定为模块常量；所有 providers/slots/
+ *  defaults/fallbacks 的成员判定一律 own-property 限定——解析失败返回**显式失败
+ *  标记**（{ok:false,reason}），不再以 null 表示并由调用方静默跳过。 */
+const SLOT_NAME_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics)-([a-z0-9]+)-(low|high|max)$/
+const SLOT_LEVELS = new Set(['low', 'high', 'max'])
+const REQUIRED_AGENT_ROLES = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics']
+const REQUIRED_AGENT_ROLE_SET = new Set(REQUIRED_AGENT_ROLES)
+export function validateAgentSlots(cfg) {
+  const own = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
+  const errors = []
+  const slots = cfg?.agent_slots
+  if (!isPlainObject(slots) || Object.keys(slots).length === 0) {
+    errors.push('agent_slots 缺失/非对象/为空——slot schema 必填（P1：ops-<role>-<provider>-<level> → {provider,model,level}）')
+    return errors
+  }
+  const providers = isPlainObject(cfg?.providers) ? cfg.providers : {}
+  const roleOf = new Map() // slot 名 → 角色（仅键名合法者可推导）
+  for (const [name, def] of Object.entries(slots)) {
+    const m = SLOT_NAME_RE.exec(name)
+    if (!m) {
+      errors.push(`agent_slots 键「${name}」不合命名契约 ops-<role>-<provider>-<level>（role∈research|planner|executor|reviewer|adjudicator|vision|diagnostics；provider=[a-z0-9]+；level∈low|high|max）`)
+      continue
+    }
+    const [, role, provider, level] = m
+    roleOf.set(name, role)
+    if (!isPlainObject(def)) {
+      errors.push(`agent_slots.${name} 须为对象 {provider,model,level}（收到 ${def === null ? 'null' : typeof def}）`)
+      continue
+    }
+    if (def.provider !== provider) errors.push(`agent_slots.${name} 的 provider 段=「${provider}」但值对象 provider=「${def.provider}」——键名与值须完全一致`)
+    if (def.level !== level) errors.push(`agent_slots.${name} 的 level 段=「${level}」但值对象 level=「${def.level}」——键名与值须完全一致`)
+    if (!SLOT_LEVELS.has(def.level)) errors.push(`agent_slots.${name}.level=${JSON.stringify(def.level)} 非法——须为 low/high/max`)
+    if (typeof def.model !== 'string' || !def.model.trim()) errors.push(`agent_slots.${name}.model 须为非空字符串（收到 ${JSON.stringify(def.model)}）`)
+    // B-2：own + isPlainObject 双判——providers.constructor 等原型链键不得冒充 provider
+    if (typeof def.provider !== 'string' || !own(providers, def.provider) || !isPlainObject(providers[def.provider])) {
+      errors.push(`agent_slots.${name} 引用未声明/非对象的 provider「${def.provider}」——须在 providers 以短名键（own-property）声明且为对象`)
+    } else if (providers[def.provider].legacy === true) {
+      errors.push(`agent_slots.${name} 引用 legacy provider「${def.provider}」（legacy:true）——slot 只允许短名键，旧键仅供 P2 前脚本兼容`)
+    }
+  }
+  // ① B-1：角色集必须等于固定七角色集（不能只看 slot/default/fallback 自洽）
+  const slotRoles = new Set(roleOf.values())
+  for (const role of REQUIRED_AGENT_ROLES)
+    if (!slotRoles.has(role)) errors.push(`agent_slots 缺必需角色「${role}」——角色集须等于固定七角色集（${REQUIRED_AGENT_ROLES.join(', ')}），不由现存 slot 反推`)
+  const defaults = cfg?.agent_defaults
+  if (!isPlainObject(defaults)) {
+    errors.push('agent_defaults 缺失/非对象——须为 角色→默认 slot 名 映射（固定七角色全覆盖）')
+  } else {
+    for (const role of REQUIRED_AGENT_ROLES)
+      if (!own(defaults, role)) errors.push(`agent_defaults 缺必需角色「${role}」——固定七角色须全覆盖`)
+    for (const role of Object.keys(defaults))
+      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`agent_defaults 多余键「${role}」——只允许固定七角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
+    for (const [role, slotName] of Object.entries(defaults)) {
+      if (typeof slotName !== 'string' || !own(slots, slotName)) {
+        errors.push(`agent_defaults.${role} 指向不存在的 slot「${slotName}」——须引用 agent_slots 已声明键`)
+        continue
+      }
+      if (!isPlainObject(slots[slotName])) {
+        errors.push(`agent_defaults.${role} 指向的 slot「${slotName}」非对象——默认档无法解析（fail-closed）`)
+        continue
+      }
+      if (roleOf.get(slotName) !== role) errors.push(`agent_defaults.${role} 指向 slot「${slotName}」但该 slot 角色=${roleOf.get(slotName) ?? '?'}——角色不一致（默认档不许跨角色）`)
+    }
+  }
+  const fallbacks = cfg?.role_fallbacks
+  if (!isPlainObject(fallbacks)) {
+    errors.push('role_fallbacks 缺失/非对象——须为 角色→slot 名数组 映射（固定七角色全覆盖）')
+  } else {
+    for (const role of REQUIRED_AGENT_ROLES)
+      if (!own(fallbacks, role)) errors.push(`role_fallbacks 缺必需角色「${role}」——固定七角色须全覆盖`)
+    for (const role of Object.keys(fallbacks))
+      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`role_fallbacks 多余键「${role}」——只允许固定七角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
+    for (const [role, seq] of Object.entries(fallbacks)) {
+      if (!Array.isArray(seq) || seq.length === 0) {
+        errors.push(`role_fallbacks.${role} 须为非空数组（回退序不能为空）`)
+        continue
+      }
+      const seen = new Set()
+      for (const slotName of seq) {
+        if (seen.has(slotName)) errors.push(`role_fallbacks.${role} 重复项「${slotName}」——回退序须无重复`)
+        seen.add(slotName)
+      }
+      if (isPlainObject(defaults) && own(defaults, role) && seq[0] !== defaults[role])
+        errors.push(`role_fallbacks.${role} 首元素「${seq[0]}」≠ agent_defaults.${role}「${defaults[role]}」——首元素须等于默认档`)
+      for (const slotName of seq) {
+        if (typeof slotName !== 'string' || !own(slots, slotName)) {
+          errors.push(`role_fallbacks.${role} 成员「${slotName}」不存在于 agent_slots——回退序须引用已声明 slot`)
+          continue
+        }
+        if (!isPlainObject(slots[slotName])) {
+          errors.push(`role_fallbacks.${role} 成员「${slotName}」非对象——回退序无法解析（fail-closed）`)
+          continue
+        }
+        if (roleOf.get(slotName) !== role) errors.push(`role_fallbacks.${role} 成员「${slotName}」角色=${roleOf.get(slotName) ?? '?'}——角色不一致`)
+      }
+    }
+  }
+  // ⑥ B-1/B-2：默认档解析器——own + isPlainObject，任何一步失败返回显式失败标记
+  // （调用方对 executor/reviewer/adjudicator 分别生成错误行，不再 null 静默跳过）。
+  const resolveDefault = (role) => {
+    if (!isPlainObject(defaults)) return { ok: false, reason: 'agent_defaults 缺失/非对象' }
+    if (!own(defaults, role)) return { ok: false, reason: `agent_defaults 缺角色「${role}」` }
+    const slotName = defaults[role]
+    if (typeof slotName !== 'string' || !slotName) return { ok: false, reason: `默认值不是非空字符串（收到 ${JSON.stringify(slotName)}）` }
+    if (!own(slots, slotName)) return { ok: false, reason: `slot「${slotName}」不存在` }
+    const slot = slots[slotName]
+    if (!isPlainObject(slot)) return { ok: false, reason: `slot「${slotName}」不是对象` }
+    if (typeof slot.provider !== 'string' || !slot.provider) return { ok: false, reason: `slot「${slotName}」缺 provider 字段` }
+    if (!own(providers, slot.provider) || !isPlainObject(providers[slot.provider])) return { ok: false, reason: `provider「${slot.provider}」未声明/非对象` }
+    const prov = providers[slot.provider]
+    return { ok: true, slot: slotName, provider: slot.provider, family: familyOf(prov) }
+  }
+  const resolved = {}
+  for (const role of ['executor', 'reviewer', 'adjudicator']) {
+    const hit = resolveDefault(role)
+    resolved[role] = hit
+    if (!hit.ok) errors.push(`agent 默认档无法解析（agent_defaults.${role}）：${hit.reason}——须指向已声明 slot 与 provider（fail-closed）`)
+    else if (!hit.family) errors.push(`agent 跨族校验不可构成：agent_defaults.${role}（slot=${hit.slot}, provider=${hit.provider}）的 family/model_family 无法解析——fail-closed（异构性不可证明=不通过）`)
+  }
+  const sameFamily = (a, b) => !!(resolved[a].ok && resolved[a].family && resolved[b].ok && resolved[b].family && resolved[a].family === resolved[b].family)
+  if (sameFamily('executor', 'reviewer'))
+    errors.push(`agent 跨族校验失败：默认 executor 与 reviewer 同族（family=${resolved.executor.family}）——异构对抗退化（executor=${resolved.executor.slot}, reviewer=${resolved.reviewer.slot}）`)
+  if (sameFamily('executor', 'adjudicator'))
+    errors.push(`agent 跨族校验失败：默认 executor 与 adjudicator 同族（family=${resolved.executor.family}）——异构对抗退化（executor=${resolved.executor.slot}, adjudicator=${resolved.adjudicator.slot}）`)
+  // ⑦ vision：解析失败（slot/provider 缺失或非对象）必须显式报错，不得跳过 multimodal 检查。
+  if (isPlainObject(defaults)) {
+    const vHit = resolveDefault('vision')
+    if (!vHit.ok) errors.push(`agent_defaults.vision 默认档无法解析：${vHit.reason}——vision 须指向已声明 slot 与 provider（fail-closed）`)
+    else {
+      const vProv = providers[vHit.provider] // vHit.ok 保证 own + isPlainObject
+      if (vProv.multimodal !== true)
+        errors.push(`agent_defaults.vision 指向 slot「${vHit.slot}」的 provider「${vHit.provider}」multimodal=${JSON.stringify(vProv.multimodal)}——vision 只收 multimodal===true 的源（缺键或非 true 均拒）`)
+    }
+  }
+  // ⑧ 同一 provider 的岗位归属由 ① 键名一致性覆盖，不额外实现（任务书 §4.2-8）。
   return errors
 }
 
@@ -462,6 +623,105 @@ if (isMain) {
       t('双注册表：双缺席=空 provider 段打底（readHostConfig 层显式抛）', Object.keys(mergeHostRegistries(null, null).provider).length === 0)
       t('双注册表：validateProviders 消费合并面——新件独有条目双校验通过（旧单读形态=必败面；前缀匹配对非 uuid 形态 id 同律）', validateProviders({ providers: { third: { uuid_prefix: 'nonuuid-', entry_name: 'E-N', model_family: 'kimi' } } }, mReg).length === 0)
     }
+    // P1 批向量：agent_slots schema 校验 + family 统一读取（全部合成值，禁真实 UUID/账号名）
+    {
+      const slotCfg = () => ({
+        providers: {
+          alpha: { family: 'alpha', multimodal: false },
+          beta: { family: 'beta', multimodal: true },
+          gamma: { family: 'gamma', multimodal: false },
+        },
+        agent_slots: {
+          'ops-research-alpha-high': { provider: 'alpha', model: 'm-alpha', level: 'high' },
+          'ops-planner-alpha-max': { provider: 'alpha', model: 'm-alpha', level: 'max' },
+          'ops-executor-alpha-high': { provider: 'alpha', model: 'm-alpha', level: 'high' },
+          'ops-reviewer-beta-max': { provider: 'beta', model: 'm-beta', level: 'max' },
+          'ops-adjudicator-gamma-max': { provider: 'gamma', model: 'm-gamma', level: 'max' },
+          'ops-vision-beta-max': { provider: 'beta', model: 'm-beta', level: 'max' },
+          'ops-diagnostics-gamma-max': { provider: 'gamma', model: 'm-gamma', level: 'max' },
+        },
+        agent_defaults: {
+          research: 'ops-research-alpha-high',
+          planner: 'ops-planner-alpha-max',
+          executor: 'ops-executor-alpha-high',
+          reviewer: 'ops-reviewer-beta-max',
+          adjudicator: 'ops-adjudicator-gamma-max',
+          vision: 'ops-vision-beta-max',
+          diagnostics: 'ops-diagnostics-gamma-max',
+        },
+        role_fallbacks: {
+          research: ['ops-research-alpha-high'],
+          planner: ['ops-planner-alpha-max'],
+          executor: ['ops-executor-alpha-high'],
+          reviewer: ['ops-reviewer-beta-max'],
+          adjudicator: ['ops-adjudicator-gamma-max'],
+          vision: ['ops-vision-beta-max'],
+          diagnostics: ['ops-diagnostics-gamma-max'],
+        },
+      })
+      const vSlots = (c) => { try { return validateAgentSlots(c) } catch { return null } }
+      const vErrs = (c) => vSlots(c) || []
+      const e1 = vSlots(slotCfg())
+      t('P1 slot：合法合成配置→零错误', Array.isArray(e1) && e1.length === 0)
+      const c2 = slotCfg(); c2.agent_slots['ops-research-alpha-high'].provider = 'beta'
+      t('P1 slot：键名 provider 段与值对象不一致→错误行', vErrs(c2).some((e) => e.includes('ops-research-alpha-high') && e.includes('provider')))
+      const c3 = slotCfg(); c3.agent_slots['ops-research-zeta-high'] = { provider: 'zeta', model: 'm-zeta', level: 'high' }
+      t('P1 slot：引用未声明 provider→错误行', vErrs(c3).some((e) => e.includes('ops-research-zeta-high') && e.includes('未声明')))
+      const c4 = slotCfg(); c4.agent_defaults.executor = 'ops-reviewer-beta-max'
+      t('P1 slot：默认档指向别的角色的 slot→错误行', vErrs(c4).some((e) => e.includes('agent_defaults.executor') && e.includes('角色不一致')))
+      const c5 = slotCfg(); c5.agent_slots['ops-executor-gamma-high'] = { provider: 'gamma', model: 'm-gamma', level: 'high' }; c5.role_fallbacks.executor = ['ops-executor-gamma-high']
+      t('P1 slot：fallback 首元素不等于默认档→错误行', vErrs(c5).some((e) => e.includes('role_fallbacks.executor') && e.includes('首元素')))
+      const c6 = slotCfg(); c6.role_fallbacks.executor = ['ops-executor-alpha-high', 'ops-executor-alpha-high']
+      t('P1 slot：fallback 重复项→错误行', vErrs(c6).some((e) => e.includes('role_fallbacks.executor') && e.includes('重复')))
+      const c7 = slotCfg(); c7.agent_slots['ops-reviewer-alpha-max'] = { provider: 'alpha', model: 'm-alpha', level: 'max' }; c7.agent_defaults.reviewer = 'ops-reviewer-alpha-max'; c7.role_fallbacks.reviewer = ['ops-reviewer-alpha-max']
+      t('P1 slot：默认 executor 与 reviewer 同族→错误行', vErrs(c7).some((e) => e.includes('同族') && e.includes('executor') && e.includes('reviewer')))
+      const c8 = slotCfg(); c8.agent_slots['ops-vision-alpha-max'] = { provider: 'alpha', model: 'm-alpha', level: 'max' }; c8.agent_defaults.vision = 'ops-vision-alpha-max'; c8.role_fallbacks.vision = ['ops-vision-alpha-max']
+      t('P1 slot：vision 默认档 provider 非多模态→错误行', vErrs(c8).some((e) => e.includes('vision') && e.includes('multimodal')))
+      const c9 = slotCfg(); c9.providers.legacyx = { family: 'alpha', multimodal: true, legacy: true }; c9.agent_slots['ops-research-legacyx-high'] = { provider: 'legacyx', model: 'm-alpha', level: 'high' }
+      t('P1 slot：slot 引用 legacy:true provider→错误行', vErrs(c9).some((e) => e.includes('legacyx') && e.includes('legacy')))
+      const c10 = slotCfg(); c10.providers.alpha = { model_family: 'alpha', multimodal: false }
+      const e10 = vSlots(c10)
+      t('P1 slot：仅 model_family 无 family 的合成 provider→不因族缺失报错', Array.isArray(e10) && e10.length === 0)
+      t('P1 familyOf：family 优先/model_family 回退/缺失空串（去空白小写）', familyOf({ family: '  GLM ' }) === 'glm' && familyOf({ model_family: ' Kimi ' }) === 'kimi' && familyOf({}) === '')
+      t('P1 slot：agent_slots 缺失/空→错误行（schema 必填）', vErrs({ providers: {} }).some((e) => e.includes('agent_slots')))
+      t('P1 validateProviders：仅有 model_family 的合成 provider→不因族缺失报错', validateProviders({ providers: { demo: { uuid_prefix: 'fam5', entry_name: 'E-F', model_family: 'kimi' } } }, { provider: { 'fam5-0000': { name: 'E-F' } } }).length === 0)
+      // 回炉轮 1（审核 B-1）：必需角色集固定，不由现存 slot 反推
+      const onlyResearch = {
+        providers: { alpha: { family: 'alpha', multimodal: false } },
+        agent_slots: { 'ops-research-alpha-high': { provider: 'alpha', model: 'm-alpha', level: 'high' } },
+        agent_defaults: { research: 'ops-research-alpha-high' },
+        role_fallbacks: { research: ['ops-research-alpha-high'] },
+      }
+      const onlyResearchErrs = vErrs(onlyResearch)
+      t('P1 回炉 B-1：agent_slots 仅 research 一角色→缺必需角色错误行', onlyResearchErrs.some((e) => e.includes('缺必需角色') && e.includes('executor')) && onlyResearchErrs.some((e) => e.includes('缺必需角色') && e.includes('diagnostics')))
+      for (const role of ['executor', 'reviewer', 'adjudicator', 'vision']) {
+        const c = slotCfg()
+        const defSlot = c.agent_defaults[role]
+        delete c.agent_slots[defSlot]
+        delete c.agent_defaults[role]
+        delete c.role_fallbacks[role]
+        t(`P1 回炉 B-1：缺 ${role} 角色→缺必需角色错误行`, vErrs(c).some((e) => e.includes('缺必需角色') && e.includes(role)))
+      }
+      const cExtraDef = slotCfg(); cExtraDef.agent_defaults.bogus = 'ops-research-alpha-high'
+      t('P1 回炉 B-1：agent_defaults 多余键→错误行', vErrs(cExtraDef).some((e) => e.includes('agent_defaults 多余键') && e.includes('bogus')))
+      const cExtraFb = slotCfg(); cExtraFb.role_fallbacks.bogus = ['ops-research-alpha-high']
+      t('P1 回炉 B-1：role_fallbacks 多余键→错误行', vErrs(cExtraFb).some((e) => e.includes('role_fallbacks 多余键') && e.includes('bogus')))
+      // 回炉轮 1（审核 B-2）：own-property 判定——原型链键不得冒充 provider
+      const cCtor = slotCfg()
+      cCtor.agent_slots['ops-research-constructor-high'] = { provider: 'constructor', model: 'm-ctor', level: 'high' }
+      t('P1 回炉 B-2：provider=constructor（原型链命中）→未声明/非对象错误行', vErrs(cCtor).some((e) => e.includes('ops-research-constructor-high') && e.includes('未声明') && e.includes('非对象')))
+      for (const role of ['executor', 'reviewer', 'adjudicator', 'vision']) {
+        const lvl = role === 'executor' ? 'high' : 'max'
+        const c = slotCfg()
+        const slotName = `ops-${role}-constructor-${lvl}`
+        c.agent_slots[slotName] = { provider: 'constructor', model: 'm-ctor', level: lvl }
+        c.agent_defaults[role] = slotName
+        c.role_fallbacks[role] = [slotName]
+        t(`P1 回炉 B-2：默认 ${role} 指向 constructor provider 槽→无法解析错误行`, vErrs(c).some((e) => e.includes(`agent_defaults.${role}`) && (e.includes('无法解析') || e.includes('未声明/非对象'))))
+      }
+      const cNoFam = slotCfg(); cNoFam.providers.alpha = { multimodal: false }
+      t('P1 回炉 B-2：provider 存在但缺 family→fail-closed 错误行', vErrs(cNoFam).some((e) => e.includes('executor') && e.includes('fail-closed')))
+    }
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
   }
@@ -486,7 +746,7 @@ if (isMain) {
   } else if (cmd === 'validate') {
     let errors
     try {
-      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged)]
+      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged), ...validateAgentSlots(merged)]
     } catch (e) {
       console.error(`[fatal] validate 途中宿主配置装载失败: ${e.message}（06 §5.8 行 3=配置/装载错）`)
       process.exit(3)
@@ -495,7 +755,7 @@ if (isMain) {
       errors.forEach((e) => console.error(e))
       process.exit(3)
     }
-    console.log(`validate PASS（${Object.keys(merged.providers || {}).length} 源双校验通过+跨门对/本机事实校验通过，cfg:${cfgHash(merged)}）`)
+    console.log(`validate PASS（${Object.keys(merged.providers || {}).length} 源双校验通过+跨门对/本机事实/slot schema 校验通过，cfg:${cfgHash(merged)}）`)
   } else {
     console.error('用法: node org-config.mjs [--project <dir>] resolve|hash|validate|--self-test')
     process.exit(1)
