@@ -15,7 +15,9 @@
  *   ⑦finish 终态派生（子代理通道截断信号——保守口径，词表读 org-config finish_vocab）
  *   --health：源健康检查（A'③）——按供应商五类分诊 → k1/k2 推荐+分类处置建议
  *     （额度类→换源；504 窗口类→不换源、瘦身——第二配额备源同端点共模，05 §九纠偏②）
- * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--self-test]
+ *   --slots（P2）：slot 表（agent_slots 全量，按 role/level 排序，family 由 providers
+ *     的 family||model_family 解析）+ 观察到的 profileId 未识别清单（不阻断）。
+ * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--slots] [--self-test]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
  * 指针化；回炉 r2 削 b8 残留碎片，本件各类退出均属总表既有类目）。
@@ -24,11 +26,11 @@
  *   metadata 目录缺失=stderr [info] 行点名后继续——info 级非降级（新机/未派发
  *   =正常态，与 check-hardcode 词表缺失降级 exit 5 分界：彼为扫描能力受损）。
  */
-import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { homedir } from 'node:os'
-import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile, UsageError } from './org-config.mjs'
+import { homedir, tmpdir } from 'node:os'
+import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile, UsageError, familyOf } from './org-config.mjs'
 
 const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CLI_LOG_DIR = join(homedir(), '.zcode', 'cli', 'log')
@@ -120,6 +122,101 @@ export function resolveProviderByFront(frontValue, providers) {
     if (!best || px.length > best.px.length) best = { alias, p, px }
   }
   return best
+}
+
+// ── P2 批（2026-10-22）：slot 维度（profileId → role/provider/level）──
+const SLOT_ROLE_ORDER = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics']
+const SLOT_LEVEL_ORDER = { low: 0, high: 1, max: 2 }
+const SLOT_NAME_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics)-([a-z0-9]+)-(low|high|max)$/
+
+/** 新式 slot 名解析：ops-<role>-<provider>-<level> → {role,provider,level}；
+ *  role/level 不在白名单或形态不符 → null（legacy 名不猜）。 */
+export function parseSlotName(profileId) {
+  const m = SLOT_NAME_RE.exec(String(profileId ?? ''))
+  return m ? { role: m[1], provider: m[2], level: m[3] } : null
+}
+
+/** slot 解析：名命中且 agent_slots[profileId] 存在、provider/level 与名一致 →
+ *  {slot,role,provider,level}；否则 null（未声明/不一致不猜）。 */
+export function resolveProfileSlot(profileId, agentSlots) {
+  const p = parseSlotName(profileId)
+  if (!p) return null
+  const own = Object.prototype.hasOwnProperty.call(agentSlots || {}, profileId)
+  const def = own ? agentSlots[profileId] : null
+  if (!def || typeof def !== 'object') return null
+  if (def.provider !== p.provider || def.level !== p.level) return null
+  return { slot: profileId, role: p.role, provider: p.provider, level: p.level }
+}
+
+/** --slots 表行（纯函数）：按 role（固定七岗序）→ level（low<high<max）→名字排序；
+ *  family=providers[slot.provider] 的 familyOf 同源字段（family || model_family），
+ *  解析不到写 '?'。 */
+export function slotRows(agentSlots, providers) {
+  const rows = []
+  for (const [name, def] of Object.entries(agentSlots || {})) {
+    const p = parseSlotName(name)
+    const role = p?.role || '?'
+    const level = p?.level || (def && typeof def.level === 'string' ? def.level : '?')
+    const provider = def && typeof def.provider === 'string' ? def.provider : '?'
+    const model = def && typeof def.model === 'string' ? def.model : '?'
+    const family = familyOf(providers?.[provider]) || '?'
+    rows.push({ name, role, level, provider, model, family })
+  }
+  const rank = (v, list) => { const i = list.indexOf(v); return i < 0 ? 99 : i }
+  rows.sort((a, b) =>
+    rank(a.role, SLOT_ROLE_ORDER) - rank(b.role, SLOT_ROLE_ORDER) ||
+    (SLOT_LEVEL_ORDER[a.level] ?? 99) - (SLOT_LEVEL_ORDER[b.level] ?? 99) ||
+    (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+  )
+  return rows
+}
+
+/** 未识别 profileId 清单（纯函数）：去重后 resolveProfileSlot 为 null 者，稳定排序。
+ *  未识别项不阻断（P5 生成 34 档后自然收敛）。 */
+export function unknownSlotProfiles(profileIds, agentSlots) {
+  const uniq = [...new Set((profileIds || []).filter((x) => typeof x === 'string' && x))]
+  return uniq.filter((id) => !resolveProfileSlot(id, agentSlots)).sort()
+}
+
+/** 读取代理档案 frontmatter 的声明绑定（P2；providers 可注入 fixture，禁读真实档案
+ *  的向量走临时目录）：档案缺失/无 frontmatter → null；返回
+ *  { model, level, providerAlias, family }——model 行若仍带 `$档位` 则拆出 level，
+ *  独立 thoughtLevel 行优先；providerAlias/family 走 resolveProviderByFront 值表，
+ *  解析不到 family='?'。 */
+export function readDeclaredBinding(profileId, agentsDir, providers = null) {
+  try {
+    const file = join(agentsDir, `${profileId}.md`)
+    if (!existsSync(file)) return null
+    const lines = readFileSync(file, 'utf8').replace(/^\uFEFF/, '').split('\n')
+    const start = lines.findIndex((l) => l.trim() === '---')
+    const end = start >= 0 ? lines.findIndex((l, i) => i > start && l.trim() === '---') : -1
+    if (start < 0 || end < 0) return null
+    const unquote = (v) => String(v).trim().replace(/^['"]|['"]$/g, '')
+    let model = null
+    let level = null
+    for (let i = start + 1; i < end; i++) {
+      const mm = /^model:\s*(.*?)\s*$/.exec(lines[i])
+      if (mm) model = unquote(mm[1])
+      const tm = /^thoughtLevel:\s*(.*?)\s*$/.exec(lines[i])
+      if (tm) level = unquote(tm[1])
+    }
+    if (typeof model === 'string' && model.includes('$')) {
+      const di = model.lastIndexOf('$')
+      const suffix = model.slice(di + 1)
+      model = model.slice(0, di)
+      if (!level && suffix) level = suffix
+    }
+    const table = providers || loadOrgConfig(SKILL_ROOT).merged.providers || {}
+    const hit = model ? resolveProviderByFront(model, table) : null
+    return {
+      model: model || null,
+      level: level || null,
+      providerAlias: hit ? hit.alias : null,
+      family: hit ? (familyOf(hit.p) || '?') : '?',
+    }
+  } catch {
+    return null
+  }
 }
 
 // ── ① 五类分诊核心（纯函数，可注入 fixture） ──
@@ -282,16 +379,47 @@ export function detectMetadataShapeDrift(profileSnapshot) {
   if (sel !== undefined && !(sel && typeof sel === 'object' && typeof sel.providerId === 'string' && typeof sel.modelId === 'string')) return true
   return false
 }
-export function detectSilentFallback({ metas, subagentNet, providers }) {
+export function detectSilentFallback({ metas, subagentNet, providers, agentSlots = {} }) {
   const findings = []
   for (const m of metas) {
     const ps = m?.profileSnapshot
     const declared = declaredModelOf(ps)
     const sid = m?.childSessionId
     const act = subagentNet[sid]
+    // P2：双维度归因字段（每条 finding 均带 declaredSlot/两侧 family/dimension；
+    // kind 末尾追加归因片段，既有 level 与 kind 前缀不动）。任一侧 family 未知=
+    // 'family'（无法证明同族，保守方向）；同族但 provider 别名/model 不同='slot'。
+    const declaredSlot = resolveProfileSlot(m?.profileId, agentSlots || {})?.slot ?? null
+    const declaredRes = declared ? resolveProviderByFront(declared, providers) : null
+    // 实际侧优先按 providerId 解析；解析不到再按收割别名（providerId 不在本机值表时
+    // 别名仍可提供族证据）。两侧都不可解析才落 '?'。
+    const actualRes = act
+      ? resolveProviderByFront(act.providerId || '', providers) || resolveProviderByFront(act.alias || '', providers)
+      : null
+    const declaredFamily = declaredRes ? familyOf(declaredRes.p) || '?' : '?'
+    const actualFamily = actualRes ? familyOf(actualRes.p) || '?' : '?'
+    const declaredAlias = declaredRes?.alias || (declared ? String(declared).split('/')[0] : '?')
+    const actualAlias = act?.alias || actualRes?.alias || '?'
+    const dimensionOf = (consistent) => {
+      if (declaredFamily === '?' || actualFamily === '?') return 'family'
+      if (declaredFamily !== actualFamily) return 'family'
+      return consistent ? 'none' : 'slot'
+    }
+    const make = (finding, dimension) => ({
+      ...finding,
+      declaredSlot,
+      declaredFamily,
+      actualFamily,
+      dimension,
+      kind: `${finding.kind}${dimension === 'family'
+        ? `（跨族回退 family=${declaredFamily}→${actualFamily}）`
+        : dimension === 'slot'
+          ? `（同族换源/换档 slot=${declaredSlot || m.profileId} alias=${declaredAlias}→${actualAlias}）`
+          : ''}`,
+    })
     // tripwire 无条件先行（门一 W-1 回炉：原门控在 !declared 内——双键同场且一键
     // 可解析时另一键畸形漏报；漂移留痕不替代绑定核对，两者并行不互斥）
-    if (detectMetadataShapeDrift(ps)) findings.push({ level: 'WARN', profile: m.profileId, sid, declared: '(未识形态)', actual: act ? `${act.alias}/${act.modelId}` : '(窗口内无请求记录)', kind: '宿主 metadata 格式漂移疑似——③ 检测面可能失明，请核对 declaredModelOf（触发器行 host-metadata-schema-drift）' })
+    if (detectMetadataShapeDrift(ps)) findings.push(make({ level: 'WARN', profile: m.profileId, sid, declared: '(未识形态)', actual: act ? `${act.alias}/${act.modelId}` : '(窗口内无请求记录)', kind: '宿主 metadata 格式漂移疑似——③ 检测面可能失明，请核对 declaredModelOf（触发器行 host-metadata-schema-drift）' }, dimensionOf(false)))
     if (!declared) continue // 无 model/modelSelection=宿主默认，非绑定岗
     // B1 ③ 扩展（2026-10-03 k1default 批）：provider 段按 uuid_prefix 值表可解析=合法
     // 非 uuid 条目 id 声明（宿主注册表非 uuid 条目，批A k1 首派实证——原 hex-only
@@ -304,12 +432,12 @@ export function detectSilentFallback({ metas, subagentNet, providers }) {
       // 污染退出码，全时段 metadata 扫描窗口化流量天然错位）：窗口内有实际请求=
       // RED（声明形态非法，路由不可信）；无请求=WARN（档案面问题非窗口内路由
       // 失效，留痕不阻断——覆盖其流量窗口再跑即升 RED，保守方向不放松）
-      findings.push(act
+      findings.push(make(act
         ? { level: 'RED', profile: m.profileId, sid, declared, actual: `${act.alias}/${act.modelId}`, kind: '疑似枚举/伪值且窗口内有实际请求（路由不可信）' }
-        : { level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '疑似枚举/伪值（无可核对请求）——档案面问题，非窗口内路由失效' })
+        : { level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '疑似枚举/伪值（无可核对请求）——档案面问题，非窗口内路由失效' }, dimensionOf(false)))
       continue
     }
-    if (!act) { findings.push({ level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '无可核对请求' }); continue }
+    if (!act) { findings.push(make({ level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '无可核对请求' }, dimensionOf(false))); continue }
     // 声明的供应商段（uuid/builtin:/account:/值表命中的非 uuid 条目 id）须与实际
     // 路由一致；模型段剥除 `$档位` 后缀后须与 modelId 一致（档位不参与回退判定
     // ——网络日志无档位维度）。B1 ③ 扩展：非 uuid 声明段经值表解析出的别名与
@@ -317,7 +445,7 @@ export function detectSilentFallback({ metas, subagentNet, providers }) {
     const [declaredProv, declaredModelRaw] = declared.split('/')
     const declaredModel = declaredModelRaw.split('$')[0]
     const match = (act.providerId === declaredProv || act.alias === declaredProv || (hit && hit.alias === act.alias)) && act.modelId === declaredModel
-    if (!match) findings.push({ level: 'RED', profile: m.profileId, sid, declared, actual: `${act.alias}/${act.modelId}`, kind: '静默回退（声明≠实际路由）' })
+    if (!match) findings.push(make({ level: 'RED', profile: m.profileId, sid, declared, actual: `${act.alias}/${act.modelId}`, kind: '静默回退（声明≠实际路由）' }, dimensionOf(false)))
   }
   return findings
 }
@@ -576,6 +704,79 @@ function run() {
     // 空数组漏留痕（目标场景零提示）
     t('l9-W1 hours 模式目录缺失→目录级留痕（非空数组静默）', typeof missingInputNotes === 'function' && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: (p) => p === '/x/r.jsonl' }).length === 2 && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: (p) => p === '/x/r.jsonl' })[0].includes('clilog'))
     t('l9-W1 目录在场→零留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => true }).length === 0)
+    // ── P2 批（2026-10-22）：slot 解析/未识别清单/双维度回退归因/声明读取 ──
+    const psn = typeof parseSlotName === 'function' ? parseSlotName : null
+    t('P2 parseSlotName：ops-reviewer-699-max 命中（role/provider/level 三段）', (() => {
+      const r = psn && psn('ops-reviewer-699-max')
+      return !!r && r.role === 'reviewer' && r.provider === '699' && r.level === 'max'
+    })())
+    t('P2 parseSlotName：未知 role/档位→null（legacy ops-gate1-k1 亦 null）', (() => {
+      return !!psn && psn('ops-gate1-k1') === null && psn('ops-reviewer-699-ultra') === null && psn('ops-unknown-699-max') === null && psn('') === null
+    })())
+    const rps = typeof resolveProfileSlot === 'function' ? resolveProfileSlot : null
+    const slotsP2 = {
+      'ops-reviewer-699-max': { provider: '699', model: 'k3', level: 'max' },
+      'ops-executor-ds-high': { provider: 'ds', model: 'deepseek-flash', level: 'high' },
+    }
+    t('P2 resolveProfileSlot：名与 agent_slots 一致→命中', (() => {
+      const r = rps && rps('ops-reviewer-699-max', slotsP2)
+      return !!r && r.slot === 'ops-reviewer-699-max' && r.role === 'reviewer' && r.provider === '699' && r.level === 'max'
+    })())
+    t('P2 resolveProfileSlot：provider/level 与名不符或缺 slot→null', (() => {
+      return !!rps && rps('ops-reviewer-699-high', slotsP2) === null && rps('ops-reviewer-ds-max', slotsP2) === null && rps('ops-reviewer-699-max', {}) === null
+    })())
+    const provP2 = {
+      'third-syn': { uuid_prefix: 'syn-prov', family: 'kimi' },
+      'other-syn': { uuid_prefix: 'zzz', family: 'kimi' },
+      'deep-syn': { uuid_prefix: 'ds-host', family: 'deepseek' },
+    }
+    const slotP2 = { 'ops-reviewer-699-max': { provider: '699', model: 'k3', level: 'max' } }
+    const fbSlot = detectSilentFallback({
+      metas: [{ profileId: 'ops-reviewer-699-max', childSessionId: 's20', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
+      subagentNet: { s20: { alias: 'other-syn', providerId: 'zzz-host-1', modelId: 'k3s', lastFinish: 'end_turn', fails: 0 } },
+      providers: provP2,
+      agentSlots: slotP2,
+    })
+    t('P2 回退归因：同族换源→dimension=slot（declaredSlot 命中+kind 末尾片段）', (() => {
+      return fbSlot.length === 1 && fbSlot[0].dimension === 'slot' && fbSlot[0].declaredSlot === 'ops-reviewer-699-max' && fbSlot[0].declaredFamily === 'kimi' && fbSlot[0].actualFamily === 'kimi' && fbSlot[0].kind.includes('静默回退') && fbSlot[0].kind.includes('（同族换源/换档 slot=ops-reviewer-699-max alias=third-syn→other-syn）')
+    })())
+    const fbFam = detectSilentFallback({
+      metas: [{ profileId: 'ops-reviewer-699-max', childSessionId: 's21', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
+      subagentNet: { s21: { alias: 'deep-syn', providerId: 'ds-host-1', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
+      providers: provP2,
+      agentSlots: slotP2,
+    })
+    t('P2 回退归因：跨族→dimension=family（family=kimi→deepseek）', (() => {
+      return fbFam.length === 1 && fbFam[0].dimension === 'family' && fbFam[0].declaredFamily === 'kimi' && fbFam[0].actualFamily === 'deepseek' && fbFam[0].kind.includes('（跨族回退 family=kimi→deepseek）')
+    })())
+    const rdb = typeof readDeclaredBinding === 'function' ? readDeclaredBinding : null
+    {
+      const fxDir = mkdtempSync(join(tmpdir(), 'log-triage-bind-'))
+      try {
+        writeFileSync(join(fxDir, 'ops-reviewer-syn-max.md'), '---\nname: ops-reviewer-syn-max\nmodel: syn-prov/k3s\nthoughtLevel: max\n---\n\nbody\n')
+        const b = rdb && rdb('ops-reviewer-syn-max', fxDir, provP2)
+        t('P2 readDeclaredBinding：临时 fixture 读 model/thoughtLevel+providerAlias/family（禁读真实档案）', !!b && b.model === 'syn-prov/k3s' && b.level === 'max' && b.providerAlias === 'third-syn' && b.family === 'kimi')
+        writeFileSync(join(fxDir, 'ops-broken.md'), 'no frontmatter\n')
+        t('P2 readDeclaredBinding：档案缺失/无 frontmatter→null', !!rdb && rdb('ops-missing-x', fxDir, provP2) === null && rdb('ops-broken', fxDir, provP2) === null)
+      } finally {
+        rmSync(fxDir, { recursive: true, force: true })
+      }
+    }
+    const srows = typeof slotRows === 'function' ? slotRows : null
+    const usp = typeof unknownSlotProfiles === 'function' ? unknownSlotProfiles : null
+    const slotsSortFx = {
+      'ops-reviewer-699-max': { provider: '699', model: 'k3', level: 'max' },
+      'ops-research-glmflash-high': { provider: 'glmflash', model: 'GLM-5.3-Flash', level: 'high' },
+      'ops-research-699-high': { provider: '699', model: 'k3', level: 'high' },
+    }
+    t('P2 --slots 排序：role 主序、level 次序（high 先于 max）', (() => {
+      const rows = srows && srows(slotsSortFx, { '699': { family: 'kimi' }, glmflash: { family: 'glm' } })
+      return !!rows && rows.length === 3 && rows[0].name === 'ops-research-699-high' && rows[1].name === 'ops-research-glmflash-high' && rows[2].name === 'ops-reviewer-699-max' && rows[0].family === 'kimi' && rows[1].family === 'glm'
+    })())
+    t('P2 --slots 未识别清单：resolve 失败者去重排序（命中 slot 排除）', (() => {
+      const u = usp && usp(['ops-reviewer-699-max', 'ops-probe', 'ops-auditor', 'ops-probe', 'Explore'], slotsSortFx)
+      return !!u && JSON.stringify(u) === JSON.stringify(['Explore', 'ops-auditor', 'ops-probe'])
+    })())
     console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
     process.exitCode = stFails === 0 ? 0 : 1
   } else {
@@ -598,7 +799,7 @@ function run() {
 
     // ③ 静默回退检测（全时段 metadata——历史探针也要盯）；providers 值表注入=
     // B1 ③ 扩展（非 uuid 条目 id 声明的合法解析面，批A k1 首派实证）
-    const fallbacks = detectSilentFallback({ metas: metasAll, subagentNet, providers: merged.providers })
+    const fallbacks = detectSilentFallback({ metas: metasAll, subagentNet, providers: merged.providers, agentSlots: merged.agent_slots || {} })
 
     if (argv.includes('--health')) {
       // ── A'③ 源健康检查：分诊 + 推荐（结构参数=org-config source_health，v1.6 批去硬编码别名） ──
@@ -706,6 +907,13 @@ function run() {
         if (Array.isArray(sh.cross_gate_pairs) && sh.cross_gate_pairs.length)
           W(`   -- 跨门核对汇总：ok ${cgCount.ok} / WARN ${cgCount.WARN} / ? ${cgCount['?']}（纪律⑤；WARN≠阻断，申报面=收口呈报包）\n`)
       }
+    } else if (argv.includes('--slots')) {
+      // ── P2：slot 表（全量 agent_slots 按 role/level 排序）+ 未识别 profileId 清单 ──
+      const rows = slotRows(merged.agent_slots || {}, merged.providers || {})
+      W(`== slot 表（agent_slots ${rows.length} 条，cfg:${cfgHash(merged)}）==\n`)
+      for (const r of rows) W(`[${r.role}] ${r.name} provider=${r.provider} model=${r.model} level=${r.level} family=${r.family}\n`)
+      const unknown = unknownSlotProfiles(metasAll.map((m) => m.profileId), merged.agent_slots || {})
+      W(`-- 观察到的 profileId 未识别清单（${unknown.length} 个）：${unknown.length ? unknown.join('、') : '无'}\n`)
     } else {
       // ── B-0 全量分诊 ──
       W(`== log-triage 分诊（内链路 ${logFiles.join(',')} ×${cliLines.length} 行 + 外链路流水；窗口=${dateStr || `近 ${hours}h`}）==\n`)

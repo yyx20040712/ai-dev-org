@@ -30,7 +30,9 @@
  *   spawn org-config validate 自然复跑=派生落盘回读真退出码面）。
  *   错误处置（回炉轮 1，门一 W2/W3）：③ 装载失败（org-config/宿主）分行
  *   干净跳过（warn+指引）；写盘/回读抛错=[FAIL] 行带真因计入阻断（exit 1）。
- * 用法：node scripts/deploy-check.mjs [--install] [--self-test] [--agents-dir <dir>]
+ * --sync-agents（P2）显式重渲染全部模板→agents 目录（全或无覆盖写入+sha256 回读；
+ *   唯一允许覆盖漂移件的路径；--install 语义不变=只补缺失不覆盖）。
+ * 用法：node scripts/deploy-check.mjs [--install] [--sync-agents] [--self-test] [--agents-dir <dir>]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 可 import 纯函数零副作用（isMain guard 惯例；自检向量禁动真实状态）。
  */
@@ -60,16 +62,67 @@ export function sha256Text(s) {
   return createHash('sha256').update(String(s)).digest('hex')
 }
 
-/** ④渲染（v2.1.0 批4；回炉 k1 W-2 强化石）：模板占位 `{{binding:<岗>}}` → 本机件
- *  agent_bindings 实值。已声明占位一次替换，缺绑定保留+点名；**渲染后残留任何
- *  `{{…binding…` 形态（空格/点号等畸形占位，正则未认=按无占位直装的逃逸面）
- *  一并计入 missing（malformed: 前缀）——禁静默带占位部署**。无占位模板=恒等。 */
+/** frontmatter 字段读取（P2；首个 `---` 到下一个 `---`）：model/thoughtLevel 两字段
+ *  （值剥包裹引号）；无 frontmatter / 无 model 行时 hasModel=false（未绑定模板形态）。 */
+export function readFrontmatterFields(text) {
+  const lines = String(text).replace(/^\uFEFF/, '').split('\n')
+  const start = lines.findIndex((l) => l.trim() === '---')
+  const end = start >= 0 ? lines.findIndex((l, i) => i > start && l.trim() === '---') : -1
+  if (start < 0 || end < 0) return { hasFrontmatter: false, hasModel: false, model: null, thoughtLevel: null }
+  const unquote = (v) => String(v).trim().replace(/^['"]|['"]$/g, '')
+  let model = null
+  let thoughtLevel = null
+  for (let i = start + 1; i < end; i++) {
+    const mm = /^model:\s*(.*?)\s*$/.exec(lines[i])
+    if (mm) model = unquote(mm[1])
+    const tm = /^thoughtLevel:\s*(.*?)\s*$/.exec(lines[i])
+    if (tm) thoughtLevel = unquote(tm[1])
+  }
+  return { hasFrontmatter: true, hasModel: model !== null, model, thoughtLevel }
+}
+
+/** 绑定值解析（P2 纯函数）：字符串 `provider/model$level`（旧格式兼容）/
+ *  `provider/model`（无档位）/ 对象 `{model,level}` → `{model,level,full}`；
+ *  对象 model 非空、level∈low|high|max 才有效；其余形态=null（调用方计入 missing）。 */
+export function parseBindingValue(v) {
+  if (typeof v === 'string') {
+    const s = v.trim()
+    if (!s) return null
+    const i = s.lastIndexOf('$')
+    if (i >= 0) {
+      const model = s.slice(0, i)
+      const level = s.slice(i + 1)
+      if (!model || !level) return null
+      return { model, level, full: s }
+    }
+    return { model: s, level: null, full: s }
+  }
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    const m = v.model
+    if (typeof m !== 'string' || !m.trim()) return null
+    if (!['low', 'high', 'max'].includes(v.level)) return null
+    return { model: m.trim(), level: v.level, full: `${m.trim()}$${v.level}` }
+  }
+  return null
+}
+
+/** ④渲染（v2.1.0 批4；回炉 k1 W-2 强化石；P2 批两字段化）：模板占位
+ *  `{{binding:<岗>}}` → 本机件 agent_bindings 实值。正文替换保留完整声明
+ *  （`provider/model$level`，供 MODEL-SELF 自报行）；frontmatter 的 `model:` 行
+ *  改写为不含 `$` 的 model 段，并在其后插入/核对独立 `thoughtLevel:` 行。
+ *  已声明占位一次替换，缺绑定保留+点名；**渲染后残留任何 `{{…binding…` 形态
+ *  （空格/点号等畸形占位，正则未认=按无占位直装的逃逸面）一并计入 missing
+ *  （malformed: 前缀）——禁静默带占位部署**。无占位模板=恒等；无 model 行模板
+ *  （ops-probe/ops-diagnostics 未绑定形态）=恒等且不算缺失。 */
 export function renderAgentTemplate(text, bindings) {
   const missing = []
-  const out = String(text).replace(/\{\{binding:([A-Za-z0-9_-]+)\}\}/g, (m, agent) => {
+  const src = String(text)
+  const out = src.replace(/\{\{binding:([A-Za-z0-9_-]+)\}\}/g, (m, agent) => {
     const v = bindings?.[agent]
-    if (typeof v !== 'string' || !v.trim()) { missing.push(agent); return m }
-    return v
+    if (v == null) { missing.push(agent); return m }
+    const parsed = parseBindingValue(v)
+    if (!parsed) { missing.push(agent); return m }
+    return parsed.full
   })
   // 畸形占位=非标准形态的 binding 残留（空格/点号等——替换正则未认=按无占位直装的
   // 逃逸面）；标准形态的「缺绑定保留占位」已在上一段点名，不重复计；
@@ -78,7 +131,108 @@ export function renderAgentTemplate(text, bindings) {
   if (/\{\{[^}]*binding/i.test(closed)) missing.push('malformed:未闭合占位')
   for (const residue of out.match(/\{\{[^}]*binding[^}]*\}\}/gi) || [])
     if (!/^\{\{binding:[A-Za-z0-9_-]+\}\}$/.test(residue)) missing.push(`malformed:${residue}`)
-  return { text: out, missing }
+
+  // P2：frontmatter 两字段化（首个 --- 到下一个 ---）。绑定名=原始 model 行占位名
+  // （冲突/缺档位标记点名用；无占位时回落 'model'）。
+  const srcLines = src.split('\n')
+  const srcStart = srcLines.findIndex((l) => l.trim() === '---')
+  const srcEnd = srcStart >= 0 ? srcLines.findIndex((l, i) => i > srcStart && l.trim() === '---') : -1
+  let bindingName = null
+  if (srcStart >= 0 && srcEnd > srcStart) {
+    const srcModel = srcLines.slice(srcStart + 1, srcEnd).find((l) => /^model:\s*/.test(l))
+    const nm = srcModel && /\{\{binding:([A-Za-z0-9_-]+)\}\}/.exec(srcModel)
+    if (nm) bindingName = nm[1]
+  }
+  const lines = out.split('\n')
+  const start = lines.findIndex((l) => l.trim() === '---')
+  const end = start >= 0 ? lines.findIndex((l, i) => i > start && l.trim() === '---') : -1
+  if (start < 0 || end <= start) return { text: out, missing }
+  const mi = lines.findIndex((l, i) => i > start && i < end && /^model:\s*/.test(l))
+  if (mi < 0) return { text: out, missing }
+  const raw = /^model:\s*(.*?)\s*$/.exec(lines[mi])[1].replace(/^['"]|['"]$/g, '')
+  // 未解析的占位（缺绑定保留形态）不参与两字段化——沿用既有 warn/FAIL 路径
+  if (raw.includes('{{')) return { text: out, missing }
+  const di = raw.lastIndexOf('$')
+  const modelPart = di >= 0 ? raw.slice(0, di) : raw
+  const levelPart = di >= 0 ? raw.slice(di + 1).trim() : null
+  lines[mi] = `model: ${modelPart}`
+  const ti = lines.findIndex((l, i) => i > start && i < end && /^thoughtLevel:\s*/.test(l))
+  if (levelPart) {
+    if (ti >= 0) {
+      const tv = /^thoughtLevel:\s*(.*?)\s*$/.exec(lines[ti])[1].replace(/^['"]|['"]$/g, '')
+      if (tv !== levelPart) missing.push(`conflict:thoughtLevel:${bindingName || 'model'}`)
+    } else {
+      lines.splice(mi + 1, 0, `thoughtLevel: ${levelPart}`)
+    }
+  } else if (ti < 0) {
+    missing.push(`missing-level:${bindingName || 'model'}`)
+  }
+  return { text: lines.join('\n'), missing }
+}
+
+/** P2 检查①：frontmatter `model:` 值含 `$` → FAIL（行文本点名值；调用方补文件名）。
+ *  无 model 行=未绑定模板，跳过（ok/skipped）。 */
+export function checkModelNoDollar(rendered) {
+  const fm = readFrontmatterFields(rendered)
+  if (!fm.hasModel) return { level: 'ok', skipped: true, line: 'model 字段缺失（未绑定模板）' }
+  if (String(fm.model).includes('$')) return { level: 'FAIL', line: `model 字段含 $（${fm.model}）`, value: fm.model }
+  return { level: 'ok', line: `model 字段无 $（${fm.model}）`, value: fm.model }
+}
+
+/** P2 检查②：thoughtLevel 须为 low|high|max；缺失/非法=FAIL（调用方仅对有 model
+ *  行的渲染结果调用；未绑定模板跳过并汇总提示）。 */
+export function checkThoughtLevel(level) {
+  const v = level == null ? '' : String(level).trim()
+  if (!v) return { level: 'FAIL', line: 'thoughtLevel 缺失' }
+  if (!['low', 'high', 'max'].includes(v)) return { level: 'FAIL', line: `thoughtLevel 非法（${v}）` }
+  return { level: 'ok', line: `thoughtLevel=${v}` }
+}
+
+/** P2 检查③：新式名 `ops-<role>-<provider>-<level>.md` → 核对 agent_slots 存在、
+ *  provider 与文件名中段一致、slot.model/level 与渲染值一致；legacy 名=skip
+ *  （调用方汇总 legacy 件数，不计 warn）。 */
+export function checkAgentName(name, slotDef, rendered = {}) {
+  const m = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
+  if (!m) return { level: 'skip', skipped: true, line: '' }
+  const [, , provider, level] = m
+  const base = String(name).replace(/\.md$/, '')
+  if (!slotDef || typeof slotDef !== 'object') return { level: 'FAIL', line: `${name}：agent_slots 缺「${base}」` }
+  const errors = []
+  if (slotDef.provider !== provider) errors.push(`文件名 provider 段=${provider} ≠ slot.provider=${slotDef.provider}`)
+  if (slotDef.level !== level) errors.push(`文件名档位段=${level} ≠ slot.level=${slotDef.level}`)
+  // 渲染值可由第三参注入；亦可由 slotDef.renderedModel/renderedLevel 携带（两参调用面）。
+  // 未提供=只核对命名与 slot 定义（生产调用恒提供渲染值）。
+  const hasRenderedModel = rendered && Object.prototype.hasOwnProperty.call(rendered, 'model')
+  const hasRenderedLevel = rendered && Object.prototype.hasOwnProperty.call(rendered, 'level')
+  const renderedModel = hasRenderedModel ? rendered.model : (slotDef.renderedModel ?? null)
+  const renderedLevel = hasRenderedLevel ? rendered.level : (slotDef.renderedLevel ?? null)
+  if (hasRenderedModel || slotDef.renderedModel !== undefined) {
+    if (renderedModel == null || String(renderedModel) === '') errors.push('渲染 model 缺失')
+    else {
+      const rm = String(renderedModel)
+      const renderedModelName = rm.includes('/') ? rm.slice(rm.indexOf('/') + 1) : rm
+      if (slotDef.model !== renderedModelName) errors.push(`slot.model=${slotDef.model} ≠ 渲染 model=${renderedModelName}`)
+    }
+  }
+  if (hasRenderedLevel || slotDef.renderedLevel !== undefined) {
+    const lv = renderedLevel == null ? '' : String(renderedLevel)
+    if (!lv) errors.push('渲染 thoughtLevel 缺失')
+    else if (slotDef.level !== lv) errors.push(`slot.level=${slotDef.level} ≠ 渲染 thoughtLevel=${lv}`)
+  }
+  return errors.length ? { level: 'FAIL', line: `${name}：${errors.join('；')}` } : { level: 'ok', line: `${name}：新式命名/slot/渲染值一致` }
+}
+
+/** P2 检查④：宿主版本下限 3.15.1（忽略 `-` 后缀）；解析失败/空=warn（无法核对，
+ *  不假绿）。 */
+export function checkHostVersion(rawVersion) {
+  const s = String(rawVersion ?? '').trim()
+  const core = s.split('-')[0].trim()
+  const m = /^v?(\d+)\.(\d+)\.(\d+)$/.exec(core)
+  if (!m) return { level: 'warn', line: `host-version——宿主版本无法解析（${s || '空'}）——无法核对 ≥3.15.1（不假绿）` }
+  const [maj, min, pat] = m.slice(1).map(Number)
+  const cmp = maj - 3 || min - 15 || pat - 1
+  if (cmp < 0) return { level: 'FAIL', line: `host-version——宿主 ${s} < 3.15.1——升级宿主后复跑` }
+  return { level: 'ok', line: `host-version——宿主 ${s} ≥ 3.15.1` }
 }
 
 /** 多行输出的末行（透传 org-config validate 尾行用）。 */
@@ -192,6 +346,8 @@ export function runChecks(agentsDir, cfg) {
       line: `org-config——validate exit ${oc.status}：${lastLine(oc.stderr || oc.stdout)}｜新机最常见断点=providers 占位未本机化或 uuid_prefix/entry_name 与宿主注册表双校验不符——处置=填 org-config.local.json 本机实值（deploy-check --install 可脚手架；uuid 前缀=宿主注册表条目 id 前 8 字符）或建项目覆盖件 .zcode/org-config.json（深合并覆盖）；宿主 config（key/端点事实）永不改、不入库`,
     })
 
+  let legacyNameSkipped = 0
+  let unboundThoughtSkipped = 0
   for (const name of listAgentTemplates()) {
     const dst = join(agentsDir, name)
     const { text: rendered, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), cfg?.agent_bindings || {})
@@ -201,13 +357,36 @@ export function runChecks(agentsDir, cfg) {
     const norm = (s) => String(s).replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
     const hashEqual = existsSync(dst) && sha256Text(norm(rendered)) === sha256Text(norm(readFileSync(dst, 'utf8')))
     const cls = classifyAgent({ exists: existsSync(dst), hashEqual })
+    // P2 四项检查（每件一行合并）：有 model 行即检查 thoughtLevel（未解析占位不构成
+    // 豁免——只有「无 model 行」的未绑定模板才跳过并汇总）；缺绑定/畸形另走下方
+    // warn/FAIL 部署状态分支，不吞四项检查的 FAIL。
+    const fm = readFrontmatterFields(rendered)
+    const modelCheck = checkModelNoDollar(rendered)
+    const thoughtCheck = fm.hasModel ? checkThoughtLevel(fm.thoughtLevel) : null
+    if (!fm.hasModel) unboundThoughtSkipped++
+    const nameCheck = checkAgentName(name, cfg?.agent_slots?.[name.replace(/\.md$/, '')], { model: fm.model, level: fm.thoughtLevel })
+    if (nameCheck.level === 'skip') legacyNameSkipped++
+    const checkFails = []
+    if (modelCheck.level === 'FAIL') checkFails.push(modelCheck.line)
+    if (thoughtCheck?.level === 'FAIL') checkFails.push(thoughtCheck.line)
+    if (nameCheck.level === 'FAIL') checkFails.push(nameCheck.line)
+    const conflicts = missing.filter((m) => m.startsWith('conflict:thoughtLevel:'))
+    if (conflicts.length) checkFails.push(`thoughtLevel 与绑定档位冲突（${conflicts.join('、')}）`)
+    if (checkFails.length) {
+      push({ level: 'FAIL', line: `agents——${name}（${agentsDir}）四项检查未过：${checkFails.join('；')}${missing.length ? `；缺绑定/畸形：${[...new Set(missing)].join('、')}` : ''}` })
+      continue
+    }
     if (missing.length) {
       // 回炉轮2 N-6：占位异常时部署件缺失仍 FAIL（装好≠绑定对——两害分报，不整项跳过）
       push({ level: existsSync(dst) ? 'warn' : 'FAIL', line: `agents——${name}（${agentsDir}）${existsSync(dst) ? '占位缺绑定/畸形' : '缺失'}（${[...new Set(missing)].join('、')}）——渲染对账此态不可信；填本机件 agent_bindings 后复跑` })
       continue
     }
-    push({ level: cls.level, line: `agents——${name}（${agentsDir}）${cls.line}${cls.reason === 'drift' ? '——若为改绑后残留：删除该部署件后 --install 重装即按 agent_bindings 渲染（回炉 W7a）' : ''}（渲染后对账）` })
+    const checkNote = fm.hasModel ? `｜model 无 $｜thoughtLevel=${fm.thoughtLevel}` : '｜未绑定（无 model 行，thoughtLevel 跳过）'
+    push({ level: cls.level, line: `agents——${name}（${agentsDir}）${cls.line}${checkNote}${cls.reason === 'drift' ? '——若为改绑后残留：删除该部署件后 --install 重装即按 agent_bindings 渲染（回炉 W7a）' : ''}（渲染后对账）` })
   }
+  console.log(`thoughtLevel 检查——未绑定模板 ${unboundThoughtSkipped} 个跳过（无 model: 行，随宿主模型）`)
+  console.log(`name-check——新式命名核对跳过 legacy 件 ${legacyNameSkipped} 个（P5 生成 34 档后启用）`)
+  push(checkHostVersion(process.env.ZCODE_APP_VERSION))
 
   const git = gitState()
   if (!git.repo) push({ level: 'warn', line: `hook——${git.reason}（zip 安装形态，跳过；克隆本仓后复跑可核）` })
@@ -246,6 +425,42 @@ export function installAgents(agentsDir, bindings = {}) {
   return bad.length || unbound.length
     ? { level: 'FAIL', line: `install-agents——${bad.length ? `部署后 sha256 复核不符：${bad.join('、')}` : ''}${bad.length && unbound.length ? '；' : ''}${unbound.length ? `占位缺绑定未装：${unbound.join('、')}（填本机件 agent_bindings 实值后复跑）` : ''}` }
     : { level: 'ok', line: `install-agents——补齐 ${missing.length} 件（${missing.join('、')}，渲染部署+sha256 复核相等）` }
+}
+
+/** --sync-agents（P2）：显式重渲染全部模板到 agents 目录。全或无——任一模板缺绑定/
+ *  畸形/档位冲突=全部不写并逐件打印原因；全部可渲染则逐件覆盖写入（含漂移件）并
+ *  回读 sha256 复核。该开关是唯一允许覆盖漂移件的路径；--install 语义不变（只补
+ *  缺失、不覆盖漂移）。退出码口径=references/06 §5.8。 */
+export function syncAgents(agentsDir, bindings = {}) {
+  const entries = []
+  const bad = []
+  for (const name of listAgentTemplates()) {
+    const { text, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), bindings)
+    if (missing.length) bad.push({ name, missing: [...new Set(missing)] })
+    else entries.push({ name, text })
+  }
+  if (bad.length) {
+    for (const b of bad) console.log(`[sync] 不写 ${b.name}：${b.missing.join('、')}`)
+    console.log(`[sync] 中止：${bad.length} 件不可渲染（全或无——本次 0 件写入）`)
+    return { level: 'FAIL', wrote: 0 }
+  }
+  mkdirSync(agentsDir, { recursive: true })
+  let wrote = 0
+  const mismatched = []
+  for (const { name, text } of entries) {
+    const dst = join(agentsDir, name)
+    writeFileSync(dst, text, 'utf8')
+    const hash = sha256Text(text)
+    console.log(`[sync] 写入 ${name} sha256=${hash.slice(0, 12)}`)
+    wrote++
+    if (sha256File(dst) !== hash) mismatched.push(name)
+  }
+  if (mismatched.length) {
+    console.log(`[FAIL] sync-agents——回读 sha256 不等：${mismatched.join('、')}`)
+    return { level: 'FAIL', wrote }
+  }
+  console.log(`[sync] 完成：写入 ${wrote} 件，回读 sha256 全部相等`)
+  return { level: 'ok', wrote }
 }
 
 /** --install 动作二：hooksPath 未设时补设（已设含自定义=不动）。 */
@@ -529,6 +744,92 @@ function selfTest() {
   t('v2.1.0 回炉：畸形占位（空格/点号/未闭合形态）→渲染后残留 tripwire 计入 missing（k1 W-2/轮2 W-2）', (() => { const r1 = renderAgentTemplate('model: {{binding: ops-x}}', {}); const r2 = renderAgentTemplate('model: {{binding:ops.x}}', {}); const r3 = renderAgentTemplate('model: {{binding:ops-x', {}); return r1.missing.some((m) => m.startsWith('malformed:')) && r2.missing.some((m) => m.startsWith('malformed:')) && r3.missing.some((m) => m.includes('未闭合')) && r1.text.includes('{{binding: ops-x}}') })())
   t('v2.1.0 渲染：sha256Text 稳定（64 hex）', /^[0-9a-f]{64}$/.test(sha256Text('x')) && sha256Text('x') === sha256Text('x'))
 
+  // ── P2 批（2026-10-22）：两字段渲染 parseBindingValue/thoughtLevel + 四项检查 ──
+  const pbv = typeof parseBindingValue === 'function' ? parseBindingValue : null
+  t('P2 parseBindingValue：旧格式字符串 provider/model$level 拆分（full 保留 $ 档位）', (() => {
+    const r = pbv && pbv('prov-x/model-a$max')
+    return !!r && r.model === 'prov-x/model-a' && r.level === 'max' && r.full === 'prov-x/model-a$max'
+  })())
+  t('P2 parseBindingValue：无档位字符串 level=null；对象形态合成 full；非法形态 null', (() => {
+    if (!pbv) return false
+    const a = pbv('prov-x/model-a')
+    const b = pbv({ model: 'prov-x/model-b', level: 'high' })
+    const bad = [pbv({ model: '', level: 'max' }), pbv({ model: 'x/y', level: 'ultra' }), pbv(null), pbv(42)]
+    return a?.level === null && a?.full === 'prov-x/model-a' && b?.full === 'prov-x/model-b$high' && b?.level === 'high' && bad.every((x) => x === null)
+  })())
+  const p2Tpl = (extra = '') => `---\nname: ops-x\nmodel: {{binding:ops-x}}\n${extra}---\n\n正文 model-field:{{binding:ops-x}}\n`
+  t('P2 渲染：旧格式字符串绑定→frontmatter model 无 $ 且 thoughtLevel 插入', (() => {
+    const r = renderAgentTemplate(p2Tpl(), { 'ops-x': 'prov-a/model-a$max' })
+    const ls = r.text.split('\n')
+    const mi = ls.findIndex((l) => l.startsWith('model: '))
+    return r.missing.length === 0 && ls[mi] === 'model: prov-a/model-a' && ls[mi + 1] === 'thoughtLevel: max'
+  })())
+  t('P2 渲染：对象绑定 {model,level}→同规则（model 无 $ + thoughtLevel）', (() => {
+    const r = renderAgentTemplate(p2Tpl(), { 'ops-x': { model: 'prov-b/model-b', level: 'high' } })
+    const ls = r.text.split('\n')
+    const mi = ls.findIndex((l) => l.startsWith('model: '))
+    return r.missing.length === 0 && ls[mi] === 'model: prov-b/model-b' && ls[mi + 1] === 'thoughtLevel: high'
+  })())
+  t('P2 渲染：正文占位保留完整声明 provider/model$level（供 MODEL-SELF 自报行）', (() => {
+    const r = renderAgentTemplate(p2Tpl(), { 'ops-x': 'prov-a/model-a$max' })
+    return r.text.includes('正文 model-field:prov-a/model-a$max') && !/^model: .*\$/.test(r.text)
+  })())
+  t('P2 渲染：模板已有 thoughtLevel 且等于绑定档位→不重复插入/不报错', (() => {
+    const r = renderAgentTemplate(p2Tpl('thoughtLevel: max\n'), { 'ops-x': 'prov-a/model-a$max' })
+    return r.missing.length === 0 && (r.text.match(/^thoughtLevel:/gm) || []).length === 1
+  })())
+  t('P2 渲染：thoughtLevel 冲突→missing 含 conflict:thoughtLevel 点名', (() => {
+    const r = renderAgentTemplate(p2Tpl('thoughtLevel: low\n'), { 'ops-x': 'prov-a/model-a$max' })
+    return r.missing.some((m) => m.startsWith('conflict:thoughtLevel:')) && r.missing.some((m) => m.includes('ops-x'))
+  })())
+  t('P2 渲染：无档位绑定且模板无 thoughtLevel→missing 含 missing-level 点名', (() => {
+    const r = renderAgentTemplate(p2Tpl(), { 'ops-x': 'prov-a/model-a' })
+    return r.missing.some((m) => m.startsWith('missing-level:')) && r.missing.some((m) => m.includes('ops-x'))
+  })())
+  t('P2 渲染：未绑定模板（frontmatter 无 model 行）→恒等且零缺失', (() => {
+    const tpl = '---\nname: ops-probe\n---\n\n正文无占位\n'
+    const r = renderAgentTemplate(tpl, {})
+    return r.text === tpl && r.missing.length === 0
+  })())
+  const mnd = typeof checkModelNoDollar === 'function' ? checkModelNoDollar : null
+  t('P2 检查 model-no-dollar：含 $→FAIL / 不含→ok / 无 model 行→跳过', (() => {
+    return !!mnd && mnd('---\nmodel: a/b$max\n---\n').level === 'FAIL' && mnd('---\nmodel: a/b\n---\n').level === 'ok' && mnd('---\nname: x\n---\n').level === 'ok'
+  })())
+  const ctl = typeof checkThoughtLevel === 'function' ? checkThoughtLevel : null
+  t('P2 检查 thoughtLevel：low/high/max→ok；缺失/非法→FAIL', (() => {
+    return !!ctl && ctl('max').level === 'ok' && ctl('low').level === 'ok' && ctl('high').level === 'ok' && ctl(null).level === 'FAIL' && ctl('ultra').level === 'FAIL'
+  })())
+  const chv = typeof checkHostVersion === 'function' ? checkHostVersion : null
+  t('P2 检查 host-version：3.15.1/3.16.2→ok；3.15.0→FAIL；abc/空→warn', (() => {
+    return !!chv && chv('3.15.1').level === 'ok' && chv('3.16.2').level === 'ok' && chv('3.16.2-beta.1').level === 'ok' && chv('3.15.0').level === 'FAIL' && chv('abc').level === 'warn' && chv('').level === 'warn'
+  })())
+  const can = typeof checkAgentName === 'function' ? checkAgentName : null
+  t('P2 检查 agent-name：新式名与 slot/渲染值一致→ok', (() => {
+    const r = can && can('ops-executor-ds-max.md', { provider: 'ds', model: 'deepseek-flash', level: 'max' }, { model: 'syn-uuid-ops-1/deepseek-flash', level: 'max' })
+    return !!r && r.level === 'ok'
+  })())
+  t('P2 检查 agent-name：文件中段 provider 不符→FAIL', (() => {
+    const r = can && can('ops-executor-glm-max.md', { provider: 'ds', model: 'deepseek-flash', level: 'max' }, { model: 'syn-uuid-ops-1/deepseek-flash', level: 'max' })
+    return !!r && r.level === 'FAIL'
+  })())
+  t('P2 检查 agent-name：legacy 名→跳过（不计 warn）', (() => {
+    const r = can && can('ops-gate1-k1.md', undefined, { model: 'x/y', level: 'max' })
+    return !!r && r.level === 'skip' && r.skipped === true
+  })())
+  t('P2 检查 agent-name：两参调用只核名/slot；renderedModel/Level 携带渲染值参与核对', (() => {
+    const a = can && can('ops-executor-ds-max.md', { provider: 'ds', model: 'deepseek-flash', level: 'max' })
+    const b = can && can('ops-executor-ds-max.md', { provider: 'ds', model: 'deepseek-flash', level: 'max', renderedModel: 'uuid/deepseek-flash', renderedLevel: 'max' })
+    const c = can && can('ops-executor-ds-max.md', { provider: 'ds', model: 'deepseek-flash', level: 'max', renderedModel: 'uuid/other', renderedLevel: 'max' })
+    return a?.level === 'ok' && b?.level === 'ok' && c?.level === 'FAIL'
+  })())
+  // 返工轮 1 B1：未解析占位不豁免 thoughtLevel 检查——有 model 行即检查，缺档位=FAIL
+  t('P2 检查：未解析占位+thoughtLevel 缺失→组合结果 FAIL（占位不构成豁免）', (() => {
+    const r = renderAgentTemplate(p2Tpl(), {})
+    const fm = readFrontmatterFields(r.text)
+    const combined = fm.hasModel ? checkThoughtLevel(fm.thoughtLevel) : null
+    return r.missing.length > 0 && r.text.includes('{{binding:ops-x}}') && fm.hasModel === true && fm.thoughtLevel === null && checkThoughtLevel(null).level === 'FAIL' && combined?.level === 'FAIL'
+  })())
+
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
 }
@@ -607,6 +908,20 @@ if (isMain) {
     }
     if (hf.level === 'FAIL') installFailCount++
     console.log(hf.level === 'FAIL' ? `[FAIL] ${hf.line}` : `[install] ${hf.line}`)
+  }
+
+  // --sync-agents（P2）：显式重渲染模式——只做同步即退出（不与检查面混跑；
+  // 与 --install 并列：同给时先执行 install 三动作再全量同步覆盖，各自语义不动）。
+  if (argv.includes('--sync-agents')) {
+    let syncCfg
+    try {
+      syncCfg = loadOrgConfig(SKILL_ROOT).merged
+    } catch (e) {
+      console.error(`[装载错] org-config 装载失败：${e.message}`)
+      process.exit(EXIT_SELF_ERROR)
+    }
+    const sync = syncAgents(agentsDir, syncCfg.agent_bindings || {})
+    process.exit(sync.level === 'ok' ? 0 : 1)
   }
 
   // 自身装载错守卫（exit 3 族）：org-config 装载失败（检查主体消费 cfg——
