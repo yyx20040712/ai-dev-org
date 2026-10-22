@@ -214,5 +214,17 @@
       ],
       "readonly": true
     }
+  },
+  "aliases": {
+    "ops-executor": { "role": "executor", "provider": null },
+    "ops-drafter": { "role": "planner", "provider": null },
+    "ops-auditor": { "role": "reviewer", "provider": null },
+    "ops-adjudicator": { "role": "adjudicator", "provider": null },
+    "ops-probe": { "role": "diagnostics", "provider": null },
+    "ops-diagnostics": { "role": "diagnostics", "provider": null },
+    "ops-gate1-k1": { "role": "reviewer", "provider": "699" },
+    "ops-gate1-k2": { "role": "reviewer", "provider": "zipoo" },
+    "ops-gate1-k3": { "role": "reviewer", "provider": "yyx" },
+    "ops-gate1-d1": { "role": "reviewer", "provider": "ds" }
   }
 }
