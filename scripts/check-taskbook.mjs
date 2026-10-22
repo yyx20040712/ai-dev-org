@@ -23,6 +23,7 @@ import { spawnSync } from 'node:child_process'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const SKILL_ROOT = resolve(SCRIPT_DIR, '..')
 const SELF = fileURLToPath(import.meta.url)
+const MSG_MISSING_E = (k) => `判据 #${k} 缺 E 条目`
 
 // ── 路径型 token 口径（T1/T2/T3/T5 共用，避免口径漂移） ──
 const EXT_RE = /\.(md|mjs|js|json|jsonl|txt|py|sh|yml|yaml|snippet)$/i
@@ -369,6 +370,115 @@ export function checkExitContract(lines, blocks, scriptNames = []) {
   return findings
 }
 
+/** L10 T9：§4 F 条目解析（全角竖线分隔五字段；围栏块内行跳过）。 */
+export function parseFactEntries(parsed) {
+  const lines = Array.isArray(parsed) ? parsed : (parsed.lines || [])
+  const fenced = Array.isArray(parsed) ? new Set() : fencedLines(parsed.blocks || [])
+  const out = []
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced.has(i + 1)) continue
+    const ln = String(lines[i] ?? '').trim()
+    if (!/^F-\d{2}\s*｜/.test(ln)) continue
+    const p = ln.split('｜').map((s) => s.trim())
+    if (p.length < 5) continue
+    out.push({ id: p[0], label: p[1], cmd: p[2].replace(/^`+|`+$/g, '').trim(), declared: p[3], date: p[4], line: i + 1 })
+  }
+  return out
+}
+
+/** L10 T9：§6.1 E 条目解析（判据 #k / 基线 ← F / 增量 / 期望 / 算式；围栏块内跳过）。 */
+export function parseExpectations(parsed) {
+  const lines = Array.isArray(parsed) ? parsed : (parsed.lines || [])
+  const fenced = Array.isArray(parsed) ? new Set() : fencedLines(parsed.blocks || [])
+  const out = []
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced.has(i + 1)) continue
+    const ln = String(lines[i] ?? '').trim()
+    if (!/^E\d+\s*｜/.test(ln)) continue
+    const p = ln.split('｜').map((s) => s.trim())
+    if (p.length < 6) continue
+    const j = /判据\s*#\s*(\d+)/.exec(p[1])
+    const b = /基线\s*(-?\d+)\s*←\s*(F-\d+)/.exec(p[2])
+    const d = /增量\s*([+-]?\d+)/.exec(p[3])
+    const x = /期望\s*(-?\d+)/.exec(p[4])
+    if (!j || !b || !d || !x) continue
+    const ex = /算式\s*(.+)$/.exec(p[5])
+    out.push({ id: p[0], judge: Number(j[1]), base: Number(b[1]), delta: Number(d[1]), expect: Number(x[1]), expr: ex ? ex[1].trim() : '', factRef: b[2], line: i + 1 })
+  }
+  return out
+}
+
+/** L10 T9：验收表中计数型判据行（期望为整数/「N 行」，判据含计数命令且不含 exit；围栏块内跳过）。 */
+export function parseNumericJudgeRows(parsed) {
+  const lines = Array.isArray(parsed) ? parsed : (parsed.lines || [])
+  const fenced = Array.isArray(parsed) ? new Set() : fencedLines(parsed.blocks || [])
+  const out = []
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced.has(i + 1)) continue
+    const c = String(lines[i] ?? '').split(/(?<!\\)\|/)
+    if (c.length < 4 || !/^\d+$/.test(c[1].trim())) continue
+    const judge = c[2]
+    const want = c[3].replace(/\*\*|`/g, '').trim()
+    if (!/^\d+$/.test(want) && !/^\d+\s*(行|条|个|项)$/.test(want)) continue
+    if (judge.includes('exit')) continue
+    if (!/grep\s+-c|wc\s+-l|\|\s*wc/.test(judge)) continue
+    out.push({ judgeNo: Number(c[1].trim()), hasCmd: true, line: i + 1 })
+  }
+  return out
+}
+
+/** L10 T9：集合相等 + 基线±增量=期望 + 基线=F 声明值。 */
+export function checkExpectations(eRows, numericRows, factEntries, evidence) {
+  const findings = []
+  const push = (line, message) => findings.push({ level: 'FAIL', check: 'T9', line, message })
+  const S = new Set((numericRows || []).filter((r) => r.hasCmd).map((r) => r.judgeNo))
+  const E = new Set((eRows || []).map((e) => e.judge))
+  for (const k of S) if (!E.has(k)) push(0, MSG_MISSING_E(k))
+  for (const k of E) if (!S.has(k)) push(0, `判据 #${k} 无对应计数型判据`)
+  const facts = new Map((factEntries || []).map((f) => [f.id, f]))
+  for (const e of eRows || []) {
+    if (e.base + e.delta !== e.expect) push(e.line, `${e.id} 算式不成立：${e.base} ${e.delta >= 0 ? '+' : '-'} ${Math.abs(e.delta)} ≠ ${e.expect}`)
+    const f = facts.get(e.factRef)
+    if (!f) push(e.line, `${e.id} 引用的 ${e.factRef} 不存在`)
+    else if (Number(f.declared) !== e.base) push(e.line, `${e.id} 基线 ${e.base} ≠ ${e.factRef} 声明值 ${f.declared}`)
+  }
+  return findings
+}
+
+/** 声明值按独立 token 匹配（数字需前后非数字边界）。 */
+function tokenIn(s, v) {
+  if (!/^\d+$/.test(v)) return s.includes(v)
+  return new RegExp(`(?<!\\d)${v}(?!\\d)`).test(s)
+}
+
+/** L10 T12：F 条目与证据 JSON 的一致性（只读，不执行命令）。 */
+export function verifyEvidence(factEntries, evidencePath) {
+  const facts = Array.isArray(factEntries) ? factEntries : []
+  const findings = []
+  const push = (line, message) => findings.push({ level: 'FAIL', check: 'T12', line, message })
+  if (!evidencePath) {
+    if (facts.length) push(facts[0].line, '含 F 条目但未提供 --evidence')
+    return { findings, entries: [] }
+  }
+  let doc
+  try { doc = JSON.parse(readFileSync(evidencePath, 'utf8')) }
+  catch { push(0, `证据文件不可读或不可解析：${evidencePath}`); return { findings, entries: [] } }
+  if (!doc || doc.schema !== 'taskbook-evidence/v1' || !Array.isArray(doc.entries)) {
+    push(0, '证据 schema 不符（需 taskbook-evidence/v1 且 entries 为数组）')
+    return { findings, entries: [] }
+  }
+  const byId = new Map(doc.entries.map((e) => [e.id, e]))
+  for (const f of facts) {
+    const e = byId.get(f.id)
+    if (!e) { push(f.line, `${f.id} 在证据中无同 id 条目`); continue }
+    if (e.exit !== 0) push(f.line, `${f.id} 证据退出码为 ${e.exit}`)
+    if (String(e.declared) !== String(f.declared)) push(f.line, `${f.id} 证据声明值与任务书不符`)
+    else if (!tokenIn(String(e.stdout ?? ''), String(f.declared))) push(f.line, `${f.id} 声明值未在 stdout 独立 token 位出现`)
+    if (String(e.date) !== String(f.date)) push(f.line, `${f.id} 证据日期与任务书不符`)
+  }
+  return { findings, entries: doc.entries }
+}
+
 // ── 自检（夹具落 os.tmpdir()，向量 ≥40） ──
 function selfTest() {
   const cases = []
@@ -598,6 +708,46 @@ function selfTest() {
       jsonDetail = rj.stdout.slice(0, 160)
     } catch (e) { jsonDetail = e.message }
     add('--json 形态：taskbook/findings/summary 单对象', jsonOk, jsonDetail)
+
+    // ── L10 T9/T12 自检（12 向量；夹具落 tmp） ──
+    const t9Facts = [{ id: 'F-01', declared: '0', line: 1, date: '2026-10-22' }]
+    const t9Good = [{ id: 'E1', judge: 7, base: 0, delta: 1, expect: 1, expr: '0 + 1 = 1', factRef: 'F-01', line: 2 }]
+    const t9Num = [{ judgeNo: 7, hasCmd: true, line: 3 }]
+    add('L10 T9 正例：算式与集合均成立不报', checkExpectations(t9Good, t9Num, t9Facts, null).length === 0)
+    const t9Calc = checkExpectations([{ ...t9Good[0], delta: 2, expect: 1 }], t9Num, t9Facts, null)
+    add('L10 T9 算式错：基线±增量≠期望判 FAIL', t9Calc.some((f) => f.check === 'T9' && f.message.includes('算式')), JSON.stringify(t9Calc))
+    const t9Miss = checkExpectations([], t9Num, t9Facts, null)
+    add('L10 T9 集合缺项：消息取 MSG_MISSING_E 常量', t9Miss.some((f) => f.message === MSG_MISSING_E(7)), JSON.stringify(t9Miss))
+    const t9Extra = checkExpectations(t9Good, [], t9Facts, null)
+    add('L10 T9 集合多项：E 判据无对应计数型行判 FAIL', t9Extra.some((f) => f.check === 'T9' && f.message.includes('无对应')), JSON.stringify(t9Extra))
+    const t9Base = checkExpectations(t9Good, t9Num, [{ ...t9Facts[0], declared: '5' }], null)
+    add('L10 T9 基线≠F 声明值：判 FAIL', t9Base.some((f) => f.message.includes('基线')), JSON.stringify(t9Base))
+    const t9Table = parseTaskbook('| # | 判据（含取证命令） | 期望 | 依据 |\n|---|---|---|---|\n| 1 | `node scripts/x.mjs --self-test` | 0 | 证 |\n| 7 | `grep -c x a.md` | 1 | 证 |\n')
+    const t9Rows = parseNumericJudgeRows(t9Table)
+    add('L10 T9 退出码判据不误判：--self-test 行不入 S，grep -c 行入 S', t9Rows.length === 1 && t9Rows[0].judgeNo === 7, JSON.stringify(t9Rows))
+    const evPath = join(tmp, 'evidence.json')
+    const evGood = { schema: 'taskbook-evidence/v1', entries: [{ id: 'F-01', exit: 0, stdout: '0\n', declared: '0', date: '2026-10-22' }] }
+    const writeEv = (o) => { writeFileSync(evPath, JSON.stringify(o), 'utf8'); return evPath }
+    const t12NoEv = verifyEvidence(t9Facts, null).findings
+    add('L10 T12 F 条目缺 --evidence：判 FAIL', t12NoEv.some((f) => f.check === 'T12' && f.message.includes('未提供 --evidence')), JSON.stringify(t12NoEv))
+    const t12Schema = verifyEvidence(t9Facts, writeEv({ schema: 'bad', entries: [] })).findings
+    add('L10 T12 schema 不符：判 FAIL（合规 schema 不报）', t12Schema.length === 1 && t12Schema[0].message.includes('schema') && verifyEvidence(t9Facts, writeEv(evGood)).findings.length === 0, JSON.stringify(t12Schema))
+    const t12Id = verifyEvidence(t9Facts, writeEv({ schema: 'taskbook-evidence/v1', entries: [] })).findings
+    add('L10 T12 无同 id：判 FAIL', t12Id.some((f) => f.message.includes('无同 id')), JSON.stringify(t12Id))
+    const t12Exit = verifyEvidence(t9Facts, writeEv({ ...evGood, entries: [{ ...evGood.entries[0], exit: 1 }] })).findings
+    add('L10 T12 证据 exit≠0：判 FAIL', t12Exit.some((f) => f.message.includes('退出码')), JSON.stringify(t12Exit))
+    const t12Tok = verifyEvidence(t9Facts, writeEv({ ...evGood, entries: [{ ...evGood.entries[0], stdout: '10\n' }] })).findings
+    add('L10 T12 声明值非独立 token：判 FAIL', t12Tok.some((f) => f.message.includes('独立 token')), JSON.stringify(t12Tok))
+    const t12Date = verifyEvidence(t9Facts, writeEv({ ...evGood, entries: [{ ...evGood.entries[0], date: '2026-10-23' }] })).findings
+    add('L10 T12 证据日期不符：判 FAIL', t12Date.some((f) => f.message.includes('日期')), JSON.stringify(t12Date))
+    // ── r1 §10.2/§10.3 反例向量（6 条） ──
+    add('r1 W2 exitCode 判据按子串口径排除', parseNumericJudgeRows(parseTaskbook('| 7 | `grep -c x a.md --exitCode` | 1 | 证 |\n')).length === 0)
+    add('r1 W2 判据含 exit 字面量排除', parseNumericJudgeRows(parseTaskbook('| 7 | `grep -c x a.md; echo exit=$?` | 1 | 证 |\n')).length === 0)
+    add('r1 W3 围栏内 F 条目不生效', parseFactEntries(parseTaskbook('```\nF-01 ｜ 围栏内 ｜ `true` ｜ 0 ｜ 2026-10-22\n```\n')).length === 0)
+    add('r1 W3 围栏内 E 条目不生效', parseExpectations(parseTaskbook('```\nE1 ｜ 判据 #7 ｜ 基线 0 ← F-01 ｜ 增量 +1 ｜ 期望 1 ｜ 算式 0 + 1 = 1\n```\n')).length === 0)
+    add('r1 W3 围栏内判据行不生效', parseNumericJudgeRows(parseTaskbook('```\n| 7 | `grep -c x a.md` | 1 | 证 |\n```\n')).length === 0)
+    const w3o = parseTaskbook('F-02 ｜ 外 ｜ `true` ｜ 0 ｜ 2026-10-22\nE1 ｜ 判据 #7 ｜ 基线 0 ← F-02 ｜ 增量 +1 ｜ 期望 1 ｜ 算式 0 + 1 = 1\n| 7 | `grep -c x a.md` | 1 | 证 |\n')
+    add('r1 W3 围栏外同类行仍生效', parseFactEntries(w3o).length === 1 && parseExpectations(w3o).length === 1 && parseNumericJudgeRows(w3o).length === 1, JSON.stringify([parseFactEntries(w3o), parseExpectations(w3o), parseNumericJudgeRows(w3o)]))
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -608,7 +758,7 @@ function selfTest() {
 
 // ── 主入口（只做 IO 与汇总） ──
 function usage() {
-  console.error('用法：node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--json] [--strict] [--self-test]')
+  console.error('用法：node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--evidence <证据.json>] [--json] [--strict] [--self-test]')
 }
 
 function expandRoot(v) {
@@ -620,6 +770,7 @@ function main() {
   const flags = { json: false, strict: false, selfTest: false }
   const extraRoots = []
   let taskbook = null
+  let evidencePath = null
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--json') flags.json = true
@@ -629,6 +780,10 @@ function main() {
       const v = argv[++i]
       if (!v) { usage(); process.exit(1) }
       extraRoots.push(expandRoot(v))
+    } else if (a === '--evidence') {
+      const v = argv[++i]
+      if (!v) { usage(); process.exit(1) }
+      evidencePath = expandRoot(v)
     } else if (a.startsWith('--')) { usage(); process.exit(1) }
     else if (taskbook === null) taskbook = a
     else { usage(); process.exit(1) }
@@ -689,12 +844,19 @@ function main() {
   findings.push(...checkExitContract(parsed.lines, parsed.blocks, scriptNames))
   // T0
   findings.push(...checkStructure(parsed))
+  // T9 期望值算术 / T12 证据一致性（L10）
+  const factEntries = parseFactEntries(parsed)
+  const eRows = parseExpectations(parsed)
+  const numericRows = parseNumericJudgeRows(parsed)
+  findings.push(...checkExpectations(eRows, numericRows, factEntries, null))
+  const ev = verifyEvidence(factEntries, evidencePath)
+  findings.push(...ev.findings)
 
   const warn = findings.filter((f) => f.level === 'WARN').length
   const fail = findings.filter((f) => f.level === 'FAIL').length
 
   if (flags.json) {
-    process.stdout.write(JSON.stringify({ taskbook, findings, summary: { warn, fail, skipped } }, null, 2) + '\n')
+    process.stdout.write(JSON.stringify({ taskbook, findings, summary: { warn, fail, skipped, parsedExpectations: eRows.length, numericRows: numericRows.length, evidenceEntries: ev.entries.length } }, null, 2) + '\n')
   } else {
     for (const f of findings) {
       if (f.check === 'T0') console.log(`[${f.level}] ${f.message}`)
