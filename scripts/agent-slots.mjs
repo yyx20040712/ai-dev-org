@@ -262,7 +262,8 @@ function positionals(argv) {
 
 function loadCfgOrExit() {
   try {
-    const cfg = loadOrgConfig(SKILL_ROOT).merged
+    const loaded = loadOrgConfig(SKILL_ROOT)
+    const cfg = loaded.effective ?? loaded.merged
     if (!isPlainObject(cfg)) {
       console.error('[装载错] org-config 合并结果为空/非对象——按装载错处理（检查 org-config.default.json/local.json）')
       process.exit(3)

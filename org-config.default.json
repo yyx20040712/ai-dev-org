@@ -97,6 +97,8 @@
     "vision": "ops-vision-glmflash-max",
     "diagnostics": "ops-diagnostics-ds-max"
   },
+  "temporary_windows": [],
+  "temporary_windows_note": "临时默认窗口（D12）：每项 {id, reason, start, end, default_slots}；start/end 为本地日期 YYYY-MM-DD 闭区间；窗内 default_slots 覆盖 agent_defaults 的对应角色，role_fallbacks 首元素随动；到期自动失效、无需改文件。",
   "role_fallbacks": {
     "research": ["ops-research-glmflash-high", "ops-research-glm-high", "ops-research-699-high", "ops-research-yyx-high", "ops-research-zipoo-high", "ops-research-ds-high"],
     "planner": ["ops-planner-699-max", "ops-planner-yyx-max", "ops-planner-zipoo-max", "ops-planner-glm-max", "ops-planner-glmflash-max", "ops-planner-ds-max"],
