@@ -50,6 +50,7 @@ model 参数属环境限制（宿主事实单源=references/10 §2）：如实�
 node scripts/org-config.mjs [resolve|hash|validate|--self-test]
 node scripts/check-hardcode.mjs [--strict]   # .md 正文供应商 live 事实扫描（名单从 org-config 派生；命中=WARN，--strict 按 RED 退 1）
 node scripts/check-anchors.mjs [--update|--strict]   # 08 §4 文档腐化体检机检化：NN §M 断锚+路径存在性+01/04 条目计数 vs doc-counts golden（WARN 试点校准期；计数失守=FAIL；--update=重冻结随批提交）
+node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--strict|--json|--self-test]   # 任务书派发前自检：路径存在性/行号越界与逐字核对/白名单与禁改互斥/命令脚本存在性/零命中判据与逐字块互斥/退出码契约/结构等（WARN 试点；FAIL 退 1）
 node scripts/skill-gc.mjs [--apply --delete-redirects|--delete-invalid]   # 技能目录盘点/清理（默认干跑；删除先归档可回滚；active 技能去留=用户裁决不机删）
 node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空白字符
 node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目防线日脚手架（05 §4）
