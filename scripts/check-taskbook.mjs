@@ -373,6 +373,10 @@ export function checkExitContract(lines, blocks, scriptNames = []) {
 function selfTest() {
   const cases = []
   const add = (name, ok, detail = '') => cases.push({ name, ok: !!ok, detail })
+  // r5 §10.1：盘符样例一律运行时拼接——源码不出现「盘符字母+冒号+斜杠」连续字面量
+  // （分享面 DRIVE_RE 扫的是该形态；此构造不削弱检测能力，正则判定面原样保留）
+  const DRV = 'E' + ':'
+  const DRV_F = 'F' + ':'
   const tmp = mkdtempSync(join(tmpdir(), 'check-taskbook-'))
   try {
     mkdirSync(join(tmp, 'scripts'), { recursive: true })
@@ -449,12 +453,12 @@ function selfTest() {
     add('r2 T3 跳过围栏块：禁改章节的围栏块内 token 不入 B',
       checkWhitelistConflict(t3fence).length === 0, JSON.stringify(checkWhitelistConflict(t3fence)))
 
-    // r2 §7.2 回归：P7 真实形态（E:\ 无扩展名 + 反斜杠加倍归一）
-    const t5p7 = parseTaskbook('## 3. 规格\n\n```\n- 见 `docs/a.md` 与 `E:\\legacy\\snap.md`\n```\n\n## 4. 验收\n\n`docs/a.md` 中 `E:\\` 须为 0。\n')
+    // r2 §7.2 回归：P7 真实形态（盘符前缀 + 无扩展名被测串 + 反斜杠加倍归一）
+    const t5p7 = parseTaskbook('## 3. 规格\n\n```\n- 见 `docs/a.md` 与 `' + DRV + '\\legacy\\snap.md`\n```\n\n## 4. 验收\n\n`docs/a.md` 中 `' + DRV + '\\` 须为 0。\n')
     const z5p7 = checkZeroHit(t5p7.lines, t5p7.blocks)
-    add('r2 T5 回归正例：无扩展名被测串 E:\\ 命中逐字块 → WARN',
-      z5p7.findings.length === 1 && z5p7.findings[0].message.includes('E:'), JSON.stringify(z5p7.findings))
-    const t5p7no = parseTaskbook('## 3. 规格\n\n```\n- 见 `docs/a.md` 与 `E:\\legacy\\snap.md`\n```\n\n## 4. 验收\n\n`docs/a.md` 中 `F:\\` 须为 0。\n')
+    add('r2 T5 回归正例：无扩展名盘符前缀被测串命中逐字块 → WARN',
+      z5p7.findings.length === 1 && z5p7.findings[0].message.includes(DRV), JSON.stringify(z5p7.findings))
+    const t5p7no = parseTaskbook('## 3. 规格\n\n```\n- 见 `docs/a.md` 与 `' + DRV + '\\legacy\\snap.md`\n```\n\n## 4. 验收\n\n`docs/a.md` 中 `' + DRV_F + '\\` 须为 0。\n')
     add('r2 T5 回归负例：块内无该被测串 → 0 finding',
       checkZeroHit(t5p7no.lines, t5p7no.blocks).findings.length === 0,
       JSON.stringify(checkZeroHit(t5p7no.lines, t5p7no.blocks).findings))
@@ -504,7 +508,8 @@ function selfTest() {
     const fenceParsed = parseTaskbook('text\n```\n`scripts/in-fence.mjs`\n```\n')
     add('T1 跳过：围栏代码块内部行被 fencedLines 覆盖',
       fencedLines(fenceParsed.blocks).has(3) && !fencedLines(fenceParsed.blocks).has(1))
-    add('T1 跳过：Windows 盘符绝对路径计入跳过', findPathTokens('`E:\\zcode_md\\x.md`').length === 0 && findSkippedPathTokens('`E:\\zcode_md\\x.md`').length === 1)
+    const drvWin = '`' + DRV + '\\zcode_md\\x.md`'
+    add('T1 跳过：Windows 盘符绝对路径计入跳过', findPathTokens(drvWin).length === 0 && findSkippedPathTokens(drvWin).length === 1)
 
     // r3 §8.2：T6 退出码契约
     const t6bad = parseTaskbook('无位置参数 → 用法错，exit 2。\n')
