@@ -124,9 +124,9 @@
   "source_health": {
     "dual_groups": [["kimi-main", "kimi-backup"]],
     "gate1_subagent_of": {
-      "kimi-main": "ops-gate1-k1",
-      "kimi-backup": "ops-gate1-k2",
-      "deepseek": "ops-gate1-d1"
+      "kimi-main": "ops-reviewer-699-max",
+      "kimi-backup": "ops-reviewer-zipoo-max",
+      "deepseek": "ops-reviewer-ds-max"
     },
     "standing_pair": ["kimi-backup", "deepseek"],
     "cross_gate_pairs": [["ops-reviewer-ds-max", "ops-adjudicator-699-max"]],
