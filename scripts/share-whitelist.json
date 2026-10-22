@@ -13,11 +13,6 @@
       "reason": "MG-1 教训事件叙述（tar 冒号误报原文引用——08 §3 禁改写；回炉窄化：原 references/ 全目录宽豁免改文件定址）"
     },
     {
-      "file": "references/05-porting-guide.md",
-      "contains": "E:\\",
-      "reason": "§5 整合基准指针（历史——同上窄化）"
-    },
-    {
       "file_prefix": "references/",
       "contains": "E:/class",
       "reason": "08 §5/§6 本机档案区先例指针（现行段——受赠机按自身档案区理解同名概念）"
