@@ -129,8 +129,8 @@
       "deepseek": "ops-gate1-d1"
     },
     "standing_pair": ["kimi-backup", "deepseek"],
-    "cross_gate_pairs": [["ops-gate1-d1", "ops-adjudicator"]],
-    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义（派发器时代遗留的健康面参数，现役消费=log-triage ⑥ 分列——保留）；standing_pair=常设双审对（2026-09-22 三岗批 R3：对内两源 model_family 必须异族——health-scan 启动校验 RED，防异构退化静默漂移）；cross_gate_pairs=跨门岗对（v2.1.0 批，07 §4 纪律⑤：门一常设双审 vs 门二裁决部同族=异构退化 WARN+申报——log-triage --health ⑧ 核对实况，org-config validate 校结构；2026-10-03 dispatch-retire 批改绑后 d1↔裁决部异族=⑧ ok）；dry_minutes 已随派发器删除（纯净化批——R2 干涸窗机制亡）。model_family 实值住本机件 local（同 providers）。"
+    "cross_gate_pairs": [["ops-reviewer-ds-max", "ops-adjudicator-699-max"]],
+    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义（派发器时代遗留的健康面参数，现役消费=log-triage ⑥ 分列——保留）；standing_pair=常设双审对（2026-09-22 三岗批 R3：对内两源 model_family 必须异族——health-scan 启动校验 RED，防异构退化静默漂移）；cross_gate_pairs=跨门岗对（v2.1.0 批，07 §4 纪律⑤：门一常设双审 vs 门二裁决部同族=异构退化 WARN+申报——log-triage --health ⑧ 核对实况，org-config validate 校结构；2026-10-03 dispatch-retire 批改绑后 ops-reviewer-ds-max↔ops-adjudicator-699-max 异族=⑧ ok）；dry_minutes 已随派发器删除（纯净化批——R2 干涸窗机制亡）。model_family 实值住本机件 local（同 providers）。"
   },
   "vision_channels": {
     "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数分区模板：本默认件只留结构说明，通道实值（model/endpoint_contains/prefer_hosts/stream）住本机件 local——字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）；stream=看图通道流式位（selfiter B5；原类比对象 dispatch_request.stream 已随派发器删除——纯净化批）；通道命中=模型名∧端点子串双条件。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实住配置件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑。"

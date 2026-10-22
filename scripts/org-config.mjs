@@ -740,7 +740,7 @@ if (isMain) {
     t('v2.1.0 占位源→尚未本机化指引错误行（不进双校验）', vpTodo.some((e) => e.includes('providers.demo') && e.includes('尚未本机化') && e.includes('org-config.local.json')))
     const vpNoFam = validateProviders({ providers: { demo: { uuid_prefix: 'aaaaaaaa', entry_name: 'E-A', model_family: undefined } } }, { provider: { 'aaaaaaaa-1111': { name: 'E-A' } } })
     t('v2.1.0 回炉：非占位源缺 model_family→错误行（异族校验消费面）', vpNoFam.some((e) => e.includes('providers.demo 缺 model_family')))
-    t('v2.1.0 跨门对：合法二元对（真模板名）→零错误', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-gate1-k1', 'ops-adjudicator']] } }).length === 0)
+    t('v2.1.0 跨门对：合法二元对（真模板名）→零错误', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-reviewer-ds-max', 'ops-adjudicator-699-max']] } }).length === 0)
     t('v2.1.0 跨门对：三元对→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 'b', 'c']] } }).some((e) => e.includes('cross_gate_pairs[0]')))
     t('v2.1.0 跨门对：非字符串成员→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 1]] } }).length >= 1)
     t('v2.1.0 跨门对：非数组形态→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: 'x' } }).some((e) => e.includes('须为数组')))
