@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "updated": "2026-10-22",
-  "note": "逻辑矩阵：只写角色、provider 短名、档位、工具面、默认与回退序；真实 providerId/modelId/账号名不入库（由 org-config.local.json 的 agent_bindings 提供）。",
+  "note": "逻辑矩阵：只写角色、provider 短名、档位、工具面、默认与回退序；真实 providerId/modelId/账号名不入库（由 org-config.local.json 的 agent_bindings 提供）。display 名不入库：providers.*.display 已删除，真实显示名以本机件 org-config.local.json 的 entry_name 为准。",
   "levels": [
     "low",
     "high",
@@ -9,32 +9,26 @@
   ],
   "providers": {
     "glm": {
-      "display": "GLM-5.3",
       "family": "glm",
       "multimodal": false
     },
     "glmflash": {
-      "display": "GLM-5.3-Flash",
       "family": "glm",
       "multimodal": true
     },
     "699": {
-      "display": "Kimi-699",
       "family": "kimi",
       "multimodal": false
     },
     "yyx": {
-      "display": "Kimi-yyx",
       "family": "kimi",
       "multimodal": false
     },
     "zipoo": {
-      "display": "Kimi-zipoo",
       "family": "kimi",
       "multimodal": false
     },
     "ds": {
-      "display": "deepseek-flash",
       "family": "deepseek",
       "multimodal": true
     }
