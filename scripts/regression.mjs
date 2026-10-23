@@ -44,7 +44,7 @@ try {
   throw e
 }
 const keepTmp = argv.includes('--keep-tmp')
-const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随纯净化批删除）
+const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随纯净化批删除）
 if (only && only.some((id) => !KNOWN_ITEMS.includes(id))) {
   console.error(`[用法错] 未知回归项：${only.filter((id) => !KNOWN_ITEMS.includes(id)).join(',')}（现役项=${KNOWN_ITEMS.join('/')}——派发器族项已随 2026-10-03 纯净化批删除，档案=git 历史）`)
   process.exit(1)
@@ -386,6 +386,40 @@ process.exit(fails === 0 ? 0 : 1)
   }
   if (!keepTmp) rmSync(r10tmp, { recursive: true, force: true })
   record('R10', ok, `glm-look 回归面——${det.join('；')}`)
+}
+
+// ═══ 词表执法器棘轮面（Y1 批，D29 ④/campaign §9 阀①③）：①self-test 子进程 ②棘轮通过态 ③新增红态 ④--update 防洗白（新增>0 拒冻+基线件内容比对取证）；夹具全落 os.tmpdir() finally 清理，不写技能仓、不依赖账本 ═══
+if (want('R12')) {
+  let ok = true; const det = []
+  const termsCmd = join(SCRIPTS, 'check-terms.mjs') // 本块脚本字串唯一承载点（多处引用经变量，防复写计数）
+  const r12Run = (args) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 60_000, killSignal: 'SIGKILL' })
+  const rSt = r12Run([termsCmd, '--self-test'])
+  const stOk = rSt.status === 0 && (rSt.stdout || '').trimEnd().split('\n').pop().includes('8 向量')
+  if (!stOk) ok = false
+  det.push(`①self-test:${stOk ? '✓' : `✗(exit=${rSt.status} 尾=${((rSt.stdout || '') + (rSt.stderr || '')).slice(-100).replace(/\n/g, ' ')})`}`)
+  const fx = mkdtempSync(join(tmpdir(), 'r12-'))
+  try {
+    mkdirSync(join(fx, 'scripts', '.golden'), { recursive: true })
+    const baseFile = join(fx, 'scripts', '.golden', 'terms-baseline.json')
+    writeFileSync(baseFile, JSON.stringify({ schemaVersion: 1, files: { 'SKILL.md': { 烤验: 1 } } }), 'utf8') // 基线 1 组 1 次
+    const surf = join(fx, 'SKILL.md'); writeFileSync(surf, '烤验现场\n', 'utf8') // 面文件恰含该 1 次命中
+    const rPass = r12Run([termsCmd, '--root', fx])
+    const passOk = rPass.status === 0
+    if (!passOk) ok = false
+    det.push(`②棘轮通过:${passOk ? '✓' : `✗(exit=${rPass.status})`}`)
+    writeFileSync(surf, '烤验现场\n回炉现场\n', 'utf8') // 基线外新词命中（基线不变）
+    const rNew = r12Run([termsCmd, '--root', fx])
+    const newOk = rNew.status !== 0 && (rNew.stdout || '').includes('新增 ×1')
+    if (!newOk) ok = false
+    det.push(`③新增红:${newOk ? '✓(非0+汇总 新增 ×1)' : `✗(exit=${rNew.status})`}`)
+    const before = readFileSync(baseFile, 'utf8')
+    const rUpd = r12Run([termsCmd, '--root', fx, '--update']) // 新增>0 态下跑 --update
+    const after = readFileSync(baseFile, 'utf8')
+    const updOk = rUpd.status === 1 && before === after
+    if (!updOk) ok = false
+    det.push(`④防洗白:${updOk ? '✓(拒冻+基线件未改写)' : `✗(exit=${rUpd.status}/改写=${before !== after})`}`)
+  } finally { rmSync(fx, { recursive: true, force: true }) }
+  record('R12', ok, `词表棘轮——${det.join(' ')}`)
 }
 
 const fails = results.filter((r) => !r.pass).length

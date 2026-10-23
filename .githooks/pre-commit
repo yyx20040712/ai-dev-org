@@ -8,7 +8,7 @@ set -u
 ROOT=$(git rev-parse --show-toplevel) || exit 1
 cd "$ROOT" || exit 1
 fail=0
-for s in check-hardcode check-anchors; do
+for s in check-hardcode check-anchors check-terms; do
   if [ "$s" = "check-hardcode" ]; then
     out=$(node "scripts/$s.mjs" --strict 2>&1)
   else
@@ -37,5 +37,5 @@ if [ -n "$c1hit" ]; then
   fail=1
 fi
 node scripts/org-config.mjs validate >/dev/null 2>&1 || { echo "[pre-commit] org-config validate 失败 —— 阻断提交"; fail=1; }
-[ "$fail" -eq 0 ] && echo "[pre-commit] 快扫通过（hardcode-strict/anchors/C1 严式/validate）"
+[ "$fail" -eq 0 ] && echo "[pre-commit] 快扫通过（hardcode-strict/anchors/terms 棘轮/C1 严式/validate）"
 exit "$fail"
