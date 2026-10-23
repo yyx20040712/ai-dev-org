@@ -25,6 +25,111 @@
       "rule": "业务代码第一笔提交前，先让仓库、门禁命令与最小测试各跑通一次。",
       "file": "constraints/01-context.md",
       "line": 8
+    },
+    {
+      "id": "C-VER-03",
+      "title": "新测试必须先失败一次",
+      "category": "verification",
+      "triggers": [
+        "新增测试",
+        "修改断言",
+        "修复缺陷"
+      ],
+      "paths": [
+        "**/*.test.*",
+        "**/tests/**"
+      ],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "machine",
+      "rule": "新写的测试必须先失败一次，再通过。只看到通过、没有看到失败，视为未验证。",
+      "file": "constraints/02-verification.md",
+      "line": 8
+    },
+    {
+      "id": "C-ARC-02",
+      "title": "状态机先列态空间与事件",
+      "category": "architecture",
+      "triggers": [
+        "新增状态机",
+        "改状态迁移",
+        "跨步骤流程"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "写状态机前先列出全部状态、事件与迁移表，并逐条走查跨步骤序列。",
+      "file": "constraints/03-architecture.md",
+      "line": 8
+    },
+    {
+      "id": "C-COL-06",
+      "title": "偏离任务书必须逐条申报",
+      "category": "collaboration",
+      "triggers": [
+        "任务书执行",
+        "返工",
+        "自裁处置"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer",
+        "adjudicator"
+      ],
+      "phases": [
+        "implement",
+        "review",
+        "adjudicate"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "偏离任务书的任何处置都在报告中逐条写明位置、理由与影响，没有偏离也要写无。",
+      "file": "constraints/04-collaboration.md",
+      "line": 8
+    },
+    {
+      "id": "C-DOC-04",
+      "title": "规范与校验器必须同步演进",
+      "category": "documentation",
+      "triggers": [
+        "改规范",
+        "改校验脚本",
+        "新增机检"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "新增规范条款时，能机检的同批落成校验项，不能机检的写明人工判据。",
+      "file": "constraints/05-documentation.md",
+      "line": 8
     }
   ],
   "routes": {
