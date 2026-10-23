@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "cards": [
+    {
+      "id": "C-CTX-01",
+      "title": "先建基线再写业务代码",
+      "category": "context",
+      "triggers": [
+        "新项目",
+        "开工",
+        "基线",
+        "第一笔提交"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor"
+      ],
+      "phases": [
+        "design",
+        "implement"
+      ],
+      "severity": "blocking",
+      "enforcement": "checklist",
+      "rule": "业务代码第一笔提交前，先让仓库、门禁命令与最小测试各跑通一次。",
+      "file": "constraints/01-context.md",
+      "line": 8
+    }
+  ],
+  "routes": {
+    "fix": [
+      "01-context",
+      "02-verification",
+      "03-architecture",
+      "04-collaboration",
+      "06-environment"
+    ],
+    "refactor": [
+      "03-architecture",
+      "02-verification",
+      "01-context",
+      "06-environment",
+      "04-collaboration"
+    ],
+    "review": [
+      "02-verification",
+      "04-collaboration",
+      "03-architecture",
+      "05-documentation"
+    ],
+    "design": [
+      "01-context",
+      "03-architecture",
+      "04-collaboration",
+      "05-documentation"
+    ],
+    "doc": [
+      "05-documentation",
+      "01-context",
+      "03-architecture"
+    ],
+    "data": [
+      "02-verification",
+      "03-architecture",
+      "06-environment",
+      "05-documentation"
+    ],
+    "env": [
+      "06-environment",
+      "07-orchestration",
+      "02-verification"
+    ],
+    "orchestrate": [
+      "07-orchestration",
+      "04-collaboration",
+      "01-context"
+    ],
+    "close": [
+      "01-context",
+      "02-verification",
+      "03-architecture",
+      "04-collaboration",
+      "05-documentation",
+      "06-environment",
+      "07-orchestration"
+    ]
+  }
+}
