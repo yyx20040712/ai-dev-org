@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 // constraint-index.mjs — 约束树索引器（P8a）。
 // gen 重建 constraints/index.json；check 跑七条并逐字节比对；query 读索引过滤排序。
-// --self-test 六向量（夹具落 os.tmpdir()，finally 清理，不写技能仓）。
+// --self-test 十三向量（夹具落 os.tmpdir()，finally 清理，不写技能仓）。
 // frontmatter 子集解析自写（零新依赖）：仅支持任务书 §5.2 形态，其余一律带 file:line 报错。
 // 退出码口径单源=references/06 §5.8（此处不复写映射）。
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
+import { spawnSync } from 'node:child_process'
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const SKILL_ROOT = resolve(SCRIPT_DIR, '..')
 const BOOK_RE = /^0([1-7])-([a-z]+)\.md$/
@@ -24,6 +25,10 @@ const ROUTES = {
   env: ['06-environment', '07-orchestration', '02-verification'], orchestrate: ['07-orchestration', '04-collaboration', '01-context'], close: ['01-context', '02-verification', '03-architecture', '04-collaboration', '05-documentation', '06-environment', '07-orchestration'],
 }
 class UsageError extends Error {} class LoadError extends Error {}
+export function arityError(cmd, argv) {
+  if ((cmd === 'gen' || cmd === 'check' || cmd === '--self-test') && Array.isArray(argv) && argv.length > 1) return `${cmd} 不接受参数`
+  return null
+}
 class ParseError extends Error { constructor(file, line, msg, id) { super(`${file}:${line} ${msg}`); this.file = file; this.line = line; this.id = id } }
 const val = (raw, file, line, whole) => {
   const v = raw.trim()
@@ -284,6 +289,19 @@ function selfTest() {
     add('6 query 过滤负例：--role executor 输出由 2 降到 1 且命中含 executor 的卡；无命中角色输出=0',
       all6[0] === '候选=2 命中=2 输出=2' && one6[0] === '候选=2 命中=1 输出=1' && one6.length === 3 && one6[2].includes('C-CTX-01') && none6[0] === '候选=2 命中=0 输出=0' && none6.length === 2,
       JSON.stringify([all6[0], one6[0], none6[0]]))
+    // 向量 7–13：check#4 册上限、check#1 字段子分支（缺必填/title/triggers/枚举/evidence）、多余参数
+    const vroot = (text) => { const r = mkdtempSync(join(tmp, 'v-')); mkdirSync(join(r, 'constraints')); writeFileSync(join(r, 'constraints', '01-context.md'), text, 'utf8'); const x = loadCardsSafe(r); return runChecks(r, x.files, x.cards, x.findings) }
+    const card7 = (title = '甲') => CARD_HEAD('C-CTX-01', title, 'context', 'planner', 'design', 'warning', 'checklist', '打勾', '规则甲。')
+    const base7 = card7(), n1 = (text, n = 1) => vroot(text).filter((f) => f.check === n).length
+    const drop = (k) => base7.replace(new RegExp(`^${k}:.*\\n`, 'm'), ''), set = (a, b) => base7.replace(a, b)
+    const many = (n) => Array.from({ length: n }, (_, i) => CARD_HEAD(`C-CTX-${String(i + 1).padStart(2, '0')}`, `卡${i + 1}`, 'context', 'planner', 'design', 'warning', 'checklist', '打勾', '规则。')).join('\n')
+    add('7 check#4 册上限：13 张判 FAIL、12 张不报', n1(many(13), 4) === 1 && n1(many(12), 4) === 0)
+    add('8 缺必填：roles/phases/severity 各缺一条各报 check#1', n1(drop('roles')) === 1 && n1(drop('phases')) === 1 && n1(drop('severity')) === 1)
+    add('9 title 超长：21 码点判 FAIL、20 码点不报', n1(card7('甲'.repeat(21))) === 1 && n1(card7('甲'.repeat(20))) === 0)
+    add('10 triggers 越界：1 项与 6 项各判 FAIL、2 项不报', n1(set('triggers: [开工, 基线]', 'triggers: [开工]')) === 1 && n1(set('triggers: [开工, 基线]', 'triggers: [开工, 基线, 甲, 乙, 丙, 丁]')) === 1 && n1(base7) === 0)
+    add('11 枚举非法：roles/phases/severity/enforcement 各报 check#1', [['roles: [planner]', 'roles: [wizard]'], ['phases: [design]', 'phases: [launch]'], ['severity: warning', 'severity: critical'], ['enforcement: checklist', 'enforcement: auto']].every(([a, b]) => n1(set(a, b)) === 1))
+    add('12 evidence 为空：数组空判 FAIL、完整卡不报', n1(base7.replace(/^evidence:\n(?: {2,}.*\n)+/m, 'evidence: []\n')) === 1 && n1(base7) === 0)
+    add('13 多余参数：arityError 判定 + 子进程 check 带多余参数报用法错', arityError('--self-test', ['--self-test', 'foo']) === '--self-test 不接受参数' && arityError('gen', ['gen', 'x']) === 'gen 不接受参数' && arityError('query', ['query', '--task', 'fix']) === null && spawnSync(process.execPath, [process.argv[1], 'check', 'x'], { encoding: 'utf8' }).status === 1)
   } finally { rmSync(tmp, { recursive: true, force: true }) }
   const fail = cases.filter((c) => !c.ok).length
   return { cases, fail }
@@ -293,14 +311,15 @@ function usage() { console.error('用法：node scripts/constraint-index.mjs gen
 
 function main() {
   const argv = process.argv.slice(2), cmd = argv[0]
-  if (cmd === '--self-test') {
-    const { cases, fail } = selfTest()
-    for (const c of cases) if (!c.ok) console.log(`[self-test] FAIL ${c.name}${c.detail ? `（${c.detail}）` : ''}`)
-    console.log(fail === 0 ? `self-test 全过（${cases.length} 向量）` : `[self-test] FAIL ×${fail}`)
-    process.exit(fail === 0 ? 0 : 1)
-  }
   try {
-    if ((cmd === 'gen' || cmd === 'check') && argv.length > 1) throw new UsageError(`${cmd} 不接受参数`)
+    const arity = arityError(cmd, argv)
+    if (arity) throw new UsageError(arity)
+    if (cmd === '--self-test') {
+      const { cases, fail } = selfTest()
+      for (const c of cases) if (!c.ok) console.log(`[self-test] FAIL ${c.name}${c.detail ? `（${c.detail}）` : ''}`)
+      console.log(fail === 0 ? `self-test 全过（${cases.length} 向量）` : `[self-test] FAIL ×${fail}`)
+      process.exit(fail === 0 ? 0 : 1)
+    }
     if (cmd === 'gen') {
       const { files, cards, findings } = loadCardsSafe(SKILL_ROOT)
       if (findings.length) { for (const f of findings) console.error(`[FAIL] check#${f.check} ${f.file}:${f.line} ${f.id} ${f.msg}`); process.exit(1) }
