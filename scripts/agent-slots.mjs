@@ -638,7 +638,8 @@ function selfTest() {
   const a30 = resolveAlias('ops-auditor', aliasMatrix, aliasCfg22, '2026-10-22')
   t('向量30 ops-auditor → ops-reviewer-699-max', a30?.slot === 'ops-reviewer-699-max' && a30?.role === 'reviewer')
   const a31 = resolveAlias('ops-adjudicator', aliasMatrix, aliasCfg22, '2026-10-22')
-  t('向量31 ops-adjudicator → ops-adjudicator-699-max', a31?.slot === 'ops-adjudicator-699-max' && a31?.role === 'adjudicator')
+  const exp31 = `ops-adjudicator-${aliasMatrix.roles.adjudicator.default}-${aliasMatrix.roles.adjudicator.level}`
+  t('向量31 ops-adjudicator → 矩阵 default 派生槽名', a31?.slot === exp31 && a31?.role === 'adjudicator')
   const a32 = resolveAlias('ops-probe', aliasMatrix, aliasCfg22, '2026-10-22')
   t('向量32 ops-probe → ops-diagnostics-ds-max', a32?.slot === 'ops-diagnostics-ds-max' && a32?.role === 'diagnostics')
   const a33 = resolveAlias('ops-diagnostics', aliasMatrix, aliasCfg22, '2026-10-22')

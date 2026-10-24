@@ -59,7 +59,9 @@ providers 双校验不符或占位拒验（deploy-check ③ FAIL / validate 输�
 alias/期望/实际三元组或「尚未本机化」指引）时：**首选填本机件**
 `org-config.local.json` 各源实值（uuid_prefix=宿主注册表条目 id 前 8
 字符/entry_name=条目名/kind/billing/model_family——deploy-check
---install 动作③a 可脚手架），或建项目覆盖件 `.zcode/org-config.json`
+--install 动作③a 可脚手架；uuid_prefix 第二形态=账户计划源
+`account:<计划名>`，计划名须列入顶层 account_plan_allowlist 本机允许清单，
+不走宿主注册表双命中），或建项目覆盖件 `.zcode/org-config.json`
 深合并覆盖。宿主 config（key/端点事实）**永不改、不入库**。
 
 自动化路（deploy-check --install 动作③，g3 批 v1.7.6）：从宿主供应商注册表

@@ -162,11 +162,11 @@
         "zipoo",
         "ds"
       ],
-      "default": "699",
+      "default": "zipoo",
       "fallback": [
+        "zipoo",
         "699",
         "yyx",
-        "zipoo",
         "glm",
         "glmflash",
         "ds"

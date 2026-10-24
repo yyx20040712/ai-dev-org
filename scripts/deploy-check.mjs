@@ -496,7 +496,7 @@ export function installLocalConfig(defaultCfg, localPath) {
   }
   const providerAliases = Object.keys(defaultCfg?.providers || {})
   const payload = {
-    note: '本机个人事实层（deploy-check --install 脚手架，v2.1.0 三层化批·最小骨架）——用户配置域，装后自由改写。填法：①providers 各源（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名/kind/billing/model_family——五键全填，model_family 缺=validate 拒）；②agent_bindings（绑定岗实值，键=代理名=templates/agents 文件名，值=<uuid>/<model>$<档位>——四绑定模板渲染消费）；③vision_channels 通道实值；④projects 映射。填后复跑 deploy-check；指引=DEPLOY.md §3/PACKAGING.md',
+    note: '本机个人事实层（deploy-check --install 脚手架，v2.1.0 三层化批·最小骨架）——用户配置域，装后自由改写。填法：①providers 各源（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名/kind/billing/model_family——五键全填，model_family 缺=validate 拒；uuid_prefix 第二形态=账户计划源 `account:<计划名>`，计划名须列入顶层 account_plan_allowlist 本机允许清单，不走宿主注册表双命中）；②agent_bindings（绑定岗实值，键=代理名=templates/agents 文件名，值=<uuid>/<model>$<档位>——四绑定模板渲染消费）；③vision_channels 通道实值；④projects 映射。填后复跑 deploy-check；指引=DEPLOY.md §3/PACKAGING.md',
     providers: Object.fromEntries(providerAliases.map((a) => [a, { uuid_prefix: 'TODO', entry_name: 'TODO', note: '填本机实值（五键）' }])),
     agent_bindings: { note: '绑定岗实值（键=代理名）' },
     vision_channels: { note: '通道实值（model/endpoint_contains/prefer_hosts/stream）' },
