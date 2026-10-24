@@ -204,7 +204,7 @@ export function slotRows(cfg) {
 }
 
 /** doctor 八项检查：返回 [{level, code, line}]（空=通过）。
- *  D4 在 P4 阶段预期红色（34 个新 slot 尚无绑定，P5 补）；本函数如实报出，不放宽。 */
+ *  D4 在 P4 阶段预期红色（矩阵派生的全部新 slot 尚无绑定，P5 补）；本函数如实报出，不放宽。 */
 export function doctorFindings(matrix, cfg, opts = {}) {
   const findings = []
   const add = (level, code, line) => findings.push({ level, code, line })
@@ -218,13 +218,16 @@ export function doctorFindings(matrix, cfg, opts = {}) {
   const defaults = isPlainObject(cfg?.agent_defaults) ? cfg.agent_defaults : {}
   const fallbacks = isPlainObject(cfg?.role_fallbacks) ? cfg.role_fallbacks : {}
 
-  // D1：矩阵七岗齐全、slot 数=34、命名合法
+  // D1：矩阵七岗齐全、slot 数=独立算式期望、命名合法。
+  // 期望值=Σ roles[role].providers.length（verify-docs 矩阵计数检查既有口径，L19 派生化
+  // ——禁用 slotsFromMatrix 输出长度作期望值：自指恒真=计数检查静默失效，r1-W1）。
+  const expectedSlots = ROLE_ORDER.reduce((n, r) => n + (Array.isArray(roles[r]?.providers) ? roles[r].providers.length : 0), 0)
   for (const role of ROLE_ORDER) if (!own(roles, role)) add('FAIL', 'D1', `矩阵缺角色「${role}」——七岗须齐全（${ROLE_ORDER.join(', ')}）`)
   for (const role of Object.keys(roles)) if (!ROLE_ORDER.includes(role)) add('FAIL', 'D1', `矩阵含未知角色「${role}」——只允许 ${ROLE_ORDER.join(', ')}`)
   let slots = []
   try { slots = slotsFromMatrix(matrix) } catch (e) { add('FAIL', 'D1', `矩阵无法派生 slot：${e.message}`) }
   for (const s of slots.filter((x) => !SLOT_NAME_RE.test(x.slot))) add('FAIL', 'D1', `slot 名「${s.slot}」不合命名契约 ops-<role>-<provider>-<level>`)
-  if (slots.length !== 34) add('FAIL', 'D1', `slot 数=${slots.length}≠34（6×5+2+2）`)
+  if (slots.length !== expectedSlots) add('FAIL', 'D1', `slot 数=${slots.length}≠独立算式期望 ${expectedSlots}（Σ roles[role].providers.length）`)
 
   // D2：cfg.agent_slots 键集与矩阵派生 slot 集相等（无孤儿、无缺失）
   const matrixSet = new Set(slots.map((s) => s.slot))
@@ -305,7 +308,7 @@ export function doctorFindings(matrix, cfg, opts = {}) {
   for (const role of Object.keys(fallbacks)) if (!ROLE_ORDER.includes(role)) add('FAIL', 'D8', `role_fallbacks 含多余角色「${role}」`)
 
   // D9（L4，WARN 不阻断）：配置面命中旧名 → 提示替换为解析后的新档名。
-  // 扫描 agent_defaults 值、role_fallbacks 全部元素、agent_bindings 键；D1–D8 判据/措辞不动。
+  // 扫描 agent_defaults 值、role_fallbacks 全部元素、agent_bindings 键；D1–D8 判据面不动（D1 计数期望已 L19 派生化）。
   // D9a（L4 r1，FAIL）：矩阵缺 aliases 分区=配置错（检测面不得静默失明）。
   const aliasTable = aliasTableOf(matrix)
   if (!aliasTable) {
@@ -661,9 +664,9 @@ function selfTest() {
   const d9At = (today) => doctorFindings(aliasMatrix, cfg41, { today }).filter((f) => f.code === 'D9')
   const d41win = d9At('2026-10-22')
   const d41post = d9At('2026-10-25')
-  t('向量41 doctor 旧名污染：窗口内(2026-10-22)建议 ops-executor-ds-high，窗口后(2026-10-25)建议 ops-executor-glm-high',
+  t('向量41 doctor 旧名污染：窗口内(2026-10-22)建议 ops-executor-ds-high，窗口后(2026-10-25)建议 ops-executor-startplan-high（L19 起 executor 默认档=startplan）',
     d41win.length === 1 && d41win[0].level === 'WARN' && d41win[0].line.includes('ops-executor-ds-high') &&
-    d41post.length === 1 && d41post[0].level === 'WARN' && d41post[0].line.includes('ops-executor-glm-high'))
+    d41post.length === 1 && d41post[0].level === 'WARN' && d41post[0].line.includes('ops-executor-startplan-high'))
   const expectAliases = ['ops-executor', 'ops-drafter', 'ops-auditor', 'ops-adjudicator', 'ops-probe', 'ops-diagnostics', 'ops-gate1-k1', 'ops-gate1-k2', 'ops-gate1-k3', 'ops-gate1-d1']
   const actualAliases = Object.keys(aliasMatrix.aliases || {})
   t('向量42 真实矩阵 aliases 键集恰为 10 个旧名（逐字比对）',

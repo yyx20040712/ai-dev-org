@@ -427,11 +427,20 @@ export function familyOf(def) {
 }
 
 /** 与宿主 config.json 交叉校验：uuid 前缀+条目名双命中。返回错误数组（空=通过）。
- *  校验 providers 全集（未入链的已声明源亦须通过——防漂移，审核链 K-N4 口径）。 */
+ *  校验 providers 全集（未入链的已声明源亦须通过——防漂移，审核链 K-N4 口径）。
+ *  L19 账户计划源分支：uuid_prefix 以 `account:` 开头（小写化）＝计划源，不走宿主
+ *  注册表双命中，改走顶层 account_plan_allowlist 本机允许清单（计划名=冒号后段，
+ *  trim 后与清单精确比对）；借道宿主注册表 builtin 同名残条＝归因造假，禁止。 */
 export function validateProviders(cfg, hostCfg) {
   const hc = hostCfg || readHostConfig()
   const entries = Object.entries(hc.provider || {})
   const errors = []
+  const allowlist = cfg?.account_plan_allowlist
+  const isPlanPrefix = (v) => typeof v === 'string' && v.trim().toLowerCase().startsWith('account:')
+  // 形态守卫：声明了 account: 源而允许清单缺失/非数组/空数组＝配置不完整（fail-closed）
+  if (Object.values(cfg?.providers || {}).some((def) => def != null && typeof def === 'object' && isPlanPrefix(def.uuid_prefix))
+    && (!Array.isArray(allowlist) || allowlist.length === 0))
+    errors.push('account_plan_allowlist 缺失/非数组/空数组——providers 存在 account: 账户计划源时本机允许清单必填（顶层键，默认件空数组由本机件覆盖）')
   for (const [alias, def] of Object.entries(cfg.providers || {})) {
     if (def == null || typeof def !== 'object') {
       errors.push(`providers.${alias} 值为 ${def === null ? 'null' : typeof def}——须为对象（uuid_prefix/entry_name）；null/非对象条目=配置损坏（evolve-E2 b4 守卫：原裸取 uuid_prefix 即 TypeError 崩溃）`)
@@ -446,6 +455,20 @@ export function validateProviders(cfg, hostCfg) {
     // family || model_family（familyOf 单源；旧键沿用 model_family 不破）。
     if (!familyOf(def))
       errors.push(`providers.${alias} 缺 model_family（family/model_family 二者之一须为非空字符串）——standing_pair/跨门同族核对消费此键（org-config source_health），缺键=异构校验静默降级；本机件补填`)
+    // L19 计划源分支（先于注册表双命中）：account:<计划名> 走本机允许清单，
+    // 通过即跳过双命中；既有注册表源路径行为零变化。
+    if (isPlanPrefix(def.uuid_prefix)) {
+      const plan = def.uuid_prefix.trim().toLowerCase().slice('account:'.length).trim()
+      const planOk = !!plan && Array.isArray(allowlist)
+        && allowlist.some((x) => typeof x === 'string' && x.trim().toLowerCase() === plan)
+      if (!planOk)
+        errors.push(
+          `账户计划源 alias=${alias}（uuid_prefix=${def.uuid_prefix}）未通过本机允许清单校验——` +
+            `account:<计划名> 前缀类不走宿主注册表双命中，计划名须列入顶层 account_plan_allowlist（本机件）后重跑 validate；` +
+            `借道宿主注册表 builtin 同名残条＝归因造假，禁止`,
+        )
+      continue
+    }
     const hit = entries.find(([id, p]) => id.startsWith(def.uuid_prefix) && p && p.name === def.entry_name)
     if (!hit) {
       const near = entries.find(([id]) => id.startsWith(def.uuid_prefix))
@@ -740,6 +763,14 @@ if (isMain) {
     t('v2.1.0 占位源→尚未本机化指引错误行（不进双校验）', vpTodo.some((e) => e.includes('providers.demo') && e.includes('尚未本机化') && e.includes('org-config.local.json')))
     const vpNoFam = validateProviders({ providers: { demo: { uuid_prefix: 'aaaaaaaa', entry_name: 'E-A', model_family: undefined } } }, { provider: { 'aaaaaaaa-1111': { name: 'E-A' } } })
     t('v2.1.0 回炉：非占位源缺 model_family→错误行（异族校验消费面）', vpNoFam.some((e) => e.includes('providers.demo 缺 model_family')))
+    // L19 账户计划源向量：account:<计划名> 前缀走本机允许清单（不走宿主注册表双命中）；
+    // 夹具全合成计划名/空宿主注册表（计划源不消费注册表——空注册表也应命中通过）。
+    const planHost = { provider: {} }
+    t('L19 计划源①：account: 前缀＋清单命中→零错误（空注册表通过＝跳过双命中）', validateProviders({ providers: { startplan: { uuid_prefix: 'account:bigmodel-start-plan', entry_name: 'Start Plan', family: 'glm' } }, account_plan_allowlist: ['bigmodel-start-plan'] }, planHost).length === 0)
+    t('L19 计划源②：allowlist 缺失→错误行（守卫点名键名）', (() => { const e = validateProviders({ providers: { startplan: { uuid_prefix: 'account:x-plan', entry_name: 'P', family: 'glm' } } }, planHost); return e.some((m) => m.includes('account_plan_allowlist')) })())
+    t('L19 计划源③：计划名不在清单→错误行（点名 alias 与键名）', (() => { const e = validateProviders({ providers: { startplan: { uuid_prefix: 'account:x-plan', entry_name: 'P', family: 'glm' } }, account_plan_allowlist: ['other-plan'] }, planHost); return e.some((m) => m.includes('alias=startplan') && m.includes('account_plan_allowlist') && m.includes('归因造假')) })())
+    t('L19 计划源④：allowlist 非数组→错误行（形态守卫 fail-closed）', (() => { const e = validateProviders({ providers: { startplan: { uuid_prefix: 'account:x-plan', entry_name: 'P', family: 'glm' } }, account_plan_allowlist: 'x-plan' }, planHost); return e.some((m) => m.includes('account_plan_allowlist')) })())
+    t('L19 计划源⑤回归：注册表源既有行为不变（非 account: 前缀仍走双命中——命中零错/不命中报错）', validateProviders({ providers: { demo: { uuid_prefix: 'reg9999', entry_name: 'E-R', model_family: 'kimi' } } }, { provider: { 'reg9999-0000': { name: 'E-R' } } }).length === 0 && validateProviders({ providers: { demo: { uuid_prefix: 'reg9999', entry_name: 'E-R', model_family: 'kimi' } } }, { provider: {} }).length === 1)
     t('v2.1.0 跨门对：合法二元对（真模板名）→零错误', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-reviewer-ds-max', 'ops-adjudicator-699-max']] } }).length === 0)
     t('v2.1.0 跨门对：三元对→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 'b', 'c']] } }).some((e) => e.includes('cross_gate_pairs[0]')))
     t('v2.1.0 跨门对：非字符串成员→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 1]] } }).length >= 1)
@@ -1011,7 +1042,12 @@ if (isMain) {
     const winInfo = applied.length
       ? `；生效临时窗口 ${applied.length} 项：${applied.map((w) => `${w.role}→${w.slot} @${w.start}~${w.end}（到期 ${nextDayStr(w.end)} 自动回落）`).join('、')}`
       : '；无生效临时窗口'
-    console.log(`validate PASS（${Object.keys(merged.providers || {}).length} 源双校验通过+跨门对/本机事实/slot schema 校验通过，cfg:${cfgHash(merged)}）${winInfo}`)
+    // L19：注册表源与账户计划源分列计数——无计划源时维持原「N 源双校验通过」语义
+    const provEntries = Object.entries(merged.providers || {})
+    const planN = provEntries.filter(([, d]) => d != null && typeof d === 'object' && String(d.uuid_prefix ?? '').trim().toLowerCase().startsWith('account:')).length
+    const regN = provEntries.length - planN
+    const srcSummary = planN > 0 ? `${regN} 源注册表双校验＋${planN} 源计划清单校验通过` : `${provEntries.length} 源双校验通过`
+    console.log(`validate PASS（${srcSummary}+跨门对/本机事实/slot schema 校验通过，cfg:${cfgHash(merged)}）${winInfo}`)
   } else {
     console.error('用法: node org-config.mjs [--project <dir>] resolve|hash|validate|--self-test')
     process.exit(1)

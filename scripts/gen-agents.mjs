@@ -1,9 +1,10 @@
 /**
  * gen-agents —— 按逻辑矩阵生成待位代理模板（P4）。
  * 职责：
- *   ① templates/agents.matrix.json 装载与契约校验（七岗/六源/默认与回退序/工具面/
+ *   ① templates/agents.matrix.json 装载与契约校验（七岗/七源/默认与回退序/工具面/
  *      vision 多模态约束）；
- *   ② 由 role × provider 派生 34 个 slot（ops-<role>-<provider>-<level>）；
+ *   ② 由 role × provider 派生 slot（ops-<role>-<provider>-<level>；总数=矩阵派生，
+ *      L19 起自检期望以独立算式 Σ roles[role].providers.length 复算，不写死）；
  *   ③ 以 templates/agents/_roles/<role>.md 为正文母本生成待位模板——frontmatter
  *      只写 `model: {{binding:<slot>}}` 占位与 `thoughtLevel`，不写真实模型值
  *      （03 §2 唯一来源规则；部署期由 deploy-check --sync-agents 按本机件渲染）；
@@ -471,11 +472,16 @@ function selfTest() {
   }
   const built = slots.map((def) => ({ def, text: buildSlotTemplate(matrix, def, bodies.get(def.role)) }))
 
-  // 向量1：34 个 slot
-  t('向量1 slotsFromMatrix 总数=34', slots.length === 34)
-  // 向量2：各角色 slot 数
-  t('向量2 各角色 slot 数（6×5+2+2）', ROLE_ORDER.every((role) => {
-    const want = ['vision', 'diagnostics'].includes(role) ? 2 : 6
+  // L19 派生化：期望 slot 总数=独立算式复算（Σ roles[role].providers.length——verify-docs
+  // 矩阵计数检查既有口径；禁用 slotsFromMatrix 输出长度作期望值：自指恒真=计数检查
+  // 静默失效，r1-W1）。
+  const expectedSlots = ROLE_ORDER.reduce((n, r) => n + (Array.isArray(matrix.roles[r]?.providers) ? matrix.roles[r].providers.length : 0), 0)
+
+  // 向量1：slot 总数=独立算式期望
+  t('向量1 slotsFromMatrix 总数=独立算式期望（Σ roles[role].providers.length）', slots.length === expectedSlots)
+  // 向量2：各角色 slot 数=该角色矩阵候选数
+  t('向量2 各角色 slot 数=矩阵分角色候选数', ROLE_ORDER.every((role) => {
+    const want = Array.isArray(matrix.roles[role]?.providers) ? matrix.roles[role].providers.length : -1
     return slots.filter((s) => s.role === role).length === want
   }))
   // 向量3：命名合法
@@ -513,7 +519,7 @@ function selfTest() {
   const m1 = buildManifest(entries, '2026-10-22')
   const m2 = buildManifest(entries, '2026-10-22')
   const keys = Object.keys(m1.files)
-  t('向量9 buildManifest 两次字节相同且条目按 slot 排序', JSON.stringify(m1) === JSON.stringify(m2) && keys.length === 34 && keys.every((k, i) => i === 0 || keys[i - 1] < k))
+  t('向量9 buildManifest 两次字节相同且条目按 slot 排序', JSON.stringify(m1) === JSON.stringify(m2) && keys.length === expectedSlots && keys.every((k, i) => i === 0 || keys[i - 1] < k))
   // 向量10：非法矩阵逐项抛错并点名
   const base = JSON.parse(JSON.stringify(matrix))
   const badCases = []
@@ -539,14 +545,14 @@ function selfTest() {
     const r = generateAgents({ matrix, roleDir: ROLES_DIR, outDir: fxDry, dryRun: true, generatedAt: '2026-10-22' })
     t('向量11 --dry-run 在临时目录不产生任何文件', r.written === 0 && r.errors.length === 0 && readdirSync(fxDry).length === 0)
   } finally { rmSync(fxDry, { recursive: true, force: true }) }
-  // 向量12：写入 35 件并回读 hash
+  // 向量12：写入 N=期望+1 件（含 manifest）并回读 hash
   const fxWrite = mkdtempSync(join(tmpdir(), 'gen-agents-write-'))
   try {
     const r = generateAgents({ matrix, roleDir: ROLES_DIR, outDir: fxWrite, generatedAt: '2026-10-22' })
     const files = readdirSync(fxWrite)
     const manifest = JSON.parse(readFileSync(join(fxWrite, '.manifest.json'), 'utf8'))
     const hashOk = Object.entries(manifest.files).every(([name, hash]) => sha256Text(readFileSync(join(fxWrite, name), 'utf8')) === hash)
-    t('向量12 写入 fixture=35 件且每件回读 sha256=manifest', r.written === 34 && r.errors.length === 0 && files.length === 35 && hashOk)
+    t('向量12 写入 fixture=期望+1 件且每件回读 sha256=manifest', r.written === expectedSlots && r.errors.length === 0 && files.length === expectedSlots + 1 && hashOk)
   } finally { rmSync(fxWrite, { recursive: true, force: true }) }
   // 向量13：全或无（注入未替换占位 → 0 件写入）
   const fxRole = mkdtempSync(join(tmpdir(), 'gen-agents-role-'))
@@ -565,7 +571,7 @@ function selfTest() {
   try {
     writeFileSync(join(fxLegacy, 'ops-executor.md'), 'LEGACY-CONTENT\n')
     const r = generateAgents({ matrix, roleDir: ROLES_DIR, outDir: fxLegacy, generatedAt: '2026-10-22' })
-    t('向量14 既有 legacy 模板不覆盖/不删除（生成后原内容不变）', r.errors.length === 0 && readFileSync(join(fxLegacy, 'ops-executor.md'), 'utf8') === 'LEGACY-CONTENT\n' && readdirSync(fxLegacy).length === 36)
+    t('向量14 既有 legacy 模板不覆盖/不删除（生成后原内容不变）', r.errors.length === 0 && readFileSync(join(fxLegacy, 'ops-executor.md'), 'utf8') === 'LEGACY-CONTENT\n' && readdirSync(fxLegacy).length === expectedSlots + 2)
   } finally { rmSync(fxLegacy, { recursive: true, force: true }) }
   // 向量15：color 固定映射
   t('向量15 color 按角色固定映射', built.every(({ def, text }) => frontmatterValue(text, 'color') === ROLE_COLORS[def.role]))
@@ -683,11 +689,11 @@ function selfTest() {
     t('向量24 CLI 写盘失败（--out 父级为文件）→ 进程 status≠0 且输出含 [FAIL] 与暂存失败语义',
       s24.status !== 0 && out24.includes('[FAIL]') && out24.includes('最终目录未动'))
   } finally { rmSync(fxCliFail, { recursive: true, force: true }) }
-  // 向量25（W5）：CLI 正常写入 → status=0 且 fixture 35 件（暂存目录已清理）
+  // 向量25（W5）：CLI 正常写入 → status=0 且 fixture 期望+1 件（暂存目录已清理）
   const fxCliOk = mkdtempSync(join(tmpdir(), 'gen-agents-cli-ok-'))
   try {
     const s25 = spawnSync(process.execPath, [scriptPath, '--out', fxCliOk], { cwd: SKILL_ROOT, encoding: 'utf8' })
-    t('向量25 CLI 正常写入 → status=0 且 fixture 35 件', s25.status === 0 && readdirSync(fxCliOk).length === 35)
+    t('向量25 CLI 正常写入 → status=0 且 fixture 期望+1 件', s25.status === 0 && readdirSync(fxCliOk).length === expectedSlots + 1)
   } finally { rmSync(fxCliOk, { recursive: true, force: true }) }
   // 向量26（W3/W-new3 R2-8）：未识别 flag 拒收——spawn 追加 --out 临时 fixture 与
   //  --dry-run，确保拒收若回归也只会落临时目录，不会碰真实 templates/agents/
@@ -750,7 +756,7 @@ function selfTest() {
     const r30 = generateAgents({ matrix, roleDir: ROLES_DIR, outDir: fxClean, generatedAt: '2026-10-22', faultStagingCleanup: true })
     leftoverPath = r30.stagingLeftover || null
     t('向量30 暂存清理失败注入 → 提交成功仍带 stagingLeftover 与 warn 级说明（禁静默）',
-      r30.written === 34 && r30.errors.length === 0 && typeof r30.stagingLeftover === 'string'
+      r30.written === expectedSlots && r30.errors.length === 0 && typeof r30.stagingLeftover === 'string'
       && r30.stagingLeftover.includes('.staging-') && (r30.warnings || []).some((w) => w.startsWith('[warn]') && w.includes('清理失败')))
   } finally {
     if (leftoverPath) rmSync(leftoverPath, { recursive: true, force: true })
