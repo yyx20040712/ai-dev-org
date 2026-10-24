@@ -92,7 +92,7 @@
     "research": "ops-research-glmflash-high",
     "planner": "ops-planner-699-max",
     "executor": "ops-executor-glmflash-high",
-    "reviewer": "ops-reviewer-yyx-max",
+    "reviewer": "ops-reviewer-699-max",
     "adjudicator": "ops-adjudicator-zipoo-max",
     "vision": "ops-vision-glmflash-max",
     "diagnostics": "ops-diagnostics-ds-max"
@@ -103,7 +103,7 @@
     "research": ["ops-research-glmflash-high", "ops-research-glm-high", "ops-research-699-high", "ops-research-yyx-high", "ops-research-zipoo-high", "ops-research-ds-high"],
     "planner": ["ops-planner-699-max", "ops-planner-yyx-max", "ops-planner-zipoo-max", "ops-planner-glm-max", "ops-planner-glmflash-max", "ops-planner-ds-max"],
     "executor": ["ops-executor-glmflash-high", "ops-executor-glm-high", "ops-executor-699-high", "ops-executor-yyx-high", "ops-executor-zipoo-high", "ops-executor-ds-high"],
-    "reviewer": ["ops-reviewer-yyx-max", "ops-reviewer-699-max", "ops-reviewer-ds-max", "ops-reviewer-zipoo-max", "ops-reviewer-glm-max", "ops-reviewer-glmflash-max"],
+    "reviewer": ["ops-reviewer-699-max", "ops-reviewer-yyx-max", "ops-reviewer-ds-max", "ops-reviewer-zipoo-max", "ops-reviewer-glm-max", "ops-reviewer-glmflash-max"],
     "adjudicator": ["ops-adjudicator-zipoo-max", "ops-adjudicator-699-max", "ops-adjudicator-yyx-max", "ops-adjudicator-glm-max", "ops-adjudicator-glmflash-max", "ops-adjudicator-ds-max"],
     "vision": ["ops-vision-glmflash-max", "ops-vision-ds-max"],
     "diagnostics": ["ops-diagnostics-ds-max", "ops-diagnostics-glmflash-max"]
