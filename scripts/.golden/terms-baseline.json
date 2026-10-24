@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "frozen": "2026-10-24",
+  "frozen": "2026-10-25",
   "surface": [
     "SKILL.md",
     "references/*.md",
@@ -12,23 +12,6 @@
   "files": {
     "DEPLOY.md": {
       "战役": 1
-    },
-    "references/00-glossary.md": {
-      "收口": 5,
-      "编制": 2,
-      "呈报": 1,
-      "三屋模式": 1,
-      "回炉": 1,
-      "烤验": 2,
-      "门一": 1,
-      "门二": 1,
-      "红线": 4,
-      "换源": 1,
-      "纯净化批": 1,
-      "档案": 1,
-      "欠账": 3,
-      "归档区": 1,
-      "册": 1
     },
     "references/01-org-principles.md": {
       "回炉": 2,
@@ -70,17 +53,6 @@
     },
     "references/03-machine-enforcement.md": {
       "收口": 1
-    },
-    "references/04-lessons.md": {
-      "战役": 4,
-      "回炉": 5,
-      "收口": 4,
-      "门一": 3,
-      "拟定者": 1,
-      "立案": 1,
-      "欠账": 1,
-      "审核者": 2,
-      "门二": 2
     },
     "references/05-porting-guide.md": {
       "回炉": 4,
