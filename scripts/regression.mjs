@@ -427,7 +427,7 @@ if (want('R12')) {
 // ═══ L22 R13：门禁前移回归面（check-taskbook T13 词面扫描＋T14 防逃逸——四向量；样式照 R12）：
 //     脚本路径变量单点、统一 spawnSync 60s 超时 SIGKILL、tmp 夹具 finally 清理、四项 detail 一次
 //     record；不依赖账本、不写 golden、不改真实任务书、不调外部服务。四子项 PASS 判据（L22 §5.4）：
-//     ①自检子进程 status 0 且 pass=69/fail=0、T13-04 在场且过、词表提取计数 21（不得只凭 stdout「全过」）；
+//     ①自检子进程 status 0 且 pass=69/fail=0、T13-04 在场且过、词表提取计数 22（不得只凭 stdout「全过」）；
 //     ②通过态 strict 扫描 status 0 且 WARN=0/FAIL=0、T13/T14 finding 均 0、F/T12 证据链有效；
 //     ③漏检红态 strict status 1 且至少一条 check=T14 且 level=WARN（不得用无关 finding 凑红）；
 //     ④词表缺失态 status 3 且 stderr 含 [装载错]（无合成词表回退或 status 0）。 ═══
@@ -439,20 +439,20 @@ if (want('R13')) {
   // 主夹具（①-③共用；finally 清理，--keep-tmp 不适用本块——与 R12 同款直接清理）
   const fx = mkdtempSync(join(tmpdir(), 'r13-'))
   try {
-    // ①自检子进程（隔离态）：status 0、pass=69/fail=0、T13-04 在场且过、词表提取计数 21
-    // （计数经 T13-04 向量名内 BANNED=21 断言承载——隔离态夹具=21 合成 token，见该向量）
+    // ①自检子进程（隔离态）：status 0、pass=69/fail=0、T13-04 在场且过、词表提取计数 22
+    // （计数经 T13-04 向量名内 BANNED=22 断言承载——隔离态夹具=22 合成 token，见该向量）
     const rSt = r13Run([tbScript, '--self-test', '--json'])
     // --json 输出逐向量断言（不得只凭 stdout「全过」字样判定）
     let st = null
     try { st = JSON.parse(rSt.stdout || '') } catch { st = null }
     const v1304 = (st?.cases || []).find((c) => String(c.name).includes('T13-04'))
-    const stOk = rSt.status === 0 && st?.pass === 69 && st?.fail === 0 && v1304?.ok === true && String(v1304?.name || '').includes('BANNED=21')
+    const stOk = rSt.status === 0 && st?.pass === 69 && st?.fail === 0 && v1304?.ok === true && String(v1304?.name || '').includes('BANNED=22')
     if (!stOk) ok = false
-    det.push(`①自检子进程:${stOk ? '✓(exit=0/pass=69/fail=0/T13-04 过且装载计数 21)' : `✗(exit=${rSt.status} pass=${st?.pass} fail=${st?.fail})`}`)
-    // ②通过态：tmp 写 21 词源夹具（tk01..tk21 形态）＋最小合法任务书＋一条五字段 F 及匹配证据
+    det.push(`①自检子进程:${stOk ? '✓(exit=0/pass=69/fail=0/T13-04 过且装载计数 22)' : `✗(exit=${rSt.status} pass=${st?.pass} fail=${st?.fail})`}`)
+    // ②通过态：tmp 写 22 词源夹具（tk01..tk22 形态）＋最小合法任务书＋一条五字段 F 及匹配证据
     // （期望：strict 扫描 status 0、WARN=0/FAIL=0、T13/T14 finding 均 0——零误报钉）
     mkdirSync(join(fx, 'scripts'), { recursive: true })
-    const tokens = Array.from({ length: 21 }, (_, i) => 'tk' + String(i + 1).padStart(2, '0'))
+    const tokens = Array.from({ length: 22 }, (_, i) => 'tk' + String(i + 1).padStart(2, '0'))
     writeFileSync(join(fx, 'scripts', 'verify-docs.mjs'), 'const BANNED = [\n' + tokens.map((t) => "  '" + t + "',").join('\n') + '\n]\n', 'utf8')
     const evFile = join(fx, 'ev.json')
     writeFileSync(evFile, JSON.stringify({ schema: 'taskbook-evidence/v1', entries: [{ id: 'F-01', exit: 0, stdout: '0\n', declared: '0', date: '2026-10-25' }] }), 'utf8')
