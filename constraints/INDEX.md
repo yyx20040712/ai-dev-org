@@ -13,8 +13,8 @@
 | 02-verification | VER | `02-verification.md` | 正式卡（P9） |
 | 03-architecture | ARC | `03-architecture.md` | 正式卡（P10） |
 | 04-collaboration | COL | `04-collaboration.md` | 正式卡（P10） |
-| 05-documentation | DOC | `05-documentation.md` | 已建（P8b） |
-| 06-environment | ENV | `06-environment.md` | 已建（P8b） |
+| 05-documentation | DOC | `05-documentation.md` | 正式卡（P11） |
+| 06-environment | ENV | `06-environment.md` | 正式卡（P11） |
 | 07-orchestration | ORC | `07-orchestration.md` | 已建（P8b） |
 
 ## 2. 任务类型路由表
@@ -72,6 +72,20 @@
 | C-COL-06 | 偏离任务书的任何处置都在报告中逐条写明位置、理由与影响，删减面附 diff 级自查，没有偏离也要写『无』。 | 任务书执行、返工、自裁处置 | executor、reviewer、adjudicator | review |
 | C-COL-07 | 审计账本以流水终态为唯一来源派生截断标记，分别记录完整、截断与失败；未知终态按非完整处理。 | 审计账本、流水终态、截断标记、未知终态 | planner、executor、reviewer | machine |
 | C-COL-08 | 修改接缝一侧时核对相邻另一侧的声明与消费；两侧互斥即停止并上报。 | 接缝、相邻声明、语义漂移、互斥 | executor、reviewer | review |
-| C-DOC-04 | 规范与校验器必须同步演进 | 改规范、改校验脚本、新增机检 | planner、executor、reviewer | checklist |
+| C-DOC-01 | 发现文档与现实矛盾时删除过时文档只留一份权威，不留两份并存。 | 文档矛盾、单一权威、README、删文档 | executor、reviewer | review |
+| C-DOC-02 | 文档不手写易过期的具体数字，数字口径写以 CI 输出为准的指针。 | 文档数字、测试数、手写数字、CI | planner、executor、reviewer | review |
+| C-DOC-03 | 中文内容统一 UTF-8；写入后用工具读回验证可读，乱码即未验证。 | 编码、乱码、中文文档、UTF-8 | executor、reviewer | checklist |
+| C-DOC-04 | 新增规范条款时，能机检的同批落成校验项，不能机检的写明人工判据。 | 改规范、改校验脚本、新增机检 | planner、executor、reviewer | checklist |
+| C-DOC-05 | 每类事实只写入寻址表指定的唯一真相源，他处引用用指针不在正文抄写。 | 唯一真相源、寻址表、双源、正文抄写 | planner、executor、reviewer | review |
+| C-DOC-06 | 历史件只追加或归档，禁原地改写；发现错误新增勘误件引用原位置。 | 历史记录、改写、勘误、追加 | executor、reviewer、adjudicator | review |
+| C-DOC-07 | API 明细由代码注解与生成命令产出，禁手抄端点清单。 | API 文档、生成命令、手抄、端点清单 | planner、executor、reviewer | review |
+| C-DOC-08 | 功能面变化随批次回写手册与变更日志，契约面变化随批再生成 API 注解，不留事后补写窗口。 | 产品文档、回写、变更日志、事后补写 | planner、executor | checklist |
+| C-ENV-01 | Windows 下删除文件用 Python 的删除接口，不用 Git Bash rm。 | 删文件、Git Bash、rm、Windows | executor、reviewer | checklist |
+| C-ENV-02 | Git Bash 下运行 tar 或 npm 前置系统目录使系统解包工具优先，避免盘符冒号被当主机名。 | tar、npm、Git Bash、盘符 | executor、reviewer | checklist |
+| C-ENV-03 | 序列化时间戳统一 UTC 加 ISO 8601 含 Z 后缀，禁本地时间字符串与自选格式；时间戳不进设计态与内容哈希。 | 时间戳、UTC、ISO 8601、本地时间 | executor、reviewer | review |
+| C-ENV-04 | 目录删除失败不判数据失败；核对落盘清单与数据实测，残留目录延后清理。 | 目录删除、迁移、残留目录、ENOTEMPTY | executor、reviewer | checklist |
+| C-ENV-05 | 迁移后重建环境再验收；重锁必携 manifest 反推全量包路径，以哈希零变动为准。 | 迁移、环境重建、manifest、哈希验收 | executor、reviewer | checklist |
+| C-ENV-06 | 升级前查预编译兼容矩阵；安装钩子被移除的版本显式补安装步骤。 | 升级、预编译、安装钩子、兼容矩阵 | executor、reviewer | checklist |
+| C-ENV-07 | 新增布尔名用 is_/has_/allow_ 前缀并禁否定布尔；标识符只用 ASCII 字母数字下划线。 | 命名、布尔前缀、标识符、字符集 | executor、reviewer | review |
 
-P10 起 CTX/VER/ARC/COL 已正式化（四册 37 张＋DOC 样卡 1 张＝清单 38 行），DOC/ENV/ORC 留 P11-P12；张数目标见 `docs/08-lessons-merge.md` §3。
+P11 起 CTX/VER/ARC/COL/DOC/ENV 已正式化（六册 52 张＝清单 52 行），ORC 留 P12；张数目标见 `docs/08-lessons-merge.md` §3。

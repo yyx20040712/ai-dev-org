@@ -922,6 +922,83 @@
       "line": 148
     },
     {
+      "id": "C-DOC-01",
+      "title": "矛盾时删文档只留一份权威",
+      "category": "documentation",
+      "triggers": [
+        "文档矛盾",
+        "单一权威",
+        "README",
+        "删文档"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "发现文档与现实矛盾时删除过时文档只留一份权威，不留两份并存。",
+      "file": "constraints/05-documentation.md",
+      "line": 7
+    },
+    {
+      "id": "C-DOC-02",
+      "title": "文档不写易过期数字",
+      "category": "documentation",
+      "triggers": [
+        "文档数字",
+        "测试数",
+        "手写数字",
+        "CI"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "文档不手写易过期的具体数字，数字口径写以 CI 输出为准的指针。",
+      "file": "constraints/05-documentation.md",
+      "line": 26
+    },
+    {
+      "id": "C-DOC-03",
+      "title": "中文统一 UTF-8 并验证可读",
+      "category": "documentation",
+      "triggers": [
+        "编码",
+        "乱码",
+        "中文文档",
+        "UTF-8"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "中文内容统一 UTF-8；写入后用工具读回验证可读，乱码即未验证。",
+      "file": "constraints/05-documentation.md",
+      "line": 45
+    },
+    {
       "id": "C-DOC-04",
       "title": "规范与校验器必须同步演进",
       "category": "documentation",
@@ -945,7 +1022,288 @@
       "enforcement": "checklist",
       "rule": "新增规范条款时，能机检的同批落成校验项，不能机检的写明人工判据。",
       "file": "constraints/05-documentation.md",
-      "line": 8
+      "line": 64
+    },
+    {
+      "id": "C-DOC-05",
+      "title": "事实按寻址表落唯一真相源",
+      "category": "documentation",
+      "triggers": [
+        "唯一真相源",
+        "寻址表",
+        "双源",
+        "正文抄写"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "每类事实只写入寻址表指定的唯一真相源，他处引用用指针不在正文抄写。",
+      "file": "constraints/05-documentation.md",
+      "line": 83
+    },
+    {
+      "id": "C-DOC-06",
+      "title": "历史件只追加或归档",
+      "category": "documentation",
+      "triggers": [
+        "历史记录",
+        "改写",
+        "勘误",
+        "追加"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer",
+        "adjudicator"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "历史件只追加或归档，禁原地改写；发现错误新增勘误件引用原位置。",
+      "file": "constraints/05-documentation.md",
+      "line": 102
+    },
+    {
+      "id": "C-DOC-07",
+      "title": "API 明细由生成命令产出",
+      "category": "documentation",
+      "triggers": [
+        "API 文档",
+        "生成命令",
+        "手抄",
+        "端点清单"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "API 明细由代码注解与生成命令产出，禁手抄端点清单。",
+      "file": "constraints/05-documentation.md",
+      "line": 121
+    },
+    {
+      "id": "C-DOC-08",
+      "title": "产品文档随批次回写",
+      "category": "documentation",
+      "triggers": [
+        "产品文档",
+        "回写",
+        "变更日志",
+        "事后补写"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor"
+      ],
+      "phases": [
+        "implement",
+        "close"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "功能面变化随批次回写手册与变更日志，契约面变化随批再生成 API 注解，不留事后补写窗口。",
+      "file": "constraints/05-documentation.md",
+      "line": 140
+    },
+    {
+      "id": "C-ENV-01",
+      "title": "Windows 下删文件用 Python",
+      "category": "environment",
+      "triggers": [
+        "删文件",
+        "Git Bash",
+        "rm",
+        "Windows"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "Windows 下删除文件用 Python 的删除接口，不用 Git Bash rm。",
+      "file": "constraints/06-environment.md",
+      "line": 7
+    },
+    {
+      "id": "C-ENV-02",
+      "title": "tar 与 npm 先前置系统目录",
+      "category": "environment",
+      "triggers": [
+        "tar",
+        "npm",
+        "Git Bash",
+        "盘符"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "Git Bash 下运行 tar 或 npm 前置系统目录使系统解包工具优先，避免盘符冒号被当主机名。",
+      "file": "constraints/06-environment.md",
+      "line": 26
+    },
+    {
+      "id": "C-ENV-03",
+      "title": "时间格式统一 UTC ISO 8601",
+      "category": "environment",
+      "triggers": [
+        "时间戳",
+        "UTC",
+        "ISO 8601",
+        "本地时间"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "序列化时间戳统一 UTC 加 ISO 8601 含 Z 后缀，禁本地时间字符串与自选格式；时间戳不进设计态与内容哈希。",
+      "file": "constraints/06-environment.md",
+      "line": 45
+    },
+    {
+      "id": "C-ENV-04",
+      "title": "目录删除失败先核数据",
+      "category": "environment",
+      "triggers": [
+        "目录删除",
+        "迁移",
+        "残留目录",
+        "ENOTEMPTY"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "目录删除失败不判数据失败；核对落盘清单与数据实测，残留目录延后清理。",
+      "file": "constraints/06-environment.md",
+      "line": 64
+    },
+    {
+      "id": "C-ENV-05",
+      "title": "迁移后重建环境再验收",
+      "category": "environment",
+      "triggers": [
+        "迁移",
+        "环境重建",
+        "manifest",
+        "哈希验收"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "迁移后重建环境再验收；重锁必携 manifest 反推全量包路径，以哈希零变动为准。",
+      "file": "constraints/06-environment.md",
+      "line": 83
+    },
+    {
+      "id": "C-ENV-06",
+      "title": "升级前核对矩阵与安装钩子",
+      "category": "environment",
+      "triggers": [
+        "升级",
+        "预编译",
+        "安装钩子",
+        "兼容矩阵"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "升级前查预编译兼容矩阵；安装钩子被移除的版本显式补安装步骤。",
+      "file": "constraints/06-environment.md",
+      "line": 102
+    },
+    {
+      "id": "C-ENV-07",
+      "title": "标识符守布尔前缀与字符集",
+      "category": "environment",
+      "triggers": [
+        "命名",
+        "布尔前缀",
+        "标识符",
+        "字符集"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "新增布尔名用 is_/has_/allow_ 前缀并禁否定布尔；标识符只用 ASCII 字母数字下划线。",
+      "file": "constraints/06-environment.md",
+      "line": 121
     }
   ],
   "routes": {
