@@ -9,6 +9,8 @@
 //   T5  零命中判据与逐字块互斥（WARN）
 //   T6  任务书退出码契约冲突（FAIL）
 //   T0  结构（WARN）
+//   T13 词面扫描（FAIL——BANNED 21＋规则二两模式，词表单源跨仓读不复制；装载错统一退 3）
+//   T14 事实台账形态漏检（WARN——表格形态逃逸＋无章全局补位；--strict 使其退 1）
 // 退出码口径单源=references/06 §5.8（此处不复写映射）
 // 用法：node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--json] [--strict] [--self-test]
 // 豁免：任一物理行含 tb-ignore → 该行跳过全部检查并计入跳过数（只对该行生效，不跨行继承）。
@@ -394,8 +396,9 @@ export function parseExpectations(parsed) {
   for (let i = 0; i < lines.length; i++) {
     if (fenced.has(i + 1)) continue
     const ln = String(lines[i] ?? '').trim()
-    if (!/^E\d+\s*｜/.test(ln)) continue
-    const p = ln.split('｜').map((s) => s.trim())
+    // L22 T14 E 兼容：E1/E-1/- E1/- E-1 四形态（列表前缀仅 ASCII 连字符后至少一个空白）；先剥前缀再按全角竖线切分，id=剥前缀后行首形态（终裁 11/N-5）。
+    if (!/^(?:-\s+)?E-?\d+\s*｜/.test(ln)) continue
+    const p = ln.replace(/^(?:-\s+)?/, '').split('｜').map((s) => s.trim())
     if (p.length < 6) continue
     const j = /判据\s*#\s*(\d+)/.exec(p[1])
     const b = /基线\s*(-?\d+)\s*←\s*(F-\d+)/.exec(p[2])
@@ -479,8 +482,99 @@ export function verifyEvidence(factEntries, evidencePath) {
   return { findings, entries: doc.entries }
 }
 
+// ── L22 T13/T14：门禁前移（词面扫描＋事实台账形态漏检） ──
+/** T13 装载异常：词表/规则二不可得、不可解析或歧义；主入口映射 06 §5.8 行 3 退 3。 */
+export class T13LoadError extends Error {}
+
+/** 剥离 JS 行/块注释（字符串感知——引号/模板串/转义内注释起始对不剥离防误吞〔双审 W-2〕）；字符串态至文件尾未闭合=装载错（fail-loud，ds N2）；正则字面量状态不实现（division/regex 歧义需完整 lexer，超出本批）——DECL=1/恰 21 词断言兜底（对现行冻结词表源〔无引号正则形态〕与常见误剥形态必触发装载错；一般对抗构造下不成立——见实现报告 §18，RESIDUALS 候选）；块注释内同形声明不得装载（终裁 3）。 */
+function stripJsComments(src) {
+  let out = '', q = null
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]
+    if (q) { out += c; if (c === '\\') { out += src[i + 1] ?? ''; i++ } else if (c === q) q = null; continue }
+    if (c === '\'' || c === '"' || c === '\`') { q = c; out += c; continue }
+    if (c === '/' && src[i + 1] === '/') { while (i < src.length && src[i] !== '\n') i++; out += '\n'; continue }
+    if (c === '/' && src[i + 1] === '*') { i += 2; while (i < src.length && src[i] + (src[i + 1] ?? '') !== '*/') { if (src[i] === '\n') out += '\n'; i++ } i++; continue }
+    out += c
+  }
+  if (q) throw new T13LoadError('词表源字符串/模板字面量至文件尾未闭合——fail-loud（ds N2）'); return out
+}
+
+const BANNED_DECL_RE = /(?:^|\n)[ \t]*const[ \t]+BANNED[ \t]*=[ \t]*\[([\s\S]*?)\]/g, BANNED_ITEM_RE = /'([^'\n]+)'/g
+
+/** 提取 BANNED：声明恰 1 份、词数恰 21、非空、去重仍 21；词序与源数组一致（报「第 N 词」）。 */
+export function extractBannedFromSource(src) {
+  const decls = [...stripJsComments(String(src ?? '')).matchAll(BANNED_DECL_RE)]
+  if (decls.length !== 1) throw new T13LoadError(`BANNED 数组声明数=${decls.length}（须恰为 1）`)
+  const words = [...decls[0][1].matchAll(BANNED_ITEM_RE)].map((m) => m[1])
+  if (words.length !== 21) throw new T13LoadError(`词数=${words.length}（须恰为 21）`)
+  if (words.some((w) => !w)) throw new T13LoadError('存在空词项'); if (new Set(words).size !== words.length) throw new T13LoadError('存在重复词项')
+  return words
+}
+
+/** 词表单源装载：每 root 只探 scripts/verify-docs.mjs；规范化绝对路径去重后须恰一个存在文件。 */
+export function loadBannedVocab(roots) {
+  const seen = new Set(), cands = []
+  for (const r of roots || []) { const p = resolve(join(String(r ?? ''), 'scripts', 'verify-docs.mjs')); if (!seen.has(p)) { seen.add(p); cands.push(p) } }
+  const present = cands.filter((p) => existsSync(p))
+  if (present.length === 0) throw new T13LoadError('词表源不可得（各 root 下无 scripts/verify-docs.mjs）')
+  if (present.length > 1) throw new T13LoadError(`词表来源歧义：${present.length} 个不同源文件（不自行选择）`)
+  let buf
+  try { buf = readFileSync(present[0]) } catch (e) { throw new T13LoadError(`词表源读取失败：${present[0]}（${e.message}）`) }
+  return { words: extractBannedFromSource(decodeUtf8Fatal(buf, '词表源')), path: present[0] }
+}
+
+const RULE2_KIND_RE = /\bkind\s*:\s*'rule2'/, RULE2_RE_LITERAL_RE = /\bre\s*:\s*\/((?:\\.|[^\\/\n])+)\/([a-z]*)\s*,?\s*\}/
+
+const decodeUtf8Fatal = (buf, what) => { try { return new TextDecoder('utf-8', { fatal: true }).decode(buf) } catch { throw new T13LoadError(`${what}编码异常（非法 UTF-8 字节）`) } } // fatal UTF-8 解码：非法字节=装载错（§5.1 编码异常面＋双审 ds W-2）
+const readSkillTerms = () => { let buf; try { buf = readFileSync(join(SKILL_ROOT, 'scripts', 'check-terms.mjs')) } catch (e) { throw new T13LoadError(`规则二源件不可读（${e.message}）`) } return decodeUtf8Fatal(buf, '规则二源件') } // 规则二生产源读取（缺省路径；Buffer＋fatal 解码）
+/** 规则二两模式装载：物理行文本提取（不 import——源件无主流程守卫）；缺省参数=生产路径（双审 W-1），畸形夹具经参数注入（终裁 6）。 */
+export function loadRule2Patterns(src) {
+  if (src == null) src = readSkillTerms()
+  const lines = String(src ?? '').split('\n'), idx = []
+  for (let i = 0; i < lines.length; i++) if (RULE2_KIND_RE.test(lines[i])) idx.push(i)
+  if (idx.length !== 2) throw new T13LoadError(`规则二对象行数=${idx.length}（须恰为 2）`)
+  return idx.map((i, k) => {
+    const m = RULE2_RE_LITERAL_RE.exec(lines[i])
+    if (!m) throw new T13LoadError(`规则二模式${k === 0 ? '一' : '二'}正则字面量不可提取`)
+    try { return new RegExp(m[1], m[2]) } catch (e) { throw new T13LoadError(`规则二模式${k === 0 ? '一' : '二'}正则重建失败（${e.message}）`) }
+  })
+}
+
+// 整行注释豁免标记判定（\x2d 只表示连字符，防本件复写标记字样）：
+const TERM_MARK_RE = /^\s*<!--\s*term\x2dscan:\s*(off|on)\s*-->\s*$/
+
+/** T13 扫描面：掩蔽后全行扫描（围栏/历史小节不跳过）；整行 off/on 状态机——标记行自身不扫、未闭合 off 区
+ *  静默持续到文件尾（终裁 12 锁定）、行内标记不豁免；同行同词一次异词分报；顺序=行升序、行内先源序后模式序。 */
+export function scanTermLines(lines, banned, rule2Patterns) {
+  const findings = []; let inOff = false
+  for (let i = 0; i < lines.length; i++) {
+    const ln = String(lines[i] ?? '')
+    const m = TERM_MARK_RE.exec(ln)
+    if (m) { inOff = m[1] === 'off'; continue }
+    if (inOff) continue
+    for (let w = 0; w < banned.length; w++) if (ln.includes(banned[w])) findings.push({ level: 'FAIL', check: 'T13', line: i + 1, message: `BANNED 表第 ${w + 1} 词命中` })
+    rule2Patterns.forEach((re, p) => { re.lastIndex = 0; if (re.test(ln)) findings.push({ level: 'FAIL', check: 'T13', line: i + 1, message: `规则二模式${p === 0 ? '一' : '二'}命中` }) })
+  }
+  return findings
+}
+
+const FACT_REF_RE = /F-\d{2}/
+
+/** T14 形态漏检（输入均为掩蔽后解析结果）：实名台账章内机读 F=0 且章内有 F 编号字样（表格形态逃逸）→ WARN
+ *  行号=首处；无台账章时全局补位一条 WARN。F 字样不因围栏跳过；tb-ignore 行已掩蔽；不升格 FAIL。 */
+export function checkFactShape(parsed, factEntries) {
+  const findings = [], lines = parsed?.lines || [], facts = Array.isArray(factEntries) ? factEntries : []
+  const push = (line) => findings.push({ level: 'WARN', check: 'T14', line, message: '事实台账机读 F 为 0，但存在 F 编号字样' })
+  const firstRefIn = (from, to) => { for (let ln = from; ln <= to; ln++) if (FACT_REF_RE.test(String(lines[ln - 1] ?? ''))) return ln; return 0 }
+  const factSections = (parsed?.sections || []).filter((s) => String(s.title ?? '').includes('事实台账'))
+  for (const s of factSections) if (!facts.some((f) => f.line > s.line && f.line <= s.endLine)) { const hit = firstRefIn(s.line + 1, s.endLine); if (hit) push(hit) }
+  if (factSections.length === 0 && facts.length === 0) { const hit = firstRefIn(1, lines.length); if (hit) push(hit) }
+  return findings
+}
+
 // ── 自检（夹具落 os.tmpdir()，向量 ≥40） ──
-function selfTest() {
+function selfTest(extraRoots = []) {
   const cases = []
   const add = (name, ok, detail = '') => cases.push({ name, ok: !!ok, detail })
   // r5 §10.1：盘符样例一律运行时拼接——源码不出现「盘符字母+冒号+斜杠」连续字面量
@@ -491,6 +585,10 @@ function selfTest() {
   try {
     mkdirSync(join(tmp, 'scripts'), { recursive: true })
     mkdirSync(join(tmp, 'docs'), { recursive: true })
+    // L22 隔离态合成词表源（终裁 5）：21 个等宽互异且互不为子串的定宽 token；既有向量子进程统一注入合成源保持原退出码语义，正常任务书扫描绝不使用合成词表。
+    const SYN_TOKENS = Array.from({ length: 21 }, (_, i) => 'tk' + String(i + 1).padStart(2, '0'))
+    const vocabSrc = (arr) => 'const BANNED = [\n' + arr.map((t) => "  '" + t + "',").join('\n') + '\n]\n'
+    writeFileSync(join(tmp, 'scripts', 'verify-docs.mjs'), vocabSrc(SYN_TOKENS), 'utf8')
     writeFileSync(join(tmp, 'SKILL.md'), 'line one\nline two target-fragment\nline three\n', 'utf8')
     writeFileSync(join(tmp, 'docs', 'note.md'), 'line one\nline two target-fragment\nline three\n', 'utf8')
     writeFileSync(join(tmp, 'scripts', 'present.mjs'), '// present\n', 'utf8')
@@ -748,6 +846,60 @@ function selfTest() {
     add('r1 W3 围栏内判据行不生效', parseNumericJudgeRows(parseTaskbook('```\n| 7 | `grep -c x a.md` | 1 | 证 |\n```\n')).length === 0)
     const w3o = parseTaskbook('F-02 ｜ 外 ｜ `true` ｜ 0 ｜ 2026-10-22\nE1 ｜ 判据 #7 ｜ 基线 0 ← F-02 ｜ 增量 +1 ｜ 期望 1 ｜ 算式 0 + 1 = 1\n| 7 | `grep -c x a.md` | 1 | 证 |\n')
     add('r1 W3 围栏外同类行仍生效', parseFactEntries(w3o).length === 1 && parseExpectations(w3o).length === 1 && parseNumericJudgeRows(w3o).length === 1, JSON.stringify([parseFactEntries(w3o), parseExpectations(w3o), parseNumericJudgeRows(w3o)]))
+
+    // ── L22 T13/T14 自检（9 向量；隔离态=tmp 合成词表源，集成态=extraRoots 真实源——终裁 5） ──
+    let integWords = null
+    if (extraRoots.length) { try { integWords = loadBannedVocab(extraRoots).words } catch { integWords = null } }
+    const isoWords = loadBannedVocab([tmp]).words, actWords = integWords || isoWords // 活动源＝集成态真实 21 词 / 隔离态合成 token
+    const prodRule2 = loadRule2Patterns(), selfSrc = readFileSync(SELF, 'utf8')
+    const runVocab = (args) => spawnSync(process.execPath, [SELF, ...args, ...(extraRoots.length ? extraRoots.flatMap((r) => ['--root', r]) : ['--root', tmp])], { encoding: 'utf8' })
+    const subScan = (args) => { const r = runVocab(args); const f = (() => { try { return (JSON.parse(r.stdout).findings || []).filter((x) => x.check === 'T13') } catch { return [] } })(); return { status: r.status, f } }
+    writeFileSync(join(tmp, 't13-01.md'), '# T13 正例夹具\n\n正文样本：' + actWords[19] + ' 与 ' + actWords[19] + ' 及 ' + actWords[0] + '。\n', 'utf8')
+    const s13a = subScan([join(tmp, 't13-01.md'), '--json'])
+    add('L22 T13-01 正例：活动词表第 20 词同行去重 1 条＋第 1 词 1 条=恰 2 条且词序正确（被测进程退 1）', s13a.status === 1 && s13a.f.length === 2 && s13a.f[0].line === s13a.f[1].line && s13a.f[0].message === 'BANNED 表第 1 词命中' && s13a.f[1].message === 'BANNED 表第 20 词命中', JSON.stringify(s13a.f))
+    const m1 = String.fromCodePoint(0x4fee, 0x8ba2, 0x4e00), m2 = '\uFF08' + '2026-10-25 ' + String.fromCodePoint(0x7528, 0x6237, 0x88c1, 0x51b3)
+    writeFileSync(join(tmp, 't13-02.md'), '# T13 规则二夹具\n\n样本一行：' + m1 + '\n样本二行：' + m2 + '\n', 'utf8')
+    const s13b = subScan([join(tmp, 't13-02.md'), '--json'])
+    add('L22 T13-02 规则二：两行分别命中模式一/二共 2 条 FAIL；检查器源码不含模式字面量', s13b.status === 1 && s13b.f.length === 2 && s13b.f[0].message === '规则二模式一命中' && s13b.f[1].message === '规则二模式二命中' && !selfSrc.includes(m1) && !selfSrc.includes(m2), JSON.stringify(s13b.f))
+    const OFF_MARK = '<!-- term\x2dscan: off -->', ON_MARK = '<!-- term\x2dscan: on -->', w0 = actWords[0]
+    writeFileSync(join(tmp, 't13-03.md'), ['# T13 豁免夹具', OFF_MARK, w0 + ' 整行 off 区段内不报', ON_MARK, w0 + ' ' + OFF_MARK + ' 行内标记不豁免', '```', w0 + ' 围栏内仍命中', '```', '## 历史小节', w0 + ' 历史小节仍命中', w0 + ' tb-ignore 行掩蔽 <!-- tb-ignore -->', OFF_MARK, w0 + ' 未闭合 off 区持续到文件尾', ''].join('\n'), 'utf8')
+    const s13c = subScan([join(tmp, 't13-03.md'), '--json'])
+    add('L22 T13-03 豁免状态机：整行 off 区段与 tb-ignore 行零报告；行内标记/围栏/历史小节命中；未闭合 off 区到文件尾不恢复（恰 3 条）', s13c.status === 1 && s13c.f.length === 3 && JSON.stringify(s13c.f.map((f) => f.line)) === JSON.stringify([5, 7, 10]) && s13c.f.every((f) => f.level === 'FAIL'), JSON.stringify(s13c.f))
+    const rootA = join(tmp, 'vocab-a'), rootB = join(tmp, 'vocab-b')
+    mkdirSync(join(rootA, 'scripts'), { recursive: true }); mkdirSync(join(rootB, 'scripts'), { recursive: true })
+    writeFileSync(join(rootA, 'scripts', 'verify-docs.mjs'), vocabSrc(SYN_TOKENS), 'utf8')
+    writeFileSync(join(rootB, 'scripts', 'verify-docs.mjs'), vocabSrc(SYN_TOKENS.slice(1).concat(SYN_TOKENS[0])), 'utf8')
+    const badEnc = join(tmp, 'bad-enc'); mkdirSync(join(badEnc, 'scripts'), { recursive: true }); writeFileSync(join(badEnc, 'scripts', 'verify-docs.mjs'), Buffer.concat([Buffer.from(vocabSrc(SYN_TOKENS), 'utf8'), Buffer.from([0xff])])) // 合法 21 词声明＋尾随非法字节：非 fatal 即装载成功→向量红
+    const tryLoad = (fn) => { try { fn(); return false } catch (e) { return e instanceof T13LoadError } }, t1304 = loadBannedVocab([tmp, tmp]) // 同一路径重复 roots 去重后仍单源
+    add('L22 T13-04 装载器：活动 BANNED=21 与规则二=2；空数组/无源/多源歧义/规则二畸形/块注释同形假声明/22 个互异词/含重复 21 项/合法声明＋非法字节全抛装载异常；活动声明＋块注释假声明与数组内行注释（含闭括号）两正例均装载成功；字符串内注释起始对不误吞；重复 roots 去重通过',
+      t1304.words.length === 21 && t1304.words[0] === SYN_TOKENS[0] && prodRule2.length === 2
+      && tryLoad(() => extractBannedFromSource('const BANNED = [\n]')) && tryLoad(() => loadBannedVocab([join(tmp, 'empty-root')]))
+      && tryLoad(() => loadBannedVocab([rootA, rootB]))
+      && tryLoad(() => loadRule2Patterns("{ kind: 'rule2', no re here }\n{ kind: 'rule2', re: /b/g }"))
+      && tryLoad(() => extractBannedFromSource('/*\n' + vocabSrc(SYN_TOKENS) + '*/\nconst OTHER = 1\n')) // 块注释假声明：不剥离即恰 21 词装载成功→向量红（双审 W-3）
+      && extractBannedFromSource(vocabSrc(SYN_TOKENS) + '/*\n' + vocabSrc(SYN_TOKENS.slice(1).concat(SYN_TOKENS[0])) + '*/\n').length === 21 // 活动声明＋块注释同形假声明→装载成功：不剥离即 DECL=2 报错→向量红（ds N1①）
+      && tryLoad(() => extractBannedFromSource(vocabSrc(SYN_TOKENS.concat('tk22')))) && tryLoad(() => extractBannedFromSource(vocabSrc([SYN_TOKENS[0], SYN_TOKENS[0]].concat(SYN_TOKENS.slice(1, 20))))) // 22 个互异词→词数断言／恰 21 项含重复→去重断言（双审 ds W-1，两分支独立触达）
+      && tryLoad(() => loadBannedVocab([badEnc])) && extractBannedFromSource("const P = 'a/*b'\n" + vocabSrc(SYN_TOKENS)).length === 21 && extractBannedFromSource('const BANNED = [ \'' + SYN_TOKENS[0] + '\', // ]\n' + SYN_TOKENS.slice(1).map((t) => '\'' + t + '\',').join(' ') + ' ]\n').length === 21 // 非法 UTF-8 字节→装载错（ds W2 轮2）／字符串内注释起始对不误吞／数组内行注释（含闭括号）剥离生效才完整闭合（ds N1②）
+      && (integWords === null || integWords.length === 21),
+      JSON.stringify({ iso: t1304.words.length, rule2: prodRule2.length, integ: integWords ? integWords.length : 'isolated' }))
+    const hitWords = actWords.filter((w) => selfSrc.includes(w)), hitR2 = prodRule2.filter((re) => selfSrc.includes(re.source))
+    add('L22 T13-05 零复制：活动词表 21 词与规则二两 source 均未以字面量出现在检查器源码', actWords.length === 21 && hitWords.length === 0 && hitR2.length === 0, JSON.stringify({ hitWords, hitR2: hitR2.map((r) => r.source) }))
+    const t14a = parseTaskbook('## 4. 事实台账\n\n| F-01 | 甲 | 乙 | 丙 | 丁 |\n')
+    const z14a = checkFactShape(t14a, parseFactEntries(t14a)), z14b = checkFactShape(parseTaskbook('正文仅散文引用 F-01 编号。\n'), [])
+    add('L22 T14-01 漏检：实名台账章表格形态逃逸与无章全局补位各 1 条 WARN（行号=首个 F 字样行，不升格 FAIL）',
+      z14a.length === 1 && z14a[0].level === 'WARN' && z14a[0].check === 'T14' && z14a[0].line === 3 && z14a[0].message.includes('机读 F 为 0') && z14b.length === 1 && z14b[0].level === 'WARN' && z14b[0].check === 'T14' && z14b[0].line === 1, JSON.stringify([z14a, z14b]))
+    const t14c = parseTaskbook([
+      'F-01 ｜ 基线甲 ｜ `echo 0` ｜ 0 ｜ 2026-10-25', 'F-02 ｜ 基线乙 ｜ `echo 1` ｜ 1 ｜ 2026-10-25', 'F-03 ｜ 基线丙 ｜ `echo 2` ｜ 2 ｜ 2026-10-25', 'F-04 ｜ 基线丁 ｜ `echo 3` ｜ 3 ｜ 2026-10-25',
+      'E1 ｜ 判据 #5 ｜ 基线 0 ← F-01 ｜ 增量 +1 ｜ 期望 1 ｜ 算式 0 + 1 = 1', 'E-2 ｜ 判据 #6 ｜ 基线 1 ← F-02 ｜ 增量 +1 ｜ 期望 2 ｜ 算式 1 + 1 = 2',
+      '- E3 ｜ 判据 #7 ｜ 基线 2 ← F-03 ｜ 增量 +1 ｜ 期望 3 ｜ 算式 2 + 1 = 3', '- E-4 ｜ 判据 #8 ｜ 基线 3 ← F-04 ｜ 增量 +1 ｜ 期望 4 ｜ 算式 3 + 1 = 4',
+      '| 5 | `grep -c x a.md` | 1 | 证 |', '| 6 | `grep -c x a.md` | 1 | 证 |', '| 7 | `grep -c x a.md` | 1 | 证 |', '| 8 | `grep -c x a.md` | 1 | 证 |'].join('\n') + '\n')
+    const e14c = parseExpectations(t14c), z14c = checkExpectations(e14c, parseNumericJudgeRows(t14c), parseFactEntries(t14c), null)
+    add('L22 T14-02 E 兼容：四种形态全进 eRows 且 id=剥前缀行首形态，T9 finding=0', e14c.length === 4 && JSON.stringify(e14c.map((e) => e.id)) === JSON.stringify(['E1', 'E-2', 'E3', 'E-4']) && z14c.length === 0, JSON.stringify({ ids: e14c.map((e) => e.id), z: z14c }))
+    const f14d = parseFactEntries(parseTaskbook('F-01 ｜ 命令保值 ｜ `grep -c \'\\|\' f.md` ｜ 5 ｜ 2026-10-25\n'))
+    add('L22 T14-03 命令保值：恰 1 条 F、五字段位置不漂、命令字段仍含反斜杠与竖线两字符', f14d.length === 1 && f14d[0].id === 'F-01' && f14d[0].label === '命令保值' && f14d[0].declared === '5' && f14d[0].date === '2026-10-25' && f14d[0].cmd === "grep -c '\\|' f.md", JSON.stringify(f14d))
+    const t14e = parseTaskbook('## 4. 事实台账\n\nF-01 ｜ 合法台账 ｜ `echo ok` ｜ 0 ｜ 2026-10-25\n')
+    add('L22 T14-04 两负例：合法机读 F 在章与无章无字样均 0 条 T14，且原解析器仍可读取合法 F',
+      checkFactShape(t14e, parseFactEntries(t14e)).length === 0 && parseFactEntries(t14e).length === 1 && checkFactShape(parseTaskbook('普通正文，无任何编号字样。\n'), []).length === 0)
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -790,7 +942,7 @@ function main() {
   }
 
   if (flags.selfTest) {
-    const { cases, pass, fail } = selfTest()
+    const { cases, pass, fail } = selfTest(extraRoots)
     if (flags.json) {
       process.stdout.write(JSON.stringify({ selfTest: true, pass, fail, cases }, null, 2) + '\n')
     } else {
@@ -851,6 +1003,14 @@ function main() {
   findings.push(...checkExpectations(eRows, numericRows, factEntries, null))
   const ev = verifyEvidence(factEntries, evidencePath)
   findings.push(...ev.findings)
+  // T13 词面扫描（L22）：词表单源跨仓读＋规则二文本提取，命中即 FAIL；装载失败统一 [装载错] 退 3（06 §5.8 行 3 词表缺失类）——不降级、不静默空扫、不用替代词表。
+  let t13Words, t13Rule2
+  try {
+    t13Words = loadBannedVocab(roots).words
+    t13Rule2 = loadRule2Patterns()
+  } catch (e) { if (e instanceof T13LoadError) { console.error(`[装载错] T13 ${e.message}`); process.exit(3) } throw e }
+  findings.push(...scanTermLines(parsed.lines, t13Words, t13Rule2))
+  findings.push(...checkFactShape(parsed, factEntries)) // T14 事实台账形态漏检（L22）：默认仅 WARN，--strict 使其退 1；不把表格形态收编为合法 F。
 
   const warn = findings.filter((f) => f.level === 'WARN').length
   const fail = findings.filter((f) => f.level === 'FAIL').length
