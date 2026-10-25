@@ -24,7 +24,220 @@
       "enforcement": "checklist",
       "rule": "业务代码第一笔提交前，先让仓库、门禁命令与最小测试各跑通一次。",
       "file": "constraints/01-context.md",
-      "line": 8
+      "line": 7
+    },
+    {
+      "id": "C-CTX-02",
+      "title": "规约先写验收标准，占位即未完成",
+      "category": "context",
+      "triggers": [
+        "写任务书",
+        "验收标准",
+        "占位实现"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor"
+      ],
+      "phases": [
+        "design",
+        "implement"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "规约先写验收标准；占位实现视为未完成，不得合入。",
+      "file": "constraints/01-context.md",
+      "line": 30
+    },
+    {
+      "id": "C-CTX-03",
+      "title": "规约给五层：行为接口架构生命周期文化",
+      "category": "context",
+      "triggers": [
+        "写任务书",
+        "规约",
+        "五层"
+      ],
+      "paths": [],
+      "roles": [
+        "planner"
+      ],
+      "phases": [
+        "design"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "规约写满五层：行为、接口、架构、生命周期、文化。",
+      "file": "constraints/01-context.md",
+      "line": 49
+    },
+    {
+      "id": "C-CTX-04",
+      "title": "规约自包含：全路径＋关键代码＋版本",
+      "category": "context",
+      "triggers": [
+        "写任务书",
+        "规约",
+        "上下文"
+      ],
+      "paths": [],
+      "roles": [
+        "planner"
+      ],
+      "phases": [
+        "design"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "规约写全文件路径、关键代码与版本，实现者不必另找上下文。",
+      "file": "constraints/01-context.md",
+      "line": 68
+    },
+    {
+      "id": "C-CTX-05",
+      "title": "先侦查后派发，实现者不当探索者",
+      "category": "context",
+      "triggers": [
+        "派发",
+        "侦查",
+        "任务书"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor"
+      ],
+      "phases": [
+        "design",
+        "implement"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "先侦查后派发；实现者按任务书施工，不承担探索。",
+      "file": "constraints/01-context.md",
+      "line": 87
+    },
+    {
+      "id": "C-CTX-06",
+      "title": "重写前先修流程",
+      "category": "context",
+      "triggers": [
+        "重写",
+        "返工",
+        "根因"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "adjudicator"
+      ],
+      "phases": [
+        "design",
+        "adjudicate"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "重写前先修流程；流程根因未除，不得重写。",
+      "file": "constraints/01-context.md",
+      "line": 106
+    },
+    {
+      "id": "C-CTX-07",
+      "title": "类型跨层同步用生成器，禁手写双写",
+      "category": "context",
+      "triggers": [
+        "类型",
+        "跨层",
+        "生成器"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor"
+      ],
+      "phases": [
+        "design",
+        "implement"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "跨层类型用生成器同步；禁止手写两处类型互相对齐。",
+      "file": "constraints/01-context.md",
+      "line": 125
+    },
+    {
+      "id": "C-CTX-08",
+      "title": "开工清单逐项打勾后再写业务代码",
+      "category": "context",
+      "triggers": [
+        "开工",
+        "清单",
+        "打勾"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor"
+      ],
+      "phases": [
+        "design",
+        "implement"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "开工清单逐项打勾留痕后，再写业务代码。",
+      "file": "constraints/01-context.md",
+      "line": 144
+    },
+    {
+      "id": "C-VER-01",
+      "title": "测试入口统一，CI 输出为唯一权威",
+      "category": "verification",
+      "triggers": [
+        "测试入口",
+        "CI",
+        "测试数字"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "测试入口统一为一条命令；测试数字以 CI 输出为唯一权威。",
+      "file": "constraints/02-verification.md",
+      "line": 7
+    },
+    {
+      "id": "C-VER-02",
+      "title": "门禁全量本地跑",
+      "category": "verification",
+      "triggers": [
+        "提交前",
+        "门禁",
+        "全量"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review",
+        "close"
+      ],
+      "severity": "blocking",
+      "enforcement": "checklist",
+      "rule": "每次提交前本地跑全量门禁，逐项留退出码。",
+      "file": "constraints/02-verification.md",
+      "line": 26
     },
     {
       "id": "C-VER-03",
@@ -35,10 +248,7 @@
         "修改断言",
         "修复缺陷"
       ],
-      "paths": [
-        "**/*.test.*",
-        "**/tests/**"
-      ],
+      "paths": [],
       "roles": [
         "executor",
         "reviewer"
@@ -51,7 +261,223 @@
       "enforcement": "machine",
       "rule": "新写的测试必须先失败一次，再通过。只看到通过、没有看到失败，视为未验证。",
       "file": "constraints/02-verification.md",
-      "line": 8
+      "line": 45
+    },
+    {
+      "id": "C-VER-04",
+      "title": "e2e 断言必须落到渲染真实文本",
+      "category": "verification",
+      "triggers": [
+        "e2e",
+        "断言",
+        "渲染文本"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "e2e 断言落到渲染出的真实文本；只断元素存在不算通过。",
+      "file": "constraints/02-verification.md",
+      "line": 68
+    },
+    {
+      "id": "C-VER-05",
+      "title": "落盘加独立回读断言才算生效",
+      "category": "verification",
+      "triggers": [
+        "落盘",
+        "回读",
+        "断言"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "落盘数据配独立回读断言；只构造不回读视为未生效。",
+      "file": "constraints/02-verification.md",
+      "line": 87
+    },
+    {
+      "id": "C-VER-06",
+      "title": "路径拼接必须做穿越用例",
+      "category": "verification",
+      "triggers": [
+        "路径拼接",
+        "安全",
+        "穿越用例"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "machine",
+      "rule": "路径拼接必配穿越用例与目录快照比对，零新增才准合入。",
+      "file": "constraints/02-verification.md",
+      "line": 106
+    },
+    {
+      "id": "C-VER-07",
+      "title": "变异红证禁用 checkout 还原",
+      "category": "verification",
+      "triggers": [
+        "变异测试",
+        "红证",
+        "还原"
+      ],
+      "paths": [],
+      "roles": [
+        "executor"
+      ],
+      "phases": [
+        "implement"
+      ],
+      "severity": "blocking",
+      "enforcement": "checklist",
+      "rule": "变异红证禁用 checkout 还原；用文件备份法并在还原后确认 diff 为空。",
+      "file": "constraints/02-verification.md",
+      "line": 125
+    },
+    {
+      "id": "C-VER-08",
+      "title": "数值断言分层",
+      "category": "verification",
+      "triggers": [
+        "数值断言",
+        "确定性",
+        "容差"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "确定性断言与数值断言分层；确定性零容差，数值对照显式容差。",
+      "file": "constraints/02-verification.md",
+      "line": 144
+    },
+    {
+      "id": "C-VER-09",
+      "title": "断言必须检验行为",
+      "category": "verification",
+      "triggers": [
+        "断言",
+        "异常用例",
+        "行为"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "断言检验行为：异常用例断消息键，正常用例断产出值。",
+      "file": "constraints/02-verification.md",
+      "line": 163
+    },
+    {
+      "id": "C-VER-10",
+      "title": "验算闭环主副算例全量",
+      "category": "verification",
+      "triggers": [
+        "验算",
+        "算例",
+        "闭环"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "验算闭环跑主算例与全部副算例；只跑主算例不算闭环。",
+      "file": "constraints/02-verification.md",
+      "line": 186
+    },
+    {
+      "id": "C-VER-11",
+      "title": "不能用人工判断替代机检",
+      "category": "verification",
+      "triggers": [
+        "机检",
+        "人工判断",
+        "缺位"
+      ],
+      "paths": [],
+      "roles": [
+        "reviewer",
+        "adjudicator"
+      ],
+      "phases": [
+        "review",
+        "adjudicate"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "机检不可由人工判断替代；无机检的验证面按缺位处理。",
+      "file": "constraints/02-verification.md",
+      "line": 205
+    },
+    {
+      "id": "C-VER-12",
+      "title": "任何提交都跑同一套门禁",
+      "category": "verification",
+      "triggers": [
+        "提交",
+        "门禁",
+        "亲笔"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer",
+        "adjudicator"
+      ],
+      "phases": [
+        "implement",
+        "review",
+        "close"
+      ],
+      "severity": "blocking",
+      "enforcement": "checklist",
+      "rule": "任何提交都跑同一套门禁；亲笔变更不免检。",
+      "file": "constraints/02-verification.md",
+      "line": 224
     },
     {
       "id": "C-ARC-02",
