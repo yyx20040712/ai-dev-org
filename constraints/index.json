@@ -480,6 +480,33 @@
       "line": 224
     },
     {
+      "id": "C-ARC-01",
+      "title": "按项目上限拆分文件",
+      "category": "architecture",
+      "triggers": [
+        "文件行数",
+        "拆分",
+        "项目宪法",
+        "超限"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "在项目宪法声明文件行数上限与例外；按该上限拆分超限文件。",
+      "file": "constraints/03-architecture.md",
+      "line": 7
+    },
+    {
       "id": "C-ARC-02",
       "title": "状态机先列态空间与事件",
       "category": "architecture",
@@ -501,9 +528,320 @@
       ],
       "severity": "blocking",
       "enforcement": "review",
-      "rule": "写状态机前先列出全部状态、事件与迁移表，并逐条走查跨步骤序列。",
+      "rule": "写状态机前先列出全部状态、事件与迁移表，跨步骤序列逐条走查并交审计。",
       "file": "constraints/03-architecture.md",
-      "line": 8
+      "line": 26
+    },
+    {
+      "id": "C-ARC-03",
+      "title": "提交前删除死代码",
+      "category": "architecture",
+      "triggers": [
+        "死代码",
+        "未引用文件",
+        "重复资产",
+        "提交前"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "checklist",
+      "rule": "提交前检索并删除未引用文件、孤儿组件、重复资产与 stub。",
+      "file": "constraints/03-architecture.md",
+      "line": 45
+    },
+    {
+      "id": "C-ARC-04",
+      "title": "切换方案即删除旧方案",
+      "category": "architecture",
+      "triggers": [
+        "方案切换",
+        "旧方案",
+        "并存实现",
+        "当前方案"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "切换实现方案时删除旧方案，只保留一套当前方案，不让多套实现并存。",
+      "file": "constraints/03-architecture.md",
+      "line": 64
+    },
+    {
+      "id": "C-ARC-05",
+      "title": "数值换算只走单一库",
+      "category": "architecture",
+      "triggers": [
+        "单位换算",
+        "数值换算",
+        "换算库",
+        "手写系数"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "在项目宪法指定单一换算库；单位换算只经该库，手写换算系数仅可留在测试期望值。",
+      "file": "constraints/03-architecture.md",
+      "line": 83
+    },
+    {
+      "id": "C-ARC-06",
+      "title": "区分领域异常与程序缺陷",
+      "category": "architecture",
+      "triggers": [
+        "领域异常",
+        "程序缺陷",
+        "内部不变量",
+        "assert",
+        "Result"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "将可预期业务失败作为领域异常或 Result 返回；对不可能态与内部不变量破坏使用 assert 或直接失败，不捕获、不包装。",
+      "file": "constraints/03-architecture.md",
+      "line": 102
+    },
+    {
+      "id": "C-ARC-07",
+      "title": "保证输出顺序确定",
+      "category": "architecture",
+      "triggers": [
+        "输出顺序",
+        "无序集合",
+        "落盘",
+        "确定性",
+        "中文键"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "machine",
+      "rule": "无序集合先按稳定键排序再构造产出；跨进程落盘前排序映射键，中文键使用固定排序键。",
+      "file": "constraints/03-architecture.md",
+      "line": 121
+    },
+    {
+      "id": "C-ARC-08",
+      "title": "用临时文件原子落盘",
+      "category": "architecture",
+      "triggers": [
+        "落盘",
+        "原子写",
+        "临时文件",
+        "rename",
+        "留存上限"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "落盘产物先写同分区临时文件，再用 rename 原子替换；在项目配置声明留存上限与清理策略。",
+      "file": "constraints/03-architecture.md",
+      "line": 140
+    },
+    {
+      "id": "C-ARC-09",
+      "title": "派发前清理代码上下文",
+      "category": "architecture",
+      "triggers": [
+        "代码上下文",
+        "派发前",
+        "小文件",
+        "死代码",
+        "单一方案"
+      ],
+      "paths": [],
+      "roles": [
+        "planner"
+      ],
+      "phases": [
+        "design"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "派发前按文件规模、死代码、方案唯一三项核对代码上下文，即 C-ARC-01/03/04 的清单化核对。",
+      "file": "constraints/03-architecture.md",
+      "line": 159
+    },
+    {
+      "id": "C-COL-01",
+      "title": "评审前自查需求一致性",
+      "category": "collaboration",
+      "triggers": [
+        "简报评审",
+        "需求源",
+        "一致性",
+        "主授权"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "review",
+      "rule": "简报评审先自查需求源内部一致性；发现矛盾时按主授权消解并记档。",
+      "file": "constraints/04-collaboration.md",
+      "line": 7
+    },
+    {
+      "id": "C-COL-02",
+      "title": "将口径冲突交所有者裁定",
+      "category": "collaboration",
+      "triggers": [
+        "口径冲突",
+        "审计门",
+        "所有者裁定",
+        "复算"
+      ],
+      "paths": [],
+      "roles": [
+        "reviewer",
+        "adjudicator"
+      ],
+      "phases": [
+        "review",
+        "adjudicate"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "审计发现两种口径无法同时成立时，列出冲突与影响并交所有者裁定，不自行选值。",
+      "file": "constraints/04-collaboration.md",
+      "line": 26
+    },
+    {
+      "id": "C-COL-03",
+      "title": "为仓外材料写明绝对路径",
+      "category": "collaboration",
+      "triggers": [
+        "代理派发",
+        "仓库外材料",
+        "绝对路径",
+        "prompt"
+      ],
+      "paths": [],
+      "roles": [
+        "planner"
+      ],
+      "phases": [
+        "design"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "派发代理涉及仓库外材料时，在 prompt 写明绝对路径，并显式声明该目录在仓库外。",
+      "file": "constraints/04-collaboration.md",
+      "line": 45
+    },
+    {
+      "id": "C-COL-04",
+      "title": "声明返工上限并核对净增 diff",
+      "category": "collaboration",
+      "triggers": [
+        "返工",
+        "修复轮",
+        "返工上限",
+        "净增 diff"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer",
+        "adjudicator"
+      ],
+      "phases": [
+        "implement",
+        "review",
+        "adjudicate"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "在项目宪法声明返工上限，未声明时不超过 2 轮；每轮量化回归用例与 diff 净增量，超限即终止并交用户。",
+      "file": "constraints/04-collaboration.md",
+      "line": 64
+    },
+    {
+      "id": "C-COL-05",
+      "title": "分离实现验收并锁定测试",
+      "category": "collaboration",
+      "triggers": [
+        "实现验收分离",
+        "测试锁",
+        "激活锁",
+        "registry",
+        "控制面"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer",
+        "adjudicator"
+      ],
+      "phases": [
+        "implement",
+        "review",
+        "close"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "实现与验收分岗；锁定测试文件及其激活状态，实现者不得改测试或关闭用例，验收 registry 仅由结项者变更。",
+      "file": "constraints/04-collaboration.md",
+      "line": 87
     },
     {
       "id": "C-COL-06",
@@ -527,9 +865,61 @@
       ],
       "severity": "blocking",
       "enforcement": "review",
-      "rule": "偏离任务书的任何处置都在报告中逐条写明位置、理由与影响，没有偏离也要写无。",
+      "rule": "偏离任务书的任何处置都在报告中逐条写明位置、理由与影响，删减面附 diff 级自查，没有偏离也要写『无』。",
       "file": "constraints/04-collaboration.md",
-      "line": 8
+      "line": 110
+    },
+    {
+      "id": "C-COL-07",
+      "title": "区分完整、截断与失败",
+      "category": "collaboration",
+      "triggers": [
+        "审计账本",
+        "流水终态",
+        "截断标记",
+        "未知终态"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "machine",
+      "rule": "审计账本以流水终态为唯一来源派生截断标记，分别记录完整、截断与失败；未知终态按非完整处理。",
+      "file": "constraints/04-collaboration.md",
+      "line": 129
+    },
+    {
+      "id": "C-COL-08",
+      "title": "改接缝必核对相邻侧",
+      "category": "collaboration",
+      "triggers": [
+        "接缝",
+        "相邻声明",
+        "语义漂移",
+        "互斥"
+      ],
+      "paths": [],
+      "roles": [
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "review",
+      "rule": "修改接缝一侧时核对相邻另一侧的声明与消费；两侧互斥即停止并上报。",
+      "file": "constraints/04-collaboration.md",
+      "line": 148
     },
     {
       "id": "C-DOC-04",

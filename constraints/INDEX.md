@@ -11,8 +11,8 @@
 |---|---|---|---|
 | 01-context | CTX | `01-context.md` | 正式卡（P9） |
 | 02-verification | VER | `02-verification.md` | 正式卡（P9） |
-| 03-architecture | ARC | `03-architecture.md` | 已建（P8b） |
-| 04-collaboration | COL | `04-collaboration.md` | 已建（P8b） |
+| 03-architecture | ARC | `03-architecture.md` | 正式卡（P10） |
+| 04-collaboration | COL | `04-collaboration.md` | 正式卡（P10） |
 | 05-documentation | DOC | `05-documentation.md` | 已建（P8b） |
 | 06-environment | ENV | `06-environment.md` | 已建（P8b） |
 | 07-orchestration | ORC | `07-orchestration.md` | 已建（P8b） |
@@ -55,8 +55,23 @@
 | C-VER-10 | 验算闭环跑主算例与全部副算例；只跑主算例不算闭环。 | 验算、算例、闭环 | executor、reviewer | review |
 | C-VER-11 | 机检不可由人工判断替代；无机检的验证面按缺位处理。 | 机检、人工判断、缺位 | reviewer、adjudicator | review |
 | C-VER-12 | 任何提交都跑同一套门禁；亲笔变更不免检。 | 提交、门禁、亲笔 | executor、reviewer、adjudicator | checklist |
-| C-ARC-02 | 状态机先列态空间与事件 | 新增状态机、改状态迁移、跨步骤流程 | planner、executor、reviewer | review |
-| C-COL-06 | 偏离任务书必须逐条申报 | 任务书执行、返工、自裁处置 | executor、reviewer、adjudicator | review |
+| C-ARC-01 | 在项目宪法声明文件行数上限与例外；按该上限拆分超限文件。 | 文件行数、拆分、项目宪法、超限 | planner、executor、reviewer | review |
+| C-ARC-02 | 写状态机前先列出全部状态、事件与迁移表，跨步骤序列逐条走查并交审计。 | 新增状态机、改状态迁移、跨步骤流程 | planner、executor、reviewer | review |
+| C-ARC-03 | 提交前检索并删除未引用文件、孤儿组件、重复资产与 stub。 | 死代码、未引用文件、重复资产、提交前 | executor、reviewer | checklist |
+| C-ARC-04 | 切换实现方案时删除旧方案，只保留一套当前方案，不让多套实现并存。 | 方案切换、旧方案、并存实现、当前方案 | executor、reviewer | review |
+| C-ARC-05 | 在项目宪法指定单一换算库；单位换算只经该库，手写换算系数仅可留在测试期望值。 | 单位换算、数值换算、换算库、手写系数 | planner、executor、reviewer | review |
+| C-ARC-06 | 将可预期业务失败作为领域异常或 Result 返回；对不可能态与内部不变量破坏使用 assert 或直接失败，不捕获、不包装。 | 领域异常、程序缺陷、内部不变量、assert、Result | planner、executor、reviewer | review |
+| C-ARC-07 | 无序集合先按稳定键排序再构造产出；跨进程落盘前排序映射键，中文键使用固定排序键。 | 输出顺序、无序集合、落盘、确定性、中文键 | executor、reviewer | machine |
+| C-ARC-08 | 落盘产物先写同分区临时文件，再用 rename 原子替换；在项目配置声明留存上限与清理策略。 | 落盘、原子写、临时文件、rename、留存上限 | planner、executor、reviewer | review |
+| C-ARC-09 | 派发前按文件规模、死代码、方案唯一三项核对代码上下文，即 C-ARC-01/03/04 的清单化核对。 | 代码上下文、派发前、小文件、死代码、单一方案 | planner | checklist |
+| C-COL-01 | 简报评审先自查需求源内部一致性；发现矛盾时按主授权消解并记档。 | 简报评审、需求源、一致性、主授权 | planner、reviewer | review |
+| C-COL-02 | 审计发现两种口径无法同时成立时，列出冲突与影响并交所有者裁定，不自行选值。 | 口径冲突、审计门、所有者裁定、复算 | reviewer、adjudicator | review |
+| C-COL-03 | 派发代理涉及仓库外材料时，在 prompt 写明绝对路径，并显式声明该目录在仓库外。 | 代理派发、仓库外材料、绝对路径、prompt | planner | review |
+| C-COL-04 | 在项目宪法声明返工上限，未声明时不超过 2 轮；每轮量化回归用例与 diff 净增量，超限即终止并交用户。 | 返工、修复轮、返工上限、净增 diff | executor、reviewer、adjudicator | review |
+| C-COL-05 | 实现与验收分岗；锁定测试文件及其激活状态，实现者不得改测试或关闭用例，验收 registry 仅由结项者变更。 | 实现验收分离、测试锁、激活锁、registry、控制面 | executor、reviewer、adjudicator | review |
+| C-COL-06 | 偏离任务书的任何处置都在报告中逐条写明位置、理由与影响，删减面附 diff 级自查，没有偏离也要写『无』。 | 任务书执行、返工、自裁处置 | executor、reviewer、adjudicator | review |
+| C-COL-07 | 审计账本以流水终态为唯一来源派生截断标记，分别记录完整、截断与失败；未知终态按非完整处理。 | 审计账本、流水终态、截断标记、未知终态 | planner、executor、reviewer | machine |
+| C-COL-08 | 修改接缝一侧时核对相邻另一侧的声明与消费；两侧互斥即停止并上报。 | 接缝、相邻声明、语义漂移、互斥 | executor、reviewer | review |
 | C-DOC-04 | 规范与校验器必须同步演进 | 改规范、改校验脚本、新增机检 | planner、executor、reviewer | checklist |
 
-P9 起 CTX/VER 已正式化（20 张），其余样卡 P10-P12 重写；张数目标见 `docs/08-lessons-merge.md` §3。
+P10 起 CTX/VER/ARC/COL 已正式化（四册 37 张＋DOC 样卡 1 张＝清单 38 行），DOC/ENV/ORC 留 P11-P12；张数目标见 `docs/08-lessons-merge.md` §3。
