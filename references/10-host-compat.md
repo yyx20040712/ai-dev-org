@@ -17,6 +17,7 @@
 |---|---|---|
 | Node 25 下 ds-call-v2 退出阶段 libuv 断言崩溃（HOST-node25）——外部派发一律用 Node 24 跑；脚本启动带版本守卫（守卫读 org-config `supported_node.forbid_major`，禁硬编码） | 本机 Node 25.2.1，2026-09-17 在册 | 异机/升级后跑 `org-config --self-test` + `regression`（R10②=glm-look 回归载体，其无 --self-test flag；ds-call-v2 已删除——纯净化批 2026-10-03）；deploy-check node-major 检查须绿（版本守卫现役载体=deploy-check，volta node24 复跑先例在册） |
 | volta run 将任意非零退出码掩成 126（0 正常透传）——脚本化消费精确退出码时直跑 node 或 volta pin 固定 | 本机 volta 实证 2026-09-17（RESIDUALS volta-exitcode-mask） | 出现退出码消费封装时先跑 1/2/3 退码对照 |
+| 本机 `grep`=shell 函数包壳 ugrep：多文件输出次序不稳定；`--ignore-files` 遵守 gitignore，忽略模式直接影响扫描面。处置=涉多文件管道一律加 `sort` 或改计数形态；可能零命中的 grep 以 `wc -l` 收尾，退出码才可判 | 本机 2026-10-25（P9 批实测——批档 P9-close 第 4 节） | 异机首跑 `type grep` 核对形态；多文件次序与忽略行为各做一次对照实测 |
 
 ## 2. 派发与代理档案语义（zcode 宿主）
 
