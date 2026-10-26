@@ -665,9 +665,9 @@ function selfTest() {
   const d9At = (today) => doctorFindings(aliasMatrix, cfg41, { today }).filter((f) => f.code === 'D9')
   const d41win = d9At('2026-10-22')
   const d41post = d9At('2026-10-25')
-  t('向量41 doctor 旧名污染：窗口内(2026-10-22)建议 ops-executor-ds-high，窗口后(2026-10-25)建议 ops-executor-startplan-high（L19 起 executor 默认档=startplan）',
+  t('向量41 doctor 旧名污染：窗口内(2026-10-22)建议 ops-executor-ds-high，窗口后(2026-10-25)建议 ops-executor-glmflash-high（矩阵 default 现为 glmflash，2026-10-26 裁决切换）',
     d41win.length === 1 && d41win[0].level === 'WARN' && d41win[0].line.includes('ops-executor-ds-high') &&
-    d41post.length === 1 && d41post[0].level === 'WARN' && d41post[0].line.includes('ops-executor-startplan-high'))
+    d41post.length === 1 && d41post[0].level === 'WARN' && d41post[0].line.includes('ops-executor-glmflash-high'))
   const expectAliases = ['ops-executor', 'ops-drafter', 'ops-auditor', 'ops-adjudicator', 'ops-probe', 'ops-diagnostics', 'ops-gate1-k1', 'ops-gate1-k2', 'ops-gate1-k3', 'ops-gate1-d1']
   const actualAliases = Object.keys(aliasMatrix.aliases || {})
   t('向量42 真实矩阵 aliases 键集恰为 10 个旧名（逐字比对）',

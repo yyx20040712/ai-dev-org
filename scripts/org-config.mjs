@@ -766,7 +766,7 @@ if (isMain) {
     // L19 账户计划源向量：account:<计划名> 前缀走本机允许清单（不走宿主注册表双命中）；
     // 夹具全合成计划名/空宿主注册表（计划源不消费注册表——空注册表也应命中通过）。
     const planHost = { provider: {} }
-    t('L19 计划源①：account: 前缀＋清单命中→零错误（空注册表通过＝跳过双命中）', validateProviders({ providers: { startplan: { uuid_prefix: 'account:bigmodel-start-plan', entry_name: 'Start Plan', family: 'glm' } }, account_plan_allowlist: ['bigmodel-start-plan'] }, planHost).length === 0)
+    t('L19 计划源①：account: 前缀＋清单命中→零错误（空注册表通过＝跳过双命中）', validateProviders({ providers: { startplan: { uuid_prefix: 'account:demo-plan', entry_name: 'Demo Plan', family: 'glm' } }, account_plan_allowlist: ['demo-plan'] }, planHost).length === 0)
     t('L19 计划源②：allowlist 缺失→错误行（守卫点名键名）', (() => { const e = validateProviders({ providers: { startplan: { uuid_prefix: 'account:x-plan', entry_name: 'P', family: 'glm' } } }, planHost); return e.some((m) => m.includes('account_plan_allowlist')) })())
     t('L19 计划源③：计划名不在清单→错误行（点名 alias 与键名）', (() => { const e = validateProviders({ providers: { startplan: { uuid_prefix: 'account:x-plan', entry_name: 'P', family: 'glm' } }, account_plan_allowlist: ['other-plan'] }, planHost); return e.some((m) => m.includes('alias=startplan') && m.includes('account_plan_allowlist') && m.includes('归因造假')) })())
     t('L19 计划源④：allowlist 非数组→错误行（形态守卫 fail-closed）', (() => { const e = validateProviders({ providers: { startplan: { uuid_prefix: 'account:x-plan', entry_name: 'P', family: 'glm' } }, account_plan_allowlist: 'x-plan' }, planHost); return e.some((m) => m.includes('account_plan_allowlist')) })())
