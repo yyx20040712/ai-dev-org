@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // constraint-index.mjs — 约束树索引器（P8a）。
 // gen 重建 constraints/index.json；check 跑七条并逐字节比对；query 读索引过滤排序。
-// --self-test 十三向量（夹具落 os.tmpdir()，finally 清理，不写技能仓）。
+// --self-test 十四向量（夹具落 os.tmpdir()，finally 清理，不写技能仓）。
 // frontmatter 子集解析自写（零新依赖）：仅支持任务书 §5.2 形态，其余一律带 file:line 报错。
 // 退出码口径单源=references/06 §5.8（此处不复写映射）。
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs'
@@ -239,7 +239,8 @@ export function queryLines(root, o) {
   const afterClose = o.task === 'close' ? candidates.filter((c) => c.severity === 'blocking') : candidates
   const hit = afterClose.filter((c) => (!o.role || (c.roles || []).includes(o.role)) && (!o.phase || (c.phases || []).includes(o.phase)))
   const rows = hit.map((c) => ({ c, ph: o.paths.length ? (c.paths || []).filter((p) => o.paths.some((x) => globMatch(p, x))).length : 0, dh: o.desc ? (c.triggers || []).filter((t) => o.desc.includes(t)).length : 0 }))
-  rows.sort((x, y) => y.ph - x.ph || y.dh - x.dh || SEVERITY[x.c.severity] - SEVERITY[y.c.severity] || (x.c.id < y.c.id ? -1 : x.c.id > y.c.id ? 1 : 0))
+  const bookOrder = (c) => route.indexOf(c.file.slice('constraints/'.length, -'.md'.length))
+  rows.sort((x, y) => y.ph - x.ph || y.dh - x.dh || SEVERITY[x.c.severity] - SEVERITY[y.c.severity] || bookOrder(x.c) - bookOrder(y.c) || (x.c.id < y.c.id ? -1 : x.c.id > y.c.id ? 1 : 0))
   const out = o.task === 'close' ? rows : rows.slice(0, o.limit)
   return [`候选=${candidates.length} 命中=${hit.length} 输出=${out.length}`, 'ID ｜ 标题 ｜ 规则句 ｜ 执行方式 ｜ 位置',
     ...out.map(({ c }) => `${c.id} ｜ ${c.title} ｜ ${c.rule} ｜ ${c.enforcement} ｜ ${c.file}:${c.line}`)]
@@ -302,6 +303,11 @@ function selfTest() {
     add('11 枚举非法：roles/phases/severity/enforcement 各报 check#1', [['roles: [planner]', 'roles: [wizard]'], ['phases: [design]', 'phases: [launch]'], ['severity: warning', 'severity: critical'], ['enforcement: checklist', 'enforcement: auto']].every(([a, b]) => n1(set(a, b)) === 1))
     add('12 evidence 为空：数组空判 FAIL、完整卡不报', n1(base7.replace(/^evidence:\n(?: {2,}.*\n)+/m, 'evidence: []\n')) === 1 && n1(base7) === 0)
     add('13 多余参数：arityError 判定 + 子进程 check 带多余参数报用法错', arityError('--self-test', ['--self-test', 'foo']) === '--self-test 不接受参数' && arityError('gen', ['gen', 'x']) === 'gen 不接受参数' && arityError('query', ['query', '--task', 'fix']) === null && spawnSync(process.execPath, [process.argv[1], 'check', 'x'], { encoding: 'utf8' }).status === 1)
+    // 向量 14：排序平局决胜键序（路由册序）——刻意不带 role 过滤以保全 blocking 卡在候选内（有意设计非遗漏）
+    const ids14 = queryLines(tmp, { task: 'refactor', paths: [], limit: 3 }).map((l) => l.split(' ｜ ')[0])
+    add('14 排序键序：refactor 前三=C-CTX-01→C-VER-01→C-CTX-02（blocking 绝对优先；同 severity 平局按路由册序 02-verification 先于 01-context 决胜、与卡 ID 字典序反序，证伪旧键序）——刻意不带 role 过滤以保全 blocking 卡在候选内',
+      ids14[0] === '候选=3 命中=3 输出=3' && ids14[2] === 'C-CTX-01' && ids14[3] === 'C-VER-01' && ids14[4] === 'C-CTX-02',
+      JSON.stringify(ids14.slice(0, 5)))
   } finally { rmSync(tmp, { recursive: true, force: true }) }
   const fail = cases.filter((c) => !c.ok).length
   return { cases, fail }
