@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-24",
+  "generatedAt": "2026-10-26",
   "files": {
     "ops-adjudicator-699-max.md": "082055f748efda62d533fc4b14ad50ddee60ed8e59037f7901abe733e0319009",
     "ops-adjudicator-ds-max.md": "bca9c58dfc78ca8d8efaa3f95d10cadba2efdc0145b7e56988af3223d7953776",
@@ -14,7 +14,6 @@
     "ops-executor-ds-high.md": "b5070dc7e63ce513425917bc14378f9aee51d323946c78c57ee81392bc5b4f19",
     "ops-executor-glm-high.md": "3f209a5ce0193b4635adfc63dd02cf427b2abfeed4e6dd65f52192bfc7c86d57",
     "ops-executor-glmflash-high.md": "08ccf89fdf4918f761c0faedd29961776b231211e5a027f07432d1fe4adad2d1",
-    "ops-executor-startplan-high.md": "98e409238eec878f3f435e21730817635655f12169bcca18c3b69658678ba3cd",
     "ops-executor-yyx-high.md": "86dc67cc2f6370f64962b7b7561e4b947bd971c15b50c7181b8f72c7357c2cbd",
     "ops-executor-zipoo-high.md": "6fd4809e780dde2adfc531ef9fc75079436a4867fbce7be9c32420b39efbff5c",
     "ops-planner-699-max.md": "f427561e5993dcc279e9fda24741661b47ab0a9577aa917edd539ee7c68cadd3",

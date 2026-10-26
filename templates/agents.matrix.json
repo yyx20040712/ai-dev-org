@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updated": "2026-10-24",
+  "updated": "2026-10-26",
   "note": "逻辑矩阵：只写角色、provider 短名、档位、工具面、默认与回退序；真实 providerId/modelId/账号名不入库（由 org-config.local.json 的 agent_bindings 提供）。display 名不入库：providers.*.display 已删除，真实显示名以本机件 org-config.local.json 的 entry_name 为准。",
   "levels": [
     "low",
@@ -31,10 +31,6 @@
     "ds": {
       "family": "deepseek",
       "multimodal": true
-    },
-    "startplan": {
-      "family": "glm",
-      "multimodal": false
     }
   },
   "roles": {
@@ -96,7 +92,6 @@
       "title": "实现岗",
       "level": "high",
       "providers": [
-        "startplan",
         "glm",
         "glmflash",
         "699",
@@ -104,9 +99,8 @@
         "zipoo",
         "ds"
       ],
-      "default": "startplan",
+      "default": "glmflash",
       "fallback": [
-        "startplan",
         "glmflash",
         "glm",
         "699",
