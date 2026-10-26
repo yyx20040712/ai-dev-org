@@ -1304,6 +1304,170 @@
       "rule": "新增布尔名用 is_/has_/allow_ 前缀并禁否定布尔；标识符只用 ASCII 字母数字下划线。",
       "file": "constraints/06-environment.md",
       "line": 121
+    },
+    {
+      "id": "C-ORC-01",
+      "title": "按写面隔离并行派发",
+      "category": "orchestration",
+      "triggers": [
+        "并行派发",
+        "写面隔离",
+        "同文件",
+        "共享状态"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "checklist",
+      "rule": "并行派发前列出各任务写面，写不同文件且无共享状态才可并行；写同文件或共享状态必须串行。",
+      "file": "constraints/07-orchestration.md",
+      "line": 7
+    },
+    {
+      "id": "C-ORC-02",
+      "title": "显式绑定模型并核对路由",
+      "category": "orchestration",
+      "triggers": [
+        "代理档案",
+        "模型绑定",
+        "thoughtLevel",
+        "静默回退",
+        "metadata"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer",
+        "diagnostics"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "machine",
+      "rule": "绑定岗代理档案显式声明具体模型与档位，禁用上游枚举值；首场派发后核对声明与实际路由，并逐项处理 metadata 形态漂移告警。",
+      "file": "constraints/07-orchestration.md",
+      "line": 26
+    },
+    {
+      "id": "C-ORC-03",
+      "title": "改档后用新会话验证",
+      "category": "orchestration",
+      "triggers": [
+        "代理档案",
+        "改档",
+        "新会话"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "diagnostics"
+      ],
+      "phases": [
+        "implement",
+        "review"
+      ],
+      "severity": "warning",
+      "enforcement": "checklist",
+      "rule": "修改代理档案或模型档位后，不在原会话认定生效；另起新会话执行最小派发并核对工具面与绑定快照。",
+      "file": "constraints/07-orchestration.md",
+      "line": 49
+    },
+    {
+      "id": "C-ORC-04",
+      "title": "长派发分层排障并留真退出码",
+      "category": "orchestration",
+      "triggers": [
+        "长任务派发",
+        "三层分诊",
+        "审包体积",
+        "超时",
+        "真退出码"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer",
+        "diagnostics"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "checklist",
+      "rule": "长任务派发前压缩审包并声明唯一超时源与简报预算，失败后按服务端、网关、客户端三层分诊；证据与结论同笔提交，逐条命令单独落真退出码。",
+      "file": "constraints/07-orchestration.md",
+      "line": 68
+    },
+    {
+      "id": "C-ORC-05",
+      "title": "先检占用再调度定时与闲时任务",
+      "category": "orchestration",
+      "triggers": [
+        "定时任务",
+        "闲时任务",
+        "占用检测",
+        "断点接续",
+        "静默窗"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "diagnostics"
+      ],
+      "phases": [
+        "design",
+        "implement"
+      ],
+      "severity": "blocking",
+      "enforcement": "checklist",
+      "rule": "调度定时或闲时任务前，只读核对全系统进程、锁与目标目录活动静默窗并区分断点，既有任务只增不改且不得杀进程清场；闲时不派后台子代理，仅承载只读或可重跑工作，开工先提交且不依赖自动重试。",
+      "file": "constraints/07-orchestration.md",
+      "line": 87
+    },
+    {
+      "id": "C-ORC-06",
+      "title": "显式声明子代理工具与嵌套边界",
+      "category": "orchestration",
+      "triggers": [
+        "子代理",
+        "工具白名单",
+        "tools",
+        "嵌套派发"
+      ],
+      "paths": [],
+      "roles": [
+        "planner",
+        "executor",
+        "reviewer"
+      ],
+      "phases": [
+        "design",
+        "implement",
+        "review"
+      ],
+      "severity": "blocking",
+      "enforcement": "checklist",
+      "rule": "子代理档案显式声明工具边界，禁止用空 tools 数组充当无工具配置；任务书写明子代理不得再派子代理，嵌套需求交主控重拆。",
+      "file": "constraints/07-orchestration.md",
+      "line": 114
     }
   ],
   "routes": {

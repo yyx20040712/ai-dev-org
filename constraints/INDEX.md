@@ -1,6 +1,6 @@
 # 约束树索引（INDEX）
 
-> 状态：active ｜ 权威：index ｜ 更新：2026-10-25 ｜ 替代：无
+> 状态：active ｜ 权威：index ｜ 更新：2026-10-26 ｜ 替代：无
 
 人读索引。机读索引=`index.json`（脚本生成，禁手改）。规则句单源=各册卡片，本表只做投影。
 路由表依据=`docs/06` §4。本件的卡片 ID 出现位置受 `check` 第 6 条 (b) 校验；路由表与卡片清单的**内容**不参与机检，一致性由 P13 检索演练复核。
@@ -15,7 +15,7 @@
 | 04-collaboration | COL | `04-collaboration.md` | 正式卡（P10） |
 | 05-documentation | DOC | `05-documentation.md` | 正式卡（P11） |
 | 06-environment | ENV | `06-environment.md` | 正式卡（P11） |
-| 07-orchestration | ORC | `07-orchestration.md` | 已建（P8b） |
+| 07-orchestration | ORC | `07-orchestration.md` | 正式卡（P12） |
 
 ## 2. 任务类型路由表
 
@@ -87,5 +87,11 @@
 | C-ENV-05 | 迁移后重建环境再验收；重锁必携 manifest 反推全量包路径，以哈希零变动为准。 | 迁移、环境重建、manifest、哈希验收 | executor、reviewer | checklist |
 | C-ENV-06 | 升级前查预编译兼容矩阵；安装钩子被移除的版本显式补安装步骤。 | 升级、预编译、安装钩子、兼容矩阵 | executor、reviewer | checklist |
 | C-ENV-07 | 新增布尔名用 is_/has_/allow_ 前缀并禁否定布尔；标识符只用 ASCII 字母数字下划线。 | 命名、布尔前缀、标识符、字符集 | executor、reviewer | review |
+| C-ORC-01 | 并行派发前列出各任务写面，写不同文件且无共享状态才可并行；写同文件或共享状态必须串行。 | 并行派发、写面隔离、同文件、共享状态 | planner、executor、reviewer | checklist |
+| C-ORC-02 | 绑定岗代理档案显式声明具体模型与档位，禁用上游枚举值；首场派发后核对声明与实际路由，并逐项处理 metadata 形态漂移告警。 | 代理档案、模型绑定、thoughtLevel、静默回退、metadata | planner、executor、reviewer、diagnostics | machine |
+| C-ORC-03 | 修改代理档案或模型档位后，不在原会话认定生效；另起新会话执行最小派发并核对工具面与绑定快照。 | 代理档案、改档、新会话 | planner、executor、diagnostics | checklist |
+| C-ORC-04 | 长任务派发前压缩审包并声明唯一超时源与简报预算，失败后按服务端、网关、客户端三层分诊；证据与结论同笔提交，逐条命令单独落真退出码。 | 长任务派发、三层分诊、审包体积、超时、真退出码 | planner、executor、reviewer、diagnostics | checklist |
+| C-ORC-05 | 调度定时或闲时任务前，只读核对全系统进程、锁与目标目录活动静默窗并区分断点，既有任务只增不改且不得杀进程清场；闲时不派后台子代理，仅承载只读或可重跑工作，开工先提交且不依赖自动重试。 | 定时任务、闲时任务、占用检测、断点接续、静默窗 | planner、executor、diagnostics | checklist |
+| C-ORC-06 | 子代理档案显式声明工具边界，禁止用空 tools 数组充当无工具配置；任务书写明子代理不得再派子代理，嵌套需求交主控重拆。 | 子代理、工具白名单、tools、嵌套派发 | planner、executor、reviewer | checklist |
 
-P11 起 CTX/VER/ARC/COL/DOC/ENV 已正式化（六册 52 张＝清单 52 行），ORC 留 P12；张数目标见 `docs/08-lessons-merge.md` §3。
+P12 起 CTX/VER/ARC/COL/DOC/ENV/ORC 已正式化（七册 58 张＝清单 58 行）；张数目标见 `docs/08-lessons-merge.md` §3。
