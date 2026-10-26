@@ -91,7 +91,7 @@
 | C-ORC-02 | 绑定岗代理档案显式声明具体模型与档位，禁用上游枚举值；首场派发后核对声明与实际路由，并逐项核对闭环 metadata 形态漂移告警。 | 代理档案、模型绑定、thoughtLevel、静默回退、metadata | planner、executor、reviewer、diagnostics | machine |
 | C-ORC-03 | 修改代理档案或模型档位后，不在原会话认定生效；另起新会话执行最小派发并核对工具面与绑定快照。 | 代理档案、改档、新会话 | planner、executor、diagnostics | checklist |
 | C-ORC-04 | 长任务派发前压缩审包并声明唯一超时源与简报预算，失败后按服务端、网关、客户端三层分诊；证据与结论同笔提交，逐条命令单独落真退出码。 | 长任务派发、三层分诊、审包体积、超时、真退出码 | planner、executor、reviewer、diagnostics | checklist |
-| C-ORC-05 | 调度定时或闲时任务前，只读核对全系统进程、锁与目标目录活动静默窗并区分断点，既有任务只增不改（仅用户点名任务 ID 的裁决可调整，须留裁决锚点）且不得杀进程清场；闲时不派后台子代理，仅承载只读或可重跑工作，开工先提交且不依赖自动重试。 | 定时任务、闲时任务、占用检测、断点接续、静默窗 | planner、executor、diagnostics | checklist |
+| C-ORC-05 | 调度定时或闲时任务前，只读核对全系统进程、锁与目标目录活动静默窗并区分断点，既有任务只增不改；确需调整先停手交用户裁决，仅在用户点名任务 ID 时调整该任务并在账本留用户裁决记录且不得杀进程清场；闲时不派后台子代理，仅承载只读或可重跑工作，开工先提交且不依赖自动重试。 | 定时任务、闲时任务、占用检测、断点接续、静默窗 | planner、executor、diagnostics | checklist |
 | C-ORC-06 | 子代理档案显式声明工具边界，禁止用空 tools 数组充当无工具配置；任务书写明子代理不得再派子代理，嵌套需求交主控以串行或工作流处置。 | 子代理、工具白名单、tools、嵌套派发 | planner、executor、reviewer | checklist |
 
 P12 起 CTX/VER/ARC/COL/DOC/ENV/ORC 已正式化（七册 58 张＝清单 58 行）；张数目标见 `docs/08-lessons-merge.md` §3。
