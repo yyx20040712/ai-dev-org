@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // pub-sanitize.mjs — 分发净化流水线（R-PUB-1·r5）：把技能仓导出面变换成「对外分发最小集」——
-//   导出(checkout-index)→剔除(dropFiles)→骨架换件(RESIDUALS)→精确清洗(X1/X2/X4/X7)→族清洗(X3/X5)
-//   →全局改名(T·内容＋文件名)→.manifest 重哈希→terms-baseline 重算→四维门禁→MANIFEST。
+//   导出(checkout-index)→剔除(dropFiles)→骨架换件(RESIDUALS)→精确清洗(X1/X2/X4)→族清洗(X3/X5)
+//   →精确清洗(X7)→全局改名(T·内容＋文件名)→.manifest 重哈希→terms-baseline 重算→四维门禁→MANIFEST。
 // 规格=scripts/pub-sanitize.spec.json（数据非逻辑；第 4 维词表单源派生：codenameMap 键＋
 //   exactRules.gateRegex＋familyRules.regex/gateWord——spec 不双写词表）。第 1-3 维复用
-//   package-skill 六纯函数（buildSharePatterns/scanLine/lineExempt/validateWhitelist/scanTree——
-//   buildManifest 因头注嵌时间戳违 D3 幂等逐字节稳定，本件以确定性清单代之，行格式同源）。
+//   package-skill 纯函数四 import（buildSharePatterns/lineExempt/validateWhitelist/scanTree；
+//   scanLine 经 scanTree 间接复用——六观测④订正：原「六纯函数」表述与现行 import 面不符）；
+//   buildManifest 因头注嵌时间戳违 D3 幂等逐字节稳定不引入，本件以确定性清单代之，行格式同源。
 // 与 package-skill 常规 --out 通道关系：本管线是「先变换后门禁」的发布通道，常规通道契约
 //   零改动（活树含代号是组织在用常态）；本件门禁扫描对象=净化产物，不扫活树导出面。
 // 用法：node scripts/pub-sanitize.mjs --out <空目录> | --gate-only <目录> | --self-test
@@ -59,6 +60,12 @@ export function validateSpec(spec) {
   }
   for (const f of spec.familyRules) {
     if (!isPlain(f) || !f.id || typeof f.familyTotal !== 'number') fail(`familyRule 形状缺字段或非对象（${f && f.id}）`)
+    // A2 装载加固（六观测④）：声明了 gateLabel（第 4 维门禁面标签）的规则，其门禁正则键
+    // gateRegex 必填——缺失=装载错，错误行点名规则 id 与键名（禁标签悬空无门禁式）。
+    if (f.gateLabel) {
+      if (typeof f.gateRegex !== 'string' || !f.gateRegex) fail(`familyRule ${f.id} 声明 gateLabel 而门禁正则键 gateRegex 缺失——装载拒（键名=gateRegex）`)
+      try { new RegExp(f.gateRegex, f.flags || 'g') } catch (e) { fail(`familyRule ${f.id} gateRegex 不可编译：${e.message}`) }
+    }
     if (f.mode === 'regex') {
       if (typeof f.regex !== 'string' || typeof f.replace !== 'string' || !isPlain(f.counts)) fail(`familyRule ${f.id} regex 形态须 regex+replace+counts`)
       try { new RegExp(f.regex, f.flags || 'g') } catch (e) { fail(`familyRule ${f.id} regex 不可编译：${e.message}`) }
@@ -313,11 +320,23 @@ function selfTest() {
   t('⑬键域封闭：spec 混入未声明键→validateSpec 拒', (() => { const m = JSON.parse(JSON.stringify(spec)); m.rogue = 1; try { validateSpec(m); return false } catch (e) { return String(e.message).includes('未声明键') } })())
   t('⑭退出码契约：损坏 spec 夹具 spawn→exit 3', withFx((d) => { mkdirSync(join(d, 'scripts'), { recursive: true }); for (const f of ['org-config.mjs', 'package-skill.mjs', 'pub-sanitize.mjs']) copyFileSync(join(SKILL_ROOT, 'scripts', f), join(d, 'scripts', f)); writeFileSync(join(d, 'scripts', 'pub-sanitize.spec.json'), '{ 错误 JSON', 'utf8'); const r = runRaw([join(d, 'scripts', 'pub-sanitize.mjs'), '--gate-only', d]); return r.status === 3 && String(r.stderr || '').includes('规格件不可解析') }))
   t('⑮退出码契约：--out 指向普通文件→exit 3', withFx((d) => { const f = join(d, 'afile'); writeFileSync(f, 'x'); const r = runRaw([self, '--out', f]); return r.status === 3 && String(r.stderr || '').includes('普通文件') }))
-  t('⑯load 期 fail-closed：白名单非空/rename 合计/regex counts 合计/gateRegex 编译四拒', (() => { const mk = (fn) => { const m = JSON.parse(JSON.stringify(spec)); fn(m); try { validateSpec(m); return false } catch (e) { return true } }; return mk((m) => { m.shareWhitelist = [{ file: 'a.md', contains: 'x', reason: 'r' }] }) && mk((m) => { m.familyRules.find((f) => f.id === 'T').counts.filename = 99 }) && mk((m) => { m.familyRules.find((f) => f.id === 'X3').counts['SKILL.md'] = 99 }) && mk((m) => { m.exactRules.find((x) => x.id === 'X2-1').gateRegex = '([' }) })())
+  t('⑯load 期 fail-closed：白名单非空/rename 合计/regex counts 合计/gateRegex 编译/gateLabel 缺门禁正则键五拒', (() => { const mk = (fn) => { const m = JSON.parse(JSON.stringify(spec)); fn(m); try { validateSpec(m); return false } catch (e) { return true } }; return mk((m) => { m.shareWhitelist = [{ file: 'a.md', contains: 'x', reason: 'r' }] }) && mk((m) => { m.familyRules.find((f) => f.id === 'T').counts.filename = 99 }) && mk((m) => { m.familyRules.find((f) => f.id === 'X3').counts['SKILL.md'] = 99 }) && mk((m) => { m.exactRules.find((x) => x.id === 'X2-1').gateRegex = '([' }) && (() => { const m = JSON.parse(JSON.stringify(spec)); const x5 = m.familyRules.find((f) => f.id === 'X5'); delete x5.gateRegex; try { validateSpec(m); return false } catch (e) { return String(e.message).includes('X5') && String(e.message).includes('gateRegex') } })() })())
   t('⑰manifest 键限 .md：非 .md 键→rehashManifest 拒', withFx((d) => { const dir = join(d, 'templates', 'agents'); mkdirSync(dir, { recursive: true }); w(d, 'templates/agents/a.md', 'x\n'); writeFileSync(join(dir, '.manifest.json'), JSON.stringify({ schemaVersion: 1, files: { 'a.json': 'old' } })); try { rehashManifest(d); return false } catch (e) { return String(e.message).includes('.md') } }))
   const cloneSpec = (d, mutate) => { const repo = join(d, 'repo'); if (spawnSync('git', ['clone', '-q', SKILL_ROOT, repo], { encoding: 'utf8' }).status !== 0) return null; const m = JSON.parse(readFileSync(join(repo, 'scripts', 'pub-sanitize.spec.json'), 'utf8')); mutate(m); writeFileSync(join(repo, 'scripts', 'pub-sanitize.spec.json'), JSON.stringify(m, null, 2) + '\n'); spawnSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-aqm', 'x'], { encoding: 'utf8' }); return repo }
   t('⑱CLI 端到端：临时 spec 去一条 X2 规则→--out 真管线 exit 3（familyTotal 拒）', withFx((d) => { const repo = cloneSpec(d, (m) => m.exactRules.splice(m.exactRules.findIndex((x) => x.id === 'X2-1'), 1)); if (!repo) return false; const r = runRaw([join(repo, 'scripts', 'pub-sanitize.mjs'), '--out', join(d, 'out')]); return r.status === 3 && String(r.stderr || '').includes('familyTotal') }))
-  t('⑲CLI 端到端：X3 声明计数与树不符（合计守恒置换）→管线 exit 3（计数失配）', withFx((d) => { const repo = cloneSpec(d, (m) => { const x3 = m.familyRules.find((f) => f.id === 'X3'); x3.counts['SKILL.md'] = 2; x3.counts['scripts/org-config.mjs'] = 32 }); if (!repo) return false; const r = runRaw([join(repo, 'scripts', 'pub-sanitize.mjs'), '--out', join(d, 'out')]); return r.status === 3 && String(r.stderr || '').includes('计数失配') }))
+  t('⑲CLI 端到端：X3 声明计数与树不符（合计守恒置换）→管线 exit 3（计数失配）', withFx((d) => {
+    const repo = cloneSpec(d, (m) => {
+      const x3 = m.familyRules.find((f) => f.id === 'X3')
+      const ks = Object.keys(x3.counts)
+      const ka = ks.find((k) => ks.some((j) => j !== k && x3.counts[j] !== x3.counts[k]))
+      const kb = ks.find((k) => k !== ka && x3.counts[k] !== x3.counts[ka])
+      if (ka === undefined || kb === undefined) { x3.counts[ks[0]] += 1; x3.counts[ks[ks.length - 1]] -= 1 } // 全等值兜底：±1 置换仍合计守恒
+      else { const tmp = x3.counts[ka]; x3.counts[ka] = x3.counts[kb]; x3.counts[kb] = tmp } // A9：从现行 counts 取计数值不等的两键互换（合计不变、树计数失配——措辞不硬编码文件名与计数，防重算再漂）
+    })
+    if (!repo) return false
+    const r = runRaw([join(repo, 'scripts', 'pub-sanitize.mjs'), '--out', join(d, 'out')])
+    return r.status === 3 && String(r.stderr || '').includes('计数失配')
+  }))
   t('⑳装载链首拒：spec=null 夹具→exit 3（普通对象拒）', withFx((d) => { mkdirSync(join(d, 'scripts'), { recursive: true }); for (const f of ['org-config.mjs', 'package-skill.mjs', 'pub-sanitize.mjs']) copyFileSync(join(SKILL_ROOT, 'scripts', f), join(d, 'scripts', f)); writeFileSync(join(d, 'scripts', 'pub-sanitize.spec.json'), 'null', 'utf8'); const r = runRaw([join(d, 'scripts', 'pub-sanitize.mjs'), '--gate-only', d]); return r.status === 3 && String(r.stderr || '').includes('普通对象') }))
   t('㉑exact 族 regex 必填：去 X7 门禁式→exit 3（禁静默跳过）', withFx((d) => { mkdirSync(join(d, 'scripts'), { recursive: true }); for (const f of ['org-config.mjs', 'package-skill.mjs', 'pub-sanitize.mjs']) copyFileSync(join(SKILL_ROOT, 'scripts', f), join(d, 'scripts', f)); const m = JSON.parse(readFileSync(SPEC_PATH, 'utf8')); delete m.familyRules.find((f) => f.id === 'X7').regex; writeFileSync(join(d, 'scripts', 'pub-sanitize.spec.json'), JSON.stringify(m, null, 2), 'utf8'); const r = runRaw([join(d, 'scripts', 'pub-sanitize.mjs'), '--gate-only', d]); return r.status === 3 && String(r.stderr || '').includes('必填 regex') }))
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)

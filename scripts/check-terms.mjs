@@ -58,7 +58,7 @@ const TERMS = [
   { term: '裁决史括注-日期裁决', replace: '出正文，住历史区', kind: 'rule2', re: /（\d{4}-\d{2}-\d{2} 用户裁决/g },
 ]
 const TERM_TOTAL = 32 // 词表总数断言=两源表 23+10-1 去重（rule2 两模式不计入）
-const SURFACE_DOC = ['SKILL.md', 'references/*.md', 'RESIDUALS.md', 'constraints/*.md', 'DEPLOY.md']
+const SURFACE_DOC = ['SKILL.md', 'references/*.md', 'RESIDUALS.md', 'constraints/*.md', 'DEPLOY.md', 'templates/_roles/*.md', 'templates/agents/*.md']
 
 /** 词表装载断言（纯函数，自检可注入）：总数=plain+combo=32、combo=4、rule2=2、替换串全非空。 */
 export function assertVocab() {
@@ -68,12 +68,14 @@ export function assertVocab() {
   return { ...k, total, ok: total === TERM_TOTAL && k.combo === 4 && k.rule2 === 2 && k.empty === 0 }
 }
 
-/** 扫描面清单（确定性排序；constraints/PROVENANCE.md 整件排除；缺失顶层件计入 missing）。 */
+/** 扫描面清单（确定性排序；constraints/PROVENANCE.md 整件排除；缺失顶层件计入 missing）。
+ *  A5 扩面：templates/_roles/*.md 与 templates/agents/*.md（生成物）纳入——缺失目录跳过
+ *  （自检夹具根无 templates 不受扰）。 */
 export function listSurface(root) {
   const files = []
   let missing = 0
   for (const n of ['SKILL.md', 'DEPLOY.md', 'RESIDUALS.md']) existsSync(join(root, n)) ? files.push(join(root, n)) : missing++
-  for (const d of ['constraints', 'references']) {
+  for (const d of ['constraints', 'references', 'templates/_roles', 'templates/agents']) {
     const dp = join(root, d)
     if (!existsSync(dp)) continue
     files.push(...readdirSync(dp, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.md') && !(d === 'constraints' && e.name === 'PROVENANCE.md')).map((e) => join(dp, e.name)))

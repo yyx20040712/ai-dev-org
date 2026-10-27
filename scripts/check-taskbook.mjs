@@ -11,6 +11,8 @@
 //   T0  结构（WARN）
 //   T13 词面扫描（FAIL——BANNED 22＋规则二两模式，词表单源跨仓读不复制；装载错统一退 3）
 //   T14 事实台账形态漏检（WARN——表格形态逃逸＋无章全局补位；--strict 使其退 1）
+//   T15 机检命令转义管道 lint（FAIL——F 条目命令域 grep -E/-P 模式串含转义管道 \| 即红，
+//      ERE/PCRE 下=字面管道符判据恒空跑（Y4 #12b 教训）；普通管道与 BRE 形态不受影响。R-Y5-2①）
 // 退出码口径单源=references/06 §5.8（此处不复写映射）
 // 用法：node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--json] [--strict] [--self-test]
 // 豁免：任一物理行含 tb-ignore → 该行跳过全部检查并计入跳过数（只对该行生效，不跨行继承）。
@@ -573,6 +575,21 @@ export function checkFactShape(parsed, factEntries) {
   return findings
 }
 
+/** R-Y5-2①（T15）：机检命令记录（F 条目命令域）lint——grep -E/-P 模式串含转义管道
+ *  `\|` 即 FAIL（Y4 #12b 教训：ERE/PCRE 语义下 `\|`=字面管道符，判据恒空跑）；普通
+ *  管道（裸 `|` 或运算/管道衔接）与 BRE 形态（无 -E/-P，`\|`=或运算合法形态）不受
+ *  影响。判定面=命令串整体含 grep 带 E/P 旗标且含 `\|` 字面。 */
+export function checkEscapePipe(factEntries) {
+  const findings = []
+  const GREP_EP_RE = /grep\s+(?:-[A-Za-z]+\s+)*-[A-Za-z]*[EP][A-Za-z]*(?:\s|$)/
+  for (const f of factEntries || []) {
+    const cmd = String(f.cmd ?? '')
+    if (GREP_EP_RE.test(cmd) && cmd.includes('\\|'))
+      findings.push({ level: 'FAIL', check: 'T15', line: f.line, message: `${f.id} 机检命令 grep -E/-P 模式串含转义管道 \\|——ERE/PCRE 下=字面管道符（判据恒空跑，Y4 #12b）；或运算用裸 |` })
+  }
+  return findings
+}
+
 // ── 自检（夹具落 os.tmpdir()，向量 ≥40） ──
 function selfTest(extraRoots = []) {
   const cases = []
@@ -838,6 +855,10 @@ function selfTest(extraRoots = []) {
     add('L10 T12 声明值非独立 token：判 FAIL', t12Tok.some((f) => f.message.includes('独立 token')), JSON.stringify(t12Tok))
     const t12Date = verifyEvidence(t9Facts, writeEv({ ...evGood, entries: [{ ...evGood.entries[0], date: '2026-10-23' }] })).findings
     add('L10 T12 证据日期不符：判 FAIL', t12Date.some((f) => f.message.includes('日期')), JSON.stringify(t12Date))
+    // ── R-Y5-2① T15 向量：机检命令转义管道 lint ──
+    const t15Red = checkEscapePipe([{ id: 'F-01', cmd: 'grep -cE "a\\|b" x.md', line: 5 }, { id: 'F-02', cmd: 'grep -P "x\\|y" y.md', line: 6 }])
+    add('T15 红：grep -E/-P 模式串含转义管道 \\| 判 FAIL', t15Red.length === 2 && t15Red[0].check === 'T15' && t15Red[0].level === 'FAIL' && t15Red[0].line === 5 && t15Red[1].line === 6, JSON.stringify(t15Red))
+    add('T15 过：裸 | 或运算/普通管道/BRE \\| 形态均不报', checkEscapePipe([{ id: 'F-01', cmd: 'grep -cE "a|b" x.md | wc -l', line: 7 }, { id: 'F-02', cmd: 'grep -c "a\\|b" y.md', line: 8 }, { id: 'F-03', cmd: 'node scripts/x.mjs --self-test', line: 9 }]).length === 0)
     // ── r1 §10.2/§10.3 反例向量（6 条） ──
     add('r1 W2 exitCode 判据按子串口径排除', parseNumericJudgeRows(parseTaskbook('| 7 | `grep -c x a.md --exitCode` | 1 | 证 |\n')).length === 0)
     add('r1 W2 判据含 exit 字面量排除', parseNumericJudgeRows(parseTaskbook('| 7 | `grep -c x a.md; echo exit=$?` | 1 | 证 |\n')).length === 0)
@@ -1003,6 +1024,8 @@ function main() {
   findings.push(...checkExpectations(eRows, numericRows, factEntries, null))
   const ev = verifyEvidence(factEntries, evidencePath)
   findings.push(...ev.findings)
+  // T15 机检命令转义管道 lint（R-Y5-2①）：F 条目命令域 grep -E/-P 含 \| 即 FAIL。
+  findings.push(...checkEscapePipe(factEntries))
   // T13 词面扫描（L22）：词表单源跨仓读＋规则二文本提取，命中即 FAIL；装载失败统一 [装载错] 退 3（06 §5.8 行 3 词表缺失类）——不降级、不静默空扫、不用替代词表。
   let t13Words, t13Rule2
   try {

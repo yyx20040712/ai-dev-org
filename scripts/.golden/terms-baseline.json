@@ -1,12 +1,14 @@
 {
   "schemaVersion": 1,
-  "frozen": "2026-10-25",
+  "frozen": "2026-10-28",
   "surface": [
     "SKILL.md",
     "references/*.md",
     "RESIDUALS.md",
     "constraints/*.md",
-    "DEPLOY.md"
+    "DEPLOY.md",
+    "templates/_roles/*.md",
+    "templates/agents/*.md"
   ],
   "note": "check-terms 棘轮基线：file→term→命中行计数——--update 冻结禁手改（D22 生成物豁免）；清理批完成后重冻随批提交（docs/07 §5）",
   "files": {

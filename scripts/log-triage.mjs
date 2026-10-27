@@ -764,17 +764,24 @@ function run() {
     }
     const srows = typeof slotRows === 'function' ? slotRows : null
     const usp = typeof unknownSlotProfiles === 'function' ? unknownSlotProfiles : null
+    // 六观测②订正：排序夹具改 kimi 系 kimia 形态——旧夹具期望行序内嵌旧词典序
+    // 699<glmflash（kimi 系任一形态即翻转）；现按当前排序实现（role 主序→level
+    // 次序→名字序）重排期望，四行全序核对，另补同 role 跨 level 判别（high<max）。
     const slotsSortFx = {
-      'ops-reviewer-699-max': { provider: '699', model: 'k3', level: 'max' },
+      'ops-reviewer-kimia-max': { provider: 'kimia', model: 'k3', level: 'max' },
+      'ops-research-kimia-max': { provider: 'kimia', model: 'k3', level: 'max' },
       'ops-research-glmflash-high': { provider: 'glmflash', model: 'GLM-5.3-Flash', level: 'high' },
-      'ops-research-699-high': { provider: '699', model: 'k3', level: 'high' },
+      'ops-research-kimia-high': { provider: 'kimia', model: 'k3', level: 'high' },
     }
-    t('P2 --slots 排序：role 主序、level 次序（high 先于 max）', (() => {
-      const rows = srows && srows(slotsSortFx, { '699': { family: 'kimi' }, glmflash: { family: 'glm' } })
-      return !!rows && rows.length === 3 && rows[0].name === 'ops-research-699-high' && rows[1].name === 'ops-research-glmflash-high' && rows[2].name === 'ops-reviewer-699-max' && rows[0].family === 'kimi' && rows[1].family === 'glm'
+    t('P2 --slots 排序：role 主序、level 次序（high 先于 max）、同 role+level 名字序——kimia 形态全序核对', (() => {
+      const rows = srows && srows(slotsSortFx, { kimia: { family: 'kimi' }, glmflash: { family: 'glm' } })
+      return !!rows && rows.length === 4
+        && rows[0].name === 'ops-research-glmflash-high' && rows[1].name === 'ops-research-kimia-high'
+        && rows[2].name === 'ops-research-kimia-max' && rows[3].name === 'ops-reviewer-kimia-max'
+        && rows[0].family === 'glm' && rows[1].family === 'kimi'
     })())
     t('P2 --slots 未识别清单：resolve 失败者去重排序（命中 slot 排除）', (() => {
-      const u = usp && usp(['ops-reviewer-699-max', 'ops-probe', 'ops-auditor', 'ops-probe', 'Explore'], slotsSortFx)
+      const u = usp && usp(['ops-reviewer-kimia-max', 'ops-probe', 'ops-auditor', 'ops-probe', 'Explore'], slotsSortFx)
       return !!u && JSON.stringify(u) === JSON.stringify(['Explore', 'ops-auditor', 'ops-probe'])
     })())
     console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
@@ -975,16 +982,23 @@ function run() {
 }
 // g3 批：flag 解析用法错（--date 此处/--hours 在 run() 内 resolveWindow 抛）
 // →[用法错]+exitCode=1 自然退出（HOST-node25 规避——本件纪律）
-if (g3UsageErr) {
-  console.error(`[用法错] ${g3UsageErr.message}`)
-  process.exitCode = 1
-} else {
-  try {
-    run()
-  } catch (e) {
-    if (e instanceof UsageError) {
-      console.error(`[用法错] ${e.message}`)
-      process.exitCode = 1
-    } else throw e
+// A8 isMain 守卫（对齐 org-config.mjs 惯例）：import 零副作用——不收割、不写件；
+// CLI 行为与退出码不变。
+const isMain =
+  process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
+if (isMain) {
+  if (g3UsageErr) {
+    console.error(`[用法错] ${g3UsageErr.message}`)
+    process.exitCode = 1
+  } else {
+    try {
+      run()
+    } catch (e) {
+      if (e instanceof UsageError) {
+        console.error(`[用法错] ${g3UsageErr.message}`)
+        process.exitCode = 1
+      } else throw e
+    }
   }
 }
+

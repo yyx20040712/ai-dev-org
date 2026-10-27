@@ -356,7 +356,10 @@ export function validateCrossGatePairs(cfg) {
 }
 
 /** 本机事实占位校验（v2.1.0 回炉 W9a）：vision_channels 通道与 agent_bindings 值
- *  的 TODO 占位=新机静默降级面（看图通道/绑定渲染失效），validate 拒收。 */
+ *  的 TODO 占位=新机静默降级面（看图通道/绑定渲染失效），validate 拒收。
+ *  R-L19-1 绑定源一致性增查：绑定键经 slot 表解析出计划源 provider（uuid_prefix 以
+ *  `account:` 开头）时，绑定值斜杠前段须与该 uuid_prefix 全串一致——计划源绑定不认
+ *  宿主短前缀形态；错误行点名 slot＋期望＋实际。注册表源与无 slot 键不查（不扩面）。 */
 export function validateLocalFacts(cfg) {
   const errors = []
   for (const [ch, def] of Object.entries(cfg?.vision_channels || {})) {
@@ -364,7 +367,19 @@ export function validateLocalFacts(cfg) {
       errors.push(`vision_channels.${ch}.model=TODO 占位——填本机件实值（glm-look 通道甄别消费）`)
   }
   for (const [agent, v] of Object.entries(cfg?.agent_bindings || {})) {
-    if (v === 'TODO' || v === '') errors.push(`agent_bindings.${agent} 为占位/空——绑定模板渲染消费（deploy-check ④）`)
+    if (v === 'TODO' || v === '') {
+      errors.push(`agent_bindings.${agent} 为占位/空——绑定模板渲染消费（deploy-check ④）`)
+      continue
+    }
+    const slotDef = cfg?.agent_slots?.[agent]
+    const alias = slotDef && typeof slotDef === 'object' ? slotDef.provider : null
+    const provDef = alias && cfg?.providers?.[alias]
+    const up = provDef && typeof provDef === 'object' && typeof provDef.uuid_prefix === 'string' ? provDef.uuid_prefix.trim() : ''
+    if (up.toLowerCase().startsWith('account:') && typeof v === 'string' && v.includes('/')) {
+      const front = v.slice(0, v.indexOf('/')).trim()
+      if (front !== up)
+        errors.push(`agent_bindings.${agent}（slot=${agent}）绑定值斜杠前段与计划源 uuid_prefix 全串不一致——期望=${up} 实际=${front}（计划源绑定值须以 account:<计划名> 全串开头，R-L19-1）`)
+    }
   }
   return errors
 }
@@ -624,6 +639,15 @@ if (isMain) {
     t('v2.1.0 回炉：vision 通道 model=TODO→占位错误行', validateLocalFacts({ vision_channels: { glm: { model: 'TODO' } } }).some((e) => e.includes('vision_channels.glm.model=TODO')))
     t('v2.1.0 回炉：agent_bindings 占位/空→错误行', validateLocalFacts({ agent_bindings: { 'ops-x': 'TODO' } }).some((e) => e.includes('agent_bindings.ops-x')))
     t('v2.1.0 回炉：本机事实占位校验净配置→零错误', validateLocalFacts({}).length === 0 && validateLocalFacts({ vision_channels: { glm: { model: 'REAL' } }, agent_bindings: { x: 'v/k3$max' } }).length === 0)
+    // R-L19-1 绑定源一致性向量（计划源绑定值斜杠前段须=uuid_prefix 全串；全合成值）
+    const rL19Cfg = (front) => ({
+      providers: { plan: { uuid_prefix: 'account:demo-plan', entry_name: 'Demo Plan', family: 'glm' } },
+      agent_slots: { 'ops-executor-plan-high': { provider: 'plan', model: 'GLM-5.3', level: 'high' } },
+      agent_bindings: { 'ops-executor-plan-high': `${front}/GLM-5.3$max` },
+    })
+    t('R-L19-1 绑定源①：计划源绑定值斜杠前段=uuid_prefix 全串→零错误', validateLocalFacts(rL19Cfg('account:demo-plan')).length === 0)
+    t('R-L19-1 绑定源②：斜杠前段≠uuid_prefix 全串→错误行点名 slot＋期望＋实际', (() => { const e = validateLocalFacts(rL19Cfg('account:other-plan')); return e.some((m) => m.includes('agent_bindings.ops-executor-plan-high') && m.includes('slot=ops-executor-plan-high') && m.includes('期望=account:demo-plan') && m.includes('实际=account:other-plan')) })())
+    t('R-L19-1 绑定源③回归：注册表源（非 account:）与无 slot 键不受查', validateLocalFacts({ providers: { reg: { uuid_prefix: 'reg9999', entry_name: 'E-R', family: 'kimi' } }, agent_slots: { 'ops-executor-reg-high': { provider: 'reg', model: 'k3', level: 'high' } }, agent_bindings: { 'ops-executor-reg-high': 'reg9999/k3$max', 'ops-free-x': 'whatever/x' } }).length === 0)
     // v2.1.0 回炉 W11：三层合并序/优先级向量（mergeOrgLayers 单源）
     {
       const d = { a: 1, arr: [1, 2], nest: { x: 1, keep: 'd' }, doomed: 'x' }
