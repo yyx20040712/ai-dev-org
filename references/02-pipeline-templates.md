@@ -210,6 +210,64 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
 > 历史引用导航——项目仓证据件按 08 §3 不改写）。
 > 沿革：本主题源于 2026-09 模型订阅变更（配置性条款，档位/型号实配
 > 单源=org-config）；原文随批并入 06，历史文本=git 历史。
+> P14 批（2026-10-27）起本节承载单批路由 ROUTE 的写法、切换语义与调度模式——
+> §8.1-§8.3 单源=本节；供应商事实与额度面仍单源=references/06。
+
+### 8.1 ROUTE 写法
+
+任务书、工单或对话开头写一行 `ROUTE: <role>-<provider>;...`。规则：
+
+- 前缀固定 `ROUTE:`（大小写不敏感）；多个岗位用 `;`、`,` 或空白分隔；一行写不完可换行，续行以两个空格缩进，解析时合并。
+- 每项格式 `<role>-<provider>`；未列出的岗位使用矩阵默认值；思考强度由岗位决定，不在 ROUTE 中写——改思考强度属于改矩阵，不属于单批切换。
+
+| 角色 | 可用 provider |
+|---|---|
+| research、planner、executor、reviewer、adjudicator | glm、glmflash、699、yyx、zipoo、ds |
+| vision | glmflash、ds |
+| diagnostics | ds、glmflash |
+
+示例：
+
+- `ROUTE: research-zipoo;executor-ds`
+- `ROUTE: research-glmflash;planner-699;executor-glmflash;reviewer-yyx;adjudicator-zipoo;vision-glmflash`
+- `ROUTE: executor-glmflash;reviewer-yyx;adjudicator-699;vision-ds`
+
+校验与拒绝：未知角色＝停止派发并列出合法角色；角色不支持该 provider＝停止派发并列出该角色可用 provider；vision 选了非多模态模型＝停止派发（只允许 glmflash、ds）；实现与审核/裁决同族＝告警，要求显式追加 `allow_same_family` 才继续（只能由用户在主控提问后确认，主控不得自行添加）；同一角色出现两次＝取最后一次并在汇报中注明；ROUTE 行格式错误＝停止派发并给出正确示例。
+
+优先级：`单批 ROUTE > 项目覆盖件 .zcode/org-config.json > 本机 org-config.local.json > 矩阵默认值`。单批 ROUTE 只影响当前批次；项目覆盖件只改 `default_slot`、不改代理档案能力；本机件改全局默认、影响所有项目；矩阵默认值是最后回退。
+
+记录：每次派发在变更与成本记录里写 JSON 一行——`{"role":"executor","slot":"ops-executor-glmflash-high","route_source":"prompt","fallback_from":null,"family":"glm","level":"high"}`；`log-triage` 用它核对声明与实际路由是否一致，不一致即告警。
+
+### 8.2 切换语义与命令契约
+
+| 操作 | 命令 | 生效时间 | 是否需要新会话 |
+|---|---|---|---|
+| 单批换档 | 在提示词写 ROUTE | 下一批派发 | 否 |
+| 改项目默认 | `agent-slots select --project <dir> <role> <slot>` | 下一次派发 | 否 |
+| 改全局默认 | `agent-slots select <role> <slot>` | 下一次派发 | 否 |
+| 新增组合 | `agent-slots gen <role> <provider> <level>` | 生成后 | 是 |
+| 改代理档案工具面 | 改矩阵后重新生成 | 生成后 | 是 |
+
+原因：宿主在会话启动时读取代理档案快照，内容改动不热加载；换用另一个已存在的代理档案不受影响。
+
+命令契约（`node scripts/agent-slots.mjs`）：`list [--role <role>] [--json]`｜`show <slot>`｜`resolve --route "<route 串>" [--json]`｜`select [--project <dir>] <role> <slot>`｜`gen <role> <provider> <level> [--dry-run]`｜`enable|disable <slot>`｜`preset balanced|all-glm|all-kimi|ds-audit`｜`doctor [--json]`｜`sync`。
+
+行为约束：`select` 只接受矩阵中已存在的 slot、不改 model/level；`gen` 生成新代理档案并更新矩阵、需要新会话验证、默认 `--dry-run` 先打印将写入的文件；`preset` 只批量 `select`、不改代理档案，`all-glm` 与 `all-kimi` 会让实现与审核同族、应用时必须告警；`doctor` 只读——发现名字与绑定不一致、provider 无法解析、vision 非多模态、默认同族时返回非零；`sync` 从矩阵生成代理档案与路由索引件、不反向写矩阵。
+
+### 8.3 调度模式
+
+| 模式 | 适用 | 硬约束 | 记录 |
+|---|---|---|---|
+| 单代理顺序 | 默认；实现、修复、重构 | 写同一文件或共享状态的任务必须串行 | `mode=single` |
+| 并行只读 | 多个独立调研、双人审核、审核与实证同时取证 | 各子智能体独立上下文；不得先看对方报告再「独立」判断 | `mode=parallel` |
+| 动态工作流 | 独立工作单元 ≥3，或扇出大、需要脚本控制 | 工作流内子代理不能再派子代理；模型必须来自允许列表；运行在后台，结束后收结果 | `mode=workflow` |
+| 闲时任务 | 非紧急、只读或可重跑：文档同步、仓库盘点、测试清单 | 不支持后台子智能体；失败不自动重试；改文件不自动回滚；开始前先提交 | `mode=idle` |
+
+选择顺序：①需要改代码且改动集中→单代理顺序；②只读且互相独立→并行只读；③独立工作单元 ≥3 且失败可重跑→动态工作流；④不紧急、只读、可重跑→闲时任务。不要为了「看起来并行」而拆任务——写同一文件、共享同一状态、需要频繁互相确认的任务一律串行。
+
+工作量流时的模型指定：工作流内用 `agent(name, { model: "<providerId>/<modelId>$<level>" })` 指定模型；模型必须来自项目仓 `docs/agent-matrix.json` 的 provider 表，不得使用未登记模型。工作流默认模型由 `subagent_model` 设置，单个子代理可覆盖；跨供应商指定必须写全 `providerId/modelId`。
+
+闲时任务禁止项：禁止后台子智能体（宿主会失败）；禁止依赖自动重试；禁止在未提交的工作树上改文件；禁止把「需要用户在过程中确认」的任务放进去；禁止用于最终验收——验收必须由主控在有交互的会话里做。
 
 ## 9. ai-dev-org 适配注记（2026-09-10 组织技能化）
 
@@ -219,7 +277,7 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
 - 「成本入账」（步骤 11）增补：账本=项目根 `.zcode/org-ledger.jsonl`，
   行 schema v3（v2=2026-09-14；selfiter 批 B4 增 project_id）：
   `{ts,schema_version,runId,project,project_id?,event,role,tier,source,
-  cfg_hash,usage?,mocked?,truncated?,findings?,outcome}`——`runId`=账本↔
+  cfg_hash,usage?,mocked?,truncated?,findings?,outcome,route?}`——`runId`=账本↔
   流水行级关联键（W-B2；后缀 8 字符——selfiter B4 消同秒碰撞窗）；
   `project_id`=v3 派发行必填（归一化 id——映射单源=org-config projects
   分区，缺映射 raw 透传；读侧按 project_id??project 归一；v2 存量行与
@@ -233,6 +291,9 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
   `findings_surface` 岗（org-config `roles.<id>.findings_surface`——DoD
   含尾栏契约的岗；escaped-defect ② 修复批 2026-09-19 拆标志）产出携带
   （R4 不强制——非该岗无此字段；缺栏执法=本件 §10 ⑥）。
+  `route?`=P14 批（2026-10-27）起可选：本行派发实际采用的 ROUTE 串（如
+  `executor-glmflash;reviewer-699;adjudicator-699`）；常设双审第二席在该串中以
+  `reviewer2-<provider>` 记（供人读与对账，不参与 resolve 解析）；走默认未切换的行省略。
   **人工回填例外条款（回炉 r2 W-3 成文）**：解析失配/通道故障时主控可
   人工核对审出件逐字回填 findings，属机写例外——必须同刻补 ruling 行
   留痕（值来源+根因），且收口复验结论须双轨陈述「机写行 RED×0 /

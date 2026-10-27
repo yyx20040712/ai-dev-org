@@ -39,6 +39,7 @@ git 历史，恢复须新用户裁决）；除主控外全部岗位=会话内子
 
 ```
 node scripts/org-config.mjs [resolve|hash|validate|--self-test]
+node scripts/agent-slots.mjs list|show|resolve --route "<route 串>"|select|gen|enable|disable|preset|doctor|sync   # ROUTE 提示词路由与矩阵待位（写法单源=references/02 §8.1）
 node scripts/check-hardcode.mjs [--strict]   # .md 正文供应商 live 事实扫描（名单从 org-config 派生；缺省命中=RED 退出（hardcode_scan.strict 默认 true）；--warn=试点校准期显式降级）
 node scripts/check-anchors.mjs [--update|--strict]   # 08 §4 文档腐化体检机检化：NN §M 断锚+路径存在性+01/04 条目计数 vs doc-counts golden（WARN 试点校准期；计数失守=FAIL；--update=重冻结随批提交）
 node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--strict|--json|--self-test]   # 任务书派发前自检：路径存在性/行号越界与逐字核对/白名单与禁改互斥/命令脚本存在性/零命中判据与逐字块互斥/退出码契约/结构等（WARN 试点；FAIL 退 1）
@@ -52,6 +53,9 @@ node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.m
 node scripts/package-skill.mjs --out <空目录> [--self-test]   # 分享打包：git 跟踪面导出+分享面门禁（uuid/盘符路径/本机标识零命中）+MANIFEST——受赠机首跑与白名单=PACKAGING.md（v2.1.0 批）
 ```
 
+**单批路由 ROUTE（写法单源=references/02 §8.1）**：任务书/工单开头写一行
+`ROUTE: executor-glmflash;reviewer-yyx`——每项 `<role>-<provider>`、分号分隔，
+未列岗位走矩阵默认；解析与静态校验=`agent-slots.mjs resolve`；单批生效、不改矩阵。
 **子代理绑定通道（06 §6 补遗＋07 §4 补遗；宿主语义细则单源=references/10 §2）**：绑定件已挂 `~/.zcode/agents/
 ops-*.md` 绑定子代理（绑定件全列单源=07 §4 补遗）。frontmatter model=`<provider>/<model-key>$<档位>`
 ——模板面存 `{{binding:岗}}` 占位、部署面=org-config 本机件 `agent_bindings` 渲染实值；`$` 后缀=显式思考
