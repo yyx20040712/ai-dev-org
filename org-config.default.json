@@ -50,6 +50,11 @@
       "uuid_prefix": "TODO",
       "entry_name": "TODO",
       "note": "模板占位——短名源（P1 slot schema）：实值 uuid_prefix/entry_name/kind/billing/family/multimodal 填 org-config.local.json 同名键（slot 只允许短名键）"
+    },
+    "startplan": {
+      "uuid_prefix": "TODO",
+      "entry_name": "TODO",
+      "note": "账户计划源占位：本机有订阅才填——uuid_prefix=account:<计划名> 全串（不走宿主注册表）、entry_name=计划展示名、family/model_family=族；计划名须同时列入 account_plan_allowlist。无订阅的机器：留 TODO 占位（validate 拒收＝本机化提示）并把执行岗顺序中的 startplan 段移除"
     }
   },
   "account_plan_allowlist": [],
@@ -72,6 +77,7 @@
     "ops-executor-yyx-high": { "provider": "yyx", "model": "k3.1-pro", "level": "high" },
     "ops-executor-zipoo-high": { "provider": "zipoo", "model": "k3.1-pro", "level": "high" },
     "ops-executor-ds-high": { "provider": "ds", "model": "deepseek-flash", "level": "high" },
+    "ops-executor-startplan-high": { "provider": "startplan", "model": "GLM-5.3-Flash", "level": "high" },
     "ops-reviewer-glm-max": { "provider": "glm", "model": "GLM-5.3", "level": "max" },
     "ops-reviewer-glmflash-max": { "provider": "glmflash", "model": "GLM-5.3-Flash", "level": "max" },
     "ops-reviewer-699-max": { "provider": "699", "model": "k3.1-pro", "level": "max" },
@@ -98,12 +104,11 @@
     "vision": "ops-vision-glmflash-max",
     "diagnostics": "ops-diagnostics-ds-max"
   },
-  "temporary_windows": [],
-  "temporary_windows_note": "临时默认窗口（D12）：每项 {id, reason, start, end, default_slots}；start/end 为本地日期 YYYY-MM-DD 闭区间；窗内 default_slots 覆盖 agent_defaults 的对应角色，role_fallbacks 首元素随动；到期自动失效、无需改文件。",
+  "role_order_note": "role_fallbacks＝角色优先尝试顺序（自上而下；首元素＝agent_defaults 默认档，校验器强制两键一致）。临时到期回落窗机制已退役（2026-10-27 用户裁决：顺序常驻、无到期语义）——顺序的日常调整唯一入口=org-panel 面板（拖拽排序，原子写本机件 role_fallbacks＋agent_defaults 对应角色，validate 不过即回滚），本默认件只承载出厂基线序。",
   "role_fallbacks": {
     "research": ["ops-research-glmflash-high", "ops-research-glm-high", "ops-research-699-high", "ops-research-yyx-high", "ops-research-zipoo-high", "ops-research-ds-high"],
     "planner": ["ops-planner-699-max", "ops-planner-yyx-max", "ops-planner-zipoo-max", "ops-planner-glm-max", "ops-planner-glmflash-max", "ops-planner-ds-max"],
-    "executor": ["ops-executor-glmflash-high", "ops-executor-glm-high", "ops-executor-699-high", "ops-executor-yyx-high", "ops-executor-zipoo-high", "ops-executor-ds-high"],
+    "executor": ["ops-executor-glmflash-high", "ops-executor-startplan-high", "ops-executor-glm-high", "ops-executor-699-high", "ops-executor-yyx-high", "ops-executor-zipoo-high", "ops-executor-ds-high"],
     "reviewer": ["ops-reviewer-699-max", "ops-reviewer-yyx-max", "ops-reviewer-ds-max", "ops-reviewer-zipoo-max", "ops-reviewer-glm-max", "ops-reviewer-glmflash-max"],
     "adjudicator": ["ops-adjudicator-zipoo-max", "ops-adjudicator-699-max", "ops-adjudicator-yyx-max", "ops-adjudicator-glm-max", "ops-adjudicator-glmflash-max", "ops-adjudicator-ds-max"],
     "vision": ["ops-vision-glmflash-max", "ops-vision-ds-max"],

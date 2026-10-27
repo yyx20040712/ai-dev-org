@@ -89,10 +89,9 @@ export function mergeOrgLayers(defaultCfg, localCfg, projectCfg) {
 /** 装载合并配置（三层，v2.1.0 批）：默认件（通用/随包）← 本机件
  *  org-config.local.json（个人实值，gitignore 不随分享包，缺席=仅默认件）
  *  ← <projectDir>/.zcode/org-config.json（存在时）。深合并语义层内不变。
- *  P5 批（D12）：merged=原始合并结果（哈希/静态语义消费面不动）；
- *  effective=窗内生效视图，appliedWindows=生效窗口展开汇报。装载器不打日志
- *  不抛窗口形态错——形态问题由 validateTemporaryWindows 在 validate 汇总。 */
-export function loadOrgConfig(projectDir, opts = {}) {
+ *  带日期的临时默认窗机制已退役（2026-10-27 用户裁决：顺序常驻、无到期语义，
+ *  顺序日常调整唯一写者=org-panel 面板）——生效配置=合并结果本身，无第二视图。 */
+export function loadOrgConfig(projectDir) {
   const base = readJson(DEFAULT_CFG)
   const hasLocal = existsSync(LOCAL_CFG)
   const localCfg = hasLocal ? readJson(LOCAL_CFG) : null
@@ -100,169 +99,12 @@ export function loadOrgConfig(projectDir, opts = {}) {
   const hasOverride = existsSync(overPath)
   const projectCfg = hasOverride ? readJson(overPath) : null
   const merged = mergeOrgLayers(base, localCfg, projectCfg)
-  const { cfg: effective, applied } = applyTemporaryWindows(merged, opts.today ?? localDateStr())
-  return { merged, hasOverride, overPath, hasLocal, localPath: LOCAL_CFG, effective, appliedWindows: applied }
+  return { merged, hasOverride, overPath, hasLocal, localPath: LOCAL_CFG }
 }
 
-// ── D12 临时默认窗口（P5 批）：带起止日期的默认档覆盖声明 ──
-const TW_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-const twDaysInMonth = (y, m) => {
-  if (m === 2) return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 29 : 28
-  return [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1]
-}
-/** 真实日历日判定（2026-02-30 拒收；不走 Date 以免 year<100 的 1900 偏移）。 */
-const isRealDateStr = (s) => {
-  if (typeof s !== 'string' || !TW_DATE_RE.test(s)) return false
-  const [y, m, d] = s.split('-').map(Number)
-  return m >= 1 && m <= 12 && d >= 1 && d <= twDaysInMonth(y, m)
-}
 /** 本地日期字符串（月/日补零；禁 toISOString——UTC 偏移会把本地日期切错天）。 */
 export function localDateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-/** 窗口是否在 today 生效（start<=today<=end 闭区间；形态非法=false 不抛）。 */
-export function windowActive(win, today) {
-  if (!isPlainObject(win)) return false
-  if (typeof today !== 'string' || !TW_DATE_RE.test(today)) return false
-  if (typeof win.start !== 'string' || typeof win.end !== 'string' || !TW_DATE_RE.test(win.start) || !TW_DATE_RE.test(win.end)) return false
-  return win.start <= today && today <= win.end
-}
-/** 生效窗口数组（原对象引用），按 start 升序；未声明/非数组=[]。 */
-export function activeWindows(cfg, today = localDateStr()) {
-  const wins = cfg?.temporary_windows
-  if (!Array.isArray(wins)) return []
-  return wins.filter((w) => windowActive(w, today)).sort((a, b) => (a.start < b.start ? -1 : a.start > b.start ? 1 : 0))
-}
-/** 生效默认档（新对象）：agent_defaults 打底，按窗口序用 default_slots 覆盖角色。 */
-export function effectiveDefaults(cfg, today = localDateStr()) {
-  const out = { ...(isPlainObject(cfg?.agent_defaults) ? cfg.agent_defaults : {}) }
-  for (const win of activeWindows(cfg, today)) {
-    if (!isPlainObject(win.default_slots)) continue
-    for (const [role, slot] of Object.entries(win.default_slots)) out[role] = slot
-  }
-  return out
-}
-/** 生效回退序（新对象）：首元素随生效默认档；原序去掉该档后接续（无重复）。
- *  所有角色数组一律返回浅拷贝（含未变化角色——N1：防下游原地改穿透 merged）；
- *  入参不被修改，内容深相等语义不变。 */
-export function effectiveFallbacks(cfg, today = localDateStr()) {
-  const source = isPlainObject(cfg?.role_fallbacks) ? cfg.role_fallbacks : {}
-  const defaults = effectiveDefaults(cfg, today)
-  const out = {}
-  for (const [role, seq] of Object.entries(source)) {
-    if (!Array.isArray(seq)) { out[role] = seq; continue }
-    const def = defaults[role]
-    if (typeof def !== 'string' || !def || seq[0] === def) { out[role] = [...seq]; continue }
-    out[role] = [def, ...seq.filter((x) => x !== def)]
-  }
-  return out
-}
-/** 应用窗口：返回 { cfg: 浅拷贝且替换 agent_defaults/role_fallbacks, applied }。
- *  applied 按窗口序展开为 [{id, role, slot, start, end}]，供 validate/汇报消费。
- *  W1（审核）：非普通对象入参原样透传，不得兜成 {}——装载器消费点
- *  （agent-slots loadCfgOrExit）以 effective ?? merged 后 isPlainObject 守卫
- *  判装载坏；此处若兜空对象，守卫会被结构性架空（merged 坏了也「看起来正常」）。 */
-export function applyTemporaryWindows(cfg, today = localDateStr()) {
-  if (!isPlainObject(cfg)) return { cfg, applied: [] }
-  const base = cfg
-  const applied = []
-  for (const win of activeWindows(base, today)) {
-    if (!isPlainObject(win.default_slots)) continue
-    for (const [role, slot] of Object.entries(win.default_slots)) applied.push({ id: win.id, role, slot, start: win.start, end: win.end })
-  }
-  return {
-    cfg: { ...base, agent_defaults: effectiveDefaults(base, today), role_fallbacks: effectiveFallbacks(base, today) },
-    applied,
-  }
-}
-/** D12 窗口声明校验：返回错误数组（空=通过），不抛。规则见任务书 §4.2：
- *  形态/id 唯一/reason/真实日期/start<=end/default_slots 角色与 slot 一致/
- *  同角色重叠窗口拒收（异角色可重叠）/错误行点名 id 与字段。 */
-export function validateTemporaryWindows(cfg) {
-  const errors = []
-  const wins = cfg?.temporary_windows
-  if (wins === undefined || (Array.isArray(wins) && wins.length === 0)) return errors
-  if (!Array.isArray(wins)) {
-    errors.push(`temporary_windows 须为数组（每项 {id, reason, start, end, default_slots}）——当前为 ${wins === null ? 'null' : typeof wins}`)
-    return errors
-  }
-  const slots = isPlainObject(cfg?.agent_slots) ? cfg.agent_slots : {}
-  const own = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
-  const seenIds = new Set()
-  const checked = [] // 仅收日期合法窗口（重叠判定消费）
-  wins.forEach((win, i) => {
-    if (!isPlainObject(win)) {
-      errors.push(`temporary_windows[${i}] 须为普通对象（收到 ${win === null ? 'null' : Array.isArray(win) ? '数组' : typeof win}）`)
-      return
-    }
-    const hasId = typeof win.id === 'string' && win.id.trim() !== ''
-    const label = hasId ? `「${win.id}」` : `[${i}]`
-    const prefix = `temporary_windows${label}`
-    if (!hasId) errors.push(`${prefix} id 须为非空字符串（收到 ${JSON.stringify(win.id)}）`)
-    else if (seenIds.has(win.id)) errors.push(`${prefix} id 重复——窗口 id 须全局唯一`)
-    else seenIds.add(win.id)
-    if (typeof win.reason !== 'string' || !win.reason.trim()) errors.push(`${prefix} reason 须为非空字符串（收到 ${JSON.stringify(win.reason)}）`)
-    let dateOk = true
-    for (const field of ['start', 'end']) {
-      if (!isRealDateStr(win[field])) {
-        errors.push(`${prefix} ${field}=${JSON.stringify(win[field])} 不是合法日期（须为 YYYY-MM-DD 真实日历日）`)
-        dateOk = false
-      }
-    }
-    if (dateOk && win.start > win.end) {
-      errors.push(`${prefix} start=${win.start} > end=${win.end}——起止须为 start<=end 的闭区间`)
-      dateOk = false
-    }
-    const slotsDef = win.default_slots
-    const roles = new Set()
-    if (!isPlainObject(slotsDef) || Object.keys(slotsDef).length === 0) {
-      errors.push(`${prefix} default_slots 须为非空普通对象（角色→slot 名）`)
-    } else {
-      for (const [role, slot] of Object.entries(slotsDef)) {
-        if (!REQUIRED_AGENT_ROLE_SET.has(role)) {
-          errors.push(`${prefix} default_slots 含未知角色「${role}」——只允许固定七角色（${REQUIRED_AGENT_ROLES.join(', ')}）`)
-          continue
-        }
-        if (typeof slot !== 'string' || !slot) {
-          errors.push(`${prefix} default_slots.${role} 须为非空 slot 名字符串（收到 ${JSON.stringify(slot)}）`)
-          continue
-        }
-        if (!own(slots, slot)) {
-          errors.push(`${prefix} default_slots.${role} 指向不存在的 slot「${slot}」——须引用 agent_slots 已声明键`)
-          continue
-        }
-        const m = SLOT_NAME_RE.exec(slot)
-        if (!m) {
-          errors.push(`${prefix} default_slots.${role} 的 slot「${slot}」不合命名契约 ops-<role>-<provider>-<level>——角色不可解析`)
-          continue
-        }
-        if (m[1] !== role) {
-          errors.push(`${prefix} default_slots.${role} 指向 slot「${slot}」但其角色=${m[1]}——角色与键不一致`)
-          continue
-        }
-        roles.add(role)
-      }
-    }
-    if (dateOk) checked.push({ id: hasId ? win.id : `[${i}]`, start: win.start, end: win.end, roles })
-  })
-  for (let a = 0; a < checked.length; a++) {
-    for (let b = a + 1; b < checked.length; b++) {
-      const A = checked[a], B = checked[b]
-      if (!(A.end >= B.start && B.end >= A.start)) continue
-      for (const role of A.roles) {
-        if (!B.roles.has(role)) continue
-        errors.push(`temporary_windows「${A.id}」与「${B.id}」的 default_slots.${role} 日期区间重叠（${A.start}~${A.end} ∩ ${B.start}~${B.end}）——同一角色不得出现在重叠窗口中`)
-      }
-    }
-  }
-  return errors
-}
-/** 闭区间 end 的次日（YYYY-MM-DD），PASS 行「到期自动回落」展示用。 */
-const nextDayStr = (s) => {
-  let [y, m, d] = s.split('-').map(Number)
-  if (d < twDaysInMonth(y, m)) d++
-  else { d = 1; if (m < 12) m++; else { m = 1; y++ } }
-  return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
 /** 宿主双注册表合并（2026-10-03 kimi-third 改绑批；事实单源=references/10 §2）：
@@ -918,93 +760,9 @@ if (isMain) {
       const cNoFam = slotCfg(); cNoFam.providers.alpha = { multimodal: false }
       t('P1 回炉 B-2：provider 存在但缺 family→fail-closed 错误行', vErrs(cNoFam).some((e) => e.includes('executor') && e.includes('fail-closed')))
     }
-    // P5 批（D12 临时默认窗口）向量：全部合成配置+固定日期显式传入，不读系统时钟
-    {
-      const twBase = () => ({
-        providers: { alpha: { family: 'alpha' }, beta: { family: 'beta' } },
-        agent_slots: {
-          'ops-executor-alpha-high': { provider: 'alpha', model: 'm-alpha', level: 'high' },
-          'ops-executor-beta-high': { provider: 'beta', model: 'm-beta', level: 'high' },
-          'ops-reviewer-beta-max': { provider: 'beta', model: 'm-beta', level: 'max' },
-        },
-        agent_defaults: { executor: 'ops-executor-alpha-high', reviewer: 'ops-reviewer-beta-max' },
-        role_fallbacks: {
-          executor: ['ops-executor-alpha-high', 'ops-executor-beta-high'],
-          reviewer: ['ops-reviewer-beta-max'],
-        },
-      })
-      const winDemo = () => ({
-        id: 'win-demo-1',
-        reason: '合成向量：窗内实现岗默认切 beta',
-        start: '2026-01-01',
-        end: '2026-01-31',
-        default_slots: { executor: 'ops-executor-beta-high' },
-      })
-      const twCfg = () => ({ ...twBase(), temporary_windows: [winDemo()] })
-      t('D12 localDateStr：本地日期补零（2026-01-05）', localDateStr(new Date(2026, 0, 5)) === '2026-01-05')
-      t('D12 localDateStr：月/日双位补零（2026-12-09）', localDateStr(new Date(2026, 11, 9)) === '2026-12-09')
-      const wDemo = winDemo()
-      t('D12 windowActive：start 当日 true / end 当日 true（闭区间）', windowActive(wDemo, '2026-01-01') === true && windowActive(wDemo, '2026-01-31') === true)
-      t('D12 windowActive：end 次日 false / start 前一日 false', windowActive(wDemo, '2026-02-01') === false && windowActive(wDemo, '2025-12-31') === false)
-      t('D12 windowActive：形态非法返回 false 不抛', (() => { try { return windowActive(null, '2026-01-15') === false && windowActive({ start: '2026-01-01' }, '2026-01-15') === false && windowActive({ start: '2026-1-1', end: '2026-01-31' }, '2026-01-15') === false && windowActive(wDemo, null) === false } catch { return false } })())
-      t('D12 effectiveDefaults：窗内 executor=窗口 slot / 窗后次日回静态默认', effectiveDefaults(twCfg(), '2026-01-15').executor === 'ops-executor-beta-high' && effectiveDefaults(twCfg(), '2026-02-01').executor === 'ops-executor-alpha-high')
-      const twEffFb = effectiveFallbacks(twCfg(), '2026-01-15')
-      t('D12 effectiveFallbacks：窗内首元素=窗口 slot、无重复、其余原相对序', JSON.stringify(twEffFb.executor) === JSON.stringify(['ops-executor-beta-high', 'ops-executor-alpha-high']) && new Set(twEffFb.executor).size === twEffFb.executor.length)
-      t('D12 effectiveFallbacks：窗后原样返回（与静态序一致）', JSON.stringify(effectiveFallbacks(twCfg(), '2026-02-01')) === JSON.stringify(twBase().role_fallbacks))
-      const twMut = twCfg(); const twSnap = JSON.stringify(twMut)
-      const twApplied = applyTemporaryWindows(twMut, '2026-01-15')
-      t('D12 applyTemporaryWindows：不修改入参（前后深比较）', JSON.stringify(twMut) === twSnap)
-      t('D12 applyTemporaryWindows：生效视图替换两键+applied 展开汇报', twApplied.cfg.agent_defaults.executor === 'ops-executor-beta-high' && twApplied.cfg.role_fallbacks.executor[0] === 'ops-executor-beta-high' && twApplied.cfg.providers === twMut.providers && JSON.stringify(twApplied.applied) === JSON.stringify([{ id: 'win-demo-1', role: 'executor', slot: 'ops-executor-beta-high', start: '2026-01-01', end: '2026-01-31' }]))
-      const twBare = twBase()
-      const twBareApplied = applyTemporaryWindows(twBare, '2026-01-15')
-      t('D12 向后兼容：无 temporary_windows 时默认/回退深相等、applied=[]', JSON.stringify(effectiveDefaults(twBare, '2026-01-15')) === JSON.stringify(twBare.agent_defaults) && JSON.stringify(effectiveFallbacks(twBare, '2026-01-15')) === JSON.stringify(twBare.role_fallbacks) && twBareApplied.applied.length === 0)
-      t('D12 向后兼容：temporary_windows 缺席/非数组时 activeWindows=[]（不抛）', activeWindows({ temporary_windows: 'x' }, '2026-01-15').length === 0 && activeWindows({}, '2026-01-15').length === 0)
-      const twMulti = twBase()
-      twMulti.temporary_windows = [
-        { id: 'win-b', reason: '合成向量：晚起', start: '2026-01-05', end: '2026-01-20', default_slots: { reviewer: 'ops-reviewer-beta-max' } },
-        { id: 'win-a', reason: '合成向量：早起', start: '2026-01-01', end: '2026-01-10', default_slots: { executor: 'ops-executor-beta-high' } },
-      ]
-      t('D12 activeWindows：仅生效窗口且按 start 升序', activeWindows(twMulti, '2026-01-07').map((x) => x.id).join() === 'win-a,win-b')
-      t('D12 校验：合法窗口→[]', validateTemporaryWindows(twCfg()).length === 0)
-      t('D12 校验：temporary_windows 缺席/[]→通过，非数组→错误', validateTemporaryWindows(twBase()).length === 0 && validateTemporaryWindows({ ...twBase(), temporary_windows: [] }).length === 0 && validateTemporaryWindows({ ...twBase(), temporary_windows: {} }).some((e) => e.includes('temporary_windows') && e.includes('数组')))
-      const twBadDate = twCfg(); twBadDate.temporary_windows[0].start = '2026-02-30'
-      t('D12 校验：非法日历日期 2026-02-30→错误且点名 id', validateTemporaryWindows(twBadDate).some((e) => e.includes('win-demo-1') && e.includes('2026-02-30') && e.includes('不是合法日期')))
-      const twBadRange = twCfg(); twBadRange.temporary_windows[0].start = '2026-03-01'; twBadRange.temporary_windows[0].end = '2026-02-01'
-      t('D12 校验：start > end→错误', validateTemporaryWindows(twBadRange).some((e) => e.includes('win-demo-1') && e.includes('start') && e.includes('end')))
-      const twNoSlot = twCfg(); twNoSlot.temporary_windows[0].default_slots = { executor: 'ops-executor-gamma-high' }
-      const twRoleMismatch = twCfg(); twRoleMismatch.temporary_windows[0].default_slots = { reviewer: 'ops-executor-beta-high' }
-      const twUnknownRole = twCfg(); twUnknownRole.temporary_windows[0].default_slots = { wizard: 'ops-executor-beta-high' }
-      t('D12 校验：slot 不存在→错误', validateTemporaryWindows(twNoSlot).some((e) => e.includes('win-demo-1') && e.includes('ops-executor-gamma-high')))
-      t('D12 校验：slot 角色与键不一致→错误', validateTemporaryWindows(twRoleMismatch).some((e) => e.includes('win-demo-1') && e.includes('reviewer') && e.includes('角色')))
-      t('D12 校验：未知角色→错误', validateTemporaryWindows(twUnknownRole).some((e) => e.includes('win-demo-1') && e.includes('wizard') && e.includes('角色')))
-      const twOverlap = twCfg()
-      twOverlap.temporary_windows.push({ id: 'win-demo-2', reason: '合成向量：重叠', start: '2026-01-15', end: '2026-02-15', default_slots: { executor: 'ops-executor-beta-high' } })
-      t('D12 校验：同角色重叠窗口→错误', validateTemporaryWindows(twOverlap).some((e) => e.includes('win-demo-1') && e.includes('win-demo-2') && e.includes('重叠')))
-      const twAdjacent = twCfg()
-      twAdjacent.temporary_windows.push({ id: 'win-demo-2', reason: '合成向量：首尾相接不重叠', start: '2026-02-01', end: '2026-02-15', default_slots: { executor: 'ops-executor-beta-high' } })
-      t('D12 校验：同角色不重叠窗口（首尾相接）→通过', validateTemporaryWindows(twAdjacent).length === 0)
-      const twDiffRoles = twCfg()
-      twDiffRoles.temporary_windows.push({ id: 'win-demo-3', reason: '合成向量：异角色重叠', start: '2026-01-15', end: '2026-01-20', default_slots: { reviewer: 'ops-reviewer-beta-max' } })
-      t('D12 校验：不同角色重叠窗口→通过', validateTemporaryWindows(twDiffRoles).length === 0)
-      const twDupId = twCfg(); twDupId.temporary_windows.push({ id: 'win-demo-1', reason: '合成向量：重复 id', start: '2026-02-01', end: '2026-02-05', default_slots: { reviewer: 'ops-reviewer-beta-max' } })
-      t('D12 校验：重复 id→错误', validateTemporaryWindows(twDupId).some((e) => e.includes('win-demo-1') && e.includes('重复')))
-      const twEmptyReason = twCfg(); twEmptyReason.temporary_windows[0].reason = ''
-      t('D12 校验：reason 空→错误', validateTemporaryWindows(twEmptyReason).some((e) => e.includes('win-demo-1') && e.includes('reason')))
-      const twNullWin = twCfg(); twNullWin.temporary_windows = [null]
-      t('D12 校验：窗口项非对象→错误（不抛）', (() => { try { return validateTemporaryWindows(twNullWin).some((e) => e.includes('temporary_windows[0]')) } catch { return false } })())
-      const twEmptySlots = twCfg(); twEmptySlots.temporary_windows[0].default_slots = {}
-      t('D12 校验：default_slots 空对象→错误', validateTemporaryWindows(twEmptySlots).some((e) => e.includes('win-demo-1') && e.includes('default_slots')))
-      // 审核 W1/N1 回补向量（追加，不改既有）
-      const twBadInputs = [applyTemporaryWindows(null, '2026-01-15'), applyTemporaryWindows('x', '2026-01-15'), applyTemporaryWindows([], '2026-01-15')]
-      t('D12 W1：applyTemporaryWindows 非对象入参原样透传（cfg 非普通对象，不兜「看起来正常」的空配置）',
-        twBadInputs[0].cfg === null && twBadInputs[1].cfg === 'x' && Array.isArray(twBadInputs[2].cfg) &&
-        twBadInputs.every((r) => !isPlainObject(r.cfg) && Array.isArray(r.applied) && r.applied.length === 0))
-      const twFbCfg = twCfg()
-      const twFbEff = effectiveFallbacks(twFbCfg, '2026-01-15')
-      t('D12 N1：effectiveFallbacks 未变化角色返回新数组（引用不等+内容深相等）',
-        twFbEff.reviewer !== twFbCfg.role_fallbacks.reviewer &&
-        JSON.stringify(twFbEff.reviewer) === JSON.stringify(twFbCfg.role_fallbacks.reviewer))
-    }
+    // localDateStr 通用向量（临时窗机制退役后仅存通用日期助手）
+    t('localDateStr：本地日期补零（2026-01-05）', localDateStr(new Date(2026, 0, 5)) === '2026-01-05')
+    t('localDateStr：月/日双位补零（2026-12-09）', localDateStr(new Date(2026, 11, 9)) === '2026-12-09')
     console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
     process.exit(fails === 0 ? 0 : 1)
   }
@@ -1029,7 +787,7 @@ if (isMain) {
   } else if (cmd === 'validate') {
     let errors
     try {
-      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged), ...validateAgentSlots(merged), ...validateTemporaryWindows(merged)]
+      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged), ...validateAgentSlots(merged)]
     } catch (e) {
       console.error(`[fatal] validate 途中宿主配置装载失败: ${e.message}（06 §5.8 行 3=配置/装载错）`)
       process.exit(3)
@@ -1038,16 +796,12 @@ if (isMain) {
       errors.forEach((e) => console.error(e))
       process.exit(3)
     }
-    const applied = loaded.appliedWindows
-    const winInfo = applied.length
-      ? `；生效临时窗口 ${applied.length} 项：${applied.map((w) => `${w.role}→${w.slot} @${w.start}~${w.end}（到期 ${nextDayStr(w.end)} 自动回落）`).join('、')}`
-      : '；无生效临时窗口'
     // L19：注册表源与账户计划源分列计数——无计划源时维持原「N 源双校验通过」语义
     const provEntries = Object.entries(merged.providers || {})
     const planN = provEntries.filter(([, d]) => d != null && typeof d === 'object' && String(d.uuid_prefix ?? '').trim().toLowerCase().startsWith('account:')).length
     const regN = provEntries.length - planN
     const srcSummary = planN > 0 ? `${regN} 源注册表双校验＋${planN} 源计划清单校验通过` : `${provEntries.length} 源双校验通过`
-    console.log(`validate PASS（${srcSummary}+跨门对/本机事实/slot schema 校验通过，cfg:${cfgHash(merged)}）${winInfo}`)
+    console.log(`validate PASS（${srcSummary}+跨门对/本机事实/slot schema 校验通过，cfg:${cfgHash(merged)}）`)
   } else {
     console.error('用法: node org-config.mjs [--project <dir>] resolve|hash|validate|--self-test')
     process.exit(1)

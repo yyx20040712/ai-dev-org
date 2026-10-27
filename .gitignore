@@ -9,3 +9,5 @@ Desktop.ini
 org-config.local.json
 # 一次性核对脚本（临时件）
 scripts/.tmp-*.mjs
+# org-panel 面板写本机件前的滚动备份（2026-10-27 面板二批：面板=顺序唯一日常写者）
+org-config.local.json.panel-bak
