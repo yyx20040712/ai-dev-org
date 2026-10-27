@@ -36,6 +36,9 @@
 
 - verify 用例数：{{N}}；locks 数：{{N}}；org-config 哈希：`cfg:{{hash}}`
   （`node <技能根>/scripts/org-config.mjs hash`）
+- 引用门禁 ok 行计数作判据时，须以实跑该门禁的实测计数为准（定点逐字
+  判据优先于纯计数；来源=P14 双审 N 级观测④，
+  docs/evidence/P14-close-2026-10-27.md:34）
 
 ## 6. 报告契约
 

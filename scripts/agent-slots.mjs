@@ -699,6 +699,14 @@ function selfTest() {
     d44miss.length === 1 && !d44miss[0].line.includes('ops-executor-glm-high') && d44miss[0].line.includes('对应角色的生效默认档') &&
     d44else.length === 1 && !d44else[0].line.includes('ops-executor-glm-high') && d44else[0].line.includes('对应角色的生效默认档'))
 
+  // 向量45/46（L26·账本 L636 ③）：resolve 现状特征固化（行为已存在，无新行为）。
+  const e45 = validateRoute(parseRoute('ROUTE: reviewer2-ds'), matrix).join('\n')
+  t('向量45 resolve 拒绝语义：ROUTE: reviewer2-ds → 错误含未知角色 reviewer2 与合法角色列表（现状固化，不新增解析支持）',
+    e45.includes('未知角色「reviewer2」') && ROLE_ORDER.every((r) => e45.includes(r)))
+  const s46 = resolveRoute(parseRoute('ROUTE: diagnostics-ds'), matrix, { providers: {}, agent_slots: {} })
+  t('向量46 resolve 正常解析：ROUTE: diagnostics-ds → 校验零错误且解析到 ops-diagnostics-ds-max（现状固化）',
+    validateRoute(parseRoute('ROUTE: diagnostics-ds'), matrix).length === 0 && s46.length === 1 && s46[0].slot === 'ops-diagnostics-ds-max')
+
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
 }
