@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-10-27",
+  "note": "逻辑矩阵：只写角色、provider 短名、档位、工具面、默认与回退序；真实 providerId/modelId/账号名不入库（由 org-config.local.json 的 agent_bindings 提供）。display 名不入库：providers.*.display 已删除，真实显示名以本机件 org-config.local.json 的 entry_name 为准。",
+  "levels": [
+    "low",
+    "high",
+    "max"
+  ],
+  "providers": {
+    "glm": {
+      "family": "glm",
+      "multimodal": false
+    },
+    "glmflash": {
+      "family": "glm",
+      "multimodal": true
+    },
+    "kimia": {
+      "family": "kimi",
+      "multimodal": false
+    },
+    "kimib": {
+      "family": "kimi",
+      "multimodal": false
+    },
+    "kimic": {
+      "family": "kimi",
+      "multimodal": false
+    },
+    "ds": {
+      "family": "deepseek",
+      "multimodal": true
+    },
+    "startplan": {
+      "family": "glm",
+      "multimodal": false
+    }
+  },
+  "roles": {
+    "research": {
+      "title": "调研岗",
+      "level": "high",
+      "providers": [
+        "glmflash",
+        "glm",
+        "kimia",
+        "kimib",
+        "kimic",
+        "ds"
+      ],
+      "default": "glmflash",
+      "fallback": [
+        "glmflash",
+        "glm",
+        "kimia",
+        "kimib",
+        "kimic",
+        "ds"
+      ],
+      "tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "WebFetch",
+        "WebSearch"
+      ],
+      "readonly": true
+    },
+    "planner": {
+      "title": "规划岗",
+      "level": "max",
+      "providers": [
+        "glm",
+        "glmflash",
+        "kimia",
+        "kimib",
+        "kimic",
+        "ds"
+      ],
+      "default": "kimia",
+      "fallback": [
+        "kimia",
+        "kimib",
+        "kimic",
+        "glm",
+        "glmflash",
+        "ds"
+      ],
+      "tools": [
+        "Read"
+      ],
+      "readonly": true
+    },
+    "executor": {
+      "title": "实现岗",
+      "level": "high",
+      "providers": [
+        "glm",
+        "glmflash",
+        "startplan",
+        "kimia",
+        "kimib",
+        "kimic",
+        "ds"
+      ],
+      "default": "glmflash",
+      "fallback": [
+        "glmflash",
+        "startplan",
+        "glm",
+        "kimia",
+        "kimib",
+        "kimic",
+        "ds"
+      ],
+      "tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Write",
+        "Edit",
+        "Bash",
+        "BashOutput",
+        "KillShell"
+      ],
+      "readonly": false
+    },
+    "reviewer": {
+      "title": "审核岗",
+      "level": "max",
+      "providers": [
+        "glm",
+        "glmflash",
+        "kimia",
+        "kimib",
+        "kimic",
+        "ds"
+      ],
+      "default": "kimia",
+      "fallback": [
+        "kimia",
+        "kimib",
+        "kimic",
+        "glm",
+        "glmflash",
+        "ds"
+      ],
+      "tools": [
+        "Read"
+      ],
+      "readonly": true
+    },
+    "adjudicator": {
+      "title": "裁决岗",
+      "level": "max",
+      "providers": [
+        "glm",
+        "glmflash",
+        "kimia",
+        "kimib",
+        "kimic",
+        "ds"
+      ],
+      "default": "kimic",
+      "fallback": [
+        "kimic",
+        "kimia",
+        "kimib",
+        "glm",
+        "glmflash",
+        "ds"
+      ],
+      "tools": [
+        "Read",
+        "Glob",
+        "Grep"
+      ],
+      "readonly": true
+    },
+    "vision": {
+      "title": "视觉岗",
+      "level": "max",
+      "providers": [
+        "glmflash",
+        "ds"
+      ],
+      "default": "glmflash",
+      "fallback": [
+        "glmflash",
+        "ds"
+      ],
+      "tools": [
+        "Read"
+      ],
+      "readonly": true
+    },
+    "diagnostics": {
+      "title": "诊断岗",
+      "level": "max",
+      "providers": [
+        "ds",
+        "glmflash"
+      ],
+      "default": "ds",
+      "fallback": [
+        "ds",
+        "glmflash"
+      ],
+      "tools": [
+        "Read",
+        "Glob",
+        "Grep"
+      ],
+      "readonly": true
+    }
+  },
+  "aliases": {
+    "ops-executor": { "role": "executor", "provider": null },
+    "ops-drafter": { "role": "planner", "provider": null },
+    "ops-auditor": { "role": "reviewer", "provider": null },
+    "ops-adjudicator": { "role": "adjudicator", "provider": null },
+    "ops-probe": { "role": "diagnostics", "provider": null },
+    "ops-diagnostics": { "role": "diagnostics", "provider": null },
+    "ops-gate1-k1": { "role": "reviewer", "provider": "kimia" },
+    "ops-gate1-k2": { "role": "reviewer", "provider": "kimic" },
+    "ops-gate1-k3": { "role": "reviewer", "provider": "kimib" },
+    "ops-gate1-d1": { "role": "reviewer", "provider": "ds" }
+  }
+}
