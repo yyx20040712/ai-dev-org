@@ -96,7 +96,9 @@ commit message）零外部模型代号与 AI 指称，审档默认归宿=仓外�
 （check-anchors 对账，正文不落数字——A3 防双源）。
 历史件按需查、勿随技能常载：修订记与批档=`~/.zcode/skills/_archive/ai-dev-org-history-2026-10/`
 （RESIDUALS 迁出件；更早版本史=技能仓 git 提交历史）；已登记触发器与后续新登记=技能根 RESIDUALS.md。
-新机部署与一键自检=DEPLOY.md（根目录）＋deploy-check.mjs（--install 补代理/钩子/派生覆盖件）。
+新机部署与一键自检=DEPLOY.md（根目录）＋deploy-check.mjs（--install 补代理/钩子/派生覆盖件）；
+首激活向导（模型绑定→validate→sync-agents→面板启动）与跨技能模组引用检索=DEPLOY §7；面板=panel/
+（入仓参数化：根路径由脚本位置推导·零绝对路径·用法=panel/README.md）。
 
 ## 红旗（出现即停）
 

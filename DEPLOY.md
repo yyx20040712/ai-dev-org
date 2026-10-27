@@ -94,3 +94,32 @@ validate）。自证法（变异红证同款，文件备份法还原）：临时
 
 新机首场战役按 references/05 移植后做压力场景复测，结果回填仓外批档（技能仓零过程件——08 §6 规则 4）
 对应条目（版本与状态节指针同源——SKILL.md 不内联版本面）。
+
+## 7 首激活向导（新机自适应·收尾批起）
+
+从零到面板可用的完整序（每步判据内联；①-③ 细则=§1-§3）：
+
+1. 一键自检：`node scripts/deploy-check.mjs`——红项按行内指引处置。
+2. 首装：`node scripts/deploy-check.mjs --install`——本机件脚手架＋代理部署＋钩子。
+3. 供应商对齐（模型绑定·用户裁决面）：按 §3 填 `org-config.local.json` 各源实值
+   （uuid_prefix/entry_name/model_family；账户计划源=`account:` 前缀＋allowlist 清单）。
+4. 绑定渲染：本机件 `agent_bindings` 按岗填 `<provider>/<model>$<档位>` →
+   `node scripts/org-config.mjs validate`（PASS 即过；绑定源一致性由 validateLocalFacts
+   核对——计划源绑定值斜杠前段须与 uuid_prefix 全串一致）→
+   `node scripts/deploy-check.mjs --sync-agents`（渲染部署面·sha256 回读复核）。
+5. 回归与新会话验证：`node scripts/regression.mjs` 全过＋按 §4 开新会话。
+6. 前端 UI 部署（面板启动）：`bash panel/start.sh`——环境变量与边界=panel/README.md
+   （端口 `ORG_PANEL_PORT`·项目仓卡 `ORG_PANEL_PROJECT`·仅监听 127.0.0.1·随页生灭）。
+7. 模型配置日常调整＝面板拖拽：顺序直写本机件 `role_fallbacks`＋`agent_defaults`
+   原子双写，validate 不过即回滚；无到期回落、无重置默认。
+
+### 跨技能模组引用检索（技能迁移他机时）
+
+- 引用形态单律：跨技能/跨目录复用本仓模块（如面板动态 import `scripts/org-config.mjs`）
+  一律**由脚本自身位置推导根路径**（`path.resolve(dirname(fileURLToPath(import.meta.url)), …)`），
+  禁绝对路径硬编码——新机路径不同即断链。
+- 取配置装载器：`import(pathToFileURL(join(SKILL_ROOT, 'scripts', 'org-config.mjs')).href)`
+  后取 `loadOrgConfig(SKILL_ROOT)`（isMain 守卫零副作用，import 不触发 CLI）。
+- 检索入口：本技能模块清单=SKILL.md「派发与自检」段命令表；约束卡检索=
+  `node scripts/constraint-index.mjs query --task <动词> --role <岗> --path <文件>`
+  （路由先读序）；技能目录盘点=`node scripts/skill-gc.mjs`（默认干跑只读）。
