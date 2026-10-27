@@ -1,0 +1,11 @@
+# 运行产物不入库（红线 5：断点保护只保技能件本身）
+scripts/model-routing-log.jsonl
+.zcode/
+*.log
+node_modules/
+Thumbs.db
+Desktop.ini
+# 本机个人事实层（v2.1.0 三层化批）：不随包走，分享打包按 PACKAGING.md 排除
+org-config.local.json
+# 一次性核对脚本（临时件）
+scripts/.tmp-*.mjs
