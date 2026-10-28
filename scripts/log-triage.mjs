@@ -102,8 +102,17 @@ const buildAliasMap = (providers) => {
 }
 const aliasOf = (providerId, aliasMap) => {
   if (!providerId) return '(未知源)'
-  for (const [prefix, alias] of aliasMap) if (providerId.startsWith(prefix)) return alias
-  return providerId // builtin:… 等宿主源原样显示
+  // 比对前双侧 trim+lowercase 归一（R-L19-2 子项②，2026-10-28 D6 批——与
+  // org-config validate L268 isPlanPrefix 同款口径；现行全小写实值命中结果
+  // 零变化；空/非串前缀跳过防 startsWith('') 恒真通配吞配（k1 预审 B-1 同款
+  // 守卫——buildAliasMap 已滤 falsy，此为直调防御面）。不命中返回原串原样
+  // （builtin:… 等宿主源显示面不改写）。
+  const pid = String(providerId).trim().toLowerCase()
+  for (const [rawPrefix, alias] of aliasMap) {
+    const prefix = typeof rawPrefix === 'string' ? rawPrefix.trim().toLowerCase() : ''
+    if (prefix && pid.startsWith(prefix)) return alias
+  }
+  return providerId
 }
 
 /** 绑定/声明串的 provider 段 → org-config provider 条目解析（B1，2026-10-03
@@ -441,7 +450,7 @@ export function detectSilentFallback({ metas, subagentNet, providers, agentSlots
     // 声明的供应商段（uuid/builtin:/account:/值表命中的非 uuid 条目 id）须与实际
     // 路由一致；模型段剥除 `$档位` 后缀后须与 modelId 一致（档位不参与回退判定
     // ——网络日志无档位维度）。B1 ③ 扩展：非 uuid 声明段经值表解析出的别名与
-    // 实际路由别名等值=一致（收割面 aliasOf 同款 startsWith 口径，两侧对齐）。
+    // 实际路由别名等值=一致（收割面 aliasOf 同款归一 startsWith 口径，两侧对齐）。
     const [declaredProv, declaredModelRaw] = declared.split('/')
     const declaredModel = declaredModelRaw.split('$')[0]
     const match = (act.providerId === declaredProv || act.alias === declaredProv || (hit && hit.alias === act.alias)) && act.modelId === declaredModel
@@ -595,7 +604,7 @@ function run() {
       return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('伪值')
     })())
     // 回炉 k2-W-1 向量：同根前缀变体+路由一致=零报告（取舍行为锁——值表同根=同源，
-    // 与收割面 aliasOf startsWith 口径对齐；逐字比对 provider 段在此口径下不成立）。
+    // 与收割面 aliasOf 归一 startsWith 口径对齐；逐字比对 provider 段在此口径下不成立）。
     // 回炉 k2-W-1'：act.providerId 不参与归因（比对三臂均不含按 providerId 查注册表），
     // 数据任意填充不架空本锁——注释钉明防误读。
     t('B1 ③ 同根前缀变体声明+路由一致=零报告（k2-W-1 取舍行为锁）', detectSilentFallback({
@@ -696,6 +705,11 @@ function run() {
     let amMap = null, amErr = null
     try { amMap = buildAliasMap({ dead: null, live: { uuid_prefix: 'b4-live-' } }) } catch (e) { amErr = e.message }
     t('b4 null provider→buildAliasMap 不崩（null 条目跳过/其余映射保留）', amErr === null && amMap instanceof Map && amMap.size === 1 && amMap.get('b4-live-') === 'live')
+    // ── R-L19-2 子项②向量（2026-10-28 D6 批）：aliasOf 比对前双侧归一（org-config L268 同款口径）──
+    const l19Map = buildAliasMap({ 'third-syn': { uuid_prefix: 'Syn-Prov' }, 'ds-syn': { uuid_prefix: 'ds-host' } })
+    t('L19-2 aliasOf 大小写混合互配（providerId 含大写/uuid_prefix 含大写→别名等值命中——双侧 trim+lowercase 归一）', aliasOf('SYN-PROVIDER-HOST', l19Map) === 'third-syn' && aliasOf('syn-provider-host', l19Map) === 'third-syn' && aliasOf('DS-HOST-9', l19Map) === 'ds-syn')
+    t('L19-2 aliasOf 混合形态不匹配仍不匹配（无前缀命中→原串原样返回——显示面零改写行为锁）', aliasOf('ZZZ-OTHER-1', l19Map) === 'ZZZ-OTHER-1' && aliasOf('builtin:bigmodel-coding-plan', l19Map) === 'builtin:bigmodel-coding-plan')
+    t('L19-2 aliasOf 全小写实值零变化锁（归一不改变现行全小写命中/回退结果）', aliasOf('syn-provider-host', buildAliasMap({ 'third-syn': { uuid_prefix: 'syn-prov' } })) === 'third-syn' && aliasOf('zzz-other', l19Map) === 'zzz-other')
     // selfiter 批（evolve-l9-degrade）向量：缺输入显式留痕——红态=旧实现三面静默零提示
     t('l9 全缺输入→三面各一行留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliLogPaths: ['/x/a.jsonl'], routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => false }).length === 3)
     t('l9 全在场→零留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliLogPaths: ['/x/a.jsonl'], routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => true }).length === 0)

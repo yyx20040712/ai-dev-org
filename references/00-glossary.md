@@ -1,6 +1,6 @@
 # 00 · 术语速查（索引件——非真源）+ 新手上手图
 
-> **性质**：索引件非真源（08 §1 分层纪律）——每条=术语+一句白话+权威指针；**定义冲突时以指针目标为准**。本件不复写完整条款、不落 live 事实（实配模型名/端点/uuid 住 org-config 与宿主注册表（豁免面=独立 JSON 白名单），check-hardcode --strict 的拦截面=pre-commit 快扫（五项组成：check-hardcode --strict、check-anchors、check-terms、C1 严式、org-config validate）——快扫非必然拦截：check-hardcode 白名单可豁免；扫描面部分不可用时 check-hardcode --strict 以 exit=5 降级运行、不阻断）。
+> **性质**：索引件非真源（08 §1 分层纪律）——每条=术语+一句白话+权威指针；**定义冲突时以指针目标为准**。本件不复写完整条款、不落 live 事实（实配模型名/端点/uuid 住 org-config 与宿主注册表（豁免面=独立 JSON 白名单），check-hardcode --strict 的拦截面=pre-commit 快扫（五项组成：check-hardcode --strict、check-anchors、check-terms --strict、C1 严式、org-config validate）——快扫非必然拦截：check-hardcode 白名单可豁免；扫描面部分不可用时 check-hardcode --strict 以 exit=5 降级运行、不阻断）。
 > 指针形态：`NN §M`=references 对应文件章节；`§0`=该文件前导引言块（凡 §1 之前的前导引言块含实质内容，即认作 §0 锚——check-anchors 既定约定，如 06 §0 的零硬编码声明引言，勿误查「0.」标题）；`01·A3`/`04·SY-1`=条目型（01 A~E 系/04 四系）。
 > 新增/修订术语随批进行并跑 check-anchors 自证零断锚（扫描面含本件）。
 > 历史件=历史区 `~/.zcode/skills/_archive/ai-dev-org-history-2026-10/`，更早历史=技能仓 git 提交历史（2026-09 旧归档路径已失联，登记 R-Y4-2）。

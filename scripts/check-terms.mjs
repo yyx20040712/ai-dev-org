@@ -3,7 +3,7 @@
 // A 类禁用词棘轮执法——门禁=「不得新增＋基线只降不升」；基线=工作根下
 // scripts/.golden/terms-baseline.json（--update 冻结，禁手改，D22 生成物豁免先例=
 // constraints/index.json；清理批 Y2–Y5 完成后重冻随批提交，docs/07 §5）。
-// --strict=绝对零命中模式（Y5 完成后启用，本批不挂门禁）。词表=docs/07 §2.1 23 词＋
+// --strict=绝对零命中模式（2026-10-28 d6 批清零 353 后启用，挂 pre-commit 快扫与门禁面）。词表=docs/07 §2.1 23 词＋
 // campaign §7.1 扩展 10 词（「座」两源合一，23+10-1=32）＋规则二（正文裁决史括注
 // lint）；词表以本脚本数组字面量为唯一实现载体，两源表为规格源（本批不改）。
 // 用法：node scripts/check-terms.mjs [--strict] [--json] [--update] [--self-test] [--root <dir>]
