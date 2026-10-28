@@ -1,0 +1,41 @@
+#!/bin/sh
+# 提交门禁（2026-09-17 自我迭代批 v1.7.1；selfiter 批增 C1 严式快扫；2026-10-28 d6 批 check-terms 升 --strict=词面绝对零）：把收口扫描中
+# 最快的两项挂进提交流，check-hardcode 按 --strict 跑（WARN 命中即阻断——收口零命中
+# 纪律的提交面执法；逃生口=登记白名单），堵「扫描跑在最后一批编辑之前」的流程洞。
+# 安装（仓库本地配置，不入版本库）：git config core.hooksPath .githooks
+# 退出码口径单源=references/06 §5.8（用法/配置错=阻断；降级运行=显式留痕不阻断）。
+set -u
+ROOT=$(git rev-parse --show-toplevel) || exit 1
+cd "$ROOT" || exit 1
+fail=0
+for s in check-hardcode check-anchors check-terms; do
+  if [ "$s" = "check-hardcode" ] || [ "$s" = "check-terms" ]; then
+    out=$(node "scripts/$s.mjs" --strict 2>&1)
+  else
+    out=$(node "scripts/$s.mjs" 2>&1)
+  fi
+  rc=$?
+  if [ "$rc" -eq 5 ]; then
+    printf '%s\n' "$out" | grep '\[degraded\]' || echo "[pre-commit] $s exit=5（降级运行——扫描面部分不可用，留痕如上）"
+  else
+    printf '%s\n' "$out" | tail -n 1
+  fi
+  if [ "$rc" -eq 3 ]; then
+    echo "[pre-commit] $s exit=3（配置/装载错）—— 阻断提交"
+    fail=1
+  elif [ "$rc" -ne 0 ] && [ "$rc" -ne 5 ]; then
+    echo "[pre-commit] $s exit=$rc —— 阻断提交"
+    fail=1
+  fi
+done
+# C1 严式快扫（selfiter 批 evolve-p2-① 清偿）：脚本头注/模板「数字=语义」退出码
+# 复写块回流拦截，两式=exit N= 与 退出码：N=（半全角 = 皆拦）；命中→指针化 06 §5.8
+c1hit=$(grep -rnE '(exit|退出码)[^0-9]*[0-9]+[[:space:]]*[=＝]' scripts/*.mjs templates/verify.mjs 2>/dev/null)
+if [ -n "$c1hit" ]; then
+  printf '%s\n' "$c1hit"
+  echo "[pre-commit] C1 严式命中（数字=语义退出码复写块）——改指针化 references/06 §5.8 后再提交 —— 阻断提交"
+  fail=1
+fi
+node scripts/org-config.mjs validate >/dev/null 2>&1 || { echo "[pre-commit] org-config validate 失败 —— 阻断提交"; fail=1; }
+[ "$fail" -eq 0 ] && echo "[pre-commit] 快扫通过（hardcode-strict/anchors/terms-strict/C1 严式/validate）"
+exit "$fail"
