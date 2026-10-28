@@ -110,8 +110,8 @@ FAIL 一律不得派发；WARN 须逐条处置或登记理由。仓外/历史路
 预扫两面——check-terms 词面＋check-anchors 断锚与路径存在性，两面必扫
 （只扫词面漏断锚即红）。
 
-机检之外，任务书派发前还须经审核岗审核（D21）：交 `ops-reviewer-yyx-max`
-（默认岗位实例，D25；任务书由主控撰写、主控承载于 deepseek 族，审核须异族），
+机检之外，任务书派发前还须经审核岗审核（D21）：交 `ops-reviewer-ds-max`
+（账本 700 ① ruling-assembler-role-spec 起；任务书装配转 Kimi 族 699 亲做后的异族配对；B2 审核岗三拆随动——账本 701 ④；任务书由装配岗装配〔Kimi 族 699 承载〕，审核须异族），
 审包自包含（任务书全文+所引原文片段），不含仓库访问授权，输出 VERDICT 与
 [B/W/N]。机检管内部不一致，审核管规格本身错或缺（验收判据不可执行/要求了
 做不到的动作/关键假设未标注）。审核 FAIL 须改后重交，两轮不过=停手交用户。
@@ -211,8 +211,9 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
 | 角色 | 可用 provider |
 |---|---|
 | research、planner、executor、reviewer、adjudicator | glm、glmflash、699、yyx、zipoo、ds |
-| vision | glmflash、ds |
+| vision | glmflash、ds、699 |
 | diagnostics | ds、glmflash |
+| assembler | 699、yyx、zipoo |
 
 示例：
 
@@ -220,7 +221,7 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
 - `ROUTE: research-glmflash;planner-699;executor-glmflash;reviewer-yyx;adjudicator-zipoo;vision-glmflash`
 - `ROUTE: executor-glmflash;reviewer-yyx;adjudicator-699;vision-ds`
 
-校验与拒绝：未知角色＝停止派发并列出合法角色；角色不支持该 provider＝停止派发并列出该角色可用 provider；vision 选了非多模态模型＝停止派发（只允许 glmflash、ds）；实现与审核/裁决同族＝告警，要求显式追加 `allow_same_family` 才继续（只能由用户在主控提问后确认，主控不得自行添加）；派发对象非矩阵登记的 ops-* 绑定代理（系统默认代理，如 general-purpose——跟随宿主无绑定）＝停止派发、按矩阵默认重派（实证裁决岗实证部例外——随宿主承载属设计形态）；同一角色出现两次＝取最后一次并在汇报中注明；ROUTE 行格式错误＝停止派发并给出正确示例。
+校验与拒绝：未知角色＝停止派发并列出合法角色；角色不支持该 provider＝停止派发并列出该角色可用 provider；vision 选了非多模态模型＝停止派发（只允许 glmflash、ds、699）；实现与审核/裁决同族＝告警，要求显式追加 `allow_same_family` 才继续（只能由用户在主控提问后确认，主控不得自行添加）；派发对象非矩阵登记的 ops-* 绑定代理（系统默认代理，如 general-purpose——跟随宿主无绑定）＝停止派发、按矩阵默认重派（实证裁决岗实证部例外——随宿主承载属设计形态）；同一角色出现两次＝取最后一次并在汇报中注明；ROUTE 行格式错误＝停止派发并给出正确示例。
 
 优先级：`单批 ROUTE > 项目覆盖件 .zcode/org-config.json > 本机 org-config.local.json > 矩阵默认值`。单批 ROUTE 只影响当前批次；项目覆盖件只改 `default_slot`、不改代理档案能力；本机件改全局默认、影响所有项目；矩阵默认值是最后回退。
 

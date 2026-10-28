@@ -181,7 +181,7 @@ export function aliasNames(matrix) {
   return table ? Object.keys(table) : []
 }
 
-/** agent_slots 全量行：按 role（固定七岗序）→ level（low<high<max）→ provider 排序。 */
+/** agent_slots 全量行：按 role（ROLE_ORDER 派生岗序）→ level（low<high<max）→ provider 排序。 */
 export function slotRows(cfg) {
   const rows = []
   for (const [slot, def] of Object.entries(cfg?.agent_slots || {})) {
@@ -217,11 +217,11 @@ export function doctorFindings(matrix, cfg, opts = {}) {
   const defaults = isPlainObject(cfg?.agent_defaults) ? cfg.agent_defaults : {}
   const fallbacks = isPlainObject(cfg?.role_fallbacks) ? cfg.role_fallbacks : {}
 
-  // D1：矩阵七岗齐全、slot 数=独立算式期望、命名合法。
+  // D1：矩阵八岗齐全、slot 数=独立算式期望、命名合法。
   // 期望值=Σ roles[role].providers.length（verify-docs 矩阵计数检查既有口径，L19 派生化
   // ——禁用 slotsFromMatrix 输出长度作期望值：自指恒真=计数检查静默失效，r1-W1）。
   const expectedSlots = ROLE_ORDER.reduce((n, r) => n + (Array.isArray(roles[r]?.providers) ? roles[r].providers.length : 0), 0)
-  for (const role of ROLE_ORDER) if (!own(roles, role)) add('FAIL', 'D1', `矩阵缺角色「${role}」——七岗须齐全（${ROLE_ORDER.join(', ')}）`)
+  for (const role of ROLE_ORDER) if (!own(roles, role)) add('FAIL', 'D1', `矩阵缺角色「${role}」——${ROLE_ORDER.length} 岗须齐全（${ROLE_ORDER.join(', ')}）`)
   for (const role of Object.keys(roles)) if (!ROLE_ORDER.includes(role)) add('FAIL', 'D1', `矩阵含未知角色「${role}」——只允许 ${ROLE_ORDER.join(', ')}`)
   let slots = []
   try { slots = slotsFromMatrix(matrix) } catch (e) { add('FAIL', 'D1', `矩阵无法派生 slot：${e.message}`) }
@@ -285,7 +285,7 @@ export function doctorFindings(matrix, cfg, opts = {}) {
   for (const [provider, affected] of missingFamily)
     add('WARN', 'D7', `provider「${provider}」在 cfg.providers 解析不到 family/model_family（影响 ${affected.length} 个 slot：${names(affected)}）`)
 
-  // D8：agent_defaults / role_fallbacks 覆盖七角色且指向存在的 slot
+  // D8：agent_defaults / role_fallbacks 覆盖八角色且指向存在的 slot
   for (const role of ROLE_ORDER) {
     if (!own(defaults, role)) add('FAIL', 'D8', `agent_defaults 缺角色「${role}」`)
     else {
@@ -475,9 +475,10 @@ function selfTest() {
   // 向量6：未知角色错误含合法角色列表
   const e6 = validateRoute(parseRoute('ROUTE: wizard-glm'), matrix).join('\n')
   t('向量6 未知角色→错误含合法角色列表', e6.includes('wizard') && ROLE_ORDER.every((r) => e6.includes(r)))
-  // 向量7：角色不支持 provider 错误含可用 provider
-  const e7 = validateRoute(parseRoute('ROUTE: vision-699'), matrix).join('\n')
-  t('向量7 角色不支持 provider→错误含该角色可用 provider', e7.includes('699') && e7.includes('glmflash') && e7.includes('ds'))
+  // 向量7：角色不支持 provider 错误含可用 provider（装配岗批 D-1 起 699 为 vision 合法
+  // 候选——断言载体改 vision-glm：glm 非多模态且不在 vision 候选，红绿两态语义等价）
+  const e7 = validateRoute(parseRoute('ROUTE: vision-glm'), matrix).join('\n')
+  t('向量7 角色不支持 provider→错误含该角色可用 provider', e7.includes('glm') && e7.includes('glmflash') && e7.includes('ds'))
   // 向量8：vision + 非多模态 provider
   const mNoVisionGlm = clone(matrix)
   mNoVisionGlm.roles.vision.providers = ['glm', 'glmflash']
@@ -604,7 +605,7 @@ function selfTest() {
   const a29 = resolveAlias('ops-drafter', aliasMatrix, aliasCfgLive)
   t('向量29 ops-drafter → ops-planner-699-max', a29?.slot === 'ops-planner-699-max' && a29?.role === 'planner')
   const a30 = resolveAlias('ops-auditor', aliasMatrix, aliasCfgLive)
-  t('向量30 ops-auditor → ops-reviewer-699-max', a30?.slot === 'ops-reviewer-699-max' && a30?.role === 'reviewer')
+  t('向量30 ops-auditor → ops-reviewer-yyx-max（矩阵 reviewer default 派生·本批不动矩阵 reviewer default）', a30?.slot === 'ops-reviewer-yyx-max' && a30?.role === 'reviewer')
   const a31 = resolveAlias('ops-adjudicator', aliasMatrix, aliasCfgLive)
   const exp31 = `ops-adjudicator-${aliasMatrix.roles.adjudicator.default}-${aliasMatrix.roles.adjudicator.level}`
   t('向量31 ops-adjudicator → 矩阵 default 派生槽名', a31?.slot === exp31 && a31?.role === 'adjudicator')

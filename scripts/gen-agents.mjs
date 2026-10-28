@@ -1,7 +1,7 @@
 /**
  * gen-agents —— 按逻辑矩阵生成待位代理模板（P4）。
  * 职责：
- *   ① templates/agents.matrix.json 装载与契约校验（七岗/七源/默认与回退序/工具面/
+ *   ① templates/agents.matrix.json 装载与契约校验（八岗/七源/默认与回退序/工具面/
  *      vision 多模态约束）；
  *   ② 由 role × provider 派生 slot（ops-<role>-<provider>-<level>；总数=矩阵派生，
  *      L19 起自检期望以独立算式 Σ roles[role].providers.length 复算，不写死）；
@@ -29,10 +29,10 @@ export const DEFAULT_OUT_DIR = join(SKILL_ROOT, 'templates', 'agents')
 export const MANIFEST_NAME = '.manifest.json'
 export const STAGING_PREFIX = '.staging-'
 
-/** 固定七岗（顺序=矩阵声明序=slot 派生序；D1/自检共用）。 */
-export const ROLE_ORDER = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics']
+/** 固定八岗（顺序=矩阵声明序=slot 派生序；D1/自检共用；assembler=装配岗批账本 700 ②末位追加）。 */
+export const ROLE_ORDER = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics', 'assembler']
 export const REQUIRED_LEVELS = ['low', 'high', 'max']
-export const SLOT_NAME_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics)-([a-z0-9]+)-(low|high|max)$/
+export const SLOT_NAME_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics|assembler)-([a-z0-9]+)-(low|high|max)$/
 
 /** 角色→color 固定映射（§4.2：不得随机；与宿主子智能体列表配色一致）。 */
 export const ROLE_COLORS = {
@@ -43,6 +43,7 @@ export const ROLE_COLORS = {
   adjudicator: 'red',
   vision: 'magenta',
   diagnostics: 'yellow',
+  assembler: 'orange',
 }
 
 /** 角色→职责短语（description 用；只描述职责，不写模型显示名）。 */
@@ -54,6 +55,7 @@ export const ROLE_PURPOSES = {
   adjudicator: '只读独立裁决与复算',
   vision: '只读视觉判据核对',
   diagnostics: '只读时间线与根因诊断',
+  assembler: '任务书装配与修入循环承接',
 }
 
 const isPlainObject = (v) => v != null && typeof v === 'object' && !Array.isArray(v)
@@ -77,7 +79,7 @@ export function loadMatrix(path = MATRIX_PATH) {
   }
   const roles = m.roles
   if (!isPlainObject(roles)) throw new Error(`矩阵 ${path} roles 须为对象`)
-  for (const role of ROLE_ORDER) if (!own(roles, role)) throw new Error(`矩阵 roles 缺角色「${role}」——七岗须齐全`)
+  for (const role of ROLE_ORDER) if (!own(roles, role)) throw new Error(`矩阵 roles 缺角色「${role}」——${ROLE_ORDER.length} 岗须齐全（${ROLE_ORDER.join(', ')}）`)
   for (const role of Object.keys(roles)) if (!ROLE_ORDER.includes(role)) throw new Error(`矩阵 roles 含未知角色「${role}」——只允许 ${ROLE_ORDER.join(', ')}`)
   for (const [role, def] of Object.entries(roles)) {
     if (!isPlainObject(def)) throw new Error(`矩阵 roles.${role} 须为对象`)
@@ -796,6 +798,28 @@ function selfTest() {
     if (leftover31) rmSync(leftover31, { recursive: true, force: true })
     rmSync(fxDouble, { recursive: true, force: true })
   }
+
+  // 向量32/33（装配岗批 D-3）：assembler 角色缺席/在场两向量——夹具矩阵派生自真实矩阵
+  // 深拷贝，禁动真实 templates/agents.matrix.json。缺席=loadMatrix 抛错点名缺角色与
+  // assembler（语义=ROLE_ORDER 全在场，错误消息按常量派生）；在场（合成 Kimi 三源条目）=
+  // loadMatrix 通过（返回 null）。
+  const cAsmAbsent = JSON.parse(JSON.stringify(matrix))
+  delete cAsmAbsent.roles.assembler
+  const eAsmAbsent = loadFail(cAsmAbsent)
+  t('向量32 夹具矩阵缺 assembler → loadMatrix 抛错并点名缺角色 assembler',
+    !!eAsmAbsent && String(eAsmAbsent.message).includes('缺角色') && String(eAsmAbsent.message).includes('assembler'))
+  const cAsmPresent = JSON.parse(JSON.stringify(matrix))
+  cAsmPresent.roles.assembler = {
+    title: '任务书装配岗',
+    level: 'max',
+    providers: ['699', 'yyx', 'zipoo'],
+    default: '699',
+    fallback: ['699', 'yyx', 'zipoo'],
+    tools: ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'Bash', 'BashOutput', 'KillShell'],
+    readonly: false,
+  }
+  const eAsmPresent = loadFail(cAsmPresent)
+  t('向量33 夹具矩阵含 assembler（Kimi 三源合成条目）→ loadMatrix 通过', eAsmPresent === null)
 
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)

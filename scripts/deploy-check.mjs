@@ -192,7 +192,7 @@ export function checkThoughtLevel(level) {
  *  provider 与文件名中段一致、slot.model/level 与渲染值一致；legacy 名=skip
  *  （调用方汇总 legacy 件数，不计 warn）。 */
 export function checkAgentName(name, slotDef, rendered = {}) {
-  const m = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
+  const m = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics|assembler)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
   if (!m) return { level: 'skip', skipped: true, line: '' }
   const [, , provider, level] = m
   const base = String(name).replace(/\.md$/, '')
@@ -821,6 +821,16 @@ function selfTest() {
     const b = can && can('ops-executor-ds-max.md', { provider: 'ds', model: 'deepseek-flash', level: 'max', renderedModel: 'uuid/deepseek-flash', renderedLevel: 'max' })
     const c = can && can('ops-executor-ds-max.md', { provider: 'ds', model: 'deepseek-flash', level: 'max', renderedModel: 'uuid/other', renderedLevel: 'max' })
     return a?.level === 'ok' && b?.level === 'ok' && c?.level === 'FAIL'
+  })())
+  // 装配岗批（D-2/D-3）：checkAgentName assembler 正负例——正例带 .md 后缀命中去后缀正则；
+  // 负例按现行不匹配 skip 语义断言（不新增 FAIL 语义）。
+  t('装配岗批 agent-name：ops-assembler-699-max.md 与 slot/渲染值一致→ok', (() => {
+    const r = can && can('ops-assembler-699-max.md', { provider: '699', model: 'k3.1-pro', level: 'max' }, { model: 'new-provider/k3.1-pro', level: 'max' })
+    return !!r && r.level === 'ok'
+  })())
+  t('装配岗批 agent-name：assembler 非法档位形态→skip（现行不匹配语义，不新增 FAIL）', (() => {
+    const r = can && can('ops-assembler-699-ultra.md', { provider: '699', model: 'k3.1-pro', level: 'max' })
+    return !!r && r.level === 'skip' && r.skipped === true
   })())
   // 返工轮 1 B1：未解析占位不豁免 thoughtLevel 检查——有 model 行即检查，缺档位=FAIL
   t('P2 检查：未解析占位+thoughtLevel 缺失→组合结果 FAIL（占位不构成豁免）', (() => {

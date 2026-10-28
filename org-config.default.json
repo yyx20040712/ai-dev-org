@@ -224,6 +224,11 @@
       "model": "deepseek-flash",
       "level": "max"
     },
+    "ops-vision-699-max": {
+      "provider": "699",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
     "ops-diagnostics-ds-max": {
       "provider": "ds",
       "model": "deepseek-flash",
@@ -232,6 +237,21 @@
     "ops-diagnostics-glmflash-max": {
       "provider": "glmflash",
       "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-assembler-699-max": {
+      "provider": "699",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-assembler-yyx-max": {
+      "provider": "yyx",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-assembler-zipoo-max": {
+      "provider": "zipoo",
+      "model": "k3.1-pro",
       "level": "max"
     }
   },
@@ -242,7 +262,8 @@
     "reviewer": "ops-reviewer-yyx-max",
     "adjudicator": "ops-adjudicator-zipoo-max",
     "vision": "ops-vision-glmflash-max",
-    "diagnostics": "ops-diagnostics-ds-max"
+    "diagnostics": "ops-diagnostics-ds-max",
+    "assembler": "ops-assembler-699-max"
   },
   "role_order_note": "role_fallbacks＝角色优先尝试顺序（自上而下；首元素＝agent_defaults 默认档，校验器强制两键一致）。临时到期回落窗机制已退役（2026-10-27 用户裁决：顺序常驻、无到期语义）——顺序的日常调整唯一入口=org-panel 面板（拖拽排序，原子写本机件 role_fallbacks＋agent_defaults 对应角色，validate 不过即回滚），本默认件只承载出厂基线序。",
   "role_fallbacks": {
@@ -289,11 +310,17 @@
     ],
     "vision": [
       "ops-vision-glmflash-max",
-      "ops-vision-ds-max"
+      "ops-vision-ds-max",
+      "ops-vision-699-max"
     ],
     "diagnostics": [
       "ops-diagnostics-ds-max",
       "ops-diagnostics-glmflash-max"
+    ],
+    "assembler": [
+      "ops-assembler-699-max",
+      "ops-assembler-yyx-max",
+      "ops-assembler-zipoo-max"
     ]
   },
   "source_chain_note": "2026-10-03 纯净化批：source_chain（派发链序）已随派发器物理删除——档案=git 历史；现役承载=绑定子代理（07 §1），换位语义=绑定岗切换（06 §4 退役承载注记）。",

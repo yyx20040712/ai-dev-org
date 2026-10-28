@@ -31,6 +31,7 @@ import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir, tmpdir } from 'node:os'
 import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile, UsageError, familyOf } from './org-config.mjs'
+import { ROLE_ORDER as SLOT_ROLE_ORDER, SLOT_NAME_RE } from './gen-agents.mjs' // 装配岗批 D-2：slot 维度两常量单源=gen-agents（单向 import 无环；与 agent-slots.mjs 同款复用）
 
 const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CLI_LOG_DIR = join(homedir(), '.zcode', 'cli', 'log')
@@ -134,9 +135,9 @@ export function resolveProviderByFront(frontValue, providers) {
 }
 
 // ── P2 批（2026-10-22）：slot 维度（profileId → role/provider/level）──
-const SLOT_ROLE_ORDER = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics']
+// 装配岗批 D-2：SLOT_ROLE_ORDER/SLOT_NAME_RE 改自 gen-agents import 复用（原本地两常量删除——
+// 岗序与命名契约单源=矩阵声明序，加岗零本件改动）；档位序本件自有。
 const SLOT_LEVEL_ORDER = { low: 0, high: 1, max: 2 }
-const SLOT_NAME_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics)-([a-z0-9]+)-(low|high|max)$/
 
 /** 新式 slot 名解析：ops-<role>-<provider>-<level> → {role,provider,level}；
  *  role/level 不在白名单或形态不符 → null（legacy 名不猜）。 */
@@ -157,7 +158,7 @@ export function resolveProfileSlot(profileId, agentSlots) {
   return { slot: profileId, role: p.role, provider: p.provider, level: p.level }
 }
 
-/** --slots 表行（纯函数）：按 role（固定七岗序）→ level（low<high<max）→名字排序；
+/** --slots 表行（纯函数）：按 role（SLOT_ROLE_ORDER 派生岗序）→ level（low<high<max）→名字排序；
  *  family=providers[slot.provider] 的 familyOf 同源字段（family || model_family），
  *  解析不到写 '?'。 */
 export function slotRows(agentSlots, providers) {
@@ -726,6 +727,12 @@ function run() {
     })())
     t('P2 parseSlotName：未知 role/档位→null（legacy ops-gate1-k1 亦 null）', (() => {
       return !!psn && psn('ops-gate1-k1') === null && psn('ops-reviewer-699-ultra') === null && psn('ops-unknown-699-max') === null && psn('') === null
+    })())
+    // 装配岗批（D-3）：assembler 槽归位正例——岗×源分列可归位 ops-assembler-699-max
+    // （role/provider/level 三段解析，常量单源=gen-agents ROLE_ORDER/SLOT_NAME_RE 复用面）。
+    t('P2 parseSlotName：ops-assembler-699-max 命中（assembler 岗归位）', (() => {
+      const r = psn && psn('ops-assembler-699-max')
+      return !!r && r.role === 'assembler' && r.provider === '699' && r.level === 'max'
     })())
     const rps = typeof resolveProfileSlot === 'function' ? resolveProfileSlot : null
     const slotsP2 = {

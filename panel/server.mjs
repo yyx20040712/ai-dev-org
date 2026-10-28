@@ -19,8 +19,12 @@ const PANEL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCAL = path.join(SKILL, 'org-config.local.json');
 const PORT = Number(process.env.ORG_PANEL_PORT || 8787);
 const PROJECT = process.env.ORG_PANEL_PROJECT || '';
-const ROLE_ORDER = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics'];
-const SLOT_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics)-([a-z0-9]+)-(low|high|max)$/;
+// 岗位序与槽名正则改矩阵驱动（装配岗批 D-2·账本 701 ③）：ROLE_ORDER=矩阵 roles 键声明序、
+// SLOT_RE=该序拼装——加岗零面板码改；矩阵单次读盘（进程启动一次，state()/setOrder() 共用，
+// 禁每请求重复读两份矩阵）。
+const MATRIX = JSON.parse(fs.readFileSync(path.join(SKILL, 'templates', 'agents.matrix.json'), 'utf8'));
+const ROLE_ORDER = Object.keys(MATRIX.roles || {});
+const SLOT_RE = new RegExp(`^ops-(${ROLE_ORDER.join('|')})-([a-z0-9]+)-(low|high|max)$`);
 
 // 技能仓配置装载器单源复用（三层深合并；isMain 守卫零副作用）
 const { loadOrgConfig } = await import(pathToFileURL(path.join(SKILL, 'scripts', 'org-config.mjs')).href);
@@ -66,7 +70,7 @@ const restoreLocal = () => { fs.copyFileSync(LOCAL + '.panel-bak', LOCAL); };
 function state() {
   const { merged } = loadOrgConfig(SKILL);
   const l = readLocal();
-  const matrix = JSON.parse(fs.readFileSync(path.join(SKILL, 'templates', 'agents.matrix.json'), 'utf8'));
+  const matrix = MATRIX; // 矩阵进程级单次读盘（模块顶装载），state() 不重复读
   const bindings = l.agent_bindings || {};
   const poolOf = (role) => Object.keys(merged.agent_slots || {}).filter((s) => { const m = SLOT_RE.exec(s); return m && m[1] === role; });
   const roles = ROLE_ORDER.map((role) => {
@@ -117,7 +121,7 @@ let writeChain = Promise.resolve();
 function setOrder(role, order) {
   const runJob = () => {
     const { merged } = loadOrgConfig(SKILL);
-    const level = ((JSON.parse(fs.readFileSync(path.join(SKILL, 'templates', 'agents.matrix.json'), 'utf8')).roles || {})[role] || {}).level;
+    const level = ((MATRIX.roles || {})[role] || {}).level; // 矩阵进程级单次读盘（模块顶装载）
     if (!level) return { ok: false, error: `未知角色「${role}」` };
     const pool = [...new Set(Object.keys(merged.agent_slots || {})
       .map((s) => SLOT_RE.exec(s))
@@ -171,7 +175,7 @@ const server = http.createServer((req, res) => {
       let body;
       try { body = JSON.parse(b || '{}'); } catch { return send(400, { error: '请求体须为 JSON' }); }
       const { role, order } = body || {};
-      if (!ROLE_ORDER.includes(role)) return send(400, { error: `role 必填且∈七角色（${ROLE_ORDER.join(', ')}）` });
+      if (!ROLE_ORDER.includes(role)) return send(400, { error: `role 必填且∈${ROLE_ORDER.length} 角色（${ROLE_ORDER.join(', ')}）` });
       if (!Array.isArray(order) || order.length === 0 || order.some((p) => typeof p !== 'string')) return send(400, { error: 'order 须为非空 provider 短名数组' });
       return setOrder(role, order).then((r) => send(r.ok ? 200 : 409, r));
     });

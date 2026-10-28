@@ -18,15 +18,15 @@
     },
     "699": {
       "family": "kimi",
-      "multimodal": false
+      "multimodal": true
     },
     "yyx": {
       "family": "kimi",
-      "multimodal": false
+      "multimodal": true
     },
     "zipoo": {
       "family": "kimi",
-      "multimodal": false
+      "multimodal": true
     },
     "ds": {
       "family": "deepseek",
@@ -183,12 +183,14 @@
       "level": "max",
       "providers": [
         "glmflash",
-        "ds"
+        "ds",
+        "699"
       ],
       "default": "glmflash",
       "fallback": [
         "glmflash",
-        "ds"
+        "ds",
+        "699"
       ],
       "tools": [
         "Read"
@@ -213,6 +215,32 @@
         "Grep"
       ],
       "readonly": true
+    },
+    "assembler": {
+      "title": "任务书装配岗",
+      "level": "max",
+      "providers": [
+        "699",
+        "yyx",
+        "zipoo"
+      ],
+      "default": "699",
+      "fallback": [
+        "699",
+        "yyx",
+        "zipoo"
+      ],
+      "tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Write",
+        "Edit",
+        "Bash",
+        "BashOutput",
+        "KillShell"
+      ],
+      "readonly": false
     }
   },
   "aliases": {

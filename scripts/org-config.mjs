@@ -381,6 +381,16 @@ export function validateLocalFacts(cfg) {
         errors.push(`agent_bindings.${agent}（slot=${agent}）绑定值斜杠前段与计划源 uuid_prefix 全串不一致——期望=${up} 实际=${front}（计划源绑定值须以 account:<计划名> 全串开头，R-L19-1）`)
     }
   }
+  // 装配岗批（D-3/D-4 配置面护栏）：agent_bindings 中符合 SLOT_NAME_RE 的键须 ⊆ agent_slots
+  // （先槽后绑的时序护栏——default 件与本机件槽/绑两面对账）；note 等非槽形元数据键
+  // （不合命名契约者）天然豁免不报，ops-free-x 既有正例期望零错误不变。
+  for (const agent of Object.keys(cfg?.agent_bindings || {})) {
+    if (!SLOT_NAME_RE.test(agent)) continue
+    const hasSlot = cfg?.agent_slots != null && typeof cfg.agent_slots === 'object'
+      && Object.prototype.hasOwnProperty.call(cfg.agent_slots, agent)
+    if (!hasSlot)
+      errors.push(`agent_bindings.${agent} 绑定键无对应 agent_slots 槽——合命名契约的绑定键须 ⊆ agent_slots（default 件先落槽、本机件后落绑）`)
+  }
   return errors
 }
 
@@ -388,12 +398,12 @@ export function validateLocalFacts(cfg) {
  *  role_fallbacks 结构与语义。返回错误数组（空=通过），不抛（CLI 汇总并列）。
  *  唯一事实源=docs/agent-matrix.json（生成期）；本函数只校结构一致性与跨族/视觉约束：
  *  ① slot 键=ops-<role>-<provider>-<level> 且与值三字段完全一致；角色集须等于固定
- *     七角色集（不由现存 slot 反推——缺任一角色=错误）；
+ *     八角色集（不由现存 slot 反推——缺任一角色=错误）；
  *  ② provider 须在 cfg.providers 以**自有键**声明且为普通对象，禁 legacy:true
  *     （只允许短名；own-property 判定防 constructor/toString 等原型链键冒充）；
  *  ③ level∈low/high/max、model 非空字符串；
- *  ④ agent_defaults 键集=固定七角色集（全覆盖、无多余键），默认档存在且角色一致；
- *  ⑤ role_fallbacks 键集=固定七角色集、非空、无重复、首元素=默认档、成员存在且角色一致；
+ *  ④ agent_defaults 键集=固定八角色集（全覆盖、无多余键），默认档存在且角色一致；
+ *  ⑤ role_fallbacks 键集=固定八角色集、非空、无重复、首元素=默认档、成员存在且角色一致；
  *  ⑥ 默认 executor 与 reviewer/adjudicator 跨族（familyOf；slot/provider/family
  *     任一不可解析=显式错误，fail-closed）；
  *  ⑦ 默认 vision 的 slot/provider 必须可解析且 provider.multimodal===true
@@ -401,9 +411,9 @@ export function validateLocalFacts(cfg) {
  *  回炉轮 1（审核 B-1/B-2）：必需角色集固定为模块常量；所有 providers/slots/
  *  defaults/fallbacks 的成员判定一律 own-property 限定——解析失败返回**显式失败
  *  标记**（{ok:false,reason}），不再以 null 表示并由调用方静默跳过。 */
-const SLOT_NAME_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics)-([a-z0-9]+)-(low|high|max)$/
+const SLOT_NAME_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics|assembler)-([a-z0-9]+)-(low|high|max)$/
 const SLOT_LEVELS = new Set(['low', 'high', 'max'])
-const REQUIRED_AGENT_ROLES = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics']
+const REQUIRED_AGENT_ROLES = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics', 'assembler']
 const REQUIRED_AGENT_ROLE_SET = new Set(REQUIRED_AGENT_ROLES)
 export function validateAgentSlots(cfg) {
   const own = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
@@ -418,7 +428,7 @@ export function validateAgentSlots(cfg) {
   for (const [name, def] of Object.entries(slots)) {
     const m = SLOT_NAME_RE.exec(name)
     if (!m) {
-      errors.push(`agent_slots 键「${name}」不合命名契约 ops-<role>-<provider>-<level>（role∈research|planner|executor|reviewer|adjudicator|vision|diagnostics；provider=[a-z0-9]+；level∈low|high|max）`)
+      errors.push(`agent_slots 键「${name}」不合命名契约 ops-<role>-<provider>-<level>（role∈${REQUIRED_AGENT_ROLES.join('|')}；provider=[a-z0-9]+；level∈low|high|max）`)
       continue
     }
     const [, role, provider, level] = m
@@ -438,18 +448,18 @@ export function validateAgentSlots(cfg) {
       errors.push(`agent_slots.${name} 引用 legacy provider「${def.provider}」（legacy:true）——slot 只允许短名键，旧键仅供 P2 前脚本兼容`)
     }
   }
-  // ① B-1：角色集必须等于固定七角色集（不能只看 slot/default/fallback 自洽）
+  // ① B-1：角色集必须等于固定八角色集（不能只看 slot/default/fallback 自洽）
   const slotRoles = new Set(roleOf.values())
   for (const role of REQUIRED_AGENT_ROLES)
-    if (!slotRoles.has(role)) errors.push(`agent_slots 缺必需角色「${role}」——角色集须等于固定七角色集（${REQUIRED_AGENT_ROLES.join(', ')}），不由现存 slot 反推`)
+    if (!slotRoles.has(role)) errors.push(`agent_slots 缺必需角色「${role}」——角色集须等于固定八角色集（${REQUIRED_AGENT_ROLES.join(', ')}），不由现存 slot 反推`)
   const defaults = cfg?.agent_defaults
   if (!isPlainObject(defaults)) {
-    errors.push('agent_defaults 缺失/非对象——须为 角色→默认 slot 名 映射（固定七角色全覆盖）')
+    errors.push('agent_defaults 缺失/非对象——须为 角色→默认 slot 名 映射（固定八角色全覆盖）')
   } else {
     for (const role of REQUIRED_AGENT_ROLES)
-      if (!own(defaults, role)) errors.push(`agent_defaults 缺必需角色「${role}」——固定七角色须全覆盖`)
+      if (!own(defaults, role)) errors.push(`agent_defaults 缺必需角色「${role}」——固定八角色须全覆盖`)
     for (const role of Object.keys(defaults))
-      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`agent_defaults 多余键「${role}」——只允许固定七角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
+      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`agent_defaults 多余键「${role}」——只允许固定八角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
     for (const [role, slotName] of Object.entries(defaults)) {
       if (typeof slotName !== 'string' || !own(slots, slotName)) {
         errors.push(`agent_defaults.${role} 指向不存在的 slot「${slotName}」——须引用 agent_slots 已声明键`)
@@ -464,12 +474,12 @@ export function validateAgentSlots(cfg) {
   }
   const fallbacks = cfg?.role_fallbacks
   if (!isPlainObject(fallbacks)) {
-    errors.push('role_fallbacks 缺失/非对象——须为 角色→slot 名数组 映射（固定七角色全覆盖）')
+    errors.push('role_fallbacks 缺失/非对象——须为 角色→slot 名数组 映射（固定八角色全覆盖）')
   } else {
     for (const role of REQUIRED_AGENT_ROLES)
-      if (!own(fallbacks, role)) errors.push(`role_fallbacks 缺必需角色「${role}」——固定七角色须全覆盖`)
+      if (!own(fallbacks, role)) errors.push(`role_fallbacks 缺必需角色「${role}」——固定八角色须全覆盖`)
     for (const role of Object.keys(fallbacks))
-      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`role_fallbacks 多余键「${role}」——只允许固定七角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
+      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`role_fallbacks 多余键「${role}」——只允许固定八角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
     for (const [role, seq] of Object.entries(fallbacks)) {
       if (!Array.isArray(seq) || seq.length === 0) {
         errors.push(`role_fallbacks.${role} 须为非空数组（回退序不能为空）`)
@@ -701,6 +711,7 @@ if (isMain) {
           'ops-adjudicator-gamma-max': { provider: 'gamma', model: 'm-gamma', level: 'max' },
           'ops-vision-beta-max': { provider: 'beta', model: 'm-beta', level: 'max' },
           'ops-diagnostics-gamma-max': { provider: 'gamma', model: 'm-gamma', level: 'max' },
+          'ops-assembler-alpha-max': { provider: 'alpha', model: 'm-alpha', level: 'max' },
         },
         agent_defaults: {
           research: 'ops-research-alpha-high',
@@ -710,6 +721,7 @@ if (isMain) {
           adjudicator: 'ops-adjudicator-gamma-max',
           vision: 'ops-vision-beta-max',
           diagnostics: 'ops-diagnostics-gamma-max',
+          assembler: 'ops-assembler-alpha-max',
         },
         role_fallbacks: {
           research: ['ops-research-alpha-high'],
@@ -719,6 +731,7 @@ if (isMain) {
           adjudicator: ['ops-adjudicator-gamma-max'],
           vision: ['ops-vision-beta-max'],
           diagnostics: ['ops-diagnostics-gamma-max'],
+          assembler: ['ops-assembler-alpha-max'],
         },
       })
       const vSlots = (c) => { try { return validateAgentSlots(c) } catch { return null } }
@@ -783,6 +796,17 @@ if (isMain) {
       }
       const cNoFam = slotCfg(); cNoFam.providers.alpha = { multimodal: false }
       t('P1 回炉 B-2：provider 存在但缺 family→fail-closed 错误行', vErrs(cNoFam).some((e) => e.includes('executor') && e.includes('fail-closed')))
+      // 装配岗批（D-3）assembler slot schema 两向量：缺席=validate errors；两键+槽在场=通过
+      // （夹具=slotCfg() 八角色扩展形态；缺席负例三面齐删，只留缺角色一类错误）。
+      const cNoAsm = slotCfg(); delete cNoAsm.agent_slots['ops-assembler-alpha-max']; delete cNoAsm.agent_defaults.assembler; delete cNoAsm.role_fallbacks.assembler
+      t('装配岗批 slot：agent_slots 缺 assembler→缺必需角色错误行', vErrs(cNoAsm).some((e) => e.includes('缺必需角色') && e.includes('assembler')))
+      t('装配岗批 slot：agent_slots/agent_defaults/role_fallbacks 含 assembler→零错误', vSlots(slotCfg()).length === 0)
+      // 装配岗批（D-3/D-4 配置面护栏）agent_bindings ⊆ agent_slots 负例向量：槽形绑定键无对应
+      // 槽→错误行点名；非槽形元数据键（ops-free-x 形态）天然豁免不报。
+      t('装配岗批 绑定面：agent_bindings 槽形键无 agent_slots 槽→错误行（非槽形键豁免）', (() => {
+        const e = validateLocalFacts({ agent_bindings: { 'ops-assembler-699-max': 'new-provider/k3.1-pro$max', 'ops-free-x': 'whatever/x' } })
+        return e.some((m) => m.includes('agent_bindings.ops-assembler-699-max')) && !e.some((m) => m.includes('ops-free-x'))
+      })())
     }
     // localDateStr 通用向量（临时窗机制退役后仅存通用日期助手）
     t('localDateStr：本地日期补零（2026-01-05）', localDateStr(new Date(2026, 0, 5)) === '2026-01-05')
