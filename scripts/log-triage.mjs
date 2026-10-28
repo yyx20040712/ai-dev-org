@@ -102,7 +102,7 @@ const buildAliasMap = (providers) => {
 }
 const aliasOf = (providerId, aliasMap) => {
   if (!providerId) return '(未知源)'
-  // 比对前双侧 trim+lowercase 归一（R-L19-2 子项②，2026-10-28 D6 批——与
+  // 比对前双侧 trim+lowercase 归一（2026-10-28 D6 批——与
   // org-config validate L268 isPlanPrefix 同款口径；现行全小写实值命中结果
   // 零变化；空/非串前缀跳过防 startsWith('') 恒真通配吞配（k1 预审 B-1 同款
   // 守卫——buildAliasMap 已滤 falsy，此为直调防御面）。不命中返回原串原样
@@ -705,7 +705,7 @@ function run() {
     let amMap = null, amErr = null
     try { amMap = buildAliasMap({ dead: null, live: { uuid_prefix: 'b4-live-' } }) } catch (e) { amErr = e.message }
     t('b4 null provider→buildAliasMap 不崩（null 条目跳过/其余映射保留）', amErr === null && amMap instanceof Map && amMap.size === 1 && amMap.get('b4-live-') === 'live')
-    // ── R-L19-2 子项②向量（2026-10-28 D6 批）：aliasOf 比对前双侧归一（org-config L268 同款口径）──
+    // ── 2026-10-28 D6 批向量：aliasOf 比对前双侧归一（org-config L268 同款口径）──
     const l19Map = buildAliasMap({ 'third-syn': { uuid_prefix: 'Syn-Prov' }, 'ds-syn': { uuid_prefix: 'ds-host' } })
     t('L19-2 aliasOf 大小写混合互配（providerId 含大写/uuid_prefix 含大写→别名等值命中——双侧 trim+lowercase 归一）', aliasOf('SYN-PROVIDER-HOST', l19Map) === 'third-syn' && aliasOf('syn-provider-host', l19Map) === 'third-syn' && aliasOf('DS-HOST-9', l19Map) === 'ds-syn')
     t('L19-2 aliasOf 混合形态不匹配仍不匹配（无前缀命中→原串原样返回——显示面零改写行为锁）', aliasOf('ZZZ-OTHER-1', l19Map) === 'ZZZ-OTHER-1' && aliasOf('builtin:bigmodel-coding-plan', l19Map) === 'builtin:bigmodel-coding-plan')
