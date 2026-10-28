@@ -1,6 +1,6 @@
 # 03 · 架构与代码（ARC）
 
-> 状态：active ｜ 权威：normative ｜ 更新：2026-10-25 ｜ 替代：无
+> 状态：active ｜ 权威：normative ｜ 替代：无
 
 本册承载状态机、代码组织、异常、确定性输出与原子落盘类约束。典型触发=改结构、拆文件、换方案、改异常、落盘。卡片字段规范单源=`docs/03` §4（跨仓=/home/yyx/work/aidevorg/docs/03-target-architecture.md §4）。
 
@@ -19,7 +19,7 @@ evidence:
   - project: Synapse
     event: 3,303 行单文件难以读取修改，源项目上限 500 行、最大文件 429 行
     ref: "AI辅助开发经验教训.md §B1"
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 在项目宪法声明文件行数上限与例外；按该上限拆分超限文件。
 
@@ -38,7 +38,7 @@ evidence:
   - project: Synapse
     event: U2 五轮返工，单格枚举未覆盖跨格序列并丢稿
     ref: references/04-lessons.md 二、审计与测试类 SY-2
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 写状态机前先列出全部状态、事件与迁移表，跨步骤序列逐条走查并交审计。
 
@@ -57,7 +57,7 @@ evidence:
   - project: Synapse
     event: 孤儿组件、重复 pdf.js 与 stub 堆积，形成上下文噪音
     ref: "AI辅助开发经验教训.md §B2"
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 提交前检索并删除未引用文件、孤儿组件、重复资产与 stub。
 
@@ -76,7 +76,7 @@ evidence:
   - project: Synapse
     event: PDFium、pdf.js 与手动 span 三套方案并存，当前实现难以判定
     ref: "AI辅助开发经验教训.md §B3"
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 切换实现方案时删除旧方案，只保留一套当前方案，不让多套实现并存。
 
@@ -95,7 +95,7 @@ evidence:
   - project: WaterPrint
     event: 手写换算系数是门禁漏网高发区；86400/86400.0 隐式整除与精度差异曾造成 Q_design 双轨
     ref: engineering-conventions.md GR-05
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 在项目宪法指定单一换算库；单位换算只经该库，手写换算系数仅可留在测试期望值。
 
@@ -114,7 +114,7 @@ evidence:
   - project: WaterPrint
     event: 把程序缺陷包装成领域异常会误导调参并丢失栈迹
     ref: engineering-conventions.md GR-08
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 将可预期业务失败作为领域异常或 Result 返回；对不可能态与内部不变量破坏使用 assert 或直接失败，不捕获、不包装。
 
@@ -133,7 +133,7 @@ evidence:
   - project: WaterPrint
     event: set 迭代序随进程与 PYTHONHASHSEED 变化，中文键还受 locale 影响，源项目以 sorted/key=repr 固定顺序
     ref: engineering-conventions.md GR-16
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 无序集合先按稳定键排序再构造产出；跨进程落盘前排序映射键，中文键使用固定排序键。
 
@@ -152,7 +152,7 @@ evidence:
   - project: WaterPrint
     event: 非原子覆盖会在崩溃时留下可消费的半截产物，无限留存致磁盘增长
     ref: engineering-conventions.md GR-38
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 落盘产物先写同分区临时文件，再用 rename 原子替换；在项目配置声明留存上限与清理策略。
 
@@ -171,6 +171,6 @@ evidence:
   - project: Synapse
     event: 代码占用过多上下文，源条目以小文件、死代码删除与单一方案共同减少噪音
     ref: "AI辅助开发经验教训.md §G1"
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 派发前按文件规模、死代码、方案唯一三项核对代码上下文，即 C-ARC-01/03/04 的清单化核对。

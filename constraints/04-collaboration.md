@@ -1,6 +1,6 @@
 # 04 · 协作与审计（COL）
 
-> 状态：active ｜ 权威：normative ｜ 更新：2026-10-25 ｜ 替代：无
+> 状态：active ｜ 权威：normative ｜ 替代：无
 
 本册承载需求一致性、返工、角色分离、审计终态与自裁申报类约束。典型触发=派发、评审、返工、改接缝、结项。卡片字段规范单源=`docs/03` §4（跨仓=/home/yyx/work/aidevorg/docs/03-target-architecture.md §4）。
 
@@ -19,7 +19,7 @@ evidence:
   - project: WaterPrint
     event: M1b 简报 DoD 与 D 系列互相矛盾，需求源内部不一致
     ref: references/04-lessons.md 三、协作与流程类 WP-10
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 简报评审先自查需求源内部一致性；发现矛盾时按主授权消解并记档。
 
@@ -38,7 +38,7 @@ evidence:
   - project: WaterPrint
     event: 「1 用 1 备」字面与双渠计算口径冲突，改任一数都无法对齐
     ref: references/04-lessons.md 三、协作与流程类 WP-11
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 审计发现两种口径无法同时成立时，列出冲突与影响并交所有者裁定，不自行选值。
 
@@ -57,7 +57,7 @@ evidence:
   - project: WaterPrint
     event: 二审代理未见仓库外 .workflow，误把报告写入仓库并污染工作树
     ref: references/04-lessons.md 三、协作与流程类 WP-13
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 派发代理涉及仓库外材料时，在 prompt 写明绝对路径，并显式声明该目录在仓库外。
 
@@ -76,11 +76,11 @@ evidence:
   - project: Synapse
     event: UNDO-01 七轮振荡，复用首轮 diff 使审计输入膨胀，SY-5 规定两轮上限与净增量化
     ref: references/04-lessons.md 二、审计与测试类 SY-5
-    date: 2026-10-21
+    date: YYYY-MM-DD
   - project: ai-dev-org
     event: 02 §5 区分 WP 5 轮与 SY 2 轮，新项目宪法未声明时取严者
     ref: references/02-pipeline-templates.md §5
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 在项目宪法声明返工上限，未声明时不超过 2 轮；每轮量化回归用例与 diff 净增量，超限即终止并交用户。
 
@@ -99,11 +99,11 @@ evidence:
   - project: Synapse
     event: 弱模型改 tests/** 让代码通过，执行者同时握实现与验收
     ref: references/04-lessons.md 三、协作与流程类 SY-9
-    date: 2026-10-21
+    date: YYYY-MM-DD
   - project: WaterPrint
     event: 测试文件由清单哈希与只读属性双重锁定，本地与 CI 双验，重锁须人类独立提交
     ref: testing.md 只读锁定
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 实现与验收分岗；锁定测试文件及其激活状态，实现者不得改测试或关闭用例，验收 registry 仅由结项者变更。
 
@@ -122,7 +122,7 @@ evidence:
   - project: Synapse
     event: 三屋试点中实现岗自裁漏报 SKILL.md 删减面
     ref: references/04-lessons.md 三、协作与流程类 SY-10
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 偏离任务书的任何处置都在报告中逐条写明位置、理由与影响，删减面附 diff 级自查，没有偏离也要写『无』。
 
@@ -141,7 +141,7 @@ evidence:
   - project: ai-dev-org
     event: 流水已记录 finish，账本却丢弃终态，8 笔截断审计被当成功
     ref: references/04-lessons.md 七、ORG-5
-    date: 2026-09-14
+    date: YYYY-MM-DD
 ---
 审计账本以流水终态为唯一来源派生截断标记，分别记录完整、截断与失败；未知终态按非完整处理。
 
@@ -160,6 +160,6 @@ evidence:
   - project: Synapse
     event: save-status 语义下沉后被动态 paper 消费，接缝两处声明漂移
     ref: references/04-lessons.md 三、协作与流程类 SY-8
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 修改接缝一侧时核对相邻另一侧的声明与消费；两侧互斥即停止并上报。

@@ -1,6 +1,6 @@
 # 07 · 编排与调度（ORC）
 
-> 状态：active ｜ 权威：normative ｜ 更新：2026-10-26 ｜ 替代：无
+> 状态：active ｜ 权威：normative ｜ 替代：无
 
 本册承载子代理边界、并行派发、模型绑定与路由、长派发排障、定时与闲时任务类约束。典型触发=并行派发、配模型、定时调度、长派发超时排障。卡片字段规范单源=`docs/03` §4（跨仓=/home/yyx/work/aidevorg/docs/03-target-architecture.md §4）。
 
@@ -19,7 +19,7 @@ evidence:
   - project: Synapse
     event: 多个代理并行写共享状态或同文件，造成 125 个编译错误
     ref: AI辅助开发经验教训.md §A3
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 并行派发前列出各任务写面，写不同文件且无共享状态才可并行；写同文件或共享状态必须串行。
 
@@ -38,11 +38,11 @@ evidence:
   - project: ai-dev-org
     event: F7 确认 model＋thoughtLevel 为公开契约，旧后缀仅兼容
     ref: 01-decisions.md §3 F7
-    date: 2026-10-21（评估日）
+    date: YYYY-MM-DD（评估日）
   - project: ai-dev-org
     event: 上游枚举值曾静默回退，metadata 结构演进使旧检测面失明
     ref: references/10-host-compat.md §2 假绑定条＋§3 metadata 条
-    date: 2026-09-17
+    date: YYYY-MM-DD
 ---
 绑定岗代理档案显式声明具体模型与档位，禁用上游枚举值；首场派发后核对声明与实际路由，并逐项核对闭环 metadata 形态漂移告警。
 
@@ -61,7 +61,7 @@ evidence:
   - project: ai-dev-org
     event: 代理档案是会话启动快照，改档对运行中会话不生效
     ref: references/10-host-compat.md §2 代理档案快照条
-    date: 2026-09-16
+    date: YYYY-MM-DD
 ---
 修改代理档案或模型档位后，不在原会话认定生效；另起新会话执行最小派发并核对工具面与绑定快照。
 
@@ -80,7 +80,7 @@ evidence:
   - project: ai-dev-org
     event: 长推理派发多次被掐，审包膨胀、证据断链与链式命令吞红损害排障
     ref: references/04-lessons.md 八、ORG-12
-    date: 2026-09-16
+    date: YYYY-MM-DD
 ---
 长任务派发前压缩审包并声明唯一超时源与简报预算，失败后按服务端、网关、客户端三层分诊；证据与结论同笔提交，逐条命令单独落真退出码。
 
@@ -99,15 +99,15 @@ evidence:
   - project: ai-dev-org
     event: 闲时任务不支持后台子代理，不自动重试或回滚，开工前须提交
     ref: 02-evidence.md §5
-    date: 2026-10-21
+    date: YYYY-MM-DD
   - project: ai-dev-org
     event: 既有定时任务只增不改，占用检测只读且不得杀进程清场
     ref: 00-kickoff.md §2 L73
-    date: 2026-10-24
+    date: YYYY-MM-DD
   - project: ai-dev-org
     event: 跨会话占用须结合进程与目录静默窗，前会话断点不等于占用
     ref: <evidence 件>.md §1 L15
-    date: 2026-10-26
+    date: YYYY-MM-DD
 ---
 调度定时或闲时任务前，只读核对全系统进程、锁与目标目录活动静默窗并区分断点，既有任务只增不改；确需调整先停手交用户裁决，仅在用户点名任务 ID 时调整该任务并在账本留用户裁决记录且不得杀进程清场；闲时不派后台子代理，仅承载只读或可重跑工作，开工先提交且不依赖自动重试。
 
@@ -126,10 +126,10 @@ evidence:
   - project: ai-dev-org
     event: 空 tools 数组泄漏全工具面，无工具岗须显式清单或 Read＋协议墙
     ref: references/10-host-compat.md §2 tools 条
-    date: 2026-09-16
+    date: YYYY-MM-DD
   - project: ai-dev-org
     event: 子智能体及工作流内均不能再派子智能体
     ref: 02-evidence.md §2＋§6
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 子代理档案显式声明工具边界，禁止用空 tools 数组充当无工具配置；任务书写明子代理不得再派子代理，嵌套需求交主控以串行或工作流处置。

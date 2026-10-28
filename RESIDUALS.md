@@ -1,6 +1,6 @@
 # RESIDUALS（残留登记册）
 
-> 状态：active ｜ 权威：registry ｜ 更新：2026-10-28 ｜ 替代：无
+> 状态：active ｜ 权威：registry ｜ 替代：无
 
 当前 **open=0**（全册终态：closed／won't-fix）。历史登记行全文=开发方工作区
 历史文档区存档与技能仓 git 提交历史，不驻技能加载面。

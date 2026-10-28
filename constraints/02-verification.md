@@ -1,6 +1,6 @@
 # 02 · 验证与测试（VER）
 
-> 状态：active ｜ 权威：normative ｜ 更新：2026-10-25 ｜ 替代：无
+> 状态：active ｜ 权威：normative ｜ 替代：无
 
 本册承载测试、假绿、红证、门禁与安全用例类约束。典型触发=写测试、改断言、修缺陷、验收。卡片字段规范单源=`docs/03` §4（跨仓=/home/yyx/work/aidevorg/docs/03-target-architecture.md §4）。
 
@@ -19,7 +19,7 @@ evidence:
   - project: Synapse
     event: 测试数字被反复改写不可信，缺统一入口
     ref: "AI辅助开发经验教训.md §D3"
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 测试入口统一为一条命令；测试数字以 CI 输出为唯一权威。
 
@@ -38,7 +38,7 @@ evidence:
   - project: WaterPrint
     event: 新增门禁项本地漏跑，缺陷漏网至评审轮
     ref: references/04-lessons.md 一、质量门类 WP-1
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 每次提交前本地跑全量门禁，逐项留退出码。
 
@@ -57,11 +57,11 @@ evidence:
   - project: Synapse
     event: 乱码断言恒真
     ref: "AI辅助开发经验教训.md §D1"
-    date: 2026-08-21
+    date: YYYY-MM-DD
   - project: WaterPrint
     event: 8/8 占位实质化断言弱化
     ref: references/04-lessons.md 二、审计与测试类 WP-5
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 新写的测试必须先失败一次，再通过。只看到通过、没有看到失败，视为未验证。
 
@@ -80,7 +80,7 @@ evidence:
   - project: Synapse
     event: 52 测试全绿但文字不可见
     ref: references/04-lessons.md 二、审计与测试类 SY-3
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 e2e 断言落到渲染出的真实文本；只断元素存在不算通过。
 
@@ -99,7 +99,7 @@ evidence:
   - project: WaterPrint
     event: 审计头构造了但落盘环节静默丢弃
     ref: references/04-lessons.md 二、审计与测试类 WP-8
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 落盘数据配独立回读断言；只构造不回读视为未生效。
 
@@ -118,7 +118,7 @@ evidence:
   - project: WaterPrint
     event: 拼接无白名单致 HTTP 可达任意路径写（Critical）
     ref: references/04-lessons.md 二、审计与测试类 WP-6
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 路径拼接必配穿越用例与目录快照比对，零新增才准合入。
 
@@ -137,7 +137,7 @@ evidence:
   - project: Synapse
     event: 对未提交实现做变异红证用版本还原，把实现一并抹掉
     ref: references/04-lessons.md 二、审计与测试类 SY-4
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 变异红证禁用 checkout 还原；用文件备份法并在还原后确认 diff 为空。
 
@@ -156,7 +156,7 @@ evidence:
   - project: WaterPrint
     event: 容差掺入确定性断言留后门，绝对相等误报换算抖动
     ref: engineering-conventions.md GR-01
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 确定性断言与数值断言分层；确定性零容差，数值对照显式容差。
 
@@ -175,11 +175,11 @@ evidence:
   - project: WaterPrint
     event: 异常测试不验消息键，异常类型被换照样绿
     ref: engineering-conventions.md GR-27
-    date: 2026-10-21
+    date: YYYY-MM-DD
   - project: WaterPrint
     event: 名义表等值断言全绿但消费面行为错（死表面）
     ref: references/04-lessons.md 二、审计与测试类 WP-6（AU-2 死表面）
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 断言检验行为：异常用例断消息键，正常用例断产出值。
 
@@ -198,7 +198,7 @@ evidence:
   - project: WaterPrint
     event: 副算例漏检，由双审交叉抓获
     ref: references/04-lessons.md 三、协作与流程类 WP-12
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 验算闭环跑主算例与全部副算例；只跑主算例不算闭环。
 
@@ -217,7 +217,7 @@ evidence:
   - project: ai-dev-org
     event: 机检被人工判断替代，带 mock 字样的演练行靠人工甄别放行
     ref: references/04-lessons.md 七、ORG-5
-    date: 2026-09-14
+    date: YYYY-MM-DD
 ---
 机检不可由人工判断替代；无机检的验证面按缺位处理。
 
@@ -236,6 +236,6 @@ evidence:
   - project: WaterPrint
     event: 亲笔变更只跑定向测试，行数墙缺陷漏网，由独立复算逮出
     ref: references/04-lessons.md 九、ORG-14
-    date: 2026-10-05
+    date: YYYY-MM-DD
 ---
 任何提交都跑同一套门禁；亲笔变更不免检。

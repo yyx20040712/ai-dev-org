@@ -1,6 +1,6 @@
 # 05 · 文档与语言（DOC）
 
-> 状态：active ｜ 权威：normative ｜ 更新：2026-10-25 ｜ 替代：无
+> 状态：active ｜ 权威：normative ｜ 替代：无
 
 本册承载单一真相源、历史记录、生成物与语言类约束。典型触发=写文档、改规格、整理索引。卡片字段规范单源=`docs/03` §4（跨仓=/home/yyx/work/aidevorg/docs/03-target-architecture.md §4）。
 
@@ -19,7 +19,7 @@ evidence:
   - project: Synapse
     event: README 声称无 PDFium 但文件在仓，文档与现实脱节形成权威冲突
     ref: "AI辅助开发经验教训.md §C2"
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 发现文档与现实矛盾时删除过时文档只留一份权威，不留两份并存。
 
@@ -38,7 +38,7 @@ evidence:
   - project: Synapse
     event: 测试数 30/52/59/75/452 在多份文档间互相矛盾，手写数字必然过期
     ref: "AI辅助开发经验教训.md §C3"
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 文档不手写易过期的具体数字，数字口径写以 CI 输出为准的指针。
 
@@ -57,7 +57,7 @@ evidence:
   - project: Synapse
     event: PROCESS.md 双重编码损坏，工具链编码不一致
     ref: "AI辅助开发经验教训.md §C4"
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 中文内容统一 UTF-8；写入后用工具读回验证可读，乱码即未验证。
 
@@ -76,7 +76,7 @@ evidence:
   - project: ai-dev-org
     event: 规范要求记账但校验器只认旧事件
     ref: references/04-lessons.md 七、ORG-11
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 新增规范条款时，能机检的同批落成校验项，不能机检的写明人工判据。
 
@@ -95,7 +95,7 @@ evidence:
   - project: ai-dev-org
     event: 寻址表定每类事实的唯一真相源与禁止出现处
     ref: references/08-doc-governance.md 1. 事实分层寻址表
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 每类事实只写入寻址表指定的唯一真相源，他处引用用指针不在正文抄写。
 
@@ -114,7 +114,7 @@ evidence:
   - project: ai-dev-org
     event: 改写历史记录制造当时就这么说的伪证，删除尚可在版本历史中考证
     ref: references/08-doc-governance.md 3. 历史件禁改写
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 历史件只追加或归档，禁原地改写；发现错误新增勘误件引用原位置。
 
@@ -133,7 +133,7 @@ evidence:
   - project: ai-dev-org
     event: 手抄端点清单与代码双源必漂移，API 明细定为代码注解加生成命令产出
     ref: references/09-product-docs.md 1. 事实分层
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 API 明细由代码注解与生成命令产出，禁手抄端点清单。
 
@@ -152,6 +152,6 @@ evidence:
   - project: ai-dev-org
     event: 事后补写产品文档造成失实，回写定为批次结束动作
     ref: references/09-product-docs.md 2. 生命周期
-    date: 2026-10-21
+    date: YYYY-MM-DD
 ---
 功能面变化随批次回写手册与变更日志，契约面变化随批再生成 API 注解，不留事后补写窗口。

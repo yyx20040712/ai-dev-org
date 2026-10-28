@@ -1,6 +1,6 @@
 # 01 · 任务书与上下文（CTX）
 
-> 状态：active ｜ 权威：normative ｜ 更新：2026-10-25 ｜ 替代：无
+> 状态：active ｜ 权威：normative ｜ 替代：无
 
 本册承载任务书、上下文预算与跨会话接续类约束。典型触发=新项目开工、写任务书、交底、会话接续。卡片字段规范单源=`docs/03` §4（跨仓=/home/yyx/work/aidevorg/docs/03-target-architecture.md §4）。
 
@@ -19,11 +19,11 @@ evidence:
   - project: Synapse
     event: 三个项目一次失败的三次重演
     ref: references/04-lessons.md 一、质量门类 SY-1
-    date: 2026-08-21
+    date: YYYY-MM-DD
   - project: Synapse
     event: 无版本仓库致 CI 缺位，重写后旧问题复发
     ref: "AI辅助开发经验教训.md §E1＋§F2"
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 业务代码第一笔提交前，先让仓库、门禁命令与最小测试各跑通一次。
 
@@ -42,7 +42,7 @@ evidence:
   - project: Synapse
     event: 占位实现混入真功能，缺少完成定义
     ref: "AI辅助开发经验教训.md §A4"
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 规约先写验收标准；占位实现视为未完成，不得合入。
 
@@ -61,7 +61,7 @@ evidence:
   - project: Synapse
     event: 规约只给行为层，生成代码与既有代码不兼容
     ref: "AI辅助开发经验教训.md §A1＋§五层规约骨架"
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 规约写满五层：行为、接口、架构、生命周期、文化。
 
@@ -80,7 +80,7 @@ evidence:
   - project: Synapse
     event: 规约缺路径、版本与现有接口，实现时上下文缺关键信息
     ref: "AI辅助开发经验教训.md §G2"
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 规约写全文件路径、关键代码与版本，实现者不必另找上下文。
 
@@ -99,7 +99,7 @@ evidence:
   - project: Synapse
     event: 上下文被无关探索淹没，实现与侦查混在一岗
     ref: "AI辅助开发经验教训.md §G1"
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 先侦查后派发；实现者按任务书施工，不承担探索。
 
@@ -118,7 +118,7 @@ evidence:
   - project: Synapse
     event: 同一产品第三次重写，重写重置已修复缺陷
     ref: "AI辅助开发经验教训.md §F1＋§六守则三"
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 重写前先修流程；流程根因未除，不得重写。
 
@@ -137,7 +137,7 @@ evidence:
   - project: Synapse
     event: 三层手动同步类型反复漂移，最后靠删保护绕过
     ref: "AI辅助开发经验教训.md §A2"
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 跨层类型用生成器同步；禁止手写两处类型互相对齐。
 
@@ -156,6 +156,6 @@ evidence:
   - project: Synapse
     event: 开工速查表逐条打勾，防线先于业务代码
     ref: "AI辅助开发经验教训.md §五"
-    date: 2026-08-21
+    date: YYYY-MM-DD
 ---
 开工清单逐项打勾留痕后，再写业务代码。
