@@ -1,6 +1,17 @@
 {
   "version": "1.0.0",
   "ledger_path": ".zcode/org-ledger.jsonl",
+  "flags": {
+    "b1_gates_v2": {
+      "description": "B1 门禁面总开关：on=W 面扩展＋WARN 冻结执法（verify-docs D-2/D-3）；off=旧 W 面构造且不冻结（完整回退路径）。不可关闭面=退出码契约/pre-commit fail-closed/CI/迁移与 manifest/deploy-check --project/flags 能力/R14/R15。",
+      "owner_batch": "B1",
+      "default": false
+    },
+    "revert_manifest_schema": {
+      "columns": ["path", "commit", "baseline_sha256"],
+      "note": "内容回退清单三列 schema（B1 D-6/D-13③——随批件 docs/evidence/B1-close-*.md 落档）：path=文件相对路径，commit=基线提交号，baseline_sha256=该件基线内容 sha256。schema 随 B1 flags 面定义（docs/13 §6 表注），后续批复用同形。"
+    }
+  },
   "projects": {
     "note": "project_id 映射（selfiter 批 B4 project-id-migration 清偿）：键=账本 raw project 名（自由文本史），值=归一化 id；派发器写入账本行 project_id（schema v3），读侧按 project_id ?? project 归一；映射实值住本机件 local/项目覆盖件可增，缺映射=raw 名透传不阻断"
   },

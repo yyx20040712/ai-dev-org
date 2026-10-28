@@ -13,7 +13,12 @@
  *   R10'=glm-look 回归面（结构断言+splitEndpoint 向量+本地 mock 双通道往返
  *       +null 守卫——evolve 批 b1 承载）；
  *   R13'=门禁前移回归面（check-taskbook T13 词面扫描＋T14 防逃逸——L22 批：①隔离自检
- *       子进程 ②strict 通过态 ③表格逃逸红态 ④词表缺失装载错）。
+ *       子进程 ②strict 通过态 ③表格逃逸红态 ④词表缺失装载错）；
+ *   R14'=账本迁移器自检（B1 批：SKILL_ROOT spawn ledger-migrate.mjs --self-test 断言
+ *       exit 0——五向量〔dry-run 逐组计数/零漂移/隔离分组计数/manifest 哈希锚篡改检出/
+ *       stale candidate〕＋fixture 全程两仓零写入断言在自检内部承载）；
+ *   R15'=主仓门禁自检（B1 批：spawn <project>/scripts/verify-docs.mjs --self-test 断言
+ *       exit 0——缺件=FAIL 不静默跳过，回归面收缩即绊线拆除）。
  * 用法：node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <账本目录>]
  *       [--ledger <账本路径>] [--keep-tmp]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
@@ -24,7 +29,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync, spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
-import { SKILL_ROOT, cliFlag, UsageError } from './org-config.mjs'
+import { SKILL_ROOT, cliFlag, UsageError, ledgerPathFor } from './org-config.mjs'
 import { MANUAL_EVENTS } from './health-scan.mjs' // 人工事件词表单源消费（v2.0.1 修复批 L14——原两处逐字复制=漏改一侧即漂移；health-scan isMain 守卫后 import 零副作用）
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
@@ -46,7 +51,7 @@ try {
   throw e
 }
 const keepTmp = argv.includes('--keep-tmp')
-const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随纯净化批删除）
+const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随纯净化批删除）
 if (only && only.some((id) => !KNOWN_ITEMS.includes(id))) {
   console.error(`[用法错] 未知回归项：${only.filter((id) => !KNOWN_ITEMS.includes(id)).join(',')}（现役项=${KNOWN_ITEMS.join('/')}——派发器族项已随 2026-10-03 纯净化批删除，档案=git 历史）`)
   process.exit(1)
@@ -111,7 +116,22 @@ if (want('R4')) {
   // 观测=health-scan cfg 漂移 WARN+账本行 cfg_hash 主控补记即时值（02 §9）。
   a.detail += '；cfg哈希子核对=退役（纯净化批——低频写入面假红，观测移交 health-scan）'
   const passA = a.pass
-  const ledgerPath = flag('--ledger') || join(projectDir, '.zcode', 'org-ledger.jsonl')
+  // B1 返工 R1：账本路径接三层单源（--ledger 显式参＞merged ledger_path 相对项目根＞join 兜底——与 health-scan 同源）
+  const ledgerPath = ledgerPathFor(projectDir, flag('--ledger'))
+  // R1 三层断言（tmp 夹具·零写两仓）：项目覆盖件 ledger_path 生效／无覆盖件走兜底／显式参恒胜
+  let layerOk = false, layerDet = ''
+  try {
+    const fx4 = mkdtempSync(join(tmpdir(), 'r4-lp-'))
+    try {
+      mkdirSync(join(fx4, '.zcode'), { recursive: true })
+      writeFileSync(join(fx4, '.zcode', 'org-config.json'), JSON.stringify({ ledger_path: 'custom/ledger.jsonl' }))
+      const ov = ledgerPathFor(fx4, null)
+      const fb = ledgerPathFor(join(fx4, 'p2'), null)
+      const ex = ledgerPathFor(fx4, join(fx4, 'explicit.jsonl'))
+      layerOk = ov === join(fx4, 'custom', 'ledger.jsonl') && fb === join(fx4, 'p2', '.zcode', 'org-ledger.jsonl') && ex === join(fx4, 'explicit.jsonl')
+      layerDet = `三层断言:${layerOk ? '✓(覆盖件/兜底/显式参)' : `✗(ov=${ov} fb=${fb} ex=${ex})`}`
+    } finally { rmSync(fx4, { recursive: true, force: true }) }
+  } catch (e) { layerDet = `三层断言:✗(${e.message})` }
   const ledgerReq = (e) => {
     if (!['ok', 'switch', 'exhaust', ...MANUAL_EVENTS].includes(e.event)) return ['__unknown_event__'] // 账本侧未知 event 计坏行（终轮 A'-Kimi：防新增记账事件未同步 schema 即弱校验通过）
     if (MANUAL_EVENTS.has(e.event)) return LEDGER_REQUIRED // 主控人工补记
@@ -129,7 +149,7 @@ if (want('R4')) {
       return Number.isNaN(t) ? true : t < Date.parse('2026-09-16T12:00:00Z')
     },
   })
-  record('R4', passA && b.pass, `${a.detail}；${b.detail}`)
+  record('R4', passA && b.pass && layerOk, `${a.detail}；${b.detail}；${layerDet}`)
 }
 
 // ═══ R7：账本 schema 指针正向校验（A3——SKILL.md/snippet 禁内联字段清单；v1.6 批 kimi-W1） ═══
@@ -490,6 +510,31 @@ if (want('R13')) {
   } finally { rmSync(fx2, { recursive: true, force: true }) }
   // 四项 detail 一次 record（R12 同款）
   record('R13', ok, `门禁前移——${det.join(' ')}`)
+}
+
+// ═══ B1 R14：账本迁移器自检（spawn SKILL_ROOT ledger-migrate.mjs --self-test 断言 exit 0；
+//     五向量＋fixture 两仓零写入断言由自检内部承载——本项只锚真退出码，不复制向量语义） ═══
+if (want('R14')) {
+  const migScript = join(SCRIPTS, 'ledger-migrate.mjs') // 本块脚本字串唯一承载点（R12/R13 同款）
+  const r14Run = (args) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 120_000, killSignal: 'SIGKILL' })
+  const r = r14Run([migScript, '--self-test'])
+  const out = (r.stdout || '') + (r.stderr || '')
+  const ok14 = r.status === 0 && out.includes('self-test 全过')
+  record('R14', ok14, `迁移器自检:exit=${r.status}/全过=${out.includes('self-test 全过')}${!ok14 ? `（输出尾：${out.slice(-160)}）` : ''}`)
+}
+
+// ═══ B1 R15：主仓门禁自检（spawn <project>/scripts/verify-docs.mjs --self-test 断言 exit 0；
+//     缺件=FAIL 不静默跳过——回归面收缩即绊线拆除；--project 缺省 cwd） ═══
+if (want('R15')) {
+  const vdScript = join(projectDir, 'scripts', 'verify-docs.mjs')
+  if (!existsSync(vdScript)) {
+    record('R15', false, `verify-docs 缺件 ${vdScript}（缺件=FAIL 不静默跳过——绊线在位）`)
+  } else {
+    const r = spawnSync(node()[0], [vdScript, '--self-test'], { encoding: 'utf8', cwd: projectDir, timeout: 120_000, killSignal: 'SIGKILL' })
+    const out = (r.stdout || '') + (r.stderr || '')
+    const ok15 = r.status === 0 && out.includes('self-test 全过')
+    record('R15', ok15, `verify-docs 自检:exit=${r.status}/全过=${out.includes('self-test 全过')}${!ok15 ? `（输出尾：${out.slice(-160)}）` : ''}`)
+  }
 }
 
 const fails = results.filter((r) => !r.pass).length

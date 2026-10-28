@@ -21,7 +21,7 @@ import { readFileSync, existsSync, realpathSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { SKILL_ROOT, loadOrgConfig, cfgHash, readJsonlFile, cliFlag, UsageError } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cfgHash, readJsonlFile, cliFlag, UsageError, ledgerPathFor } from './org-config.mjs'
 
 const normPath = (p) => {
   let s = String(p || '').replace(/[\\/]+/g, '/').replace(/\/+$/, '')
@@ -279,9 +279,9 @@ function cliMain() {
   }
   const windowN = Number(windowRaw || 20)
   if (!Number.isInteger(windowN) || windowN <= 0) { console.error(`[用法错] --window 须为正整数（收到 ${windowRaw}）`); process.exit(1) } // 用法错=1（06 §5.8 行 1——修复批 L10：原退 3 与家族口径不一致）
-  const ledgerPath = ledgerFlag || join(projectDir, '.zcode', 'org-ledger.jsonl')
-
+  // B1/D-8 账本路径三层单源（ledgerPathFor）：--ledger 显式参 > merged ledger_path 相对项目根 > join 兜底
   const { merged } = loadOrgConfig(projectDir)
+  const ledgerPath = ledgerPathFor(projectDir, ledgerFlag, merged)
   if (argv.includes('--self-test')) { process.exitCode = selfTest(merged) ? 0 : 1; return } // 自然退出（门一回炉 W1：自检 PASS/FAIL 行亦 stdout 产物——急退同形禁）
 
   // R3 常设双审对同族 tripwire（2026-09-22 三岗批；回炉 W5a/W2 收紧）：

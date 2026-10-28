@@ -10,10 +10,20 @@
  *   node org-config.mjs [--project <dir>] resolve   # 打印合并后配置
  *   node org-config.mjs [--project <dir>] hash      # 打印 cfg:<hash12>
  *   node org-config.mjs [--project <dir>] validate  # 与宿主 config.json 交叉校验（不符 exit 3）
- *   node org-config.mjs --self-test                 # 合并/哈希语义自测向量
+ *   node org-config.mjs [--project <dir>] flags                        # 列出 flags（注册值＋状态件覆盖）
+ *   node org-config.mjs [--project <dir>] flags get <name>             # 读单值（未登记=1）
+ *   node org-config.mjs [--project <dir>] flags set <name> on|off      # 写状态件（未登记/非法值=1）
+ *   node org-config.mjs --self-test                 # 合并/哈希/flags 语义自测向量
  * flag 取值一律空格分隔（--x=y 等号形态=用法错拒收——cliFlag 单源立场）。
+ * flags（B1/D-6）：登记单源=org-config.default.json flags 分区（本机件/项目覆盖件可增新
+ * flag——schema 同源）；状态件=SKILL_ROOT/.zcode/org-flags.json（仅 flags set 可写，读写走
+ * 同一装载＋withFileLock，锁=状态件同目录派生）；测试重定向钩子=env ORG_FLAGS_STATE
+ * （内部测试设施，同 GLM_LOOK_HOST_CONFIG 先例——缺省行为不变）。
+ * ledgerPathFor（B1/D-8 路径随动单源）：--ledger 显式参 > merged ledger_path 相对项目根
+ * 解析 > join(projectDir,'.zcode','org-ledger.jsonl') 兜底——health-scan/regression/deploy-check
+ * 消费同一导出，禁各自复写三层序。
  */
-import { readFileSync, writeFileSync, existsSync, openSync, writeSync, closeSync, statSync, rmSync, utimesSync, mkdtempSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, openSync, writeSync, closeSync, statSync, rmSync, utimesSync, mkdtempSync, mkdirSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
@@ -105,6 +115,73 @@ export function loadOrgConfig(projectDir) {
 /** 本地日期字符串（月/日补零；禁 toISOString——UTC 偏移会把本地日期切错天）。 */
 export function localDateStr(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** 账本路径三层解析（B1/D-8 单源导出）：显式参 > merged ledger_path（相对项目根）>
+ *  join(projectDir,'.zcode','org-ledger.jsonl') 兜底。merged 可由调用方注入（已装载场景
+ *  零二次读盘）；未注入时内部装载（装载失败向上抛——配置破损不得静默落兜底）。 */
+export function ledgerPathFor(projectDir, ledgerFlag = null, merged = null) {
+  if (ledgerFlag) return resolve(String(ledgerFlag))
+  const cfg = merged || loadOrgConfig(projectDir).merged
+  const rel = cfg && typeof cfg.ledger_path === 'string' && cfg.ledger_path.trim() ? cfg.ledger_path.trim() : null
+  return rel ? resolve(projectDir, rel) : join(projectDir, '.zcode', 'org-ledger.jsonl')
+}
+
+// ── flags 能力（B1/D-6）：合法 flag 登记单源=org-config.default.json flags 分区；
+//    revert_manifest_schema 为分区内 schema 声明键（非开关）；状态件布尔覆盖注册默认。 ──
+export const FLAGS_RESERVED_KEYS = new Set(['revert_manifest_schema'])
+export const REVERT_MANIFEST_COLUMNS = ['path', 'commit', 'baseline_sha256']
+export function flagsStatePath() {
+  return process.env.ORG_FLAGS_STATE || join(SKILL_ROOT, '.zcode', 'org-flags.json')
+}
+export function isToggleFlagDef(entry) {
+  return entry != null && typeof entry === 'object' && !Array.isArray(entry)
+    && typeof entry.description === 'string' && typeof entry.owner_batch === 'string' && typeof entry.default === 'boolean'
+}
+export function readFlagsState() {
+  const p = flagsStatePath()
+  if (!existsSync(p)) return {}
+  const v = readJson(p) // 破损=抛（CLI 侧按装载错承接）
+  return v != null && typeof v === 'object' && !Array.isArray(v) ? v : {}
+}
+export function resolveFlagValue(merged, name, state = null) {
+  const flags = merged && typeof merged.flags === 'object' && merged.flags ? merged.flags : {}
+  if (!(name in flags) || !isToggleFlagDef(flags[name])) return null // 未登记
+  if (state && typeof state[name] === 'boolean') return state[name]
+  return flags[name].default
+}
+export function validateFlagsPartition(cfg) { // D-6 validate 增断言：分区在位且每个 flag 含三键
+  const errors = []
+  const flags = cfg?.flags
+  if (!flags || typeof flags !== 'object' || Array.isArray(flags)) {
+    errors.push('flags 分区缺失/非对象——合法 flag 登记单源（B1 D-6）：本批须含 b1_gates_v2{description,owner_batch,default}')
+    return errors
+  }
+  for (const [name, entry] of Object.entries(flags)) {
+    if (FLAGS_RESERVED_KEYS.has(name)) {
+      const okShape = entry != null && typeof entry === 'object' && !Array.isArray(entry)
+        && Array.isArray(entry.columns) && entry.columns.join() === REVERT_MANIFEST_COLUMNS.join()
+        && typeof entry.note === 'string' && entry.note.trim()
+      if (!okShape) errors.push(`flags.${name} 形态不符——须 {columns:[${REVERT_MANIFEST_COLUMNS.join(',')}], note 非空}`)
+      continue
+    }
+    if (!isToggleFlagDef(entry))
+      errors.push(`flags.${name} 须含三键 {description, owner_batch, default:boolean}（本机件可增新 flag——schema 同源）`)
+  }
+  return errors
+}
+export function setFlag(merged, name, value) { // 写状态件（唯一写者=flags set）；未登记/非法值=UsageError
+  const cur = resolveFlagValue(merged, name, null)
+  if (cur === null) throw new UsageError(`flag「${name}」未登记——合法 flag 单源=org-config flags 分区（本机件可增）`)
+  if (value !== 'on' && value !== 'off') throw new UsageError(`flag 取值须 on|off（收到「${value}」）`)
+  const p = flagsStatePath()
+  mkdirSync(dirname(p), { recursive: true })
+  return withFileLock(p + '.lock', () => {
+    const prev = existsSync(p) ? readJson(p) : {}
+    const next = { ...(prev && typeof prev === 'object' && !Array.isArray(prev) ? prev : {}), [name]: value === 'on' }
+    writeFileSync(p, JSON.stringify(next, null, 2) + '\n')
+    return { path: p, name, value: next[name] }
+  })
 }
 
 /** 宿主双注册表合并（2026-10-03 kimi-third 改绑批；事实单源=references/10 §2）：
@@ -808,6 +885,36 @@ if (isMain) {
         return e.some((m) => m.includes('agent_bindings.ops-assembler-699-max')) && !e.some((m) => m.includes('ops-free-x'))
       })())
     }
+    // B1 批（D-6）flags 向量组：首冻登记 schema／revert_manifest_schema 形态／未登记名与非法值拒／
+    // 分区校验正负例／状态件覆盖序／两进程同刻 set 并发（env ORG_FLAGS_STATE 重定向——零触真实状态件）
+    {
+      const def = readJson(DEFAULT_CFG)
+      const b1 = def.flags ? def.flags.b1_gates_v2 : undefined
+      t('B1 flags：默认件 b1_gates_v2 首冻登记 schema（恰三键·default false·owner_batch B1）', b1 != null && typeof b1 === 'object' && JSON.stringify(Object.keys(b1)) === JSON.stringify(['description', 'owner_batch', 'default']) && b1.default === false && b1.owner_batch === 'B1' && typeof b1.description === 'string' && b1.description.trim())
+      const rms = def.flags ? def.flags.revert_manifest_schema : undefined
+      t('B1 flags：revert_manifest_schema 形态（columns 恰三列＋note 非空）', rms != null && typeof rms === 'object' && Array.isArray(rms.columns) && rms.columns.join() === REVERT_MANIFEST_COLUMNS.join() && typeof rms.note === 'string' && rms.note.trim())
+      const oneFlag = () => ({ flags: { b1_gates_v2: { description: 'x', owner_batch: 'B1', default: false } } })
+      const catchName = (fn) => { try { fn(); return 'no-throw' } catch (e) { return e.constructor.name } }
+      t('B1 flags：未登记名 get/set 拒（resolveFlagValue=null＋setFlag UsageError）', resolveFlagValue(oneFlag(), 'nosuchflag', {}) === null && catchName(() => setFlag(oneFlag(), 'nosuchflag', 'on')) === 'UsageError')
+      t('B1 flags：非法值拒（set 取值限 on|off）', catchName(() => setFlag(oneFlag(), 'b1_gates_v2', 'true')) === 'UsageError')
+      t('B1 flags：validateFlagsPartition 正负例（合法零错／缺分区／坏 flag 各一错行）', (() => { const okc = validateFlagsPartition({ flags: { b1_gates_v2: { description: 'x', owner_batch: 'B1', default: false }, revert_manifest_schema: { columns: ['path', 'commit', 'baseline_sha256'], note: 'n' } } }); const miss = validateFlagsPartition({}); const bad = validateFlagsPartition({ flags: { x: { description: 'x' } } }); return okc.length === 0 && miss.length === 1 && bad.length === 1 })())
+      t('B1 flags：状态件布尔覆盖注册默认（读序=状态件＞default）', resolveFlagValue(oneFlag(), 'b1_gates_v2', { b1_gates_v2: true }) === true && resolveFlagValue(oneFlag(), 'b1_gates_v2', {}) === false)
+      // 并发：两子进程同刻 set 同一 flag（状态件经 env 重定向至 tmp——真实状态件零触碰）
+      let fxLock = null
+      try {
+        fxLock = mkdtempSync(join(tmpdir(), 'oc-flags-'))
+        const stPath = join(fxLock, 'org-flags.json')
+        const { spawn } = await import('node:child_process')
+        const self = fileURLToPath(import.meta.url)
+        const p1 = spawn(process.execPath, [self, 'flags', 'set', 'b1_gates_v2', 'on'], { env: { ...process.env, ORG_FLAGS_STATE: stPath }, stdio: 'ignore' })
+        const p2 = spawn(process.execPath, [self, 'flags', 'set', 'b1_gates_v2', 'off'], { env: { ...process.env, ORG_FLAGS_STATE: stPath }, stdio: 'ignore' })
+        const codes = await Promise.all([new Promise((r) => p1.on('close', r)), new Promise((r) => p2.on('close', r))])
+        let intact = false
+        try { const st = readJson(stPath); intact = st != null && typeof st === 'object' && typeof st.b1_gates_v2 === 'boolean' } catch { intact = false }
+        t('B1 flags：两进程同刻 set 并发→双 exit 0＋状态件合法 JSON 布尔（withFileLock 防交错损坏）', codes[0] === 0 && codes[1] === 0 && intact)
+      } catch { t('B1 flags：两进程同刻 set 并发（临时目录异常）', false) }
+      finally { if (fxLock) rmSync(fxLock, { recursive: true, force: true }) }
+    }
     // localDateStr 通用向量（临时窗机制退役后仅存通用日期助手）
     t('localDateStr：本地日期补零（2026-01-05）', localDateStr(new Date(2026, 0, 5)) === '2026-01-05')
     t('localDateStr：月/日双位补零（2026-12-09）', localDateStr(new Date(2026, 11, 9)) === '2026-12-09')
@@ -832,10 +939,45 @@ if (isMain) {
     console.error(`[override] ${hasOverride ? '项目覆盖件已合并' : '无项目覆盖件'}`)
   } else if (cmd === 'hash') {
     console.log(`cfg:${cfgHash(merged)}`)
+  } else if (cmd === 'flags') {
+    // B1/D-6：flags 列表/get/set（未登记名/非法值=用法错 1；状态件破损=装载错 3）
+    const rest = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--project').slice(1)
+    const sub = rest[0] || 'list'
+    try {
+      if (sub === 'list') {
+        const state = readFlagsState()
+        const flags = merged.flags && typeof merged.flags === 'object' ? merged.flags : {}
+        for (const [name, entry] of Object.entries(flags)) {
+          if (FLAGS_RESERVED_KEYS.has(name)) { console.log(`${name}：schema 声明（columns=[${(entry.columns || []).join(',')}])——非开关`) ; continue }
+          const v = resolveFlagValue(merged, name, state)
+          console.log(`${name}=${v}${isToggleFlagDef(entry) ? `（owner_batch=${entry.owner_batch}）${entry.description}` : '〔形态不符——validate 会拒〕'}`)
+        }
+        console.error(`[state] ${existsSync(flagsStatePath()) ? `状态件已合并（${flagsStatePath()}）` : '状态件缺省（全部按注册默认）'}`)
+      } else if (sub === 'get') {
+        const name = rest[1]
+        if (!name) { console.error('[用法错] flags get 缺 name'); process.exit(1) }
+        const v = resolveFlagValue(merged, name, readFlagsState())
+        if (v === null) { console.error(`[用法错] flag「${name}」未登记——合法 flag 单源=org-config flags 分区`); process.exit(1) }
+        console.log(`${name}=${v}`)
+      } else if (sub === 'set') {
+        const name = rest[1], value = rest[2]
+        if (!name || !value) { console.error('[用法错] flags set 形态：flags set <name> on|off'); process.exit(1) }
+        const r = setFlag(merged, name, value)
+        console.log(`flags set ${r.name}=${r.value}（状态件 ${r.path} 已写·锁随释清）`)
+        console.log('回退总命令：node scripts/org-config.mjs flags set ' + r.name + ' off（docs/13 §3.3）')
+      } else {
+        console.error(`[用法错] 未知 flags 子命令「${sub}」（可用：list/get/set）`)
+        process.exit(1)
+      }
+    } catch (e) {
+      if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); process.exit(1) }
+      console.error(`[fatal] flags 状态件装载/写盘失败：${e.message}（06 §5.8 行 3=配置/装载错）`)
+      process.exit(3)
+    }
   } else if (cmd === 'validate') {
     let errors
     try {
-      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged), ...validateAgentSlots(merged)]
+      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged), ...validateAgentSlots(merged), ...validateFlagsPartition(merged)]
     } catch (e) {
       console.error(`[fatal] validate 途中宿主配置装载失败: ${e.message}（06 §5.8 行 3=配置/装载错）`)
       process.exit(3)
@@ -849,9 +991,9 @@ if (isMain) {
     const planN = provEntries.filter(([, d]) => d != null && typeof d === 'object' && String(d.uuid_prefix ?? '').trim().toLowerCase().startsWith('account:')).length
     const regN = provEntries.length - planN
     const srcSummary = planN > 0 ? `${regN} 源注册表双校验＋${planN} 源计划清单校验通过` : `${provEntries.length} 源双校验通过`
-    console.log(`validate PASS（${srcSummary}+跨门对/本机事实/slot schema 校验通过，cfg:${cfgHash(merged)}）`)
+    console.log(`validate PASS（${srcSummary}+跨门对/本机事实/slot schema/flags 分区校验通过，cfg:${cfgHash(merged)}）`)
   } else {
-    console.error('用法: node org-config.mjs [--project <dir>] resolve|hash|validate|--self-test')
+    console.error('用法: node org-config.mjs [--project <dir>] resolve|hash|validate|flags [get|set]|--self-test')
     process.exit(1)
   }
 }

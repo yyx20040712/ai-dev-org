@@ -18,6 +18,9 @@
  *                  git 不可用/非 git 仓=[warn]（zip 安装形态，跳过）
  *   ⑥ remote       git remote 非空=ok；空=[warn]（备份面）；非 git 仓=[warn]
  *   ⑦ ledger-dir   SKILL_ROOT/.zcode/ 试写临时文件后删 → ok/FAIL
+ *                  （--project 语境改试写项目账本目录——ledgerPathFor 三层解析派生，B1/D-8）
+ *   ⑧ project-gate --project <dir> 语境追加：spawn node scripts/verify-docs.mjs（cwd=项目根，
+ *                  与本地 pre-commit/CI 三面同款命令，B1/D-4）——rc≠0 或脚本缺件=FAIL
  * 汇总行：deploy-check 汇总：ok X/warn Y/FAIL Z——<可部署/处置后复跑/阻断>
  * --install 四动作（v2.1.0 三层化批起）：③a本机件 org-config.local.json
  *   缺失时脚手架（默认件占位复制+note 声明用户配置域；已存在绝不覆盖）；
@@ -33,16 +36,17 @@
  * --sync-agents（P2）显式重渲染全部模板→agents 目录（全或无覆盖写入+sha256 回读；
  *   唯一允许覆盖漂移件的路径；--install 语义不变=只补缺失不覆盖）。
  * 用法：node scripts/deploy-check.mjs [--install] [--sync-agents] [--self-test] [--agents-dir <dir>]
+ *       [--project <dir>]（B1：项目语境——⑦ 项目账本目录＋⑧ project-gate 同款检查）
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 可 import 纯函数零副作用（isMain guard 惯例；自检向量禁动真实状态）。
  */
-import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
-import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError, readHostConfig, readJson } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError, readHostConfig, readJson, ledgerPathFor } from './org-config.mjs'
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
 export const TEMPLATES_AGENTS = join(SKILL_ROOT, 'templates', 'agents')
@@ -316,22 +320,44 @@ export function gitState(cwd = SKILL_ROOT) {
   return { repo: true }
 }
 
-/** ⑦ 账本目录可写性（试写临时文件后删；目录缺省顺带创建）。 */
+/** ⑦ 账本目录可写性（试写临时文件后删；目录缺省顺带创建）。
+ *  root 形=SKILL_ROOT（现行）；ledgerPath 形=项目语境按 ledgerPathFor 三层解析派生（B1/D-8）。 */
 export function checkLedgerDir(root = SKILL_ROOT) {
+  return checkLedgerDirPath(join(root, '.zcode'), 'SKILL_ROOT/.zcode/')
+}
+export function checkLedgerDirPath(dir, label) {
   try {
-    const dir = join(root, '.zcode')
     mkdirSync(dir, { recursive: true })
     const probe = join(dir, `.deploy-check-probe-${process.pid}`)
     writeFileSync(probe, 'ok')
     unlinkSync(probe)
-    return { level: 'ok', line: 'ledger-dir——SKILL_ROOT/.zcode/ 可写（账本目录就绪）' }
+    return { level: 'ok', line: `ledger-dir——${label} 可写（账本目录就绪）` }
   } catch (e) {
-    return { level: 'FAIL', line: `ledger-dir——.zcode/ 不可写（${e.message}）——检查目录权限后复跑` }
+    return { level: 'FAIL', line: `ledger-dir——${label} 不可写（${e.message}）——检查目录权限后复跑` }
   }
 }
 
-/** 七项检查主体（打印逐项行并返回结果集；org-config 装载失败/git 判定异常→throw=exit 3）。 */
-export function runChecks(agentsDir, cfg) {
+/** ⑧ project-gate（B1/D-4 三面同款）：spawn node scripts/verify-docs.mjs（cwd=项目根）。
+ *  判定纯函数（自检注入位）＋运行探针分离。 */
+export function projectGateVerdict({ scriptExists, rc, errMsg = null }) {
+  if (!scriptExists) return { level: 'FAIL', line: 'project-gate FAIL——缺 scripts/verify-docs.mjs（同款检查脚本缺件——项目未铺门禁面）' }
+  if (errMsg) return { level: 'FAIL', line: `project-gate FAIL——spawn 失败（${errMsg}）` }
+  return rc === 0
+    ? { level: 'ok', line: 'project-gate ok——node scripts/verify-docs.mjs（三面同款·cwd=项目根）' }
+    : { level: 'FAIL', line: `project-gate FAIL——node scripts/verify-docs.mjs exit ${rc}（三面同款·cwd=项目根——修项目门禁后复跑）` }
+}
+export function runProjectGate(projectDir) {
+  const script = join(projectDir, 'scripts', 'verify-docs.mjs')
+  if (!existsSync(script)) return projectGateVerdict({ scriptExists: false })
+  const r = spawnSync(process.execPath, [script], { cwd: projectDir, encoding: 'utf8', timeout: 180_000, killSignal: 'SIGKILL' })
+  if (r.error) return projectGateVerdict({ scriptExists: true, rc: null, errMsg: r.error.message })
+  return projectGateVerdict({ scriptExists: true, rc: r.status })
+}
+
+/** 七项检查主体（打印逐项行并返回结果集；org-config 装载失败/git 判定异常→throw=exit 3）。
+ *  projectDir 非空=--project 项目语境：⑦ 改试写项目账本目录（ledgerPathFor 三层解析）＋⑧ 追加
+ *  project-gate 同款检查（B1/D-4/D-8）；非项目语境行为零变化。 */
+export function runChecks(agentsDir, cfg, projectDir = null) {
   const results = []
   const push = (r) => { results.push(r); console.log(`[${r.level}] ${r.line}`) }
 
@@ -404,7 +430,15 @@ export function runChecks(agentsDir, cfg) {
     )
   }
 
-  push(checkLedgerDir())
+  // ⑦（B1/D-8）：项目语境=按 ledgerPathFor 三层解析派生项目账本目录试写；否则维持 SKILL_ROOT 现行为
+  if (projectDir) {
+    let lp = null
+    try { lp = ledgerPathFor(projectDir) } catch (e) { throw new SelfLoadError(`项目账本路径解析失败（${projectDir}）：${e.message}`) }
+    push(checkLedgerDirPath(dirname(lp), `项目账本目录（${lp}）`))
+    push(runProjectGate(projectDir)) // ⑧ project-gate（仅项目语境追加）
+  } else {
+    push(checkLedgerDir())
+  }
   return results
 }
 
@@ -840,6 +874,25 @@ function selfTest() {
     return r.missing.length > 0 && r.text.includes('{{binding:ops-x}}') && fm.hasModel === true && fm.thoughtLevel === null && checkThoughtLevel(null).level === 'FAIL' && combined?.level === 'FAIL'
   })())
 
+  // ── B1 批（D-4/D-8）向量：⑧ project-gate 判定三态＋⑦ 项目账本目录试写（tmp 夹具） ──
+  t('B1 project-gate：rc=0→ok（行含 project-gate ok）', projectGateVerdict({ scriptExists: true, rc: 0 }).level === 'ok' && projectGateVerdict({ scriptExists: true, rc: 0 }).line.includes('project-gate ok'))
+  t('B1 project-gate：rc≠0→FAIL（行含同款命令与 exit 码）', projectGateVerdict({ scriptExists: true, rc: 1 }).level === 'FAIL' && projectGateVerdict({ scriptExists: true, rc: 1 }).line.includes('exit 1'))
+  t('B1 project-gate：脚本缺件→FAIL（不静默跳过）', projectGateVerdict({ scriptExists: false }).level === 'FAIL' && projectGateVerdict({ scriptExists: false }).line.includes('缺 scripts'))
+  {
+    const fx = mkdtempSync(join(tmpdir(), 'deploy-check-pg-'))
+    try {
+      const r1 = checkLedgerDirPath(join(fx, 'led'), 'tmp 账本目录') // 目录缺省顺带创建
+      const probeLeft = existsSync(join(fx, 'led', `.deploy-check-probe-${process.pid}`))
+      t('B1 ledger-dir：tmp 目录试写→ok＋探针随删＋目录顺带创建', r1.level === 'ok' && !probeLeft && existsSync(join(fx, 'led')))
+      const blocker = join(fx, 'blocker')
+      writeFileSync(blocker, 'x')
+      const r2 = checkLedgerDirPath(join(blocker, 'nested'), '阻断目录')
+      t('B1 ledger-dir：父级是文件→FAIL（不裸抛）', r2.level === 'FAIL' && r2.line.includes('不可写'))
+    } finally {
+      rmSync(fx, { recursive: true, force: true })
+    }
+  }
+
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
 }
@@ -860,8 +913,13 @@ if (isMain) {
   // g3 批（evolve-l4-flags/P9 收敛）：--agents-dir 缺值/值形如 flag/重复→
   // [用法错] exit 1——原 `|| DEFAULT_AGENTS_DIR` 对缺值静默回退默认目录（假动作面）
   let agentsDir = DEFAULT_AGENTS_DIR
+  let projectDir = null
   try {
     if (argv.includes('--agents-dir')) agentsDir = cliFlag(argv, '--agents-dir')
+    if (argv.includes('--project')) {
+      projectDir = cliFlag(argv, '--project')
+      if (!existsSync(projectDir) || !statSync(projectDir).isDirectory()) { console.error(`[用法错] --project 不是存在目录：${projectDir}`); process.exit(1) }
+    }
   } catch (e) {
     if (e instanceof UsageError) {
       console.error(`[用法错] ${e.message}`)
@@ -947,7 +1005,7 @@ if (isMain) {
 
   let results
   try {
-    results = runChecks(agentsDir, cfg)
+    results = runChecks(agentsDir, cfg, projectDir)
   } catch (e) {
     if (e instanceof SelfLoadError) {
       console.error(`[装载错] ${e.message}`)

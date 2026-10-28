@@ -33,6 +33,9 @@ node scripts/deploy-check.mjs
 七项逐条（node-major/skill-files/org-config/agents/hook/remote/ledger-dir），
 每行 `[ok]`/`[warn]`/`[FAIL] 主题——处置指引`；汇总行给出
 可部署/处置后复跑/阻断 终判。任一 FAIL=exit 1（warn 不阻断）。
+项目语境：`node scripts/deploy-check.mjs --project <项目根>`——⑦ 改试写项目
+账本目录（ledgerPathFor 三层解析）＋⑧ project-gate 以同款命令
+`node scripts/verify-docs.mjs`（cwd=项目根）复跑项目门禁（B1 三面同款）。
 
 ## 2 首装
 
