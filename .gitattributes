@@ -1,0 +1,4 @@
+# 行尾纪律：全仓 LF（golden 字节自比对/R2' 以 LF 为准——W5 审 Kimi-W6；
+# 检出为 CRLF 会使角色档案与 golden 漂移=R2 假红，此文件防之）
+* text=auto eol=lf
+*.png binary
