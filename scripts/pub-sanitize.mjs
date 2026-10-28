@@ -84,7 +84,12 @@ export function validateSpec(spec) {
   }
   const hasExact = (fam) => spec.exactRules.some((r) => r.family === fam)
   const hasFamily = (id) => spec.familyRules.some((f) => f.id === id)
-  for (const fam of ['X1', 'X2', 'X4', 'X7']) if (!hasExact(fam)) fail(`必需清洗族 ${fam} 缺失（exactRules 无一族规则）`)
+  // X7 例外（v3.2.1 起源头已净）：exact 族可全缺席，须 familyRules 仍持 X7 门禁（regex）且 familyTotal=0 声明零残留
+  for (const fam of ['X1', 'X2', 'X4']) if (!hasExact(fam)) fail(`必需清洗族 ${fam} 缺失（exactRules 无一族规则）`)
+  if (!hasExact('X7')) {
+    const x7 = spec.familyRules.find((f) => f.id === 'X7')
+    if (!x7 || x7.familyTotal !== 0) fail('必需清洗族 X7 缺失（exactRules 无一族规则，且未按零残留形态声明：familyRules X7 familyTotal=0）')
+  }
   for (const fam of ['X3', 'X5']) if (!hasFamily(fam)) fail(`必需清洗族 ${fam} 缺失（familyRules 无一族规则）`)
   if (!spec.familyRules.some((f) => f.id === 'T' && f.mode === 'rename')) fail('T 族改名声明缺失（familyRules 无 mode=rename 的 T）')
   return spec
