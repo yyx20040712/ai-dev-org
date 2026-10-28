@@ -211,15 +211,10 @@ reasoning-level-missing（宿主代码实证=references/10 §2），绑定岗代
 ops-auditor 入列上表）**；设计岗双位
 （ops-vision/ops-draw）=B-6 批（批档 subagent-plan 05-ruling §十）。
 
-**随宿主批注记（2026-09-19 裁定）**：纪律①仅约束**设 model 字段**
-的岗；实现者/实证部/SRE 诊断三岗（ops-executor/probe/diagnostics）
-已改**未绑定形态**——删 model 字段=回落宿主会话默认模型（宿主已配
-coding plan 服务商），属 06 §6「未绑定岗维持 E3 原条款」合法形态：账本
-记 `session:host-tier`+待补登记行恢复，尾栏 MODEL-SELF/LEDGER-CLAIM 同步
-（模板=单源）；绑定岗（2026-10-03 派发器退役批后=七件：k1/k2/
-ops-gate1-k3/d1/裁决部/ops-drafter/ops-auditor）纪律①照用——「不动」
-=纪律①适用面界定（随宿主三岗维持未绑定形态），非座次冻结（改绑=用户
-裁决位，本表已登记先例三起）。
+**绑定态注记（2026-10-28 面板批起）**：纪律①约束全部设 model 字段的岗（矩阵
+绑定面全绑，executor/diagnostics 亦恢复绑定档）；唯一随宿主承载=实证部（账本
+`session:host-tier`+待补登记行，尾栏 MODEL-SELF/LEDGER-CLAIM 同步——模板=单源）。
+2026-09-19 随宿主批旧注记已迁历史文档区；改绑=用户裁决位。
 
 ## 5. 修订记
 
