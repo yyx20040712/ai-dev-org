@@ -15,7 +15,7 @@
 `volta run --node 24 node scripts/deploy-check.mjs`（本仓参考态即此形态）；
 ②直接改装受支持主版本。禁用系下 deploy-check ①项=FAIL 属如实告警（已知
 退出崩溃面），其余六项照常检查。
-- **volta run 退出码掩码（本机实证 2026-09-17）**：`volta run --node 24 …`
+- **volta run 退出码掩码**：`volta run --node 24 …`
   会把任意非零退出码掩成 126（实测 exit 1/2/3 经 volta run 均 →126；
   exit 0 正常；裸 node 透传无误）。交互式人工排查用 volta run 无碍；
   **依赖精确退出码的脚本化封装禁经 volta run**（如 exhaust=2 断言、钩子
@@ -40,7 +40,7 @@ node scripts/deploy-check.mjs
 node scripts/deploy-check.mjs --install
 ```
 
-四动作（序号=对应检查项；v2.1.0 三层化批起）：③a **本机件脚手架**——
+四动作：③a **本机件脚手架**——
 `org-config.local.json` 缺失时从默认件复制占位全量（note 声明用户配置域；
 已存在绝不覆盖），随后按 §3 填实值；④ 补 `~/.zcode/agents/ops-*` 代理
 （templates/agents/ 单源复制，逐件 sha256 复核；已存在漂移件**不覆盖**
@@ -51,7 +51,7 @@ node scripts/deploy-check.mjs --install
 
 ## 3 供应商对齐（用户裁决面）
 
-org-config 三层（v2.1.0 批，06 §0）：默认件 `org-config.default.json`
+org-config 三层：默认件 `org-config.default.json`
 （通用/随包，providers 为 TODO 占位）← 本机件 `org-config.local.json`
 （个人实值，gitignore）← 项目覆盖件 `.zcode/org-config.json`。
 
@@ -95,7 +95,7 @@ validate）。自证法（变异红证同款，文件备份法还原）：临时
 新机首个项目阶段按 references/05 移植后做压力场景复测，结果回填仓外批档（技能仓零过程件——08 §6 规则 4）
 对应条目（版本与状态节指针同源——SKILL.md 不内联版本面）。
 
-## 7 首激活向导（新机自适应·收尾批起）
+## 7 首激活向导
 
 从零到面板可用的完整序（每步判据内联；①-③ 细则=§1-§3）：
 

@@ -3,19 +3,19 @@
 > 状态：active ｜ 权威：index ｜ 更新：2026-10-26 ｜ 替代：无
 
 人读索引。机读索引=`index.json`（脚本生成，禁手改）。规则句单源=各册卡片，本表只做投影。
-路由表依据=`docs/06` §4。本件的卡片 ID 出现位置受 `check` 第 6 条 (b) 校验；路由表与卡片清单的**内容**不参与机检，一致性由 P13 检索演练复核。
+路由表依据=`docs/06` §4。本件的卡片 ID 出现位置受 `check` 第 6 条 (b) 校验；路由表与卡片清单的**内容**不参与机检，一致性由检索演练复核。
 
 ## 1. 册表
 
 | 册 | 代号 | 文件 | 状态 |
 |---|---|---|---|
-| 01-context | CTX | `01-context.md` | 正式卡（P9） |
-| 02-verification | VER | `02-verification.md` | 正式卡（P9） |
-| 03-architecture | ARC | `03-architecture.md` | 正式卡（P10） |
-| 04-collaboration | COL | `04-collaboration.md` | 正式卡（P10） |
-| 05-documentation | DOC | `05-documentation.md` | 正式卡（P11） |
-| 06-environment | ENV | `06-environment.md` | 正式卡（P11） |
-| 07-orchestration | ORC | `07-orchestration.md` | 正式卡（P12） |
+| 01-context | CTX | `01-context.md` | 正式卡 |
+| 02-verification | VER | `02-verification.md` | 正式卡 |
+| 03-architecture | ARC | `03-architecture.md` | 正式卡 |
+| 04-collaboration | COL | `04-collaboration.md` | 正式卡 |
+| 05-documentation | DOC | `05-documentation.md` | 正式卡 |
+| 06-environment | ENV | `06-environment.md` | 正式卡 |
+| 07-orchestration | ORC | `07-orchestration.md` | 正式卡 |
 
 ## 2. 任务类型路由表
 

@@ -19,7 +19,7 @@ description: Use when 用户提出开发/实现/修复/重构/批次/开工/简�
 | 主控（+PM 子模式） | 主会话（唯一用户对接岗） |
 | 规划岗 drafter | 会话内绑定子代理 ops-drafter（kimi-third 承载） |
 | 实现岗 | 会话内子代理 |
-| 代码审查岗 gate1-reviewer | 会话内绑定子代理（常设双审 ops-gate1-k1+d1；k2=额度备用源；ops-gate1-k3=源A 第三备用） |
+| 代码审查岗 gate1-reviewer | 会话内绑定子代理 ops-reviewer-*（常设双审；默认与回退序单源=矩阵 06 §1） |
 | 实证裁决岗（双部制） | 会话内子代理：实证部＋裁决部（07 §1） |
 | 审核岗 auditor-readonly | 会话内绑定子代理 ops-auditor（deepseek 承载） |
 | 诊断岗 sre-diagnostic | 会话内只读子代理 |
@@ -33,9 +33,8 @@ description: Use when 用户提出开发/实现/修复/重构/批次/开工/简�
 
 ## 派发与自检（scripts/）
 
-外部派发器已彻底退役并物理删除：ds-call-v2.mjs 与 scripts/roles/ 注册表已删除（旧文=
-git 历史，恢复须新用户裁决）；除主控外全部岗位=会话内子智能体承载（设计岗走图像通道——07 §1）；账本事件=主控补记单源
-（02 §9）；glm-look（设计岗视觉外呼）=工具、不属岗位派发器，不在删除面。
+除主控外全部岗位=会话内子智能体承载（设计岗走图像通道——07 §1）；账本事件=主控补记单源
+（02 §9）；glm-look（设计岗视觉外呼）=工具、不属岗位。
 
 ```
 node scripts/org-config.mjs [resolve|hash|validate|--self-test]
@@ -46,24 +45,24 @@ node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--strict|--jso
 node scripts/skill-gc.mjs [--apply --delete-redirects|--delete-invalid]   # 技能目录盘点/清理（默认干跑；删除先归档可回滚；active 技能去留=用户裁决不机删）
 node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空白字符
 node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目首周防线脚手架（05 §4）
-node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <dir>]   # 自包含回归（R 清单单源=本脚本；派发器族回归项 R1/R2/R5/R11/R9 已随死码删除——旧文=git 历史）
+node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <dir>]   # 自包含回归（R 清单单源=本脚本）
 node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 结项前健康扫描（RED=0 方可结项；告警分类单源=02 §10）
-node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊：cli/log+glm-look/历史派发流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查出 k1/k2 派发推荐（额度类→切换承载源；504 窗口类→不切换承载源、瘦身重试）+常设双审对绑定同族核对（R3）+跨门岗对核对；干涸窗呈现已随旧机制删除
+node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊：cli/log+glm-look/历史派发流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查出双审两席派发推荐（额度类→切换承载源；504 窗口类→不切换承载源、瘦身重试）+常设双审对绑定同族核对（R3）+跨门岗对核对
 node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点甄别=org-config vision_channels 分区+--list-sources；单次调用 20min 上限、非429的4xx立断、scrub 脱敏；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
-node scripts/package-skill.mjs --out <空目录> [--self-test]   # 分享打包：git 跟踪面导出+分享面门禁（uuid/盘符路径/本机标识零命中）+MANIFEST——受赠机首跑与白名单=PACKAGING.md（v2.1.0 批）
+node scripts/package-skill.mjs --out <空目录> [--self-test]   # 分享打包：git 跟踪面导出+分享面门禁（uuid/盘符路径/本机标识零命中）+MANIFEST——受赠机首跑与白名单=PACKAGING.md
 ```
 
 **单批路由 ROUTE（写法单源=references/02 §8.1）**：任务书/工单开头写一行
 `ROUTE: executor-glmflash;reviewer-yyx`——每项 `<role>-<provider>`、分号分隔，
 未列岗位走矩阵默认；解析与静态校验=`agent-slots.mjs resolve`；单批生效、不改矩阵。
-**子代理绑定通道（06 §6 补遗＋07 §4 补遗；宿主语义细则单源=references/10 §2）**：绑定件已挂 `~/.zcode/agents/
-ops-*.md` 绑定子代理（绑定件全列单源=07 §4 补遗）。frontmatter model=`<provider>/<model-key>$<档位>`
+**子代理绑定通道（06 §6 补遗＋07 §4 补遗；宿主语义细则单源=references/10 §2）**：绑定件=矩阵单源
+（templates/agents.matrix.json→gen-agents 生成 `~/.zcode/agents/ops-*.md`，指针=07 §4 补遗）。frontmatter model=`<provider>/<model-key>$<档位>`
 ——模板面存 `{{binding:岗}}` 占位、部署面=org-config 本机件 `agent_bindings` 渲染实值；`$` 后缀=显式思考
 档位声明，缺省即派发拒启 reasoning-level-missing（实证=references/10 §2）。
 
 现役绑定件一律 `$max`；上游枚举值=假绑定禁用；空 tools=泄漏全工具面禁用；代理档案会话启动快照无热加载——改档须新会话验证＋`log-triage.mjs` 日志核对零回退。
 
-矩阵各岗绑定面全绑（绑定件名录单源=07 §4 补遗）：派发对象=矩阵登记的 ops-* 绑定代理——
+矩阵各岗绑定面全绑（绑定件=矩阵单源，指针=07 §4 补遗）：派发对象=矩阵登记的 ops-* 绑定代理——
 系统默认代理（general-purpose 等跟随宿主、无绑定）禁承载矩阵岗，误派即停、按矩阵默认重派并
 账本留痕；唯一例外=实证裁决岗实证部（无绑定件·随宿主承载·意图档位声明＋账本 session:host-tier）。
 绑定纪律与 `$max` 档位约束全部设 model 字段的岗；改绑=用户裁决位。
@@ -97,8 +96,8 @@ commit message）零外部模型代号与 AI 指称，审档默认归宿=仓外�
 10 宿主兼容事实单源件（宿主版本耦合——实证戳+异机重验清单）。
 条目型指针（如 `01·A3`、`04·SY-1`）指对应条目组；01/04 条数单源=`scripts/.golden/doc-counts.json`
 （check-anchors 对账，正文不落数字——A3 防双源）。
-历史件按需查、勿随技能常载：修订记与批档=`~/.zcode/skills/_archive/ai-dev-org-history-2026-10/`
-（RESIDUALS 迁出件；更早版本史=技能仓 git 提交历史）；已登记触发器与后续新登记=技能根 RESIDUALS.md。
+历史件按需查、勿随技能常载：修订记/批档/迁出原文=开发方工作区历史文档区与技能仓 git
+提交历史（不随分发面）；当前登记=技能根 RESIDUALS.md。
 新机部署与一键自检=DEPLOY.md（根目录）＋deploy-check.mjs（--install 补代理/钩子/派生覆盖件）；
 首激活向导（模型绑定→validate→sync-agents→面板启动）与跨技能模组引用检索=DEPLOY §7；面板=panel/
 （入仓参数化：根路径由脚本位置推导·零绝对路径·用法=panel/README.md）。
@@ -123,35 +122,34 @@ commit message）零外部模型代号与 AI 指称，审档默认归宿=仓外�
 | 数据批 | 独立复算＋专家追认（02 §6） |
 | 路线级设计 | 三段通道：拟定＋对抗审核＋主控终裁（06 §1） |
 | 已审面修改 | 该面随批重过——给首审档呈 diff，「改了就要再审」（08 §7 惯例） |
-| 单点配置变更批（org-config/路由/配给；改 1 个配置件 ≤10 行） | 代码审查岗单审（k1）＋主控亲验全机检矩阵 |
+| 单点配置变更批（org-config/路由/配给；改 1 个配置件 ≤10 行） | 代码审查岗单审＋主控亲验全机检矩阵 |
 | 其余纯配置变更批 | 按「已审面修改」处理：该面随批重过——配置 diff＋预期行为变化呈 auditor-readonly 复核 |
 | 结项/交付批 | 对抗链证据随汇报包复核：各对抗位报告＋health-scan RED=0＋基线数字对账＋入仓工件污染面零命中（08 §6——项目仓门禁＋命名过目） |
 
 复合批取命中各行对抗位的**并集**：一个批次踩多类，逐类全过，禁择一。
 
-**分级规则**：「小批」=纯文档/纯注释批且改动 ≤3 文件、无逻辑行变更→代码审查岗单审（k1）＋
+**分级规则**：「小批」=纯文档/纯注释批且改动 ≤3 文件、无逻辑行变更→代码审查岗单审＋
 主控亲验全机检矩阵；单点配置批=改 1 个配置件的 ≤10 行变更→同前。**生成物豁免**：单一
 生成源再生产物（禁手编——如 `gen_status` 再生成的 status.md）不入小批人工面文件计数，即
 ≤3 文件按人工面计（生成源=唯一人工面；随批再生成的漂移=机检面非人工面）。
 
 前提：该生成物已挂再生产一致性机检——重跑生成源与提交物逐字节对账（如 gen_status --check /
 check-anchors --strict）；未挂机检的生成物不得援引本豁免。**其余一切批次（实现/结项/跨件/
-涉脚本/涉禁止项/复合批）仍取全对抗位（双审 k1+d1，复合批按并集）**。
+涉脚本/涉禁止项/复合批）仍取全对抗位（常设双审两席，复合批按并集）**。
 
 前端任务设计稿（文本形态）拟定可派 Kimi（经规划岗通道，细则=07 §1 规划岗行＋06 §1＋06 §3）。
 额度受限期的替代组合：代码审查岗单审＋不同模型族代位审（异源岗代位＋申报入档，如
-adjudicator 代 d1）＋主控亲验——例外须申报，不得静默降级。
+实证裁决岗代审第二席）＋主控亲验——例外须申报，不得静默降级。
 
 **审包预算纪律扩面至子代理通道**（04·ORG-12 同款）：自包含包输入面 ≤8k tokens，可指针化的
 既有事实（golden/契约/先例文本）不内联——审包体积=额度主变量（单批 subagent tokens 随包体
-放大，量级实测锚=ORG-12 削包 110→84KB）；代位审包不自带实件自由读授权，否则 4.5M tokens 级失控（实测教训——历史区批档承载）。
+放大）；代位审包不自带实件自由读授权，否则 token 级失控。
 
 **N 级返工免审口径**：返工处置项全为 N 级=主控亲笔＋全机检＋实证裁决岗行为佐证即可结项
-（免代码审查岗复审），W/B 级仍须复审；N 级处置触及已审面仓内文件=该面仍随批重过（免审
-仅覆盖纯批档处置与记档）；免审处置逐条落批档可审计——细则单源=references/02 §5。
+（免代码审查岗复审），W/B 级仍须复审；N 级处置触及已审面仓内文件=该面仍随批重过；免审处置逐条落批档可审计——细则单源=references/02 §5。
 
 派发前自检四问：①本批命中表中哪些对抗位？②各位源可用且与实现者不同模型族吗？③待补
-登记清单有无本批必须补还项？④任务书是否已过机检与审核岗（裁决 D21）？结项前必跑
+登记清单有无本批必须补还项？④任务书是否已过机检与审核岗？结项前必跑
 health-scan.mjs（RED=0 方可结项，告警分类细则=02 §10）。**主控简报中的关键假设须显式标注
 「假设」并请对抗位拷问——假设未被拷问=对抗链未过。**
 
@@ -172,15 +170,9 @@ health-scan.mjs（RED=0 方可结项，告警分类细则=02 §10）。**主控�
 | "子代理大概用了对的模型" | 未绑定子代理无 model 参数=环境限制，如实记待补登记 |
 | "输入边界灵活一点效率高" | 喂什么=岗位边界，灵活化=已登记禁止项（01·E2） |
 
-## 版本与状态（selfiter 批 B3 起自含——历史指针化）
+## 版本与状态
 
-- 当前版本=v3.1.2（约束勘误与历史面瘦身批，2026-10-28 用户裁决三项合并）：版本自述本行曾
-  长期滞留 v2.1.0 旧值（三代发布未随版更新）——本批改真并立随版更新纪律；同批补强派发约束
-  （矩阵岗禁派系统默认代理）＋历史原文迁出加载面（承载=开发工作区历史文档区＋git 提交历史）。
-- 版本演化（selfiter 批起）=git 提交信息＋历史区批档＋RESIDUALS.md 新登记，不维护仓内
-  CHANGELOG（变更日志=项目仓产物、非技能仓件——归置=references/09 §1）。
-- 残留登记=RESIDUALS.md（触发处置行＋新登记）；历史全量=git 提交历史（各版本分笔可回溯；
-  2026-09 归档路径已失联，实体去向待查——登记=R-Y4-2）。
-- v1.0 定版时的条件与资格认定=git 历史（检索 `git log -S "v1.7.2" -- SKILL.md` 定位迁入提交，
-  裁决档原文随提交信息；旧归档路径失联，同上 R-Y4-2）。
-- 新项目首场压力场景复测：按 05 移植后执行，结果回填仓外批档＋RESIDUALS 新登记行。
+- 当前版本=v3.2.0。本技能不内载时间与批次史：版本演化与历史记录=技能仓 git 提交历史＋
+  开发方工作区（主仓 docs/ 与 history/），技能正文不维护沿革叙述。
+- 残留登记=RESIDUALS.md（触发处置行＋新登记行）。
+- 新项目移植后首场压力场景复测（05），结果回填 RESIDUALS 新登记行。

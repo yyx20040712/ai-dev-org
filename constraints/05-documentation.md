@@ -75,7 +75,7 @@ check: 规范条款与校验项同批提交，报告逐条给出条款到检查�
 evidence:
   - project: ai-dev-org
     event: 规范要求记账但校验器只认旧事件
-    ref: references/04-lessons.md 七、2026-09-14 优化批增补 ORG-11
+    ref: references/04-lessons.md 七、ORG-11
     date: 2026-10-21
 ---
 新增规范条款时，能机检的同批落成校验项，不能机检的写明人工判据。

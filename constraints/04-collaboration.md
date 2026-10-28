@@ -140,7 +140,7 @@ check: 构造完整、截断、失败、未知四类流水，核对账本状态�
 evidence:
   - project: ai-dev-org
     event: 流水已记录 finish，账本却丢弃终态，8 笔截断审计被当成功
-    ref: references/04-lessons.md 七、2026-09-14 优化批增补 ORG-5
+    ref: references/04-lessons.md 七、ORG-5
     date: 2026-09-14
 ---
 审计账本以流水终态为唯一来源派生截断标记，分别记录完整、截断与失败；未知终态按非完整处理。

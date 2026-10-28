@@ -216,7 +216,7 @@ check: 确认机检在场；不得以可人工甄别为由放行
 evidence:
   - project: ai-dev-org
     event: 机检被人工判断替代，带 mock 字样的演练行靠人工甄别放行
-    ref: references/04-lessons.md 七、2026-09-14 优化批增补 ORG-5
+    ref: references/04-lessons.md 七、ORG-5
     date: 2026-09-14
 ---
 机检不可由人工判断替代；无机检的验证面按缺位处理。
@@ -235,7 +235,7 @@ check: 每笔提交复跑同一门禁套件并留退出码，身份不免检
 evidence:
   - project: WaterPrint
     event: 亲笔变更只跑定向测试，行数墙缺陷漏网，由独立复算逮出
-    ref: references/04-lessons.md 九、2026-10-05 亲笔返工纪律批增补 ORG-14
+    ref: references/04-lessons.md 九、ORG-14
     date: 2026-10-05
 ---
 任何提交都跑同一套门禁；亲笔变更不免检。
