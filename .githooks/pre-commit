@@ -1,5 +1,5 @@
 #!/bin/sh
-# 提交门禁（2026-09-17 自我迭代批 v1.7.1；selfiter 批增 C1 严式快扫；2026-10-28 d6 批 check-terms 升 --strict=D29④ 绝对零）：把收口扫描中
+# 提交门禁（2026-09-17 自我迭代批 v1.7.1；selfiter 批增 C1 严式快扫；2026-10-28 d6 批 check-terms 升 --strict=词面绝对零）：把收口扫描中
 # 最快的两项挂进提交流，check-hardcode 按 --strict 跑（WARN 命中即阻断——收口零命中
 # 纪律的提交面执法；逃生口=登记白名单），堵「扫描跑在最后一批编辑之前」的流程洞。
 # 安装（仓库本地配置，不入版本库）：git config core.hooksPath .githooks
