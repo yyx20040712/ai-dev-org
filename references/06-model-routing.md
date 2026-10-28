@@ -15,7 +15,7 @@ org-config providers 支持账户计划型模型源：uuid_prefix 以 `account:`
 本机允许清单校验（计划名=冒号后段；未列入清单=validate 拒绝；声明了 account:
 源而清单缺失/非数组/空数组=配置不完整，同样拒验）。该源岗位的流水归因=前缀
 最长匹配（log-triage 消费，源短名即归因标记）；绑定值消费面同 §6 绑定渲染
-管线。已知缺口：allowlist 只约束 providers 声明面、未约束 agent_bindings 消费面。依据=L19 批。
+管线。已知缺口：allowlist 只约束 providers 声明面、未约束 agent_bindings 消费面。
 
 ## 1. 分工总表（岗位×通道×档位语义）
 

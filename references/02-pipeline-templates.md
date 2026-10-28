@@ -278,7 +278,7 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
   非词表复制），仅
   `findings_surface` 岗产出携带
   （R4 不强制——非该岗无此字段；缺栏执法=本件 §10 ⑥）。
-  `route?`=P14 批起可选：本行派发实际采用的 ROUTE 串（如
+  `route?`（可选）：本行派发实际采用的 ROUTE 串（如
   `executor-glmflash;reviewer-699;adjudicator-699`）；常设双审第二席在该串中以
   `reviewer2-<provider>` 记（供人读与对账，不参与 resolve 解析）；走默认未切换的行省略。
   **人工回填例外条款（返工 r2 W-3 成文）**：解析失配/通道故障时主控可
