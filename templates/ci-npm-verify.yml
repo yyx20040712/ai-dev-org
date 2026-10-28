@@ -1,0 +1,19 @@
+# CI 骨架（npm-verify 型）——ai-dev-org init-defenses 生成于 {{DATE}}
+# 投产前：npm install 产出 lockfile 后改回 `npm ci`；按项目增删 job。
+name: ci-defenses
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install
+      - run: node scripts/verify.mjs
+        env:
+          DEFENSES_STRICT: '1' # 骨架默认 SKIP 缺失 gate；CI 投产即收紧为 FAIL
