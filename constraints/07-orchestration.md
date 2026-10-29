@@ -10,7 +10,7 @@ id: C-ORC-01
 title: 按写面隔离并行派发
 category: orchestration
 triggers: [并行派发, 写面隔离, 同文件, 共享状态]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: checklist
@@ -29,7 +29,7 @@ id: C-ORC-02
 title: 显式绑定模型并核对路由
 category: orchestration
 triggers: [代理档案, 模型绑定, thoughtLevel, 静默回退, metadata]
-roles: [planner, executor, reviewer, diagnostics]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: machine
@@ -52,7 +52,7 @@ id: C-ORC-03
 title: 改档后用新会话验证
 category: orchestration
 triggers: [代理档案, 改档, 新会话]
-roles: [planner, executor, diagnostics]
+roles: [planner, executor]
 phases: [implement, review]
 severity: warning
 enforcement: checklist
@@ -71,7 +71,7 @@ id: C-ORC-04
 title: 长派发分层排障并留真退出码
 category: orchestration
 triggers: [长任务派发, 三层分诊, 审包体积, 超时, 真退出码]
-roles: [planner, executor, reviewer, diagnostics]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: checklist
@@ -90,7 +90,7 @@ id: C-ORC-05
 title: 先检占用再调度定时与闲时任务
 category: orchestration
 triggers: [定时任务, 闲时任务, 占用检测, 断点接续, 静默窗]
-roles: [planner, executor, diagnostics]
+roles: [planner, executor]
 phases: [design, implement]
 severity: blocking
 enforcement: checklist
@@ -117,7 +117,7 @@ id: C-ORC-06
 title: 显式声明子代理工具与嵌套边界
 category: orchestration
 triggers: [子代理, 工具白名单, tools, 嵌套派发]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: checklist

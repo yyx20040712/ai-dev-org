@@ -15,7 +15,7 @@ const BOOK_RE = /^0([1-7])-([a-z]+)\.md$/
 const STEM_RE = /^0[1-7]-([a-z]+)$/
 const ID_RE = /^C-[A-Z]{3}-\d{2}$/
 const SLUGS = { context: 'CTX', verification: 'VER', architecture: 'ARC', collaboration: 'COL', documentation: 'DOC', environment: 'ENV', orchestration: 'ORC' }
-const ROLES = new Set(['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics'])
+const ROLES = new Set(['research', 'planner', 'assembler', 'executor', 'tbreview', 'planreview', 'implreview', 'adjudicator', 'vision'])
 const PHASES = new Set(['design', 'implement', 'review', 'adjudicate', 'close'])
 const SEVERITY = { blocking: 0, warning: 1, info: 2 }
 const ENFORCEMENTS = new Set(['machine', 'review', 'checklist'])
@@ -272,9 +272,9 @@ function selfTest() {
     write('constraints/02-verification.md', CARD_HEAD('C-CTX-02', '丙', 'context', 'planner', 'review', 'warning', 'checklist', '打勾', '规则丙。'))
     safe = loadCardsSafe(tmp), f3 = runChecks(tmp, safe.files, safe.cards, safe.findings)
     add('4 check#3 负例：category 与册名不一致判 FAIL', f3.some((f) => f.check === 3), JSON.stringify(f3))
-    // 共享正例夹具：两册三卡
-    write('constraints/01-context.md', '# T\n\n' + CARD_HEAD('C-CTX-01', '甲', 'context', 'planner, executor', 'design', 'blocking', 'checklist', '打勾', '规则甲。') + '\n' + CARD_HEAD('C-CTX-02', '乙', 'context', 'reviewer', 'review', 'warning', 'checklist', '打勾', '规则乙。')); rmSync(join(tmp, 'constraints', '03-architecture.md'))
-    write('constraints/02-verification.md', '# T\n\n' + CARD_HEAD('C-VER-01', '丙', 'verification', 'reviewer', 'review', 'warning', 'checklist', '打勾', '规则丙。'))
+    // 共享正例夹具：两册三卡（B2 批 D-8：夹具审核键 reviewer→implreview 与 ROLES 同步）
+    write('constraints/01-context.md', '# T\n\n' + CARD_HEAD('C-CTX-01', '甲', 'context', 'planner, executor', 'design', 'blocking', 'checklist', '打勾', '规则甲。') + '\n' + CARD_HEAD('C-CTX-02', '乙', 'context', 'implreview', 'review', 'warning', 'checklist', '打勾', '规则乙。')); rmSync(join(tmp, 'constraints', '03-architecture.md'))
+    write('constraints/02-verification.md', '# T\n\n' + CARD_HEAD('C-VER-01', '丙', 'verification', 'implreview', 'review', 'warning', 'checklist', '打勾', '规则丙。'))
     const genIdx = () => write('constraints/index.json', serialize(buildIndex(loadCardsSafe(tmp).cards)))
     // 向量 5：check#5 正例（gen 后通过）与反例（手改一字节后 FAIL）
     genIdx()

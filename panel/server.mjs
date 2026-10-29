@@ -25,6 +25,14 @@ const PROJECT = process.env.ORG_PANEL_PROJECT || '';
 const MATRIX = JSON.parse(fs.readFileSync(path.join(SKILL, 'templates', 'agents.matrix.json'), 'utf8'));
 const ROLE_ORDER = Object.keys(MATRIX.roles || {});
 const SLOT_RE = new RegExp(`^ops-(${ROLE_ORDER.join('|')})-([a-z0-9]+)-(low|high|max)$`);
+// 面板分组态（B2 批 D-6·账本 711）：单一 role→group 映射＋固定组元数据派生；
+// 组内 roles 由矩阵键序 filter 而来（不另写组内排序——此后调键序只改矩阵，不改面板码）。
+const ROLE_GROUPS = [
+  { id: 'production', label: '生产', roles: ['research', 'planner', 'assembler', 'executor'] },
+  { id: 'review', label: '审核', roles: ['tbreview', 'planreview', 'implreview'] },
+  { id: 'adjudication', label: '裁决', roles: ['adjudicator'] },
+  { id: 'vision', label: '视觉', roles: ['vision'] },
+];
 
 // 技能仓配置装载器单源复用（三层深合并；isMain 守卫零副作用）
 const { loadOrgConfig } = await import(pathToFileURL(path.join(SKILL, 'scripts', 'org-config.mjs')).href);
@@ -101,6 +109,13 @@ function state() {
       }),
     };
   });
+  // 分组派生（D-6）：各组 roles=扁平卡数组按组员 filter（保持矩阵键序），vision 居末；
+  // 扁平 roles 兼容字段原样保留——state() 同时返回两形态。
+  const roleGroups = ROLE_GROUPS.map((g) => ({
+    id: g.id,
+    label: g.label,
+    roles: roles.filter((r) => g.roles.includes(r.role)),
+  }));
   const ledger = fs.readFileSync(path.join(SKILL, '.zcode/org-ledger.jsonl'), 'utf8').trim().split('\n');
   const last = JSON.parse(ledger[ledger.length - 1]);
   const validate = run('node scripts/org-config.mjs validate');
@@ -112,6 +127,7 @@ function state() {
     ledger: { lines: ledger.length, lastRunId: last.runId, lastTs: last.ts },
     validate,
     roles,
+    roleGroups,
   };
 }
 

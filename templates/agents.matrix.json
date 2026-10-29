@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updated": "2026-10-28",
+  "updated": "2026-10-29",
   "note": "逻辑矩阵：只写角色、provider 短名、档位、工具面、默认与回退序；真实 providerId/modelId/账号名不入库（由 org-config.local.json 的 agent_bindings 提供）。display 名不入库：providers.*.display 已删除，真实显示名以本机件 org-config.local.json 的 entry_name 为准。",
   "levels": [
     "low",
@@ -43,6 +43,7 @@
       "level": "high",
       "providers": [
         "glmflash",
+        "startplan",
         "glm",
         "699",
         "yyx",
@@ -52,6 +53,7 @@
       "default": "glmflash",
       "fallback": [
         "glmflash",
+        "startplan",
         "glm",
         "699",
         "yyx",
@@ -71,11 +73,12 @@
       "title": "规划岗",
       "level": "max",
       "providers": [
-        "glm",
-        "glmflash",
         "699",
         "yyx",
         "zipoo",
+        "glm",
+        "glmflash",
+        "startplan",
         "ds"
       ],
       "default": "699",
@@ -85,134 +88,11 @@
         "zipoo",
         "glm",
         "glmflash",
-        "ds"
-      ],
-      "tools": [
-        "Read"
-      ],
-      "readonly": true
-    },
-    "executor": {
-      "title": "实现岗",
-      "level": "high",
-      "providers": [
-        "glm",
-        "glmflash",
         "startplan",
-        "699",
-        "yyx",
-        "zipoo",
         "ds"
-      ],
-      "default": "startplan",
-      "fallback": [
-        "startplan",
-        "glmflash",
-        "glm",
-        "699",
-        "yyx",
-        "zipoo",
-        "ds"
-      ],
-      "tools": [
-        "Read",
-        "Glob",
-        "Grep",
-        "Write",
-        "Edit",
-        "Bash",
-        "BashOutput",
-        "KillShell"
-      ],
-      "readonly": false
-    },
-    "reviewer": {
-      "title": "审核岗",
-      "level": "max",
-      "providers": [
-        "glm",
-        "glmflash",
-        "699",
-        "yyx",
-        "zipoo",
-        "ds"
-      ],
-      "default": "yyx",
-      "fallback": [
-        "yyx",
-        "699",
-        "ds",
-        "zipoo",
-        "glm",
-        "glmflash"
       ],
       "tools": [
         "Read"
-      ],
-      "readonly": true
-    },
-    "adjudicator": {
-      "title": "裁决岗",
-      "level": "max",
-      "providers": [
-        "glm",
-        "glmflash",
-        "699",
-        "yyx",
-        "zipoo",
-        "ds"
-      ],
-      "default": "zipoo",
-      "fallback": [
-        "zipoo",
-        "699",
-        "yyx",
-        "glm",
-        "glmflash",
-        "ds"
-      ],
-      "tools": [
-        "Read",
-        "Glob",
-        "Grep"
-      ],
-      "readonly": true
-    },
-    "vision": {
-      "title": "视觉岗",
-      "level": "max",
-      "providers": [
-        "glmflash",
-        "ds",
-        "699"
-      ],
-      "default": "glmflash",
-      "fallback": [
-        "glmflash",
-        "ds",
-        "699"
-      ],
-      "tools": [
-        "Read"
-      ],
-      "readonly": true
-    },
-    "diagnostics": {
-      "title": "诊断岗",
-      "level": "max",
-      "providers": [
-        "ds",
-        "glmflash"
-      ],
-      "default": "ds",
-      "fallback": [
-        "ds",
-        "glmflash"
-      ],
-      "tools": [
-        "Read",
-        "Glob",
-        "Grep"
       ],
       "readonly": true
     },
@@ -241,18 +121,205 @@
         "KillShell"
       ],
       "readonly": false
+    },
+    "executor": {
+      "title": "实现岗",
+      "level": "high",
+      "providers": [
+        "startplan",
+        "glmflash",
+        "glm",
+        "699",
+        "yyx",
+        "zipoo",
+        "ds"
+      ],
+      "default": "startplan",
+      "fallback": [
+        "startplan",
+        "glmflash",
+        "glm",
+        "699",
+        "yyx",
+        "zipoo",
+        "ds"
+      ],
+      "tools": [
+        "Read",
+        "Glob",
+        "Grep",
+        "Write",
+        "Edit",
+        "Bash",
+        "BashOutput",
+        "KillShell"
+      ],
+      "readonly": false
+    },
+    "tbreview": {
+      "title": "任务书审核",
+      "level": "max",
+      "providers": [
+        "ds",
+        "699",
+        "yyx",
+        "zipoo",
+        "glm",
+        "glmflash",
+        "startplan"
+      ],
+      "default": "ds",
+      "fallback": [
+        "ds",
+        "699",
+        "yyx",
+        "zipoo",
+        "glm",
+        "glmflash",
+        "startplan"
+      ],
+      "tools": [
+        "Read"
+      ],
+      "readonly": true
+    },
+    "planreview": {
+      "title": "规划审核",
+      "level": "max",
+      "providers": [
+        "ds",
+        "699",
+        "yyx",
+        "zipoo",
+        "glm",
+        "glmflash",
+        "startplan"
+      ],
+      "default": "ds",
+      "fallback": [
+        "ds",
+        "699",
+        "yyx",
+        "zipoo",
+        "glm",
+        "glmflash",
+        "startplan"
+      ],
+      "tools": [
+        "Read"
+      ],
+      "readonly": true
+    },
+    "implreview": {
+      "title": "执行者审核",
+      "level": "max",
+      "providers": [
+        "699",
+        "ds",
+        "yyx",
+        "zipoo",
+        "glm",
+        "glmflash",
+        "startplan"
+      ],
+      "default": "699",
+      "fallback": [
+        "699",
+        "ds",
+        "yyx",
+        "zipoo",
+        "glm",
+        "glmflash",
+        "startplan"
+      ],
+      "tools": [
+        "Read"
+      ],
+      "readonly": true
+    },
+    "adjudicator": {
+      "title": "裁决岗",
+      "level": "max",
+      "providers": [
+        "zipoo",
+        "699",
+        "yyx",
+        "glm",
+        "glmflash",
+        "startplan",
+        "ds"
+      ],
+      "default": "zipoo",
+      "fallback": [
+        "zipoo",
+        "699",
+        "yyx",
+        "glm",
+        "glmflash",
+        "startplan",
+        "ds"
+      ],
+      "tools": [
+        "Read",
+        "Glob",
+        "Grep"
+      ],
+      "readonly": true
+    },
+    "vision": {
+      "title": "视觉岗",
+      "level": "max",
+      "providers": [
+        "glmflash",
+        "startplan",
+        "ds",
+        "699"
+      ],
+      "default": "glmflash",
+      "fallback": [
+        "glmflash",
+        "startplan",
+        "ds",
+        "699"
+      ],
+      "tools": [
+        "Read"
+      ],
+      "readonly": true
     }
   },
   "aliases": {
-    "ops-executor": { "role": "executor", "provider": null },
-    "ops-drafter": { "role": "planner", "provider": null },
-    "ops-auditor": { "role": "reviewer", "provider": null },
-    "ops-adjudicator": { "role": "adjudicator", "provider": null },
-    "ops-probe": { "role": "diagnostics", "provider": null },
-    "ops-diagnostics": { "role": "diagnostics", "provider": null },
-    "ops-gate1-k1": { "role": "reviewer", "provider": "699" },
-    "ops-gate1-k2": { "role": "reviewer", "provider": "zipoo" },
-    "ops-gate1-k3": { "role": "reviewer", "provider": "yyx" },
-    "ops-gate1-d1": { "role": "reviewer", "provider": "ds" }
+    "ops-executor": {
+      "role": "executor",
+      "provider": null
+    },
+    "ops-drafter": {
+      "role": "planner",
+      "provider": null
+    },
+    "ops-auditor": {
+      "role": "implreview",
+      "provider": "ds"
+    },
+    "ops-adjudicator": {
+      "role": "adjudicator",
+      "provider": null
+    },
+    "ops-gate1-k1": {
+      "role": "implreview",
+      "provider": "699"
+    },
+    "ops-gate1-k2": {
+      "role": "implreview",
+      "provider": "zipoo"
+    },
+    "ops-gate1-k3": {
+      "role": "implreview",
+      "provider": "yyx"
+    },
+    "ops-gate1-d1": {
+      "role": "implreview",
+      "provider": "ds"
+    }
   }
 }

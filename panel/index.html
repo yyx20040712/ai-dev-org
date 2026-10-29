@@ -110,7 +110,7 @@ pre{min-height:90px;max-height:260px;overflow:auto;margin:13px 0 0;padding:13px 
     <div><h2>模型路由（按顺序回退）</h2><p>拖动模型调整优先级，排在首位的模型为当前首选。</p></div>
     <span class="section-hint">拖拽排序 · Alt + ↑ / ↓ 换位 · 500ms 去抖保存</span>
   </div>
-  <section class="roles-grid" id="roles" aria-label="岗位模型路由"></section>
+  <section id="roles" aria-label="岗位模型路由"></section>
 
   <section class="operations">
     <div class="section-head"><div><h2>操作与日志</h2><p>查看来源状态，或重新生成本机代理配置。</p></div></div>
@@ -176,7 +176,7 @@ function render(state){
   $('sub').textContent=`实测 ${state.now} · 账本 ${state.ledger.lines} 行 · 末行 ${state.ledger.lastRunId}`;
   const validationLine=String(state.validate.out||'').trim().split('\n').filter(Boolean).pop()||'';
   $('cards').innerHTML=statusCard('项目仓',state.project)+statusCard('技能仓',state.skill)+`<article class="status-card"><div class="status-top"><span>配置校验</span><span class="clean-state${valid?'':' dirty'}">${valid?'校验通过':'校验失败'}</span></div><div class="status-value">${valid?'PASS':'FAIL'}</div><div class="status-detail" title="${esc(state.validate.out)}">${esc(validationLine)}</div></article>`;
-  $('roles').innerHTML=state.roles.map(roleCard).join('');
+  $('roles').innerHTML=(state.roleGroups||state.roles.map(role=>({id:role.role,label:role.title,roles:[role]}))).map(group=>`<section class="role-group" data-role-group="${esc(group.id)}"><div class="section-head"><h2>${esc(group.label)}</h2></div><div class="roles-grid">${group.roles.map(roleCard).join('')}</div></section>`).join('');
   document.querySelectorAll('.role-card').forEach(card=>{
     const role=card.dataset.roleCard;
     const source=state.roles.find(item=>item.role===role);

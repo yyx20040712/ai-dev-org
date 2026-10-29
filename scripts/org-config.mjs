@@ -475,22 +475,23 @@ export function validateLocalFacts(cfg) {
  *  role_fallbacks 结构与语义。返回错误数组（空=通过），不抛（CLI 汇总并列）。
  *  唯一事实源=docs/agent-matrix.json（生成期）；本函数只校结构一致性与跨族/视觉约束：
  *  ① slot 键=ops-<role>-<provider>-<level> 且与值三字段完全一致；角色集须等于固定
- *     八角色集（不由现存 slot 反推——缺任一角色=错误）；
+ *     九角色集（不由现存 slot 反推——缺任一角色=错误；B2 批 D-8：三审拆岗＋诊断退役）；
  *  ② provider 须在 cfg.providers 以**自有键**声明且为普通对象，禁 legacy:true
  *     （只允许短名；own-property 判定防 constructor/toString 等原型链键冒充）；
  *  ③ level∈low/high/max、model 非空字符串；
- *  ④ agent_defaults 键集=固定八角色集（全覆盖、无多余键），默认档存在且角色一致；
- *  ⑤ role_fallbacks 键集=固定八角色集、非空、无重复、首元素=默认档、成员存在且角色一致；
- *  ⑥ 默认 executor 与 reviewer/adjudicator 跨族（familyOf；slot/provider/family
+ *  ④ agent_defaults 键集=固定九角色集（全覆盖、无多余键），默认档存在且角色一致；
+ *  ⑤ role_fallbacks 键集=固定九角色集、非空、无重复、首元素=默认档、成员存在且角色一致；
+ *  ⑥ 默认 executor 与 implreview/adjudicator 跨族（familyOf；slot/provider/family
  *     任一不可解析=显式错误，fail-closed）；
- *  ⑦ 默认 vision 的 slot/provider 必须可解析且 provider.multimodal===true
- *     （解析失败、缺键、非 true 均报错）。
+ *  ⑦ 默认 vision 的 slot/provider 必须可解析且 provider.multimodal===true，
+ *     或 provider 恰为 startplan（B2 批 D-7a 文本应急例外——与 verify-docs/
+ *     gen-agents/agent-slots 四面同款谓词；解析失败、缺键、其余非 true 均报错）。
  *  回炉轮 1（审核 B-1/B-2）：必需角色集固定为模块常量；所有 providers/slots/
  *  defaults/fallbacks 的成员判定一律 own-property 限定——解析失败返回**显式失败
  *  标记**（{ok:false,reason}），不再以 null 表示并由调用方静默跳过。 */
-const SLOT_NAME_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics|assembler)-([a-z0-9]+)-(low|high|max)$/
+const SLOT_NAME_RE = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)$/
 const SLOT_LEVELS = new Set(['low', 'high', 'max'])
-const REQUIRED_AGENT_ROLES = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics', 'assembler']
+const REQUIRED_AGENT_ROLES = ['research', 'planner', 'assembler', 'executor', 'tbreview', 'planreview', 'implreview', 'adjudicator', 'vision']
 const REQUIRED_AGENT_ROLE_SET = new Set(REQUIRED_AGENT_ROLES)
 export function validateAgentSlots(cfg) {
   const own = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key)
@@ -525,18 +526,18 @@ export function validateAgentSlots(cfg) {
       errors.push(`agent_slots.${name} 引用 legacy provider「${def.provider}」（legacy:true）——slot 只允许短名键，旧键仅供 P2 前脚本兼容`)
     }
   }
-  // ① B-1：角色集必须等于固定八角色集（不能只看 slot/default/fallback 自洽）
+  // ① B-1：角色集必须等于固定九角色集（不能只看 slot/default/fallback 自洽）
   const slotRoles = new Set(roleOf.values())
   for (const role of REQUIRED_AGENT_ROLES)
-    if (!slotRoles.has(role)) errors.push(`agent_slots 缺必需角色「${role}」——角色集须等于固定八角色集（${REQUIRED_AGENT_ROLES.join(', ')}），不由现存 slot 反推`)
+    if (!slotRoles.has(role)) errors.push(`agent_slots 缺必需角色「${role}」——角色集须等于固定九角色集（${REQUIRED_AGENT_ROLES.join(', ')}），不由现存 slot 反推`)
   const defaults = cfg?.agent_defaults
   if (!isPlainObject(defaults)) {
-    errors.push('agent_defaults 缺失/非对象——须为 角色→默认 slot 名 映射（固定八角色全覆盖）')
+    errors.push('agent_defaults 缺失/非对象——须为 角色→默认 slot 名 映射（固定九角色全覆盖）')
   } else {
     for (const role of REQUIRED_AGENT_ROLES)
-      if (!own(defaults, role)) errors.push(`agent_defaults 缺必需角色「${role}」——固定八角色须全覆盖`)
+      if (!own(defaults, role)) errors.push(`agent_defaults 缺必需角色「${role}」——固定九角色须全覆盖`)
     for (const role of Object.keys(defaults))
-      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`agent_defaults 多余键「${role}」——只允许固定八角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
+      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`agent_defaults 多余键「${role}」——只允许固定九角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
     for (const [role, slotName] of Object.entries(defaults)) {
       if (typeof slotName !== 'string' || !own(slots, slotName)) {
         errors.push(`agent_defaults.${role} 指向不存在的 slot「${slotName}」——须引用 agent_slots 已声明键`)
@@ -551,12 +552,12 @@ export function validateAgentSlots(cfg) {
   }
   const fallbacks = cfg?.role_fallbacks
   if (!isPlainObject(fallbacks)) {
-    errors.push('role_fallbacks 缺失/非对象——须为 角色→slot 名数组 映射（固定八角色全覆盖）')
+    errors.push('role_fallbacks 缺失/非对象——须为 角色→slot 名数组 映射（固定九角色全覆盖）')
   } else {
     for (const role of REQUIRED_AGENT_ROLES)
-      if (!own(fallbacks, role)) errors.push(`role_fallbacks 缺必需角色「${role}」——固定八角色须全覆盖`)
+      if (!own(fallbacks, role)) errors.push(`role_fallbacks 缺必需角色「${role}」——固定九角色须全覆盖`)
     for (const role of Object.keys(fallbacks))
-      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`role_fallbacks 多余键「${role}」——只允许固定八角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
+      if (!REQUIRED_AGENT_ROLE_SET.has(role)) errors.push(`role_fallbacks 多余键「${role}」——只允许固定九角色键（${REQUIRED_AGENT_ROLES.join(', ')}）`)
     for (const [role, seq] of Object.entries(fallbacks)) {
       if (!Array.isArray(seq) || seq.length === 0) {
         errors.push(`role_fallbacks.${role} 须为非空数组（回退序不能为空）`)
@@ -583,7 +584,7 @@ export function validateAgentSlots(cfg) {
     }
   }
   // ⑥ B-1/B-2：默认档解析器——own + isPlainObject，任何一步失败返回显式失败标记
-  // （调用方对 executor/reviewer/adjudicator 分别生成错误行，不再 null 静默跳过）。
+  // （调用方对 executor/implreview/adjudicator 分别生成错误行，不再 null 静默跳过）。
   const resolveDefault = (role) => {
     if (!isPlainObject(defaults)) return { ok: false, reason: 'agent_defaults 缺失/非对象' }
     if (!own(defaults, role)) return { ok: false, reason: `agent_defaults 缺角色「${role}」` }
@@ -598,25 +599,27 @@ export function validateAgentSlots(cfg) {
     return { ok: true, slot: slotName, provider: slot.provider, family: familyOf(prov) }
   }
   const resolved = {}
-  for (const role of ['executor', 'reviewer', 'adjudicator']) {
+  for (const role of ['executor', 'implreview', 'adjudicator']) {
     const hit = resolveDefault(role)
     resolved[role] = hit
     if (!hit.ok) errors.push(`agent 默认档无法解析（agent_defaults.${role}）：${hit.reason}——须指向已声明 slot 与 provider（fail-closed）`)
     else if (!hit.family) errors.push(`agent 跨族校验不可构成：agent_defaults.${role}（slot=${hit.slot}, provider=${hit.provider}）的 family/model_family 无法解析——fail-closed（异构性不可证明=不通过）`)
   }
   const sameFamily = (a, b) => !!(resolved[a].ok && resolved[a].family && resolved[b].ok && resolved[b].family && resolved[a].family === resolved[b].family)
-  if (sameFamily('executor', 'reviewer'))
-    errors.push(`agent 跨族校验失败：默认 executor 与 reviewer 同族（family=${resolved.executor.family}）——异构对抗退化（executor=${resolved.executor.slot}, reviewer=${resolved.reviewer.slot}）`)
+  if (sameFamily('executor', 'implreview'))
+    errors.push(`agent 跨族校验失败：默认 executor 与 implreview 同族（family=${resolved.executor.family}）——异构对抗退化（executor=${resolved.executor.slot}, implreview=${resolved.implreview.slot}）`)
   if (sameFamily('executor', 'adjudicator'))
     errors.push(`agent 跨族校验失败：默认 executor 与 adjudicator 同族（family=${resolved.executor.family}）——异构对抗退化（executor=${resolved.executor.slot}, adjudicator=${resolved.adjudicator.slot}）`)
-  // ⑦ vision：解析失败（slot/provider 缺失或非对象）必须显式报错，不得跳过 multimodal 检查。
+  // ⑦ vision：解析失败（slot/provider 缺失或非对象）必须显式报错，不得跳过 multimodal
+  // 检查；谓词=multimodal===true 或 provider 恰为 startplan（B2 批 D-7a 文本应急例外——
+  // multimodal:false 是实测事实，不承载图像判读）。
   if (isPlainObject(defaults)) {
     const vHit = resolveDefault('vision')
     if (!vHit.ok) errors.push(`agent_defaults.vision 默认档无法解析：${vHit.reason}——vision 须指向已声明 slot 与 provider（fail-closed）`)
     else {
       const vProv = providers[vHit.provider] // vHit.ok 保证 own + isPlainObject
-      if (vProv.multimodal !== true)
-        errors.push(`agent_defaults.vision 指向 slot「${vHit.slot}」的 provider「${vHit.provider}」multimodal=${JSON.stringify(vProv.multimodal)}——vision 只收 multimodal===true 的源（缺键或非 true 均拒）`)
+      if (vHit.provider !== 'startplan' && vProv.multimodal !== true)
+        errors.push(`agent_defaults.vision 指向 slot「${vHit.slot}」的 provider「${vHit.provider}」multimodal=${JSON.stringify(vProv.multimodal)}——vision 只收 multimodal===true 的源（缺键或非 true 均拒；startplan 例外=文本应急候选）`)
     }
   }
   // ⑧ 同一 provider 的岗位归属由 ① 键名一致性覆盖，不额外实现（任务书 §4.2-8）。
@@ -715,14 +718,14 @@ if (isMain) {
     t('L19 计划源③：计划名不在清单→错误行（点名 alias 与键名）', (() => { const e = validateProviders({ providers: { startplan: { uuid_prefix: 'account:x-plan', entry_name: 'P', family: 'glm' } }, account_plan_allowlist: ['other-plan'] }, planHost); return e.some((m) => m.includes('alias=startplan') && m.includes('account_plan_allowlist') && m.includes('归因造假')) })())
     t('L19 计划源④：allowlist 非数组→错误行（形态守卫 fail-closed）', (() => { const e = validateProviders({ providers: { startplan: { uuid_prefix: 'account:x-plan', entry_name: 'P', family: 'glm' } }, account_plan_allowlist: 'x-plan' }, planHost); return e.some((m) => m.includes('account_plan_allowlist')) })())
     t('L19 计划源⑤回归：注册表源既有行为不变（非 account: 前缀仍走双命中——命中零错/不命中报错）', validateProviders({ providers: { demo: { uuid_prefix: 'reg9999', entry_name: 'E-R', model_family: 'kimi' } } }, { provider: { 'reg9999-0000': { name: 'E-R' } } }).length === 0 && validateProviders({ providers: { demo: { uuid_prefix: 'reg9999', entry_name: 'E-R', model_family: 'kimi' } } }, { provider: {} }).length === 1)
-    t('v2.1.0 跨门对：合法二元对（真模板名）→零错误', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-reviewer-ds-max', 'ops-adjudicator-699-max']] } }).length === 0)
+    t('v2.1.0 跨门对：合法二元对（真模板名）→零错误', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-implreview-ds-max', 'ops-adjudicator-699-max']] } }).length === 0)
     t('v2.1.0 跨门对：三元对→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 'b', 'c']] } }).some((e) => e.includes('cross_gate_pairs[0]')))
     t('v2.1.0 跨门对：非字符串成员→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['a', 1]] } }).length >= 1)
     t('v2.1.0 跨门对：非数组形态→结构错误行', validateCrossGatePairs({ source_health: { cross_gate_pairs: 'x' } }).some((e) => e.includes('须为数组')))
     t('v2.1.0 跨门对：缺席→零错误（可选项——轮2 N-5 回补契约向量）', validateCrossGatePairs({}).length === 0 && validateCrossGatePairs({ source_health: {} }).length === 0)
     t('v2.1.0 回炉：跨门对成员无模板→命名空间错误行（防别名混写）', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['kimi-main', 'ops-adjudicator-699-max']] } }).some((e) => e.includes('kimi-main」无对应模板')))
-    t('v2.1.0 回炉：跨门对自配对→拒收', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-reviewer-699-max', 'ops-reviewer-699-max']] } }).some((e) => e.includes('自配对')))
-    t('v2.1.0 回炉：跨门对重复对→拒收', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-reviewer-699-max', 'ops-adjudicator-699-max'], ['ops-adjudicator-699-max', 'ops-reviewer-699-max']] } }).some((e) => e.includes('重复对')))
+    t('v2.1.0 回炉：跨门对自配对→拒收', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-implreview-699-max', 'ops-implreview-699-max']] } }).some((e) => e.includes('自配对')))
+    t('v2.1.0 回炉：跨门对重复对→拒收', validateCrossGatePairs({ source_health: { cross_gate_pairs: [['ops-implreview-699-max', 'ops-adjudicator-699-max'], ['ops-adjudicator-699-max', 'ops-implreview-699-max']] } }).some((e) => e.includes('重复对')))
     t('v2.1.0 回炉：vision 通道 model=TODO→占位错误行', validateLocalFacts({ vision_channels: { glm: { model: 'TODO' } } }).some((e) => e.includes('vision_channels.glm.model=TODO')))
     t('v2.1.0 回炉：agent_bindings 占位/空→错误行', validateLocalFacts({ agent_bindings: { 'ops-x': 'TODO' } }).some((e) => e.includes('agent_bindings.ops-x')))
     t('v2.1.0 回炉：本机事实占位校验净配置→零错误', validateLocalFacts({}).length === 0 && validateLocalFacts({ vision_channels: { glm: { model: 'REAL' } }, agent_bindings: { x: 'v/k3$max' } }).length === 0)
@@ -779,36 +782,40 @@ if (isMain) {
           alpha: { family: 'alpha', multimodal: false },
           beta: { family: 'beta', multimodal: true },
           gamma: { family: 'gamma', multimodal: false },
+          startplan: { family: 'alpha', multimodal: false },
         },
         agent_slots: {
           'ops-research-alpha-high': { provider: 'alpha', model: 'm-alpha', level: 'high' },
           'ops-planner-alpha-max': { provider: 'alpha', model: 'm-alpha', level: 'max' },
+          'ops-assembler-alpha-max': { provider: 'alpha', model: 'm-alpha', level: 'max' },
           'ops-executor-alpha-high': { provider: 'alpha', model: 'm-alpha', level: 'high' },
-          'ops-reviewer-beta-max': { provider: 'beta', model: 'm-beta', level: 'max' },
+          'ops-tbreview-beta-max': { provider: 'beta', model: 'm-beta', level: 'max' },
+          'ops-planreview-beta-max': { provider: 'beta', model: 'm-beta', level: 'max' },
+          'ops-implreview-beta-max': { provider: 'beta', model: 'm-beta', level: 'max' },
           'ops-adjudicator-gamma-max': { provider: 'gamma', model: 'm-gamma', level: 'max' },
           'ops-vision-beta-max': { provider: 'beta', model: 'm-beta', level: 'max' },
-          'ops-diagnostics-gamma-max': { provider: 'gamma', model: 'm-gamma', level: 'max' },
-          'ops-assembler-alpha-max': { provider: 'alpha', model: 'm-alpha', level: 'max' },
         },
         agent_defaults: {
           research: 'ops-research-alpha-high',
           planner: 'ops-planner-alpha-max',
+          assembler: 'ops-assembler-alpha-max',
           executor: 'ops-executor-alpha-high',
-          reviewer: 'ops-reviewer-beta-max',
+          tbreview: 'ops-tbreview-beta-max',
+          planreview: 'ops-planreview-beta-max',
+          implreview: 'ops-implreview-beta-max',
           adjudicator: 'ops-adjudicator-gamma-max',
           vision: 'ops-vision-beta-max',
-          diagnostics: 'ops-diagnostics-gamma-max',
-          assembler: 'ops-assembler-alpha-max',
         },
         role_fallbacks: {
           research: ['ops-research-alpha-high'],
           planner: ['ops-planner-alpha-max'],
+          assembler: ['ops-assembler-alpha-max'],
           executor: ['ops-executor-alpha-high'],
-          reviewer: ['ops-reviewer-beta-max'],
+          tbreview: ['ops-tbreview-beta-max'],
+          planreview: ['ops-planreview-beta-max'],
+          implreview: ['ops-implreview-beta-max'],
           adjudicator: ['ops-adjudicator-gamma-max'],
           vision: ['ops-vision-beta-max'],
-          diagnostics: ['ops-diagnostics-gamma-max'],
-          assembler: ['ops-assembler-alpha-max'],
         },
       })
       const vSlots = (c) => { try { return validateAgentSlots(c) } catch { return null } }
@@ -819,16 +826,20 @@ if (isMain) {
       t('P1 slot：键名 provider 段与值对象不一致→错误行', vErrs(c2).some((e) => e.includes('ops-research-alpha-high') && e.includes('provider')))
       const c3 = slotCfg(); c3.agent_slots['ops-research-zeta-high'] = { provider: 'zeta', model: 'm-zeta', level: 'high' }
       t('P1 slot：引用未声明 provider→错误行', vErrs(c3).some((e) => e.includes('ops-research-zeta-high') && e.includes('未声明')))
-      const c4 = slotCfg(); c4.agent_defaults.executor = 'ops-reviewer-beta-max'
+      const c4 = slotCfg(); c4.agent_defaults.executor = 'ops-implreview-beta-max'
       t('P1 slot：默认档指向别的角色的 slot→错误行', vErrs(c4).some((e) => e.includes('agent_defaults.executor') && e.includes('角色不一致')))
       const c5 = slotCfg(); c5.agent_slots['ops-executor-gamma-high'] = { provider: 'gamma', model: 'm-gamma', level: 'high' }; c5.role_fallbacks.executor = ['ops-executor-gamma-high']
       t('P1 slot：fallback 首元素不等于默认档→错误行', vErrs(c5).some((e) => e.includes('role_fallbacks.executor') && e.includes('首元素')))
       const c6 = slotCfg(); c6.role_fallbacks.executor = ['ops-executor-alpha-high', 'ops-executor-alpha-high']
       t('P1 slot：fallback 重复项→错误行', vErrs(c6).some((e) => e.includes('role_fallbacks.executor') && e.includes('重复')))
-      const c7 = slotCfg(); c7.agent_slots['ops-reviewer-alpha-max'] = { provider: 'alpha', model: 'm-alpha', level: 'max' }; c7.agent_defaults.reviewer = 'ops-reviewer-alpha-max'; c7.role_fallbacks.reviewer = ['ops-reviewer-alpha-max']
-      t('P1 slot：默认 executor 与 reviewer 同族→错误行', vErrs(c7).some((e) => e.includes('同族') && e.includes('executor') && e.includes('reviewer')))
+      const c7 = slotCfg(); c7.agent_slots['ops-implreview-alpha-max'] = { provider: 'alpha', model: 'm-alpha', level: 'max' }; c7.agent_defaults.implreview = 'ops-implreview-alpha-max'; c7.role_fallbacks.implreview = ['ops-implreview-alpha-max']
+      t('P1 slot：默认 executor 与 implreview 同族→错误行', vErrs(c7).some((e) => e.includes('同族') && e.includes('executor') && e.includes('implreview')))
       const c8 = slotCfg(); c8.agent_slots['ops-vision-alpha-max'] = { provider: 'alpha', model: 'm-alpha', level: 'max' }; c8.agent_defaults.vision = 'ops-vision-alpha-max'; c8.role_fallbacks.vision = ['ops-vision-alpha-max']
       t('P1 slot：vision 默认档 provider 非多模态→错误行', vErrs(c8).some((e) => e.includes('vision') && e.includes('multimodal')))
+      // B2 批 D-7a：vision 默认档谓词同款例外——startplan（multimodal:false）在场=零
+      // vision 错误行；非 startplan 的非多模态 provider（上向量 alpha）继续拒。
+      const c8s = slotCfg(); c8s.agent_slots['ops-vision-startplan-max'] = { provider: 'startplan', model: 'm-alpha', level: 'max' }; c8s.agent_defaults.vision = 'ops-vision-startplan-max'; c8s.role_fallbacks.vision = ['ops-vision-startplan-max']
+      t('P1 slot：vision 默认档 provider=startplan（文本应急例外）→零 vision multimodal 错误行', vErrs(c8s).every((e) => !(e.includes('vision') && e.includes('multimodal'))))
       const c9 = slotCfg(); c9.providers.legacyx = { family: 'alpha', multimodal: true, legacy: true }; c9.agent_slots['ops-research-legacyx-high'] = { provider: 'legacyx', model: 'm-alpha', level: 'high' }
       t('P1 slot：slot 引用 legacy:true provider→错误行', vErrs(c9).some((e) => e.includes('legacyx') && e.includes('legacy')))
       const c10 = slotCfg(); c10.providers.alpha = { model_family: 'alpha', multimodal: false }
@@ -845,8 +856,8 @@ if (isMain) {
         role_fallbacks: { research: ['ops-research-alpha-high'] },
       }
       const onlyResearchErrs = vErrs(onlyResearch)
-      t('P1 回炉 B-1：agent_slots 仅 research 一角色→缺必需角色错误行', onlyResearchErrs.some((e) => e.includes('缺必需角色') && e.includes('executor')) && onlyResearchErrs.some((e) => e.includes('缺必需角色') && e.includes('diagnostics')))
-      for (const role of ['executor', 'reviewer', 'adjudicator', 'vision']) {
+      t('P1 回炉 B-1：agent_slots 仅 research 一角色→缺必需角色错误行', onlyResearchErrs.some((e) => e.includes('缺必需角色') && e.includes('executor')) && onlyResearchErrs.some((e) => e.includes('缺必需角色') && e.includes('implreview')))
+      for (const role of ['executor', 'implreview', 'adjudicator', 'vision']) {
         const c = slotCfg()
         const defSlot = c.agent_defaults[role]
         delete c.agent_slots[defSlot]
@@ -862,7 +873,7 @@ if (isMain) {
       const cCtor = slotCfg()
       cCtor.agent_slots['ops-research-constructor-high'] = { provider: 'constructor', model: 'm-ctor', level: 'high' }
       t('P1 回炉 B-2：provider=constructor（原型链命中）→未声明/非对象错误行', vErrs(cCtor).some((e) => e.includes('ops-research-constructor-high') && e.includes('未声明') && e.includes('非对象')))
-      for (const role of ['executor', 'reviewer', 'adjudicator', 'vision']) {
+      for (const role of ['executor', 'implreview', 'adjudicator', 'vision']) {
         const lvl = role === 'executor' ? 'high' : 'max'
         const c = slotCfg()
         const slotName = `ops-${role}-constructor-${lvl}`
@@ -874,7 +885,7 @@ if (isMain) {
       const cNoFam = slotCfg(); cNoFam.providers.alpha = { multimodal: false }
       t('P1 回炉 B-2：provider 存在但缺 family→fail-closed 错误行', vErrs(cNoFam).some((e) => e.includes('executor') && e.includes('fail-closed')))
       // 装配岗批（D-3）assembler slot schema 两向量：缺席=validate errors；两键+槽在场=通过
-      // （夹具=slotCfg() 八角色扩展形态；缺席负例三面齐删，只留缺角色一类错误）。
+      // （夹具=slotCfg() 九角色扩展形态；缺席负例三面齐删，只留缺角色一类错误）。
       const cNoAsm = slotCfg(); delete cNoAsm.agent_slots['ops-assembler-alpha-max']; delete cNoAsm.agent_defaults.assembler; delete cNoAsm.role_fallbacks.assembler
       t('装配岗批 slot：agent_slots 缺 assembler→缺必需角色错误行', vErrs(cNoAsm).some((e) => e.includes('缺必需角色') && e.includes('assembler')))
       t('装配岗批 slot：agent_slots/agent_defaults/role_fallbacks 含 assembler→零错误', vSlots(slotCfg()).length === 0)

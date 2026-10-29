@@ -10,7 +10,7 @@ id: C-ARC-01
 title: 按项目上限拆分文件
 category: architecture
 triggers: [文件行数, 拆分, 项目宪法, 超限]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: review
@@ -29,7 +29,7 @@ id: C-ARC-02
 title: 状态机先列态空间与事件
 category: architecture
 triggers: [新增状态机, 改状态迁移, 跨步骤流程]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: review
@@ -48,7 +48,7 @@ id: C-ARC-03
 title: 提交前删除死代码
 category: architecture
 triggers: [死代码, 未引用文件, 重复资产, 提交前]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: checklist
@@ -67,7 +67,7 @@ id: C-ARC-04
 title: 切换方案即删除旧方案
 category: architecture
 triggers: [方案切换, 旧方案, 并存实现, 当前方案]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: review
@@ -86,7 +86,7 @@ id: C-ARC-05
 title: 数值换算只走单一库
 category: architecture
 triggers: [单位换算, 数值换算, 换算库, 手写系数]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: review
@@ -105,7 +105,7 @@ id: C-ARC-06
 title: 区分领域异常与程序缺陷
 category: architecture
 triggers: [领域异常, 程序缺陷, 内部不变量, assert, Result]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: review
@@ -124,7 +124,7 @@ id: C-ARC-07
 title: 保证输出顺序确定
 category: architecture
 triggers: [输出顺序, 无序集合, 落盘, 确定性, 中文键]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: machine
@@ -143,7 +143,7 @@ id: C-ARC-08
 title: 用临时文件原子落盘
 category: architecture
 triggers: [落盘, 原子写, 临时文件, rename, 留存上限]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: review

@@ -721,12 +721,12 @@ function run() {
     t('l9-W1 目录在场→零留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => true }).length === 0)
     // ── P2 批（2026-10-22）：slot 解析/未识别清单/双维度回退归因/声明读取 ──
     const psn = typeof parseSlotName === 'function' ? parseSlotName : null
-    t('P2 parseSlotName：ops-reviewer-699-max 命中（role/provider/level 三段）', (() => {
-      const r = psn && psn('ops-reviewer-699-max')
-      return !!r && r.role === 'reviewer' && r.provider === '699' && r.level === 'max'
+    t('P2 parseSlotName：ops-implreview-699-max 命中（role/provider/level 三段）', (() => {
+      const r = psn && psn('ops-implreview-699-max')
+      return !!r && r.role === 'implreview' && r.provider === '699' && r.level === 'max'
     })())
     t('P2 parseSlotName：未知 role/档位→null（legacy ops-gate1-k1 亦 null）', (() => {
-      return !!psn && psn('ops-gate1-k1') === null && psn('ops-reviewer-699-ultra') === null && psn('ops-unknown-699-max') === null && psn('') === null
+      return !!psn && psn('ops-gate1-k1') === null && psn('ops-implreview-699-ultra') === null && psn('ops-unknown-699-max') === null && psn('') === null
     })())
     // 装配岗批（D-3）：assembler 槽归位正例——岗×源分列可归位 ops-assembler-699-max
     // （role/provider/level 三段解析，常量单源=gen-agents ROLE_ORDER/SLOT_NAME_RE 复用面）。
@@ -736,33 +736,33 @@ function run() {
     })())
     const rps = typeof resolveProfileSlot === 'function' ? resolveProfileSlot : null
     const slotsP2 = {
-      'ops-reviewer-699-max': { provider: '699', model: 'k3', level: 'max' },
+      'ops-implreview-699-max': { provider: '699', model: 'k3', level: 'max' },
       'ops-executor-ds-high': { provider: 'ds', model: 'deepseek-flash', level: 'high' },
     }
     t('P2 resolveProfileSlot：名与 agent_slots 一致→命中', (() => {
-      const r = rps && rps('ops-reviewer-699-max', slotsP2)
-      return !!r && r.slot === 'ops-reviewer-699-max' && r.role === 'reviewer' && r.provider === '699' && r.level === 'max'
+      const r = rps && rps('ops-implreview-699-max', slotsP2)
+      return !!r && r.slot === 'ops-implreview-699-max' && r.role === 'implreview' && r.provider === '699' && r.level === 'max'
     })())
     t('P2 resolveProfileSlot：provider/level 与名不符或缺 slot→null', (() => {
-      return !!rps && rps('ops-reviewer-699-high', slotsP2) === null && rps('ops-reviewer-ds-max', slotsP2) === null && rps('ops-reviewer-699-max', {}) === null
+      return !!rps && rps('ops-implreview-699-high', slotsP2) === null && rps('ops-implreview-ds-max', slotsP2) === null && rps('ops-implreview-699-max', {}) === null
     })())
     const provP2 = {
       'third-syn': { uuid_prefix: 'syn-prov', family: 'kimi' },
       'other-syn': { uuid_prefix: 'zzz', family: 'kimi' },
       'deep-syn': { uuid_prefix: 'ds-host', family: 'deepseek' },
     }
-    const slotP2 = { 'ops-reviewer-699-max': { provider: '699', model: 'k3', level: 'max' } }
+    const slotP2 = { 'ops-implreview-699-max': { provider: '699', model: 'k3', level: 'max' } }
     const fbSlot = detectSilentFallback({
-      metas: [{ profileId: 'ops-reviewer-699-max', childSessionId: 's20', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
+      metas: [{ profileId: 'ops-implreview-699-max', childSessionId: 's20', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
       subagentNet: { s20: { alias: 'other-syn', providerId: 'zzz-host-1', modelId: 'k3s', lastFinish: 'end_turn', fails: 0 } },
       providers: provP2,
       agentSlots: slotP2,
     })
     t('P2 回退归因：同族换源→dimension=slot（declaredSlot 命中+kind 末尾片段）', (() => {
-      return fbSlot.length === 1 && fbSlot[0].dimension === 'slot' && fbSlot[0].declaredSlot === 'ops-reviewer-699-max' && fbSlot[0].declaredFamily === 'kimi' && fbSlot[0].actualFamily === 'kimi' && fbSlot[0].kind.includes('静默回退') && fbSlot[0].kind.includes('（同族换源/换档 slot=ops-reviewer-699-max alias=third-syn→other-syn）')
+      return fbSlot.length === 1 && fbSlot[0].dimension === 'slot' && fbSlot[0].declaredSlot === 'ops-implreview-699-max' && fbSlot[0].declaredFamily === 'kimi' && fbSlot[0].actualFamily === 'kimi' && fbSlot[0].kind.includes('静默回退') && fbSlot[0].kind.includes('（同族换源/换档 slot=ops-implreview-699-max alias=third-syn→other-syn）')
     })())
     const fbFam = detectSilentFallback({
-      metas: [{ profileId: 'ops-reviewer-699-max', childSessionId: 's21', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
+      metas: [{ profileId: 'ops-implreview-699-max', childSessionId: 's21', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
       subagentNet: { s21: { alias: 'deep-syn', providerId: 'ds-host-1', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
       providers: provP2,
       agentSlots: slotP2,
@@ -774,8 +774,8 @@ function run() {
     {
       const fxDir = mkdtempSync(join(tmpdir(), 'log-triage-bind-'))
       try {
-        writeFileSync(join(fxDir, 'ops-reviewer-syn-max.md'), '---\nname: ops-reviewer-syn-max\nmodel: syn-prov/k3s\nthoughtLevel: max\n---\n\nbody\n')
-        const b = rdb && rdb('ops-reviewer-syn-max', fxDir, provP2)
+        writeFileSync(join(fxDir, 'ops-implreview-syn-max.md'), '---\nname: ops-implreview-syn-max\nmodel: syn-prov/k3s\nthoughtLevel: max\n---\n\nbody\n')
+        const b = rdb && rdb('ops-implreview-syn-max', fxDir, provP2)
         t('P2 readDeclaredBinding：临时 fixture 读 model/thoughtLevel+providerAlias/family（禁读真实档案）', !!b && b.model === 'syn-prov/k3s' && b.level === 'max' && b.providerAlias === 'third-syn' && b.family === 'kimi')
         writeFileSync(join(fxDir, 'ops-broken.md'), 'no frontmatter\n')
         t('P2 readDeclaredBinding：档案缺失/无 frontmatter→null', !!rdb && rdb('ops-missing-x', fxDir, provP2) === null && rdb('ops-broken', fxDir, provP2) === null)
@@ -789,7 +789,7 @@ function run() {
     // 699<glmflash（kimi 系任一形态即翻转）；现按当前排序实现（role 主序→level
     // 次序→名字序）重排期望，四行全序核对，另补同 role 跨 level 判别（high<max）。
     const slotsSortFx = {
-      'ops-reviewer-kimia-max': { provider: 'kimia', model: 'k3', level: 'max' },
+      'ops-implreview-kimia-max': { provider: 'kimia', model: 'k3', level: 'max' },
       'ops-research-kimia-max': { provider: 'kimia', model: 'k3', level: 'max' },
       'ops-research-glmflash-high': { provider: 'glmflash', model: 'GLM-5.3-Flash', level: 'high' },
       'ops-research-kimia-high': { provider: 'kimia', model: 'k3', level: 'high' },
@@ -798,11 +798,11 @@ function run() {
       const rows = srows && srows(slotsSortFx, { kimia: { family: 'kimi' }, glmflash: { family: 'glm' } })
       return !!rows && rows.length === 4
         && rows[0].name === 'ops-research-glmflash-high' && rows[1].name === 'ops-research-kimia-high'
-        && rows[2].name === 'ops-research-kimia-max' && rows[3].name === 'ops-reviewer-kimia-max'
+        && rows[2].name === 'ops-research-kimia-max' && rows[3].name === 'ops-implreview-kimia-max'
         && rows[0].family === 'glm' && rows[1].family === 'kimi'
     })())
     t('P2 --slots 未识别清单：resolve 失败者去重排序（命中 slot 排除）', (() => {
-      const u = usp && usp(['ops-reviewer-kimia-max', 'ops-probe', 'ops-auditor', 'ops-probe', 'Explore'], slotsSortFx)
+      const u = usp && usp(['ops-implreview-kimia-max', 'ops-probe', 'ops-auditor', 'ops-probe', 'Explore'], slotsSortFx)
       return !!u && JSON.stringify(u) === JSON.stringify(['Explore', 'ops-auditor', 'ops-probe'])
     })())
     console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)

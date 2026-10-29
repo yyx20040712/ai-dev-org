@@ -4,7 +4,7 @@
  *   ① list/show/resolve/doctor 四条只读命令：列 slot、看定义、按 ROUTE 解析、
  *      体检矩阵×配置一致性；
  *   ② ROUTE 解析（`ROUTE:` 前缀，`;`/`,`/空白分隔，两空格缩进续行；同角色重复
- *      取最后一次并留 note）；旧名解析（`resolve --agent <旧名>`，10 条登记表，
+ *      取最后一次并留 note）；旧名解析（`resolve --agent <旧名>`，8 条登记表，
  *      角色默认型按 agent_defaults 当前默认档、固定 provider 型按 ops-<role>-<provider>-<level>）；
  *   ③ doctor 八项检查 D1–D8（矩阵完整性/键集/键值一致/绑定可解析/vision 多模态/
  *      实现与审核裁决跨族/族可解析/默认与回退覆盖）+ D9 旧名提示（WARN）；
@@ -79,6 +79,8 @@ export function parseRoute(text) {
 }
 
 /** ROUTE 逐项校验：未知角色 / 角色不支持 provider / vision 非多模态。
+ *  vision 谓词（B2 批 D-7a）=multimodal===true 或 provider 恰为 startplan（文本应急
+ *  候选，不承载图像判读）——与 verify-docs/gen-agents/org-config 四面同款。
  *  返回错误数组（空=通过）；错误行内携带合法值。 */
 export function validateRoute(route, matrix) {
   const errors = []
@@ -96,8 +98,8 @@ export function validateRoute(route, matrix) {
       errors.push(`角色「${item.role}」不支持 provider「${item.provider}」——可用 provider：${available.join(', ')}`)
       continue
     }
-    if (item.role === 'vision' && providers[item.provider]?.multimodal !== true)
-      errors.push(`vision 岗 provider「${item.provider}」非多模态（multimodal≠true）——视觉岗只允许多模态 provider`)
+    if (item.role === 'vision' && item.provider !== 'startplan' && providers[item.provider]?.multimodal !== true)
+      errors.push(`vision 岗 provider「${item.provider}」非多模态（multimodal≠true）——视觉岗只允许多模态 provider（startplan 例外=文本应急候选）`)
   }
   return errors
 }
@@ -253,13 +255,15 @@ export function doctorFindings(matrix, cfg, opts = {}) {
     if (parsed.level !== s.level) add('FAIL', 'D4', `slot ${s.slot} 绑定档位=${parsed.level ?? '缺失'} ≠ slot level=${s.level}`)
   }
 
-  // D5：vision 岗每个 slot 的 provider multimodal=true（矩阵与本机 providers 双源核对）
+  // D5：vision 岗每个 slot 的 provider 谓词（矩阵与本机 providers 双源核对；B2 批 D-7a、
+  // 返工 R1 本机侧统一）：multimodal===true 或 provider 恰为 startplan（文本应急例外）
+  // 才过——两侧缺键或非 true 均拒（fail-closed）。
   for (const s of slots.filter((x) => x.role === 'vision')) {
-    if (matrixProviders[s.provider]?.multimodal !== true) add('FAIL', 'D5', `vision slot ${s.slot} 的 provider「${s.provider}」在矩阵中 multimodal≠true`)
-    if (cfgProviders[s.provider] && cfgProviders[s.provider].multimodal === false) add('FAIL', 'D5', `vision slot ${s.slot} 的 provider「${s.provider}」在本机 providers 中 multimodal=false`)
+    if (s.provider !== 'startplan' && matrixProviders[s.provider]?.multimodal !== true) add('FAIL', 'D5', `vision slot ${s.slot} 的 provider「${s.provider}」在矩阵中 multimodal≠true（缺键或非 true 均拒）`)
+    if (s.provider !== 'startplan' && cfgProviders[s.provider] && cfgProviders[s.provider].multimodal !== true) add('FAIL', 'D5', `vision slot ${s.slot} 的 provider「${s.provider}」在本机 providers 中 multimodal≠true（multimodal===true 或 startplan 例外才过——缺键或非 true 均拒）`)
   }
 
-  // D6：默认实现族 ≠ 默认审核族、≠ 默认裁决族
+  // D6：默认实现族 ≠ 默认执行者审核族、≠ 默认裁决族（B2 批 D-8：审核键改 implreview）
   const familyOfDefault = (role) => {
     const name = defaults[role]
     const def = typeof name === 'string' ? cfgSlots[name] : null
@@ -267,9 +271,9 @@ export function doctorFindings(matrix, cfg, opts = {}) {
     return provider ? (familyOf(cfgProviders[provider]) || '') : ''
   }
   const fExec = familyOfDefault('executor')
-  const fRev = familyOfDefault('reviewer')
+  const fRev = familyOfDefault('implreview')
   const fAdj = familyOfDefault('adjudicator')
-  if (!fExec || !fRev || !fAdj) add('FAIL', 'D6', `无法解析默认实现/审核/裁决族（executor=${fExec || '?'} reviewer=${fRev || '?'} adjudicator=${fAdj || '?'}）——明细见 D7/D8`)
+  if (!fExec || !fRev || !fAdj) add('FAIL', 'D6', `无法解析默认实现/审核/裁决族（executor=${fExec || '?'} implreview=${fRev || '?'} adjudicator=${fAdj || '?'}）——明细见 D7/D8`)
   else {
     if (fExec === fRev) add('FAIL', 'D6', `默认实现族=审核族「${fExec}」——须异构（05 §5）`)
     if (fExec === fAdj) add('FAIL', 'D6', `默认实现族=裁决族「${fExec}」——须异构（05 §5）`)
@@ -464,13 +468,13 @@ function selfTest() {
   const r2 = parseRoute('rOuTe: research-glm,executor-ds planner-699')
   t('向量2 逗号/空白分隔可用且 ROUTE 前缀大小写不敏感', r2.items.length === 3 && r2.items.every((x, i) => x.role === ['research', 'executor', 'planner'][i]))
   // 向量3：两空格缩进续行
-  const r3 = parseRoute('ROUTE: research-glmflash;planner-699;\n  executor-ds;reviewer-699')
+  const r3 = parseRoute('ROUTE: research-glmflash;planner-699;\n  executor-ds;implreview-699')
   t('向量3 两空格缩进续行合并解析', r3.items.length === 4 && r3.items[2].role === 'executor' && r3.items[2].provider === 'ds')
   // 向量4：无前缀
   const r4 = (() => { try { parseRoute('research-glm'); return null } catch (e) { return e } })()
   t('向量4 无 ROUTE: 前缀→UsageError', r4?.name === 'UsageError')
   // 向量5：同角色重复取最后一次并记 note
-  const r5 = parseRoute('ROUTE: executor-glm;reviewer-699;executor-ds')
+  const r5 = parseRoute('ROUTE: executor-glm;implreview-699;executor-ds')
   t('向量5 同角色重复→取最后一次并写入 notes', r5.items.length === 2 && r5.items[0].role === 'executor' && r5.items[0].provider === 'ds' && r5.notes.length === 1 && r5.notes[0].includes('executor'))
   // 向量6：未知角色错误含合法角色列表
   const e6 = validateRoute(parseRoute('ROUTE: wizard-glm'), matrix).join('\n')
@@ -484,6 +488,10 @@ function selfTest() {
   mNoVisionGlm.roles.vision.providers = ['glm', 'glmflash']
   const e8 = validateRoute(parseRoute('ROUTE: vision-glm'), mNoVisionGlm).join('\n')
   t('向量8 vision+非多模态 glm→错误（多模态断言）', e8.includes('glm') && e8.includes('多模态'))
+  // 向量8b（B2 批 D-7a）：startplan 文本应急例外在场正例（multimodal:false 仍在 vision
+  // 候选亦零错误——谓词=multimodal===true 或 provider 恰为 startplan，四面同款）。
+  const e8b = validateRoute(parseRoute('ROUTE: vision-startplan'), matrix)
+  t('向量8b vision+startplan（文本应急例外）→零错误', e8b.length === 0)
   // 向量9：resolveRoute 五字段取值
   const cfg9 = compliantCfg()
   const rr = resolveRoute(parseRoute('ROUTE: executor-glm'), matrix, cfg9)[0]
@@ -501,9 +509,9 @@ function selfTest() {
   }
   const order10 = slotRows(cfg10).map((r) => r.slot)
   t('向量10 slotRows 排序稳定（role→level→provider）', JSON.stringify(order10) === JSON.stringify(['ops-research-ds-high', 'ops-research-glm-high', 'ops-research-glm-max', 'ops-planner-glm-max', 'ops-executor-glm-high']))
-  // 向量11：D6 同族
+  // 向量11：D6 同族（B2 批 D-8：D6 审核键改 implreview）
   const cfg11 = compliantCfg()
-  cfg11.agent_defaults.reviewer = 'ops-reviewer-glm-max'
+  cfg11.agent_defaults.implreview = 'ops-implreview-glm-max'
   const f11 = doctorFindings(matrix, cfg11)
   t('向量11 doctor D6 实现/审核同族→FAIL', f11.some((f) => f.code === 'D6' && f.level === 'FAIL' && f.line.includes('审核族')))
   // 向量12：D5 vision 绑非多模态
@@ -511,6 +519,13 @@ function selfTest() {
   cfg12.providers.glmflash.multimodal = false
   const f12 = doctorFindings(matrix, cfg12)
   t('向量12 doctor D5 vision 绑非多模态→FAIL', f12.some((f) => f.code === 'D5' && f.level === 'FAIL' && f.line.includes('glmflash')))
+  // 向量12b（返工 R1）：本机 provider 缺 multimodal 键但有 family → D5 仍拒（缺键≠通过，
+  // fail-closed——原实现只查 ===false 的漏判面）。
+  const cfg12b = compliantCfg()
+  delete cfg12b.providers.ds.multimodal
+  const f12b = doctorFindings(matrix, cfg12b)
+  t('向量12b doctor D5 本机 provider 缺 multimodal 键（有 family）→FAIL（fail-closed）',
+    f12b.some((f) => f.code === 'D5' && f.level === 'FAIL' && f.line.includes('ds') && f.line.includes('multimodal')))
   // 向量13：D4 缺绑定
   const cfg13 = compliantCfg()
   delete cfg13.agent_bindings['ops-executor-glm-high']
@@ -605,24 +620,24 @@ function selfTest() {
   const a29 = resolveAlias('ops-drafter', aliasMatrix, aliasCfgLive)
   t('向量29 ops-drafter → ops-planner-699-max', a29?.slot === 'ops-planner-699-max' && a29?.role === 'planner')
   const a30 = resolveAlias('ops-auditor', aliasMatrix, aliasCfgLive)
-  t('向量30 ops-auditor → ops-reviewer-yyx-max（矩阵 reviewer default 派生·本批不动矩阵 reviewer default）', a30?.slot === 'ops-reviewer-yyx-max' && a30?.role === 'reviewer')
+  t('向量30 ops-auditor → ops-implreview-ds-max（B2 批 D-3：旧代码审查名固定解析 ds 承载执行者审核）', a30?.slot === 'ops-implreview-ds-max' && a30?.role === 'implreview' && a30?.provider === 'ds')
   const a31 = resolveAlias('ops-adjudicator', aliasMatrix, aliasCfgLive)
   const exp31 = `ops-adjudicator-${aliasMatrix.roles.adjudicator.default}-${aliasMatrix.roles.adjudicator.level}`
   t('向量31 ops-adjudicator → 矩阵 default 派生槽名', a31?.slot === exp31 && a31?.role === 'adjudicator')
   const a32 = resolveAlias('ops-probe', aliasMatrix, aliasCfgLive)
-  t('向量32 ops-probe → ops-diagnostics-ds-max', a32?.slot === 'ops-diagnostics-ds-max' && a32?.role === 'diagnostics')
+  t('向量32 退役别名 ops-probe → null（B2 批 D-3/D-5：诊断整链退役，登记表已除名不静默回落）', a32 === null)
   const a33 = resolveAlias('ops-diagnostics', aliasMatrix, aliasCfgLive)
-  t('向量33 ops-diagnostics → ops-diagnostics-ds-max', a33?.slot === 'ops-diagnostics-ds-max' && a33?.role === 'diagnostics')
+  t('向量33 退役别名 ops-diagnostics → null（同上——两退役别名解析为 null）', a33 === null)
   const a34 = resolveAlias('ops-executor', aliasMatrix, (() => { const c = aliasCfg(); c.agent_defaults.executor = 'ops-executor-glm-high'; return c })())
   t('向量34 默认档切回 ops-executor-glm-high 后旧名解析随动（单源直读，无第二视图）', a34?.slot === 'ops-executor-glm-high' && a34?.provider === 'glm')
   const a35 = resolveAlias('ops-gate1-k1', aliasMatrix, aliasCfgLive)
-  t('向量35 ops-gate1-k1 → ops-reviewer-699-max', a35?.slot === 'ops-reviewer-699-max')
+  t('向量35 ops-gate1-k1 → ops-implreview-699-max（role 改 implreview·固定 699 不变）', a35?.slot === 'ops-implreview-699-max')
   const a36 = resolveAlias('ops-gate1-k2', aliasMatrix, aliasCfgLive)
-  t('向量36 ops-gate1-k2 → ops-reviewer-zipoo-max', a36?.slot === 'ops-reviewer-zipoo-max')
+  t('向量36 ops-gate1-k2 → ops-implreview-zipoo-max', a36?.slot === 'ops-implreview-zipoo-max')
   const a37 = resolveAlias('ops-gate1-k3', aliasMatrix, aliasCfgLive)
-  t('向量37 ops-gate1-k3 → ops-reviewer-yyx-max', a37?.slot === 'ops-reviewer-yyx-max')
+  t('向量37 ops-gate1-k3 → ops-implreview-yyx-max', a37?.slot === 'ops-implreview-yyx-max')
   const a38 = resolveAlias('ops-gate1-d1', aliasMatrix, aliasCfgLive)
-  t('向量38 ops-gate1-d1 → ops-reviewer-ds-max', a38?.slot === 'ops-reviewer-ds-max')
+  t('向量38 ops-gate1-d1 → ops-implreview-ds-max', a38?.slot === 'ops-implreview-ds-max')
   const a39 = resolveAlias('ops-nosuch', aliasMatrix, aliasCfgLive)
   t('向量39 未登记旧名 ops-nosuch → null（不静默回落）', a39 === null)
   const cfg40 = aliasCfg()
@@ -639,9 +654,9 @@ function selfTest() {
   const d41b = doctorFindings(aliasMatrix, cfg41b).filter((f) => f.code === 'D9')
   t('向量41b D9 建议＝当前默认档（agent_defaults 直读——默认档非旧名时不落矩阵兜底）',
     d41b.length === 1 && d41b[0].level === 'WARN' && d41b[0].line.includes('ops-executor-ds-high') && !d41b[0].line.includes('ops-executor-glmflash-high'))
-  const expectAliases = ['ops-executor', 'ops-drafter', 'ops-auditor', 'ops-adjudicator', 'ops-probe', 'ops-diagnostics', 'ops-gate1-k1', 'ops-gate1-k2', 'ops-gate1-k3', 'ops-gate1-d1']
+  const expectAliases = ['ops-executor', 'ops-drafter', 'ops-auditor', 'ops-adjudicator', 'ops-gate1-k1', 'ops-gate1-k2', 'ops-gate1-k3', 'ops-gate1-d1']
   const actualAliases = Object.keys(aliasMatrix.aliases || {})
-  t('向量42 真实矩阵 aliases 键集恰为 10 个旧名（逐字比对）',
+  t('向量42 真实矩阵 aliases 键集恰为 8 个旧名（逐字比对——ops-probe/ops-diagnostics 两退役别名已除名）',
     JSON.stringify(actualAliases) === JSON.stringify(expectAliases))
   const noAliasMatrix = clone(aliasMatrix)
   delete noAliasMatrix.aliases
@@ -665,13 +680,14 @@ function selfTest() {
     d44else.length === 1 && d44else[0].line.includes('ops-executor-glmflash-high') &&
     d44miss.length === 1 && !d44miss[0].line.includes('ops-executor-glmflash-high') && d44miss[0].line.includes('对应角色的生效默认档'))
 
-  // 向量45/46（L26·账本 L636 ③）：resolve 现状特征固化（行为已存在，无新行为）。
+  // 向量45/46（L26·账本 L636 ③；46 反转=B2 批 D-5/D-8）：resolve 现状特征固化。
   const e45 = validateRoute(parseRoute('ROUTE: reviewer2-ds'), matrix).join('\n')
   t('向量45 resolve 拒绝语义：ROUTE: reviewer2-ds → 错误含未知角色 reviewer2 与合法角色列表（现状固化，不新增解析支持）',
     e45.includes('未知角色「reviewer2」') && ROLE_ORDER.every((r) => e45.includes(r)))
+  const e46 = validateRoute(parseRoute('ROUTE: diagnostics-ds'), matrix).join('\n')
   const s46 = resolveRoute(parseRoute('ROUTE: diagnostics-ds'), matrix, { providers: {}, agent_slots: {} })
-  t('向量46 resolve 正常解析：ROUTE: diagnostics-ds → 校验零错误且解析到 ops-diagnostics-ds-max（现状固化）',
-    validateRoute(parseRoute('ROUTE: diagnostics-ds'), matrix).length === 0 && s46.length === 1 && s46[0].slot === 'ops-diagnostics-ds-max')
+  t('向量46 退役角色拒绝语义：ROUTE: diagnostics-ds → validateRoute 报未知角色且解析结果无有效注册槽（B2 批诊断整链退役反转——原正向解析向量作废）',
+    e46.includes('未知角色「diagnostics」') && s46.length === 1 && s46[0].slot === '?')
 
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)

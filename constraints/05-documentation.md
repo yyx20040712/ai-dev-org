@@ -10,7 +10,7 @@ id: C-DOC-01
 title: 矛盾时删文档只留一份权威
 category: documentation
 triggers: [文档矛盾, 单一权威, README, 删文档]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: review
@@ -29,7 +29,7 @@ id: C-DOC-02
 title: 文档不写易过期数字
 category: documentation
 triggers: [文档数字, 测试数, 手写数字, CI]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: warning
 enforcement: review
@@ -48,7 +48,7 @@ id: C-DOC-03
 title: 中文统一 UTF-8 并验证可读
 category: documentation
 triggers: [编码, 乱码, 中文文档, UTF-8]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: warning
 enforcement: checklist
@@ -67,7 +67,7 @@ id: C-DOC-04
 title: 规范与校验器必须同步演进
 category: documentation
 triggers: [改规范, 改校验脚本, 新增机检]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: warning
 enforcement: checklist
@@ -86,7 +86,7 @@ id: C-DOC-05
 title: 事实按寻址表落唯一真相源
 category: documentation
 triggers: [唯一真相源, 寻址表, 双源, 正文抄写]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: review
@@ -105,7 +105,7 @@ id: C-DOC-06
 title: 历史件只追加或归档
 category: documentation
 triggers: [历史记录, 改写, 勘误, 追加]
-roles: [executor, reviewer, adjudicator]
+roles: [executor, implreview, adjudicator]
 phases: [implement, review]
 severity: blocking
 enforcement: review
@@ -124,7 +124,7 @@ id: C-DOC-07
 title: API 明细由生成命令产出
 category: documentation
 triggers: [API 文档, 生成命令, 手抄, 端点清单]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: warning
 enforcement: review

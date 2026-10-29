@@ -10,7 +10,7 @@ id: C-VER-01
 title: 测试入口统一，CI 输出为唯一权威
 category: verification
 triggers: [测试入口, CI, 测试数字]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: review
@@ -29,7 +29,7 @@ id: C-VER-02
 title: 门禁全量本地跑
 category: verification
 triggers: [提交前, 门禁, 全量]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review, close]
 severity: blocking
 enforcement: checklist
@@ -48,7 +48,7 @@ id: C-VER-03
 title: 新测试必须先失败一次
 category: verification
 triggers: [新增测试, 修改断言, 修复缺陷]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: machine
@@ -71,7 +71,7 @@ id: C-VER-04
 title: e2e 断言必须落到渲染真实文本
 category: verification
 triggers: [e2e, 断言, 渲染文本]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: review
@@ -90,7 +90,7 @@ id: C-VER-05
 title: 落盘加独立回读断言才算生效
 category: verification
 triggers: [落盘, 回读, 断言]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: review
@@ -109,7 +109,7 @@ id: C-VER-06
 title: 路径拼接必须做穿越用例
 category: verification
 triggers: [路径拼接, 安全, 穿越用例]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: machine
@@ -147,7 +147,7 @@ id: C-VER-08
 title: 数值断言分层
 category: verification
 triggers: [数值断言, 确定性, 容差]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: review
@@ -166,7 +166,7 @@ id: C-VER-09
 title: 断言必须检验行为
 category: verification
 triggers: [断言, 异常用例, 行为]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: review
@@ -189,7 +189,7 @@ id: C-VER-10
 title: 验算闭环主副算例全量
 category: verification
 triggers: [验算, 算例, 闭环]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: warning
 enforcement: review
@@ -208,7 +208,7 @@ id: C-VER-11
 title: 不能用人工判断替代机检
 category: verification
 triggers: [机检, 人工判断, 缺位]
-roles: [reviewer, adjudicator]
+roles: [implreview, adjudicator]
 phases: [review, adjudicate]
 severity: blocking
 enforcement: review
@@ -227,7 +227,7 @@ id: C-VER-12
 title: 任何提交都跑同一套门禁
 category: verification
 triggers: [提交, 门禁, 亲笔]
-roles: [executor, reviewer, adjudicator]
+roles: [executor, implreview, adjudicator]
 phases: [implement, review, close]
 severity: blocking
 enforcement: checklist

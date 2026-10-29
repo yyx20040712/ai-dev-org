@@ -116,8 +116,9 @@ export function parseBindingValue(v) {
  *  改写为不含 `$` 的 model 段，并在其后插入/核对独立 `thoughtLevel:` 行。
  *  已声明占位一次替换，缺绑定保留+点名；**渲染后残留任何 `{{…binding…` 形态
  *  （空格/点号等畸形占位，正则未认=按无占位直装的逃逸面）一并计入 missing
- *  （malformed: 前缀）——禁静默带占位部署**。无占位模板=恒等；无 model 行模板
- *  （ops-probe/ops-diagnostics 未绑定形态）=恒等且不算缺失。 */
+ *  （malformed: 前缀）——禁静默带占位部署**。无占位模板=恒等；无 model 行的
+ *  未绑定模板=恒等且不算缺失（旧 ops-probe/ops-diagnostics 未绑定形态已随 B2 批
+ *  诊断整链退役——现役矩阵各岗绑定面全绑，本分支仅保留通用防御语义）。 */
 export function renderAgentTemplate(text, bindings) {
   const missing = []
   const src = String(text)
@@ -196,7 +197,7 @@ export function checkThoughtLevel(level) {
  *  provider 与文件名中段一致、slot.model/level 与渲染值一致；legacy 名=skip
  *  （调用方汇总 legacy 件数，不计 warn）。 */
 export function checkAgentName(name, slotDef, rendered = {}) {
-  const m = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics|assembler)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
+  const m = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
   if (!m) return { level: 'skip', skipped: true, line: '' }
   const [, , provider, level] = m
   const base = String(name).replace(/\.md$/, '')
@@ -821,7 +822,7 @@ function selfTest() {
     return r.missing.some((m) => m.startsWith('missing-level:')) && r.missing.some((m) => m.includes('ops-x'))
   })())
   t('P2 渲染：未绑定模板（frontmatter 无 model 行）→恒等且零缺失', (() => {
-    const tpl = '---\nname: ops-probe\n---\n\n正文无占位\n'
+    const tpl = '---\nname: ops-unbound-free\n---\n\n正文无占位\n'
     const r = renderAgentTemplate(tpl, {})
     return r.text === tpl && r.missing.length === 0
   })())

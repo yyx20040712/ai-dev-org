@@ -1,8 +1,8 @@
 /**
  * gen-agents —— 按逻辑矩阵生成待位代理模板（P4）。
  * 职责：
- *   ① templates/agents.matrix.json 装载与契约校验（八岗/七源/默认与回退序/工具面/
- *      vision 多模态约束）；
+ *   ① templates/agents.matrix.json 装载与契约校验（九岗/七源/键序全等/默认与回退序/工具面/
+ *      vision 多模态约束——startplan 文本应急例外见 B2 批 D-7a）；
  *   ② 由 role × provider 派生 slot（ops-<role>-<provider>-<level>；总数=矩阵派生，
  *      L19 起自检期望以独立算式 Σ roles[role].providers.length 复算，不写死）；
  *   ③ 以 templates/agents/_roles/<role>.md 为正文母本生成待位模板——frontmatter
@@ -29,33 +29,36 @@ export const DEFAULT_OUT_DIR = join(SKILL_ROOT, 'templates', 'agents')
 export const MANIFEST_NAME = '.manifest.json'
 export const STAGING_PREFIX = '.staging-'
 
-/** 固定八岗（顺序=矩阵声明序=slot 派生序；D1/自检共用；assembler=装配岗批账本 700 ②末位追加）。 */
-export const ROLE_ORDER = ['research', 'planner', 'executor', 'reviewer', 'adjudicator', 'vision', 'diagnostics', 'assembler']
+/** 固定九岗（顺序=矩阵声明序=slot 派生序；D1/自检共用；三审拆岗与键序重排=B2 批 D-1/D-2，
+ *  键序与 loadMatrix 全等断言共用本常量——乱序矩阵在装载期即拒）。 */
+export const ROLE_ORDER = ['research', 'planner', 'assembler', 'executor', 'tbreview', 'planreview', 'implreview', 'adjudicator', 'vision']
 export const REQUIRED_LEVELS = ['low', 'high', 'max']
-export const SLOT_NAME_RE = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics|assembler)-([a-z0-9]+)-(low|high|max)$/
+export const SLOT_NAME_RE = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)$/
 
 /** 角色→color 固定映射（§4.2：不得随机；与宿主子智能体列表配色一致）。 */
 export const ROLE_COLORS = {
   research: 'cyan',
   planner: 'blue',
+  assembler: 'orange',
   executor: 'green',
-  reviewer: 'purple',
+  tbreview: 'purple',
+  planreview: 'yellow',
+  implreview: 'purple',
   adjudicator: 'red',
   vision: 'magenta',
-  diagnostics: 'yellow',
-  assembler: 'orange',
 }
 
 /** 角色→职责短语（description 用；只描述职责，不写模型显示名）。 */
 export const ROLE_PURPOSES = {
   research: '只读检索与来源取证',
   planner: '只读方案权衡与推荐',
-  executor: '按任务书实现与自验',
-  reviewer: '只读按包审核与分级',
+  assembler: '任务书装配与修入循环承接',
+  executor: '按任务书实现、自验与诊断取证',
+  tbreview: '派发前任务书审包只读审核',
+  planreview: '只读规划审包对抗审核',
+  implreview: '只读按包隔离一审与分级',
   adjudicator: '只读独立裁决与复算',
   vision: '只读视觉判据核对',
-  diagnostics: '只读时间线与根因诊断',
-  assembler: '任务书装配与修入循环承接',
 }
 
 const isPlainObject = (v) => v != null && typeof v === 'object' && !Array.isArray(v)
@@ -81,6 +84,10 @@ export function loadMatrix(path = MATRIX_PATH) {
   if (!isPlainObject(roles)) throw new Error(`矩阵 ${path} roles 须为对象`)
   for (const role of ROLE_ORDER) if (!own(roles, role)) throw new Error(`矩阵 roles 缺角色「${role}」——${ROLE_ORDER.length} 岗须齐全（${ROLE_ORDER.join(', ')}）`)
   for (const role of Object.keys(roles)) if (!ROLE_ORDER.includes(role)) throw new Error(`矩阵 roles 含未知角色「${role}」——只允许 ${ROLE_ORDER.join(', ')}`)
+  // B2 批 D-2 键序全等断言：roles 键声明序须与 ROLE_ORDER 逐键全等（乱序=装载期拒，
+  // slot 派生序/面板卡序/constraint 面共用本序——防两序并存回潮；缺角色/未知角色先行点名）。
+  if (JSON.stringify(Object.keys(roles)) !== JSON.stringify(ROLE_ORDER))
+    throw new Error(`矩阵 ${path} roles 键序须与固定九岗序全等（期望 ${ROLE_ORDER.join('→')}，实际 ${Object.keys(roles).join('→')}）`)
   for (const [role, def] of Object.entries(roles)) {
     if (!isPlainObject(def)) throw new Error(`矩阵 roles.${role} 须为对象`)
     if (typeof def.title !== 'string' || !def.title.trim()) throw new Error(`矩阵 roles.${role}.title 须为非空字符串`)
@@ -102,8 +109,11 @@ export function loadMatrix(path = MATRIX_PATH) {
       throw new Error(`矩阵 roles.${role}.tools 须为非空字符串数组`)
     if (typeof def.readonly !== 'boolean') throw new Error(`矩阵 roles.${role}.readonly 须为布尔值`)
   }
+  // B2 批 D-7a：vision 候选谓词=multimodal===true 或 provider 恰为 startplan（文本应急
+  // 候选——multimodal:false 是实测事实不改；与 verify-docs/agent-slots/org-config 四面同款）。
   for (const p of roles.vision.providers)
-    if (providers[p].multimodal !== true) throw new Error(`矩阵 roles.vision 的 provider「${p}」multimodal≠true——视觉岗只允许多模态源`)
+    if (p !== 'startplan' && providers[p].multimodal !== true)
+      throw new Error(`矩阵 roles.vision 的 provider「${p}」multimodal≠true——视觉岗只允许多模态源（startplan 例外=文本应急候选，不得承载图像判读）`)
   return m
 }
 
@@ -541,6 +551,23 @@ function selfTest() {
     } finally { rmSync(fx, { recursive: true, force: true }) }
   }
   t('向量10 非法矩阵（未知角色/未声明 provider/default 不在 providers/vision 非多模态）→ 抛错点名', badOk)
+  // 向量10b（B2 批 D-2）：roles 键序全等断言——合法九岗集但键序颠倒两位的夹具，装载期
+  // 抛错并点名「键序」（乱序负例；正例=真实矩阵装载在本函数入口已覆盖）。
+  {
+    const cOrder = JSON.parse(JSON.stringify(matrix))
+    const ks = Object.keys(cOrder.roles)
+    ;[ks[3], ks[4]] = [ks[4], ks[3]]
+    cOrder.roles = Object.fromEntries(ks.map((k) => [k, cOrder.roles[k]]))
+    const fxOrder = mkdtempSync(join(tmpdir(), 'gen-agents-order-'))
+    try {
+      const pOrd = join(fxOrder, 'matrix.json')
+      writeFileSync(pOrd, JSON.stringify(cOrder))
+      let eOrd = null
+      try { loadMatrix(pOrd) } catch (e) { eOrd = e }
+      t('向量10b roles 键序乱序（合法岗集·两位颠倒）→ loadMatrix 抛错并点名键序全等',
+        !!eOrd && String(eOrd.message).includes('键序') && String(eOrd.message).includes('research'))
+    } finally { rmSync(fxOrder, { recursive: true, force: true }) }
+  }
   // 向量11：dry-run 不产生文件
   const fxDry = mkdtempSync(join(tmpdir(), 'gen-agents-dry-'))
   try {

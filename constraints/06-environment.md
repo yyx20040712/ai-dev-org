@@ -10,7 +10,7 @@ id: C-ENV-01
 title: Windows 下删文件用 Python
 category: environment
 triggers: [删文件, Git Bash, rm, Windows]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: warning
 enforcement: checklist
@@ -29,7 +29,7 @@ id: C-ENV-02
 title: tar 与 npm 先前置系统目录
 category: environment
 triggers: [tar, npm, Git Bash, 盘符]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: warning
 enforcement: checklist
@@ -48,7 +48,7 @@ id: C-ENV-03
 title: 时间格式统一 UTC ISO 8601
 category: environment
 triggers: [时间戳, UTC, ISO 8601, 本地时间]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: review
@@ -67,7 +67,7 @@ id: C-ENV-04
 title: 目录删除失败先核数据
 category: environment
 triggers: [目录删除, 迁移, 残留目录, ENOTEMPTY]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: warning
 enforcement: checklist
@@ -86,7 +86,7 @@ id: C-ENV-05
 title: 迁移后重建环境再验收
 category: environment
 triggers: [迁移, 环境重建, manifest, 哈希验收]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: warning
 enforcement: checklist
@@ -105,7 +105,7 @@ id: C-ENV-06
 title: 升级前核对矩阵与安装钩子
 category: environment
 triggers: [升级, 预编译, 安装钩子, 兼容矩阵]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [design, implement]
 severity: warning
 enforcement: checklist
@@ -124,7 +124,7 @@ id: C-ENV-07
 title: 标识符守布尔前缀与字符集
 category: environment
 triggers: [命名, 布尔前缀, 标识符, 字符集]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [design, implement, review]
 severity: warning
 enforcement: review
