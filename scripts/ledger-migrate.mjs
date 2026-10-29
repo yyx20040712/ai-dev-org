@@ -3,14 +3,14 @@
  * 语义单源=docs/tasks/B1-gates-ledger-flags.md D-5（候选快照受控交接）＋D-13②（受控回退）。
  * 归属键=project_id ?? project（02 §9）；ai-dev-org 行→项目账本，其余→隔离件（源相对序；归一化分组仅用于 dry-run/候选件计数与待裁登记）。
  * 子命令：--dry-run（只读产候选件）／--apply --candidate <file>（复算源三项逐项全等才写·不符 exit 1；目标件已存在非空=exit 1 拒——D-13① append-only）／
- * --verify（冻结源锚＋两目标快照段保序对账＋合法追加排除回显；manifest 结构破损=装载错 3·内容不符=判定红 1——R15 统一口径）／
+ * --verify（冻结源锚＋两目标快照段保序对账＋合法追加排除回显；manifest 结构破损=装载错 3·内容不符=判定红 1——R15 统一口径；source 字段级形态破损同归装载错族——W-2）／
  * --rollback --manifest <file>（前置=verify 判红；旧账本受控追加 schema v3 event=stopped 异常行——D-13② 唯一例外）。
- * 演练：--fixture-root <dir>（label→source/project/quarantine/candidate.json·manifest 显式或缺省）——realpath 三面 containment＋symlink 载体拒（R14）·写路径全限定夹具根。
+ * 演练：--fixture-root <dir>（label→source/project/quarantine/candidate.json·manifest 显式或缺省）——realpath 三面 containment＋symlink 载体拒（R14/R14b）＋既存写目标 nlink>1 硬链拒（W-1·生产写侧同守卫）·写路径全限定夹具根。
  * 生产：源/隔离/候选=SKILL_ROOT/.zcode/ 同名件（隔离件 env ORG_QUARANTINE_PATH=内部测试设施）；项目账本=ledgerPathFor(projectRoot) 真派生（R13——apply/verify/
  * rollback 共用同一派生路径·非默认 ledger_path 端到端支持；manifest label=身份串不作路径展开）；项目根=resolveProjectRoot（--project＞projects ai-dev-org {root} 注册项＞
  * homedir 相对约定回退·stdout 回显 root 与依据；org-config 装载异常 exit 3 不吞）。锁=目标账本同目录 <ledger>.lock。退出码口径单源=06 §5.8（不复写）。
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, readdirSync, statSync, realpathSync, symlinkSync, lstatSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, readdirSync, statSync, realpathSync, symlinkSync, lstatSync, linkSync } from 'node:fs'
 import { join, dirname, resolve, basename } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -148,7 +148,7 @@ function selfTest() {
         try { migratePaths({ fixtureRoot: link, candidate: join(link, 'candidate.json') }); return false } catch (e) { return e instanceof UsageError && String(e.message).includes('符号链接') }
       } finally { rmSync(link, { force: true }); rmSync(real, { recursive: true, force: true }) }
     })())
-    t('⑯ R15 CLI：schema 错/缺 source/targets 数量不符→真 exit 3；内容不符→真 exit 1', (() => {
+    t('⑯ R15 CLI：schema 错/缺 source/source 字段级破损（W-2 八型：{}·bad·label/lines/sha256 各缺失或类型错）/targets 数量不符→真 exit 3；内容不符→真 exit 1', (() => {
       const mfReal = rr0 ? join(rr0.root, '.zcode', 'org-ledger.migration.json') : null
       if (!mfReal || !existsSync(mfReal)) return false
       const raw = readFileSync(mfReal, 'utf8')
@@ -158,14 +158,32 @@ function selfTest() {
         mk((t) => JSON.stringify({ ...JSON.parse(t), schema: 'ledger-migration/9' })),
         mk((t) => { const m = JSON.parse(t); delete m.source; return JSON.stringify(m) }),
         mk((t) => { const m = JSON.parse(t); m.targets = m.targets.slice(0, 1); return JSON.stringify(m) }),
+        mk((t) => JSON.stringify({ ...JSON.parse(t), source: {} })), // W-2：整体空
+        mk((t) => JSON.stringify({ ...JSON.parse(t), source: 'bad' })), // W-2：整体类型错
+        mk((t) => { const m = JSON.parse(t); delete m.source.label; return JSON.stringify(m) }), // W-2：label 缺失（原态静默绿）
+        mk((t) => { const m = JSON.parse(t); m.source.label = 7; return JSON.stringify(m) }), // W-2：label 类型错（原态静默绿）
+        mk((t) => { const m = JSON.parse(t); delete m.source.lines; return JSON.stringify(m) }), // W-2：lines 缺失
+        mk((t) => { const m = JSON.parse(t); m.source.lines = '717'; return JSON.stringify(m) }), // W-2：lines 类型错
+        mk((t) => { const m = JSON.parse(t); delete m.source.sha256; return JSON.stringify(m) }), // W-2：sha256 缺失
+        mk((t) => { const m = JSON.parse(t); m.source.sha256 = 'zz'; return JSON.stringify(m) }), // W-2：sha256 类型错
       ]
       const content = mk((t) => t.replace(/("line_sha256": \[\s*")([0-9a-f])/, (mm, g1, g2) => g1 + '0'))
       const codes = [...bads.map(runCli), runCli(content)]
       for (const p2 of [...bads, content]) rmSync(p2, { force: true })
-      return codes[0] === 3 && codes[1] === 3 && codes[2] === 3 && codes[3] === 1
+      return codes.slice(0, -1).every((c) => c === 3) && codes[codes.length - 1] === 1
     })())
     t('⑪ R2 配置破损不吞：CLI 装载 catch 分支持 exit 3（tripwire·源面断言）', (() => { const src = readFileSync(fileURLToPath(import.meta.url), 'utf8'); return /装载失败：\$\{e\.message\}（返工 R2[^）]*）[\s\S]{0,80}process\.exit\(3\)/.test(src) })())
     t('⑫ R3 逃逸负例：fixture 模式 candidate 越出夹具根→用法错拒（migratePaths 围栏）', (() => { try { if (typeof migratePaths === 'function') migratePaths({ fixtureRoot: '/synthetic/fx', candidate: '/synthetic/outside/candidate.json' }); return false } catch (e) { return e instanceof UsageError && String(e.message).includes('夹具根') } })())
+    t('⑰ W-1 负例：夹具内硬链候选件（fs.link→夹具外受害件）→dry-run 用法错拒＋受害件内容零改写（红态=守卫缺席时写穿实改·round3 主席席复算同型）', typeof runDryRun === 'function' && (() => {
+      const fx = mkdtempSync(join(tmpdir(), 'lm-w1-')), victim = join(tmpdir(), 'lm-w1-victim-' + process.pid + '.json')
+      try {
+        writeFileSync(join(fx, 'source.jsonl'), JSON.stringify(row('2026-03-01T00:00:00Z', 3, 'w1-1', AI_PROJECT, AI_PROJECT, 'switch')) + '\n')
+        writeFileSync(victim, '{"victim":"pristine"}')
+        linkSync(victim, join(fx, 'candidate.json')) // 硬链无 realpath 痕迹——containment 必过·唯 nlink 可辨
+        let rejected = false; try { runDryRun({ fixtureRoot: fx }) } catch (e) { rejected = e instanceof UsageError && String(e.message).includes('硬链接') }
+        return rejected && readFileSync(victim, 'utf8') === '{"victim":"pristine"}' // 拒收＋夹具外零改写双断言
+      } finally { rmSync(fx, { recursive: true, force: true }); rmSync(victim, { force: true }) }
+    })())
   } catch (e) { t(`夹具异常（${e.message}）`, false) } finally { if (fx) rmSync(fx, { recursive: true, force: true }) }
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
@@ -197,6 +215,7 @@ export function resolveProjectRoot(explicit, projectsPartition = {}) {
   return null
 }
 const realOf = (x) => { try { return realpathSync(x) } catch { return resolve(x) } } // 缺席目标=字面解析；既存=symlink 真身
+const rejectHardlink = (p, kind) => { let s = null; try { s = lstatSync(p) } catch { return } if (s && s.nlink > 1) throw new UsageError(`${kind} 写目标为硬链接（nlink=${s.nlink}——共享 inode 写穿逃逸面·夹具外受害件会被实际改写——W-1 一律拒）`) } // W-1：hardlink 无 realpath 痕迹，唯 nlink 可辨
 export function assertFixtureConfine(fixtureRoot, p, kind) { // 返工 R3/R14/R14b：realpath 三面 containment＋写目标节点 lstat（含悬空 symlink 一律拒）
   if (!fixtureRoot || !p) return
   const root = realOf(fixtureRoot), target = resolve(p)
@@ -204,6 +223,7 @@ export function assertFixtureConfine(fixtureRoot, p, kind) { // 返工 R3/R14/R1
   try { st = lstatSync(target) } catch { st = null } // 缺席=无节点（悬空链接本体 lstat 仍可命中）
   if (st && st.isSymbolicLink())
     throw new UsageError(`${kind} 写路径为符号链接节点（${target}——含悬空链接·写穿逃逸面——R14b 一律拒）`)
+  rejectHardlink(target, kind) // W-1：既存写目标 nlink>1 拒（复用上方 lstat 语义·独立 lstat 保持守卫单源可复用于生产写侧）
   let real = target
   try { real = realpathSync(target) } catch { real = join(realOf(dirname(target)), basename(target)) } // 目标缺席→父目录真身＋basename
   if (real !== root && !real.startsWith(root + '/'))
@@ -263,6 +283,7 @@ export function runDryRun(opts = {}) {
   const src = readSource(P.source)
   const cand = buildCandidate(src.raw, src.lines)
   mkdirSync(dirname(P.candidate), { recursive: true })
+  rejectHardlink(P.candidate, '候选件写目标') // W-1：round3 写穿实态守卫——夹具外受害件零改写由自检⑰承载
   writeFileSync(P.candidate, JSON.stringify(cand, null, 2) + '\n')
   const iso = Object.entries(cand.groups).filter(([k]) => k !== AI_PROJECT)
   console.log(`ledger-migrate dry-run（只读）：源=${LABEL_SOURCE} 行数=${cand.source.lines} sha256=${cand.source.sha256}`)
@@ -276,11 +297,11 @@ export function runDryRun(opts = {}) {
 // ── apply（D-5 受控交接：复算源三项与候选件逐项全等才写；不删不改源）──
 function writeLedgerFile(p, lines) {
   mkdirSync(dirname(p), { recursive: true })
-  return withFileLock(p + '.lock', () => writeFileSync(p, lines.length ? lines.join('\n') + '\n' : ''))
+  return withFileLock(p + '.lock', () => { rejectHardlink(p, '账本写目标'); writeFileSync(p, lines.length ? lines.join('\n') + '\n' : '') }) // W-1：锁内复查（apply 两目标件——空体硬链也拦）
 }
 function appendLedgerLine(p, line) {
   mkdirSync(dirname(p), { recursive: true })
-  return withFileLock(p + '.lock', () => { const cur = existsSync(p) ? readFileSync(p, 'utf8') : ''; writeFileSync(p, (cur && !cur.endsWith('\n') ? cur + '\n' : cur) + line + '\n') })
+  return withFileLock(p + '.lock', () => { rejectHardlink(p, '账本写目标'); const cur = existsSync(p) ? readFileSync(p, 'utf8') : ''; writeFileSync(p, (cur && !cur.endsWith('\n') ? cur + '\n' : cur) + line + '\n') }) // W-1：锁内复查（rollback 受控追加面）
 }
 export function runApply(opts = {}) {
   const P = migratePaths(opts)
@@ -312,6 +333,7 @@ export function runApply(opts = {}) {
     ],
   }
   mkdirSync(dirname(P.manifest), { recursive: true })
+  rejectHardlink(P.manifest, 'manifest 写目标') // W-1：apply 写 manifest 同守卫
   writeFileSync(P.manifest, JSON.stringify(manifestObj, null, 2) + '\n')
   console.log(`[ok] apply 完成：项目账本 ${ai.length} 行（${P.projectLedger}）／隔离件 ${other.length} 行（${P.quarantine}·源相对序）／manifest 已落 ${P.manifest}`)
   console.log(`[ok] 冻结源 ${src.lines.length} 行 sha256=${sha256Buf(src.raw).slice(0, 16)}…——源文件零改写（冻结只读），后续写入者改走项目账本（R4/health-scan 随动）`)
@@ -331,6 +353,8 @@ export function runVerify(opts = {}) {
   let mf = null
   try { mf = JSON.parse(readFileSync(P.manifest, 'utf8')) } catch (e2) { const e = new Error(`manifest 解析失败 ${P.manifest}: ${e2.message}`); e.code = 'MANIFEST_MISSING'; throw e }
   if (!mf || mf.schema !== MANIFEST_SCHEMA || !mf.source || !Array.isArray(mf.targets) || mf.targets.length !== 2) { const e = new Error(`manifest 顶层结构破损（schema/source/targets 三形——返工 R15：结构面统一装载错族）`); e.code = 'MANIFEST_MISSING'; throw e }
+  const so = mf.source
+  if (typeof so !== 'object' || so === null || Array.isArray(so) || typeof so.label !== 'string' || !so.label.trim() || !Number.isInteger(so.lines) || so.lines < 0 || typeof so.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(so.sha256)) { const e = new Error(`manifest source 字段级结构破损（须 {label:非空串,lines:非负整数,sha256:64hex}——W-2：字段级形态与顶层结构统一装载错族）`); e.code = 'MANIFEST_MISSING'; throw e } // W-2：source 字段级形态（原先 label 类破损静默绿·余形误判红）
   for (const tg of mf.targets) { // 返工 R9：装载面结构断言（口径=结构破损属装载错族 exit 3；内容不符=判定红 exit 1）
     const ls = tg ? tg.line_sha256 : null
     if (!tg || typeof tg.lines !== 'number' || !Array.isArray(ls) || ls.length !== tg.lines || !ls.every((h) => typeof h === 'string' && /^[0-9a-f]{64}$/.test(h))) {
