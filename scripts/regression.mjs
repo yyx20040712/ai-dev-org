@@ -25,11 +25,11 @@
  * 退出码口径单源=references/06 §5.8。
  */
 import { readFileSync, existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync, spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
-import { SKILL_ROOT, cliFlag, UsageError, ledgerPathFor } from './org-config.mjs'
+import { SKILL_ROOT, cliFlag, UsageError, ledgerPathFor, loadOrgConfig, resolveFlagValue, readFlagsState, readHostConfig } from './org-config.mjs'
 import { MANUAL_EVENTS } from './health-scan.mjs' // 人工事件词表单源消费（v2.0.1 修复批 L14——原两处逐字复制=漏改一侧即漂移；health-scan isMain 守卫后 import 零副作用）
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
@@ -51,7 +51,7 @@ try {
   throw e
 }
 const keepTmp = argv.includes('--keep-tmp')
-const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除）
+const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批）
 if (only && only.some((id) => !KNOWN_ITEMS.includes(id))) {
   console.error(`[用法错] 未知回归项：${only.filter((id) => !KNOWN_ITEMS.includes(id)).join(',')}（现役项=${KNOWN_ITEMS.join('/')}——派发器族项已随 2026-10-03 清理批次删除，详见 git 历史）`)
   process.exit(1)
@@ -539,6 +539,106 @@ if (want('R15')) {
     const ok15 = r.status === 0 && out.includes('self-test 全过')
     record('R15', ok15, `verify-docs 自检:exit=${r.status}/全过=${out.includes('self-test 全过')}${!ok15 ? `（输出尾：${out.slice(-160)}）` : ''}`)
   }
+}
+
+// ═══ B6 R16：文档生成与提交短句自检（flag=b3_docgen_v1——off 只跑隔离自检不读现役
+//     RESIDUALS；on 追加现役 RESIDUALS --check 影子对照；生成器 CLI 纪律不随 flag 改变；
+//     夹具全在 /tmp 且 finally 清理；子进程 60 秒超时；stdout 只记计数/类别不泄动态模型名）═══
+if (want('R16')) {
+  let ok16 = true
+  const det16 = []
+  const fx16 = mkdtempSync(join(tmpdir(), 'r16-docgen-'))
+  try {
+    const r16Run = (args, opts = {}) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 60_000, killSignal: 'SIGKILL', ...opts })
+    // ① 四脚本隔离自检（--self-test 子进程真退出码＋确定性/乱序标记断言）
+    const stOk = [], stMark = []
+    for (const s of ['gen-handoff', 'gen-close-summary', 'gen-commit-summary', 'residuals-check']) {
+      const r = r16Run([join(SCRIPTS, `${s}.mjs`), '--self-test'])
+      const out = (r.stdout || '') + (r.stderr || '')
+      const pass = r.status === 0
+      const dbl = /两次(生成|写回)逐字节一致/.test(out)
+      const shuf = /乱序/.test(out)
+      if (!pass || !dbl || !shuf) ok16 = false
+      stOk.push(`${s}:${pass ? 'exit=0' : `exit=${r.status}`}`)
+      stMark.push(`${s}${dbl ? '双生成✓' : '双生成✗'}${shuf ? '乱序✓' : '乱序✗'}`)
+    }
+    det16.push(`①四脚本自检 ${stOk.join('/')}（${stMark.join(' ')}）`)
+    // ② 快照两次生成＋输入乱序对照（独立于自检的第一手 CLI 对照：commit 生成器对同一
+    //    合成账本两次运行 stdout 逐字节相同；生成器读取固定快照内的合成夹具）
+    const fixtureDoc = JSON.parse(readFileSync(join(SCRIPTS, '.golden', 'docgen-fixtures.json'), 'utf8'))
+    const proj16 = join(fx16, 'proj')
+    mkdirSync(join(proj16, '.zcode'), { recursive: true })
+    for (const [rel, content] of Object.entries(fixtureDoc.sources)) {
+      const p = join(proj16, rel)
+      mkdirSync(dirname(p), { recursive: true })
+      writeFileSync(p, content, 'utf8')
+    }
+    writeFileSync(join(proj16, '.zcode', 'org-ledger.jsonl'), fixtureDoc.ledger_lines.map((l) => JSON.stringify(l)).join('\n') + '\n', 'utf8')
+    const cArgs = [join(SCRIPTS, 'gen-commit-summary.mjs'), '--project', proj16, '--ledger', join(proj16, '.zcode', 'org-ledger.jsonl'), '--runid', 'fx-dispatch-2099', '--batch-pointer', 'docs/tasks/fx-task.md', '--type', 'feat', '--scope', 'FX', '--subject', '合成提交短句']
+    const c1 = r16Run(cArgs), c2 = r16Run(cArgs)
+    const detOk = c1.status === 0 && c2.status === 0 && (c1.stdout || '') === (c2.stdout || '') && (c1.stdout || '') === fixtureDoc.expected.commit3
+    if (!detOk) ok16 = false
+    det16.push(`②快照两次生成逐字节一致${detOk ? '✓（乱序一致性由①self-test 标记承载）' : '✗'}`)
+    // ③ D-6 扫描正负探针：运行时合成禁用词（源码零字面——转义序列拼接）
+    const SYNTH = '\u6218\u5f79'
+    const mkRoot = (name, files, overlay) => {
+      const d = join(fx16, name)
+      mkdirSync(join(d, '.zcode'), { recursive: true })
+      writeFileSync(join(d, '.zcode', 'org-config.json'), JSON.stringify({ terms_scan: { baseline: 'scripts/.golden/terms-baseline.json', suffix_lexer: { '.md': 'markdown', '.json': 'json' }, exclude: [], active: overlay, historical: [{ root: 'skill', include: ['h.md'] }] } }), 'utf8')
+      for (const [rel, content] of Object.entries(files)) writeFileSync(join(d, rel), content, 'utf8')
+      return d
+    }
+    const stOn = join(fx16, 'on.json')
+    writeFileSync(stOn, '{"b2_terms_v2":true}', 'utf8')
+    const envOn = { ...process.env, ORG_FLAGS_STATE: stOn }
+    // 未围栏 JSON 字符串值 → check-terms active 判红
+    const dRaw = mkRoot('terms-raw', { 'fx.json': `{"note":"合成探针含${SYNTH}字样"}\n` }, [{ root: 'skill', include: ['fx.json'] }])
+    const rRaw = r16Run([join(SCRIPTS, 'check-terms.mjs'), '--strict', '--surface', 'active', '--root', dRaw], { env: envOn })
+    const rawOk = rRaw.status !== 0 && rRaw.status !== 3
+    if (!rawOk) ok16 = false
+    // 同一内容被 Markdown 围栏包住 → check-terms 跳过（退出 0——单闸不闭合的实证）
+    const dFence = mkRoot('terms-fence', { 'fx.md': `\`\`\`text\n合成围栏探针含${SYNTH}字样\n\`\`\`\n` }, [{ root: 'skill', include: ['fx.md'] }])
+    const rFence = r16Run([join(SCRIPTS, 'check-terms.mjs'), '--strict', '--surface', 'active', '--root', dFence], { env: envOn })
+    const fenceOk = rFence.status === 0
+    if (!fenceOk) ok16 = false
+    // 围栏进 RESIDUALS 权威段 → residuals-check 非零拒绝（双闸缺一不可的第二闸）
+    const fxRes = join(fx16, 'residuals-fenced.md')
+    writeFileSync(fxRes, String(fixtureDoc.residuals_canonical).replace('<!-- residuals-json: begin -->\n{', '<!-- residuals-json: begin -->\n```\n{'), 'utf8')
+    const rRes = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', fxRes, '--check'])
+    const resOk = rRes.status !== 0
+    if (!resOk) ok16 = false
+    det16.push(`③terms 探针 未围栏红=${rawOk ? '✓' : `✗(exit=${rRaw.status})`} 围栏跳过=${fenceOk ? '✓(exit=0 单闸不闭合)' : `✗(exit=${rFence.status})`} residuals 拦围栏=${resOk ? '✓' : `✗(exit=${rRes.status})`}`)
+    // ④ 代号污染负例：宿主注册表动态取一模型名写入临时生成物 → check-hardcode --strict 非零
+    let modelName = null
+    try {
+      const hostCfg = readHostConfig()
+      outer: for (const p of Object.values(hostCfg.provider || {})) {
+        for (const mk of Object.keys(p.models || {})) { modelName = mk; break outer }
+      }
+    } catch { modelName = null }
+    let polOk = false, polNote = '宿主注册表不可读'
+    if (modelName) {
+      const dPol = join(fx16, 'hardcode-probe')
+      mkdirSync(dPol, { recursive: true })
+      writeFileSync(join(dPol, 'gen-out.md'), `合成生成物提及实配模型 ${modelName}（污染负例探针）\n`, 'utf8')
+      const rPol = r16Run([join(SCRIPTS, 'check-hardcode.mjs'), '--root', dPol, '--strict'])
+      polOk = rPol.status !== 0 && rPol.status !== 3
+      polNote = polOk ? `RED(命中类别=实配模型名,exit=${rPol.status})` : `未红(exit=${rPol.status})`
+    }
+    if (!polOk) ok16 = false
+    det16.push(`④hardcode 探针=${polNote}`)
+    // ⑤ b3_docgen_v1：off=production_check=skipped；on=追加现役 RESIDUALS --check 影子对照
+    let b3On = false
+    try { b3On = resolveFlagValue(loadOrgConfig(projectDir).merged, 'b3_docgen_v1', readFlagsState()) === true } catch { b3On = false }
+    let prodNote = 'skipped'
+    if (b3On) {
+      const rProd = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', join(SKILL_ROOT, 'RESIDUALS.md'), '--check'])
+      prodNote = rProd.status === 0 ? 'passed' : `failed(exit=${rProd.status})`
+      if (rProd.status !== 0) ok16 = false
+    }
+    det16.push(`⑤production_check=${prodNote}`)
+  } finally { rmSync(fx16, { recursive: true, force: true }) }
+  record('R16', ok16, `文档生成自检——${det16.join(' ')}`)
 }
 
 const fails = results.filter((r) => !r.pass).length

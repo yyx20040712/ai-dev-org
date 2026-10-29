@@ -12,6 +12,11 @@
       "owner_batch": "B2",
       "default": false
     },
+    "b3_docgen_v1": {
+      "description": "B6 文档生成与提交短句批开关（owner_batch 沿用原案编号 B3）：off=不接管既有流水线（四生成器与提交短句仅由人显式 CLI 调用）且 R16 只跑隔离自检、不读现役 RESIDUALS；on=R16 追加现役 RESIDUALS --check 影子对照。显式生成器 CLI 与提交短句纪律不随本 flag 改变；不得挂入 pre-commit 硬依赖。生产本批保持 off，on 仅用临时状态件做影子对照。",
+      "owner_batch": "B3",
+      "default": false
+    },
     "revert_manifest_schema": {
       "columns": [
         "path",
@@ -54,12 +59,14 @@
       { "root": "skill", "include": ["templates/**"] },
       { "root": "skill", "include": ["scripts/*.mjs"] },
       { "root": "skill", "include": ["scripts/*.json"] },
+      { "root": "skill", "include": ["scripts/.golden/docgen-fixtures.json"] },
       { "root": "skill", "include": [".githooks/**"], "lexer": "shell" },
       { "root": "skill", "include": ["org-config.default.json"] }
     ],
     "historical": [
       { "root": "skill", "include": ["references/*.md"], "selector": "history-sections" },
       { "root": "skill", "include": ["references/00-glossary.md"], "selector": "term-scan-off" },
+      { "root": "skill", "include": ["RESIDUALS.md"], "selector": "history-sections" },
       { "root": "project", "include": ["docs/evidence/**", "history/**"] }
     ],
     "note": "活账本（两仓 .zcode/org-ledger.jsonl）与流水（scripts/model-routing-log.jsonl）已移出历史扫描面（2026-10-29 用户当面二选一 exclude 豁免·b3n-ledger-frozen-gap 处置）：活文件持续合法追加与首冻计数语义冲突；词面纪律改由新增行零禁用词纪律＋verify-docs 既有面执法（授权=账本 b4-ruling-scope/b4b-ledger-exclude 行）。"
