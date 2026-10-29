@@ -59,9 +59,10 @@ function parseArgs(argv) {
 const canonDoc = (residuals) => JSON.stringify({ residuals: [...residuals].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((e) => Object.fromEntries(KEY8.map((k) => [k, e[k]]))), schema: 'residuals/v1' }, null, 2) + '\n'
 const sha256 = (s) => createHash('sha256').update(Buffer.from(s, 'utf8')).digest('hex')
 
-/** created_at 合法 ISO 日期或时间（W-5：日历往返校验——非法月/日/时/分/秒拒绝，2099-02-30 类伪日期拒收）。 */
+/** created_at 合法 ISO 日期或时间（W-5：日历往返校验——非法月/日/时/分/秒拒绝，2099-02-30 类伪日期拒收；
+ *  返工轮 2：时区偏移限 ±23:59——越界偏移（+99:99 类）拒收）。 */
 function isValidIsoDateTime(s) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.exec(s)
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|([+-])(\d{2}):?(\d{2}))?)?$/.exec(s)
   if (!m) return false
   const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3])
   const dt = new Date(y, mo - 1, d)
@@ -70,6 +71,7 @@ function isValidIsoDateTime(s) {
     if (Number(m[4]) > 23 || Number(m[5]) > 59) return false
     if (m[6] !== undefined && Number(m[6]) > 59) return false
   }
+  if (m[7] !== undefined && (Number(m[8]) > 23 || Number(m[9]) > 59)) return false
   return true
 }
 
@@ -245,6 +247,8 @@ function selfTest() {
       'residuals-n16-frozen-end-gap': base.replace('closed |\n<!-- residuals-frozen: end -->', 'closed |\n\n<!-- residuals-frozen: end -->'),
       'residuals-n17-json-end-blank': base.replace('}\n<!-- residuals-json: end -->', '}\n\n<!-- residuals-json: end -->'),
       'residuals-n18-json-end-comment': base.replace('}\n<!-- residuals-json: end -->', '}\n<!-- 夹层注释 -->\n<!-- residuals-json: end -->'),
+      'residuals-n19-term-scan-on': base.replace('当前 **open=1**', `当前 **open=1**\n${'term-scan:' + ' on'}`),
+      'residuals-n20-future-bad-offset': spliceEntry(base, { created_at: '2099-01-01T00:00+99:99', description: '合成未来现象', evidence: ['合成证据'], id: 'fx-future3', owner: '合成责任人', phenomenon: '合成未来现象', status: 'closed', trigger: '合成未来触发' }),
     }
     const run = (args) => spawnSync(process.execPath, [SELF, ...args], { encoding: 'utf8', timeout: 60_000 })
     for (const c of fx.self_test_cases['residuals-check']) {

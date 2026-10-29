@@ -435,13 +435,21 @@
           "FX-01·账本 fx-dispatch-2099",
           "--supersedes",
           "无",
+          "--section",
           "summary=docs/evidence/fx-report-alpha.md#概览",
+          "--section",
           "health=docs/evidence/fx-report-alpha.md#明细",
+          "--section",
           "session=docs/evidence/fx-report-beta.md#会话记录",
+          "--section",
           "final=docs/evidence/fx-report-beta.md#终态记录",
+          "--section",
           "residuals=docs/evidence/fx-report-beta.md#挂账记录",
+          "--section",
           "candidates=docs/evidence/fx-report-beta.md#候选记录",
+          "--section",
           "first_action=docs/evidence/fx-report-beta.md#第一句",
+          "--section",
           "index=docs/evidence/fx-report-beta.md#索引记录",
           "--output",
           "@OUT_NEG@/handoff-2099-01-02-99.md"
@@ -463,16 +471,24 @@
           "FX-01·账本 fx-dispatch-2099",
           "--supersedes",
           "无",
-          "summary=docs/evidence/fx-report-alpha.md#概览",
-          "health=docs/evidence/fx-report-alpha.md#明细",
-          "session=docs/evidence/fx-report-beta.md#会话记录",
-          "final=docs/evidence/fx-report-beta.md#终态记录",
-          "residuals=docs/evidence/fx-report-beta.md#挂账记录",
-          "candidates=docs/evidence/fx-report-beta.md#候选记录",
-          "first_action=docs/evidence/fx-report-beta.md#第一句",
-          "index=docs/evidence/fx-report-beta.md#索引记录",
           "--sequence",
           "99",
+          "--section",
+          "summary=docs/evidence/fx-report-alpha.md#概览",
+          "--section",
+          "health=docs/evidence/fx-report-alpha.md#明细",
+          "--section",
+          "session=docs/evidence/fx-report-beta.md#会话记录",
+          "--section",
+          "final=docs/evidence/fx-report-beta.md#终态记录",
+          "--section",
+          "residuals=docs/evidence/fx-report-beta.md#挂账记录",
+          "--section",
+          "candidates=docs/evidence/fx-report-beta.md#候选记录",
+          "--section",
+          "first_action=docs/evidence/fx-report-beta.md#第一句",
+          "--section",
+          "index=docs/evidence/fx-report-beta.md#索引记录",
           "--output",
           "@OUT_NEG@/handoff-2099-01-02-99.md"
         ]
@@ -808,6 +824,36 @@
           "--output",
           "@OUT_NEG@/fx-c6.md"
         ]
+      },
+      {
+        "name": "close-n7-kind-prototype",
+        "expected_exit": 1,
+        "args": [
+          "--kind",
+          "constructor",
+          "--project",
+          "@PROJECT@",
+          "--date",
+          "2099-01-02",
+          "--batch",
+          "FX-CLOSE",
+          "--authority",
+          "账本 fx-close-2099 行",
+          "--change-anchor",
+          "FX-CLOSE·账本 fx-close-2099",
+          "--supersedes",
+          "无",
+          "--section",
+          "summary=docs/evidence/fx-report-alpha.md#概览",
+          "--section",
+          "details=docs/evidence/fx-close-detail.md#详述源",
+          "--section",
+          "gates=docs/evidence/fx-close-detail.md#门禁源",
+          "--section",
+          "revert=docs/evidence/fx-close-detail.md#回退源",
+          "--output",
+          "@OUT_NEG@/fx-c7.md"
+        ]
       }
     ],
     "gen-commit-summary": [
@@ -994,6 +1040,48 @@
           "--subject",
           "合成提交短句."
         ]
+      },
+      {
+        "name": "commit-n8-crlf-runid",
+        "expected_exit": 1,
+        "args": [
+          "--project",
+          "@PROJECT@",
+          "--ledger",
+          "@LEDGER@",
+          "--runid",
+          "fx-dispatch-2099\r",
+          "--batch-pointer",
+          "docs/tasks/fx-task.md",
+          "--type",
+          "feat",
+          "--scope",
+          "FX",
+          "--subject",
+          "合成提交短句"
+        ]
+      },
+      {
+        "name": "commit-n9-message-file-alone",
+        "expected_exit": 1,
+        "args": [
+          "--project",
+          "@PROJECT@",
+          "--ledger",
+          "@LEDGER@",
+          "--runid",
+          "fx-dispatch-2099",
+          "--batch-pointer",
+          "docs/tasks/fx-task.md",
+          "--type",
+          "feat",
+          "--scope",
+          "FX",
+          "--subject",
+          "合成提交短句",
+          "--message-file",
+          "@MSG@"
+        ]
       }
     ],
     "residuals-check": [
@@ -1075,6 +1163,14 @@
       },
       {
         "name": "residuals-n18-json-end-comment",
+        "expected_exit": 1
+      },
+      {
+        "name": "residuals-n19-term-scan-on",
+        "expected_exit": 1
+      },
+      {
+        "name": "residuals-n20-future-bad-offset",
         "expected_exit": 1
       }
     ]

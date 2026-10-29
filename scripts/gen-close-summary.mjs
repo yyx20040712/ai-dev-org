@@ -14,8 +14,9 @@
  *       --supersedes <路径|无> --section <slot>=<报告路径>#<标题> ...
  *       --output <新路径> [--check] | --self-test
  * 退出码口径单源=references/06 §5.8：0=成功；1=用法/参数错或内容判红或自检失败；3=配置/装载失败。
- * 模板根：生产恒=SKILL_ROOT/templates（CLI 无模板根参数——D-1）；env DOCGEN_TEMPLATE_ROOT
- * 仅作 --self-test 内部私有夹具通道（内部测试设施先例）。
+ * 模板根：生产恒=SKILL_ROOT/templates；DOCGEN_TEMPLATE_ROOT/DOCGEN_TEMPLATE_FIXTURE 两 env
+ * 无条件忽略（齐全也不生效——返工轮 2 主控裁决内部参数制）；唯一夹具注入面=
+ * --__selftest-template-root 内部专用参数（--self-test 私有通道，外部慎用）。
  */
 import { readFileSync, writeFileSync, existsSync, renameSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs'
 import { join, resolve, dirname, basename } from 'node:path'
@@ -90,7 +91,7 @@ function render(tpl, scalars, sources) {
     tokens.set(k, tok)
   }
   for (const [k, v] of Object.entries(scalars)) skeleton = skeleton.split(`{{${k}}}`).join(v)
-  const leftover = skeleton.match(/\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}/)
+  const leftover = skeleton.match(/\{\{[^}]+\}\}/)
   if (leftover) throw new ContentError(`模板占位未消解：${leftover[0]}（槽位集与模板失配）`)
   for (const [k, v] of Object.entries(sources)) skeleton = skeleton.split(tokens.get(k)).join(v)
   return skeleton.replace(/\n+$/, '\n')
@@ -109,10 +110,11 @@ function assertNoVerdictLine(text, slot) {
   if (re.test(text)) throw new ContentError(`摘要槽（${slot}）抽取文本含结论机读行（FINDINGS/VERDICT/审批结论）——须改传不含结论机读行的原文段`)
 }
 
-function templatePath(kind) {
-  // W-1：生产路径无条件忽略 DOCGEN_TEMPLATE_ROOT——仅当自检父进程同时携带配对内部键时生效（私有夹具通道）
+function templatePath(kind, internalRoot) {
+  // W-1（返工轮 2·主控裁决内部参数制）：DOCGEN_TEMPLATE_ROOT/DOCGEN_TEMPLATE_FIXTURE 两 env
+  // 无条件忽略（齐全也不生效）；唯一注入面=--__selftest-template-root 内部专用参数
   const name = kind === 'close' ? 'close-summary.md' : 'gates-summary.md'
-  if (process.env.DOCGEN_TEMPLATE_FIXTURE === '1' && process.env.DOCGEN_TEMPLATE_ROOT) return join(process.env.DOCGEN_TEMPLATE_ROOT, name)
+  if (internalRoot) return join(internalRoot, name)
   return join(SKILL_ROOT, 'templates', name)
 }
 
@@ -141,14 +143,15 @@ function buildSections(kind, projectDir, rawSections) {
 
 function runGenerate(args, check) {
   const kind = args['--kind']
-  if (!KIND_SLOTS[kind]) usageExit(`--kind 取值须 close|gates（收到「${kind}」）`)
+  // N-4（返工轮 2）：原型键守卫——Object.hasOwn 拒 constructor 等原型链键（防越检后崩溃退 3）
+  if (kind === undefined || !Object.hasOwn(KIND_SLOTS, kind)) usageExit(`--kind 取值须 close|gates（收到「${kind}」——原型链键同拒）`)
   const projectDir = resolve(args['--project'])
   if (!existsSync(projectDir)) redExit(`项目目录不存在：${projectDir}`)
   const date = args['--date']
   if (!checkDate(date)) redExit(`日期非法或缺失（须 YYYY-MM-DD 且本地往返一致）：${date ?? '(缺)'}`)
   const output = resolve(args['--output'])
   const sections = buildSections(kind, projectDir, args['--section'])
-  const tp = templatePath(kind)
+  const tp = templatePath(kind, args['--__selftest-template-root'])
   if (!existsSync(tp)) configExit(`模板缺失：${tp}`)
   const tpl = readFileSync(tp, 'utf8')
   const extracted = {}
@@ -198,8 +201,9 @@ function selfTest() {
     delete baseEnv.DOCGEN_TEMPLATE_FIXTURE
     const run = (args, env = baseEnv) => spawnSync(process.execPath, [SELF, ...args], { encoding: 'utf8', env, timeout: 60_000 })
     const subst = (args) => args.map((a) => a.replace(/@PROJECT@/g, proj).replace(/@OUT_CLOSE@/g, join(outA, 'fx-close.md')).replace(/@OUT_GATES@/g, join(outB, 'fx-gates.md')).replace(/@OUT_SHUFFLE@/g, join(outC, 'fx-close.md')).replace(/@OUT_NEG@/g, negOut).replace(/@OUT_PLIT@/g, join(outP, 'fx-plit.md')))
+    let mutRootClose = null
     for (const c of fx.self_test_cases['gen-close-summary']) {
-      let env = baseEnv
+      let extraArgs = []
       if (c.mutate_template) {
         const dir = join(tmp, 'mut-templates')
         mkdirSync(dir, { recursive: true })
@@ -207,12 +211,20 @@ function selfTest() {
         const prod = readFileSync(join(SKILL_ROOT, 'templates', name), 'utf8')
         if (!prod.includes(c.mutate_template.from)) { note(false, `夹具变异锚缺失：${name}:${c.mutate_template.from}`); continue }
         writeFileSync(join(dir, name), prod.replace(c.mutate_template.from, c.mutate_template.to), 'utf8')
-        env = { ...baseEnv, DOCGEN_TEMPLATE_ROOT: dir, DOCGEN_TEMPLATE_FIXTURE: '1' }
+        if (mutRootClose === null) mutRootClose = dir
+        extraArgs = ['--__selftest-template-root', dir]
       }
-      const r = run(subst(c.args), env)
+      const r = run([...subst(c.args), ...extraArgs], baseEnv)
       const code = r.status === null ? 124 : r.status
       console.log(`case=${c.name} exit=${code}`)
       if (code !== c.expected_exit) allOk = false
+    }
+    // W-1（返工轮 2）env 双键负例：外部设两 env 跑普通生成仍用生产模板根（字节=生产期望）
+    {
+      const outE = join(tmp, 'envneg-out')
+      mkdirSync(outE, { recursive: true })
+      const rEnv = run(subst(fx.self_test_cases['gen-close-summary'].find((c) => c.name === 'close-p1-close-generate').args).map((a) => a.replace(join(outA, 'fx-close.md'), join(outE, 'fx-close.md'))), { ...baseEnv, DOCGEN_TEMPLATE_ROOT: mutRootClose, DOCGEN_TEMPLATE_FIXTURE: '1' })
+      note(rEnv.status === 0 && readFileSync(join(outE, 'fx-close.md')).equals(Buffer.from(fx.expected.close, 'utf8')) && mutRootClose !== null, 'W-1 env 双键负例（两 env 齐全仍用生产模板根，产物=生产期望字节）')
     }
     const closeOut = join(outA, 'fx-close.md'), gatesOut = join(outB, 'fx-gates.md'), shuffleOut = join(outC, 'fx-close.md'), plitOut = join(outP, 'fx-plit.md')
     if (!existsSync(closeOut) || !existsSync(gatesOut) || !existsSync(shuffleOut) || !existsSync(plitOut)) { note(false, '正例产物缺席（先修正例再跑对照）'); return allOk }
@@ -238,7 +250,7 @@ function selfTest() {
 }
 
 const argv = process.argv.slice(2)
-const ARG_SPEC = { value: ['--kind', '--project', '--date', '--batch', '--authority', '--change-anchor', '--supersedes', '--output'], bool: ['--check', '--self-test'], multi: ['--section'] }
+const ARG_SPEC = { value: ['--kind', '--project', '--date', '--batch', '--authority', '--change-anchor', '--supersedes', '--output', '--__selftest-template-root'], bool: ['--check', '--self-test'], multi: ['--section'] }
 // N-1：--self-test 不绕过参数检查——先按同源 parseArgs 校验（未知/重复/等号/空值=用法错）再进自检
 try {
   parseArgs(argv, ARG_SPEC)

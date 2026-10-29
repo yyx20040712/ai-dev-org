@@ -29,7 +29,7 @@ import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync, spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
-import { SKILL_ROOT, cliFlag, UsageError, ledgerPathFor, loadOrgConfig, resolveFlagValue, readFlagsState, readHostConfig } from './org-config.mjs'
+import { SKILL_ROOT, cliFlag, UsageError, ledgerPathFor, loadOrgConfig, resolveFlagValue, readFlagsState, readHostConfig, flagsStatePath } from './org-config.mjs'
 import { MANUAL_EVENTS } from './health-scan.mjs' // 人工事件词表单源消费（v2.0.1 修复批 L14——原两处逐字复制=漏改一侧即漂移；health-scan isMain 守卫后 import 零副作用）
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
@@ -658,14 +658,28 @@ if (want('R16')) {
     if (!polOk) ok16 = false
     det16.push(`④hardcode 探针=${polNote}`)
     // ⑤ b3_docgen_v1：off=production_check=skipped；on=追加现役 RESIDUALS --check 影子对照；
-    //    W-4：装载异常不静默降 off——stderr 告警＋判失败（production_check=load_error）
+    //    W-4：装载异常不静默降 off——stderr 告警＋判失败（production_check=load_error）；
+    //    N-6（返工轮 2）：状态件形状损坏（数组/null/标量）fail-closed 判失败（check-terms 先例同律）
     let b3On = false
     let b3LoadErr = null
-    try { b3On = resolveFlagValue(loadOrgConfig(projectDir).merged, 'b3_docgen_v1', readFlagsState()) === true } catch (e) { b3LoadErr = e.message }
+    let stateObj = null
+    try {
+      const stPath = flagsStatePath()
+      if (existsSync(stPath)) {
+        const rawSt = JSON.parse(readFileSync(stPath, 'utf8').replace(/^\uFEFF/, ''))
+        if (rawSt === null || typeof rawSt !== 'object' || Array.isArray(rawSt)) stateObj = 'bad-shape'
+        else stateObj = rawSt
+      } else stateObj = {}
+      b3On = resolveFlagValue(loadOrgConfig(projectDir).merged, 'b3_docgen_v1', stateObj === 'bad-shape' ? {} : stateObj) === true
+    } catch (e) { b3LoadErr = e.message }
     let prodNote = 'skipped'
     if (b3LoadErr !== null) {
       console.error(`[warn] b3_docgen_v1 装载异常（${b3LoadErr}）——R16 按失败处置不静默降 off（W-4）`)
       prodNote = 'load_error'
+      ok16 = false
+    } else if (stateObj === 'bad-shape') {
+      console.error(`[warn] flag 状态件形状非法（须普通对象——${flagsStatePath()}）——fail-closed 判失败不静默 skipped（N-6·check-terms 先例同律）`)
+      prodNote = 'state_broken'
       ok16 = false
     } else if (b3On) {
       const rProd = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', join(SKILL_ROOT, 'RESIDUALS.md'), '--check'])

@@ -12,9 +12,10 @@
  *       --supersedes <路径|无> --section <slot>=<报告路径>#<标题> ...
  *       --output <新路径> [--check] | --self-test
  * 退出码口径单源=references/06 §5.8：0=成功；1=用法/参数错或内容判红或自检失败；3=配置/装载失败。
- * 模板根：生产恒=SKILL_ROOT/templates（CLI 无模板根参数——D-1）；env DOCGEN_TEMPLATE_ROOT
- * 仅作 --self-test 内部私有夹具通道（同 verify-docs ORG_SKILL_ROOT 内部测试设施先例），
- * 生产调用不得设置。固定快照=scripts/.golden/docgen-fixtures.json（--self-test 单源输入）。
+ * 模板根：生产恒=SKILL_ROOT/templates；DOCGEN_TEMPLATE_ROOT/DOCGEN_TEMPLATE_FIXTURE 两 env
+ * 无条件忽略（齐全也不生效——返工轮 2 主控裁决内部参数制）；唯一夹具注入面=
+ * --__selftest-template-root 内部专用参数（--self-test 私有通道，外部慎用）。
+ * 固定快照=scripts/.golden/docgen-fixtures.json（--self-test 单源输入）。
  */
 import { readFileSync, writeFileSync, existsSync, readdirSync, renameSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs'
 import { join, resolve, dirname, basename } from 'node:path'
@@ -92,7 +93,7 @@ function render(tpl, scalars, sources) {
     tokens.set(k, tok)
   }
   for (const [k, v] of Object.entries(scalars)) skeleton = skeleton.split(`{{${k}}}`).join(v)
-  const leftover = skeleton.match(/\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}/)
+  const leftover = skeleton.match(/\{\{[^}]+\}\}/)
   if (leftover) throw new ContentError(`模板占位未消解：${leftover[0]}（槽位集与模板失配）`)
   for (const [k, v] of Object.entries(sources)) skeleton = skeleton.split(tokens.get(k)).join(v)
   return skeleton.replace(/\n+$/, '\n')
@@ -118,9 +119,10 @@ function scanMaxSequence(projectDir) {
   return max
 }
 
-function templatePath() {
-  // W-1：生产路径无条件忽略 DOCGEN_TEMPLATE_ROOT——仅当自检父进程同时携带配对内部键时生效（私有夹具通道）
-  if (process.env.DOCGEN_TEMPLATE_FIXTURE === '1' && process.env.DOCGEN_TEMPLATE_ROOT) return join(process.env.DOCGEN_TEMPLATE_ROOT, 'handoff.md')
+function templatePath(internalRoot) {
+  // W-1（返工轮 2·主控裁决内部参数制）：DOCGEN_TEMPLATE_ROOT/DOCGEN_TEMPLATE_FIXTURE 两 env
+  // 无条件忽略（齐全也不生效）；唯一注入面=--__selftest-template-root 内部专用参数（--self-test 私有通道）
+  if (internalRoot) return join(internalRoot, 'handoff.md')
   return join(SKILL_ROOT, 'templates', 'handoff.md')
 }
 
@@ -181,7 +183,7 @@ function runGenerate(args, check) {
     if (existsSync(output)) throw new ContentError(`目标已存在，生成模式禁覆盖：${output}`)
   }
   const sections = buildSections(projectDir, args['--section'])
-  const tp = templatePath()
+  const tp = templatePath(args['--__selftest-template-root'])
   if (!existsSync(tp)) configExit(`模板缺失：${tp}`)
   const tpl = readFileSync(tp, 'utf8')
   const extracted = {}
@@ -242,7 +244,7 @@ function selfTest() {
     const subst = (args) => args.map((a) => a.replace(/@PROJECT@/g, proj1).replace(/@PROJECT2@/g, proj2).replace(/@PROJECT99@/g, proj99).replace(/@OUT_NEG@/g, negOut))
     let mutatedRoot = null
     for (const c of fx.self_test_cases['gen-handoff']) {
-      let env = baseEnv
+      let extraArgs = []
       if (c.mutate_template) {
         const dir = join(tmp, 'mut-templates')
         mkdirSync(dir, { recursive: true })
@@ -250,12 +252,25 @@ function selfTest() {
         if (!prod.includes(c.mutate_template.from)) { note(false, `夹具变异锚缺失：${c.mutate_template.from}`); continue }
         writeFileSync(join(dir, 'handoff.md'), prod.replace(c.mutate_template.from, c.mutate_template.to), 'utf8')
         mutatedRoot = dir
-        env = { ...baseEnv, DOCGEN_TEMPLATE_ROOT: dir, DOCGEN_TEMPLATE_FIXTURE: '1' }
+        extraArgs = ['--__selftest-template-root', dir]
       }
-      const r = run(subst(c.args), env)
+      const r = run([...subst(c.args), ...extraArgs], baseEnv)
       const code = r.status === null ? 124 : r.status
       console.log(`case=${c.name} exit=${code}`)
       if (code !== c.expected_exit) allOk = false
+    }
+    // W-2（返工轮 2）：n9 守卫路径可区分断言——stderr 须含「空间用尽」类文案（非通用用法错）
+    {
+      const c9 = fx.self_test_cases['gen-handoff'].find((c) => c.name === 'handoff-n9-sequence-exhausted')
+      const r9 = run(subst(c9.args), baseEnv)
+      note(r9.status === 1 && ((r9.stderr || '') + (r9.stdout || '')).includes('空间用尽'), 'n9 守卫路径断言（两位序号空间用尽文案命中）')
+    }
+    // W-1（返工轮 2）env 双键负例：外部设两 env 跑普通生成仍用生产模板根（字节=生产期望）
+    {
+      const proj4 = mkProject('proj4')
+      const rEnv = run(subst(fx.self_test_cases['gen-handoff'].find((c) => c.name === 'handoff-p1-cross-day').args).map((a) => (a === '@PROJECT@' ? proj1 : a)).map((a) => a.replace(proj1, proj4)), { ...baseEnv, DOCGEN_TEMPLATE_ROOT: mutatedRoot, DOCGEN_TEMPLATE_FIXTURE: '1' })
+      const p4 = join(proj4, 'docs', 'evidence', 'handoff-2099-01-02-21.md')
+      note(rEnv.status === 0 && existsSync(p4) && readFileSync(p4).equals(Buffer.from(fx.expected.handoff, 'utf8')) && mutatedRoot !== null, 'W-1 env 双键负例（两 env 齐全仍用生产模板根，产物=生产期望字节）')
     }
     const p1 = join(proj1, 'docs', 'evidence', 'handoff-2099-01-02-21.md')
     const p2 = join(proj2, 'docs', 'evidence', 'handoff-2099-01-02-21.md')
@@ -277,7 +292,7 @@ function selfTest() {
 }
 
 const argv = process.argv.slice(2)
-const ARG_SPEC = { value: ['--project', '--date', '--sequence', '--batch', '--authority', '--change-anchor', '--supersedes', '--output'], bool: ['--check', '--self-test'], multi: ['--section'] }
+const ARG_SPEC = { value: ['--project', '--date', '--sequence', '--batch', '--authority', '--change-anchor', '--supersedes', '--output', '--__selftest-template-root'], bool: ['--check', '--self-test'], multi: ['--section'] }
 // N-1：--self-test 不绕过参数检查——先按同源 parseArgs 校验（未知/重复/等号/空值=用法错）再进自检
 try {
   parseArgs(argv, ARG_SPEC)
