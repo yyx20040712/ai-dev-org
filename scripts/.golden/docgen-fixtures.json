@@ -452,7 +452,7 @@
           "--section",
           "index=docs/evidence/fx-report-beta.md#索引记录",
           "--output",
-          "@OUT_NEG@/handoff-2099-01-02-99.md"
+          "@OUT_NEG@/handoff-2099-01-02-100.md"
         ]
       },
       {
@@ -492,6 +492,50 @@
           "--output",
           "@OUT_NEG@/handoff-2099-01-02-99.md"
         ]
+      },
+      {
+        "name": "handoff-n11-selftest-param-external",
+        "expected_exit": 0,
+        "args": [
+          "--project",
+          "@PROJECT@",
+          "--date",
+          "2099-01-02",
+          "--batch",
+          "FX-01",
+          "--authority",
+          "账本 fx-dispatch-2099 行",
+          "--change-anchor",
+          "FX-01·账本 fx-dispatch-2099",
+          "--supersedes",
+          "无",
+          "--section",
+          "summary=docs/evidence/fx-report-alpha.md#概览",
+          "--section",
+          "health=docs/evidence/fx-report-alpha.md#明细",
+          "--section",
+          "session=docs/evidence/fx-report-beta.md#会话记录",
+          "--section",
+          "final=docs/evidence/fx-report-beta.md#终态记录",
+          "--section",
+          "residuals=docs/evidence/fx-report-beta.md#挂账记录",
+          "--section",
+          "candidates=docs/evidence/fx-report-beta.md#候选记录",
+          "--section",
+          "first_action=docs/evidence/fx-report-beta.md#第一句",
+          "--section",
+          "index=docs/evidence/fx-report-beta.md#索引记录",
+          "--sequence",
+          "22",
+          "--output",
+          "@OUT_NEG@/handoff-2099-01-02-22.md"
+        ],
+        "mutate_template": {
+          "from": "1. 体检口径",
+          "to": "1. 体检口径改"
+        },
+        "expect_stderr_contains": "[内部] --__selftest-template-root 生效",
+        "note": "外部形态传内部参数=受控例外：exit0 生成成功但 stderr 显著警告（W-1 回审轮 3 主控终裁·独立输出避目标存在检查先行）"
       }
     ],
     "gen-close-summary": [
@@ -854,6 +898,43 @@
           "--output",
           "@OUT_NEG@/fx-c7.md"
         ]
+      },
+      {
+        "name": "close-n9-selftest-param-external",
+        "expected_exit": 0,
+        "args": [
+          "--kind",
+          "close",
+          "--project",
+          "@PROJECT@",
+          "--date",
+          "2099-01-02",
+          "--batch",
+          "FX-CLOSE",
+          "--authority",
+          "账本 fx-close-2099 行",
+          "--change-anchor",
+          "FX-CLOSE·账本 fx-close-2099",
+          "--supersedes",
+          "无",
+          "--section",
+          "summary=docs/evidence/fx-report-alpha.md#概览",
+          "--section",
+          "details=docs/evidence/fx-close-detail.md#详述源",
+          "--section",
+          "gates=docs/evidence/fx-close-detail.md#门禁源",
+          "--section",
+          "revert=docs/evidence/fx-close-detail.md#回退源",
+          "--output",
+          "@OUT_NEG@/fx-close-n9.md"
+        ],
+        "mutate_template": {
+          "file": "close-summary.md",
+          "from": "1. 详述",
+          "to": "1. 详述改"
+        },
+        "expect_stderr_contains": "[内部] --__selftest-template-root 生效",
+        "note": "外部形态传内部参数=受控例外：exit1（变异模板失配）且 stderr 显著警告双断言（独立输出）"
       }
     ],
     "gen-commit-summary": [
@@ -1082,6 +1163,24 @@
           "--message-file",
           "@MSG@"
         ]
+      },
+      {
+        "name": "commit-n10-check-alone",
+        "args": [
+          "--type",
+          "feat",
+          "--scope",
+          "x",
+          "--subject",
+          "句",
+          "--runid",
+          "r-x",
+          "--batch-pointer",
+          "p-x",
+          "--check"
+        ],
+        "expected_exit": 1,
+        "note": "--check 与 --message-file 双向配对（N-1 回审轮 3）"
       }
     ],
     "residuals-check": [

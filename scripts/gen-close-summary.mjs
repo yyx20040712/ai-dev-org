@@ -111,10 +111,11 @@ function assertNoVerdictLine(text, slot) {
 }
 
 function templatePath(kind, internalRoot) {
-  // W-1（返工轮 2·主控裁决内部参数制）：DOCGEN_TEMPLATE_ROOT/DOCGEN_TEMPLATE_FIXTURE 两 env
-  // 无条件忽略（齐全也不生效）；唯一注入面=--__selftest-template-root 内部专用参数
+  // W-1（回审轮 2·主控终裁受控例外制）：DOCGEN_TEMPLATE_ROOT/DOCGEN_TEMPLATE_FIXTURE 两 env
+  // 无条件忽略（齐全也不生效）；--__selftest-template-root=受控内部例外——仅 --self-test
+  // 变异用例使用，外部传入不拒但打显著警告且产物不受生产模板根保证。
   const name = kind === 'close' ? 'close-summary.md' : 'gates-summary.md'
-  if (internalRoot) return join(internalRoot, name)
+  if (internalRoot) { console.error(`[内部] --__selftest-template-root 生效（${internalRoot}）——仅自测变异用例；外部传入=受控例外，产物不受生产模板根保证`); return join(internalRoot, name) }
   return join(SKILL_ROOT, 'templates', name)
 }
 
@@ -218,13 +219,14 @@ function selfTest() {
       const code = r.status === null ? 124 : r.status
       console.log(`case=${c.name} exit=${code}`)
       if (code !== c.expected_exit) allOk = false
+      if (c.expect_stderr_contains && !(r.stderr || '').includes(c.expect_stderr_contains)) { console.log(`case=${c.name} stderr 标记缺失：${c.expect_stderr_contains}`); allOk = false }
     }
     // W-1（返工轮 2）env 双键负例：外部设两 env 跑普通生成仍用生产模板根（字节=生产期望）
     {
       const outE = join(tmp, 'envneg-out')
       mkdirSync(outE, { recursive: true })
       const rEnv = run(subst(fx.self_test_cases['gen-close-summary'].find((c) => c.name === 'close-p1-close-generate').args).map((a) => a.replace(join(outA, 'fx-close.md'), join(outE, 'fx-close.md'))), { ...baseEnv, DOCGEN_TEMPLATE_ROOT: mutRootClose, DOCGEN_TEMPLATE_FIXTURE: '1' })
-      note(rEnv.status === 0 && readFileSync(join(outE, 'fx-close.md')).equals(Buffer.from(fx.expected.close, 'utf8')) && mutRootClose !== null, 'W-1 env 双键负例（两 env 齐全仍用生产模板根，产物=生产期望字节）')
+      note(rEnv.status === 0 && existsSync(join(outE, 'fx-close.md')) && readFileSync(join(outE, 'fx-close.md')).equals(Buffer.from(fx.expected.close, 'utf8')) && mutRootClose !== null, 'W-1 env 双键负例（两 env 齐全仍用生产模板根，产物=生产期望字节）')
     }
     const closeOut = join(outA, 'fx-close.md'), gatesOut = join(outB, 'fx-gates.md'), shuffleOut = join(outC, 'fx-close.md'), plitOut = join(outP, 'fx-plit.md')
     if (!existsSync(closeOut) || !existsSync(gatesOut) || !existsSync(shuffleOut) || !existsSync(plitOut)) { note(false, '正例产物缺席（先修正例再跑对照）'); return allOk }

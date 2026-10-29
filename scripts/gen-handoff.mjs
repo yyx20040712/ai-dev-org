@@ -120,9 +120,11 @@ function scanMaxSequence(projectDir) {
 }
 
 function templatePath(internalRoot) {
-  // W-1（返工轮 2·主控裁决内部参数制）：DOCGEN_TEMPLATE_ROOT/DOCGEN_TEMPLATE_FIXTURE 两 env
-  // 无条件忽略（齐全也不生效）；唯一注入面=--__selftest-template-root 内部专用参数（--self-test 私有通道）
-  if (internalRoot) return join(internalRoot, 'handoff.md')
+  // W-1（回审轮 2·主控终裁受控例外制）：DOCGEN_TEMPLATE_ROOT/DOCGEN_TEMPLATE_FIXTURE 两 env
+  // 无条件忽略（齐全也不生效）；--__selftest-template-root=受控内部例外——仅 --self-test
+  // 变异用例使用，外部传入不拒但打显著警告且产物不受生产模板根保证（无用户态凭据可令
+  // CLI 子进程自测与外部绝对不可达兼得；D-1「私有夹具」=注入动作发生在自测内部，成立）。
+  if (internalRoot) { console.error(`[内部] --__selftest-template-root 生效（${internalRoot}）——仅自测变异用例；外部传入=受控例外，产物不受生产模板根保证`) ; return join(internalRoot, 'handoff.md') }
   return join(SKILL_ROOT, 'templates', 'handoff.md')
 }
 
@@ -258,6 +260,7 @@ function selfTest() {
       const code = r.status === null ? 124 : r.status
       console.log(`case=${c.name} exit=${code}`)
       if (code !== c.expected_exit) allOk = false
+      if (c.expect_stderr_contains && !(r.stderr || '').includes(c.expect_stderr_contains)) { console.log(`case=${c.name} stderr 标记缺失：${c.expect_stderr_contains}`); allOk = false }
     }
     // W-2（返工轮 2）：n9 守卫路径可区分断言——stderr 须含「空间用尽」类文案（非通用用法错）
     {
