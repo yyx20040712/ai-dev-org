@@ -889,14 +889,14 @@ function selfTest() {
   // ── B4 面板批（D-3）向量：渲染/检查覆盖感知六态＋install/sync 覆盖传递 ──
   {
     const ovTpl = (lv) => `---\nname: t\nmodel: {{binding:ops-executor-glmflash-high}}\nthoughtLevel: ${lv}\n---\n\n正文 model-field:{{binding:ops-executor-glmflash-high}}\n`
-    const bMax = { 'ops-executor-glmflash-high': 'bigmodel-api/GLM-5.3-Flash$max' }
-    const sd = { provider: 'glmflash', model: 'GLM-5.3-Flash', level: 'high' }
+    const bMax = { 'ops-executor-glmflash-high': 'demo-prov/model-a$max' }
+    const sd = { provider: 'glmflash', model: 'model-a', level: 'high' }
     t('B4 D-3① 覆盖且绑定=覆盖→模板行重写 max、missing 空', (() => { const r = renderAgentTemplate(ovTpl('high'), bMax, { executor: 'max' }); return r.missing.length === 0 && r.text.includes('thoughtLevel: max') })())
-    t('B4 D-3② 覆盖但绑定≠覆盖→conflict（渲染源=绑定）', renderAgentTemplate(ovTpl('max'), { 'ops-executor-glmflash-high': 'bigmodel-api/GLM-5.3-Flash$high' }, { executor: 'max' }).missing.some((m) => m.startsWith('conflict:thoughtLevel:')))
+    t('B4 D-3② 覆盖但绑定≠覆盖→conflict（渲染源=绑定）', renderAgentTemplate(ovTpl('max'), { 'ops-executor-glmflash-high': 'demo-prov/model-a$high' }, { executor: 'max' }).missing.some((m) => m.startsWith('conflict:thoughtLevel:')))
     t('B4 D-3③ 无覆盖冲突→conflict（旧文案逐字）', renderAgentTemplate(ovTpl('low'), bMax).missing.some((m) => m === 'conflict:thoughtLevel:ops-executor-glmflash-high'))
-    t('B4 D-3④ 无覆盖不符=FAIL 且无覆盖文案（旧语义）', checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'bigmodel-api/GLM-5.3-Flash', level: 'max' }).level === 'FAIL' && !checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'bigmodel-api/GLM-5.3-Flash', level: 'max' }).line.includes('thought_level_overrides'))
-    t('B4 D-3⑤ 覆盖且渲染=覆盖=ok', checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'bigmodel-api/GLM-5.3-Flash', level: 'max' }, 'max').level === 'ok')
-    t('B4 D-3⑥ 覆盖但渲染≠覆盖=FAIL 含覆盖文案', (() => { const r = checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'bigmodel-api/GLM-5.3-Flash', level: 'high' }, 'max'); return r.level === 'FAIL' && r.line.includes('slot.level=high ≠ 渲染 thoughtLevel=high') && r.line.includes('thought_level_overrides.executor=max 在案·以覆盖为准') })())
+    t('B4 D-3④ 无覆盖不符=FAIL 且无覆盖文案（旧语义）', checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'demo-prov/model-a', level: 'max' }).level === 'FAIL' && !checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'demo-prov/model-a', level: 'max' }).line.includes('thought_level_overrides'))
+    t('B4 D-3⑤ 覆盖且渲染=覆盖=ok', checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'demo-prov/model-a', level: 'max' }, 'max').level === 'ok')
+    t('B4 D-3⑥ 覆盖但渲染≠覆盖=FAIL 含覆盖文案', (() => { const r = checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'demo-prov/model-a', level: 'high' }, 'max'); return r.level === 'FAIL' && r.line.includes('slot.level=high ≠ 渲染 thoughtLevel=high') && r.line.includes('thought_level_overrides.executor=max 在案·以覆盖为准') })())
     // install/sync 覆盖传递断言（真实模板→tmp 目录；防只改纯函数不接生产链）
     const need = new Set(listAgentTemplates().flatMap((n) => [...readFileSync(join(TEMPLATES_AGENTS, n), 'utf8').matchAll(/\{\{binding:([A-Za-z0-9_-]+)\}\}/g)].map((m) => m[1])))
     const b56 = Object.fromEntries([...need].map((s) => { const p = /^ops-(.+)-([a-z0-9]+)-(low|high|max)$/.exec(s); return [s, `prov-${p[2]}/model-${p[2]}$${p[1] === 'research' ? 'max' : p[3]}`] }))

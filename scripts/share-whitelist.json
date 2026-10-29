@@ -92,6 +92,30 @@
       "contains": "单字母目录形态",
       "reason": "返工 B1 已知残留向量行（单字母目录形态样例）",
       "synthetic_exempt": true
+    },
+    {
+      "file": "scripts/ledger-migrate.mjs",
+      "contains": "合成源",
+      "reason": "迁移器自测合成源注释中的盘符形态说明（迁移器零改动裁决下窄豁免）",
+      "synthetic_exempt": true
+    },
+    {
+      "file": "scripts/ledger-migrate.mjs",
+      "contains": "st-5",
+      "reason": "迁移器自测合成盘符夹具（被测语义=盘符路径归一化，清洗即破坏向量）",
+      "synthetic_exempt": true
+    },
+    {
+      "file": "scripts/ledger-migrate.mjs",
+      "contains": "st-8",
+      "reason": "迁移器自测合成盘符夹具（被测语义=盘符路径归一化，清洗即破坏向量）",
+      "synthetic_exempt": true
+    },
+    {
+      "file": "scripts/ledger-migrate.mjs",
+      "contains": "const orderOk",
+      "reason": "迁移器自测合成盘符夹具（被测语义=盘符路径归一化，清洗即破坏向量）",
+      "synthetic_exempt": true
     }
   ]
 }

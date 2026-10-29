@@ -926,7 +926,7 @@ if (isMain) {
       // 装配岗批（D-3/D-4 配置面护栏）agent_bindings ⊆ agent_slots 负例向量：槽形绑定键无对应
       // 槽→错误行点名；非槽形元数据键（ops-free-x 形态）天然豁免不报。
       t('装配岗批 绑定面：agent_bindings 槽形键无 agent_slots 槽→错误行（非槽形键豁免）', (() => {
-        const e = validateLocalFacts({ agent_bindings: { 'ops-assembler-699-max': 'new-provider/k3.1-pro$max', 'ops-free-x': 'whatever/x' } })
+        const e = validateLocalFacts({ agent_bindings: { 'ops-assembler-699-max': 'demo-prov/model-b$max', 'ops-free-x': 'whatever/x' } })
         return e.some((m) => m.includes('agent_bindings.ops-assembler-699-max')) && !e.some((m) => m.includes('ops-free-x'))
       })())
     }
