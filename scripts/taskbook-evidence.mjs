@@ -5,7 +5,7 @@
 // 退出码口径单源=references/06 §5.8（用法错 1／装载错 3／校验失败 1／通过 0）。
 // 安全边界：只执行任务书声明且通过只读校验的 F 命令；不执行 E 条目与验收命令。
 
-import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, mkdirSync, copyFileSync } from 'node:fs'
 import { dirname, resolve, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
@@ -56,7 +56,8 @@ function repoHead(cwd) {
   return r.status === 0 ? String(r.stdout).trim() : ''
 }
 
-/** record：只读校验通过后逐条执行并落盘；任一 exit≠0 仍落盘但整体失败。 */
+/** record：只读校验通过后逐条执行并落盘；任一 exit≠0 仍落盘但整体失败。
+ *  B7 D-5：entry 新增 skill_head＝SKILL_ROOT git HEAD 实读（repo_head 仍取 --root 仓）；HEAD 不可读＝装载失败（code 3）——预检先于任何 F 命令执行且不落盘证据件。 */
 export function recordTaskbook(taskbookPath, outPath, root = SKILL_ROOT) {
   if (!existsSync(taskbookPath)) return { code: 3, doc: null }
   const facts = parseFacts(readFileSync(taskbookPath, 'utf8'))
@@ -67,6 +68,8 @@ export function recordTaskbook(taskbookPath, outPath, root = SKILL_ROOT) {
       return { code: 1, doc: null }
     }
   }
+  const skillHead = repoHead(SKILL_ROOT)
+  if (!skillHead) return { code: 3, doc: null }
   const cwd = resolve(root)
   const entries = []
   let bad = false
@@ -77,7 +80,7 @@ export function recordTaskbook(taskbookPath, outPath, root = SKILL_ROOT) {
       id: f.id, label: f.label, cmd: f.cmd, cwd,
       exit: r.exit, stdout: r.stdout,
       stdout_sha256: createHash('sha256').update(r.stdout).digest('hex'),
-      recorded_at: new Date().toISOString(), repo_head: repoHead(cwd),
+      recorded_at: new Date().toISOString(), repo_head: repoHead(cwd), skill_head: skillHead,
       date: f.date, declared: f.declared,
     })
   }
@@ -87,7 +90,9 @@ export function recordTaskbook(taskbookPath, outPath, root = SKILL_ROOT) {
 }
 
 /** verify：先过只读校验并与任务书 F 条目交叉核对，全部通过后才重跑比对。
- *  §10.1：任一 entry 不满足（类型/写入形态/与任务书同 id cmd 不等）⇒ 整体 exit 3，不执行任何命令。 */
+ *  §10.1：任一 entry 不满足（类型/写入形态/与任务书同 id cmd 不等）⇒ 整体 exit 3，不执行任何命令。
+ *  B7 D-5：命令执行前区分两形态——全 entry 无 skill_head＝legacy 台账按旧校验接受；全 entry 有 skill_head＝
+ *  须 7-40 位小写十六进制、全件一致且经 SKILL_ROOT `git cat-file -e <head>^{commit}` 可解析（不要求等于当前 HEAD）。混排/混值/未知提交＝exit 3 且零命令执行。 */
 export function verifyTaskbook(taskbookPath, evidencePath) {
   if (!existsSync(taskbookPath)) return { code: 3, results: [], reason: '任务书不存在' }
   let doc
@@ -100,6 +105,14 @@ export function verifyTaskbook(taskbookPath, evidencePath) {
     if (hit) return { code: 3, results: [], reason: `${e.id} 命令含写入形态「${hit}」` }
     const f = facts.get(e.id)
     if (!f || f.cmd.trim() !== e.cmd.trim()) return { code: 3, results: [], reason: `${e.id} 命令与任务书 F 条目不符` }
+  }
+  const heads = doc.entries.map((e) => e.skill_head), present = heads.filter((h) => h !== undefined)
+  if (present.length > 0 && present.length !== heads.length) return { code: 3, results: [], reason: 'skill_head 新旧混排（部分条目缺字段）' }
+  if (present.length === heads.length && present.length > 0) {
+    const head = heads[0]
+    if (typeof head !== 'string' || !/^[0-9a-f]{7,40}$/.test(head)) return { code: 3, results: [], reason: `skill_head 非法形态（${JSON.stringify(head)}——须 7-40 位小写十六进制）` }
+    if (heads.some((h) => h !== head)) return { code: 3, results: [], reason: 'skill_head 同件混值' }
+    if (spawnSync('git', ['-C', SKILL_ROOT, 'cat-file', '-e', `${head}^{commit}`]).status !== 0) return { code: 3, results: [], reason: `skill_head 未知提交（${head}——SKILL_ROOT git cat-file 不可解析）` }
   }
   const norm = (s) => String(s ?? '').replace(/\r\n/g, '\n').replace(/\s+$/g, '')
   const results = []
@@ -157,6 +170,33 @@ function selfTest() {
     evWith({ cmd: 7 }); add('W1 非字符串 cmd：exit 3', verifyTaskbook(tb, ev).code === 3)
     evWith({ cmd: 'printf y' }); add('W1 与任务书 F 条目不匹配：exit 3', verifyTaskbook(tb, ev).code === 3)
     add('W3 围栏内 F 条目不被解析：仅围栏外入列', (() => { const fs2 = parseFacts('```\n' + line('F-07', '围栏内', 'true', '0') + '\n```\n' + line('F-08', '围栏外', 'true', '1')); return fs2.length === 1 && fs2[0].id === 'F-08' })())
+    // ── D-5 skill_head 机器绑定（B7 批）五向量 ──
+    const tb2 = join(tmp, 'tb2.md'), ev2 = join(tmp, 'ev2.json'); writeFileSync(tb2, line('F-10', '计数', "printf 'b\\n' | grep -c b", '1'), 'utf8')
+    const doc2 = recordTaskbook(tb2, ev2, tmp).doc, realHead = repoHead(SKILL_ROOT)
+    add('D5① record skill_head＝SKILL_ROOT 实读、repo_head 仍＝指定 root 实读', !!doc2 && doc2.entries[0].skill_head === realHead && /^[0-9a-f]{7,40}$/.test(String(realHead)) && doc2.entries[0].repo_head === repoHead(tmp), `realHead=${realHead}`)
+    add('D5② 全缺字段 legacy 台账仍可 verify', (() => { const d = JSON.parse(readFileSync(ev2, 'utf8')); d.entries.forEach((e) => delete e.skill_head); writeFileSync(ev2, JSON.stringify(d), 'utf8'); return verifyTaskbook(tb2, ev2).code === 0 })())
+    let unknown = ''
+    for (const c of ['deadbee', 'c0ffee0', '0ddba11']) if (spawnSync('git', ['-C', SKILL_ROOT, 'cat-file', '-e', c + '^{commit}']).status !== 0) { unknown = c; break }
+    add('D5③ skill_head 未知提交拒绝：exit 3 且零命令执行', (() => { const d = JSON.parse(readFileSync(ev2, 'utf8')); d.entries[0].skill_head = unknown; writeFileSync(ev2, JSON.stringify(d), 'utf8'); const r = verifyTaskbook(tb2, ev2); return unknown !== '' && r.code === 3 && r.results.length === 0 })(), `unknown=${unknown}`)
+    add('D5④ 同件混值与新旧混排拒绝：exit 3 且零命令执行', (() => {
+      const tb5 = join(tmp, 'tb5.md'), ev5 = join(tmp, 'ev5.json'); writeFileSync(tb5, [line('F-20', '甲', "printf 'a\\n' | grep -c a", '1'), line('F-21', '乙', "printf 'a\\n' | grep -c a", '1')].join('\n'), 'utf8'); recordTaskbook(tb5, ev5, tmp)
+      const d5 = JSON.parse(readFileSync(ev5, 'utf8')); d5.entries[1].skill_head = unknown || 'deadbee'; writeFileSync(ev5, JSON.stringify(d5), 'utf8')
+      const mixed = verifyTaskbook(tb5, ev5); delete d5.entries[1].skill_head; writeFileSync(ev5, JSON.stringify(d5), 'utf8')
+      const partial = verifyTaskbook(tb5, ev5); return mixed.code === 3 && mixed.results.length === 0 && partial.code === 3 && partial.results.length === 0
+    })())
+    add('D5⑤ HEAD 不可读 record 装载失败：exit 3 且零 F 命令执行且证据件不生成；init git 可读 HEAD 后绑定恢复（N-03 边界两侧）', (() => {
+      const iso = mkdtempSync(join(tmpdir(), 'tb-evidence-iso-'))
+      try {
+        mkdirSync(join(iso, 'scripts'), { recursive: true }); copyFileSync(fileURLToPath(import.meta.url), join(iso, 'scripts', 'taskbook-evidence.mjs'))
+        const tbx = join(iso, 'tb.md'), ovx = join(iso, 'ev.json'), script = join(iso, 'scripts', 'taskbook-evidence.mjs')
+        const run2 = () => spawnSync(process.execPath, [script, 'record', '--taskbook', tbx, '--out', ovx], { encoding: 'utf8' })
+        writeFileSync(tbx, line('F-30', '哨兵', 'exit 45', '0'), 'utf8')
+        const r = run2(), absent = !existsSync(ovx)
+        spawnSync('git', ['-C', iso, 'init', '-q']); spawnSync('git', ['-C', iso, '-c', 'user.name=iso', '-c', 'user.email=iso@l', 'commit', '-q', '--allow-empty', '-m', 'iso'])
+        const r2 = run2(), head = String(spawnSync('git', ['-C', iso, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).stdout || '').trim()
+        return r.status === 3 && absent && r2.status === 1 && head !== '' && existsSync(ovx) && JSON.parse(readFileSync(ovx, 'utf8')).entries[0].skill_head === head
+      } finally { rmSync(iso, { recursive: true, force: true }) }
+    })())
   } finally { rmSync(tmp, { recursive: true, force: true }) }
   const pass = cases.filter((c) => c.ok).length
   return { cases, pass, fail: cases.length - pass }

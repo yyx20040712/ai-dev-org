@@ -87,6 +87,9 @@ h1{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0;font-size:25
 .operations{margin-top:28px;padding:16px}
 .operations .section-head{margin:0 0 13px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.recovery-note{display:flex;gap:8px;align-items:flex-start;margin:0 0 12px;padding:9px 12px;border:1px solid var(--line-strong);border-radius:9px;background:var(--panel-2);color:var(--text);font-size:12px;line-height:1.6}
+.recovery-note::before{content:"ⓘ";flex:none;color:var(--accent);font-weight:800}
+.recovery-note[hidden]{display:none}
 .action-btn{min-height:36px;padding:7px 13px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;transition:background .15s,border-color .15s,transform .15s}
 .action-btn:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
 .action-btn:active:not(:disabled){transform:translateY(1px)}
@@ -122,6 +125,7 @@ pre{min-height:90px;max-height:260px;overflow:auto;margin:13px 0 0;padding:13px 
 
   <section class="operations">
     <div class="section-head"><div><h2>操作与日志</h2><p>查看来源状态，或重新生成本机代理配置。</p></div></div>
+    <div id="recovery" class="recovery-note" role="status" hidden></div>
     <div class="toolbar">
       <button class="action-btn primary" id="refresh">刷新状态</button>
       <button class="action-btn" id="health">源健康（24h）</button>
@@ -185,10 +189,17 @@ function roleCard(role,levels){
   </div>`).join('');
   return `<article class="role-card" data-role-card="${esc(role.role)}"><header class="role-head"><div><div class="role-title"><h3>${esc(role.title)}</h3>${levelCtl}</div><div class="role-name">${esc(role.role)}</div></div><button type="button" class="save-state" data-state="saved" title="顺序已保存">已保存 ✓</button></header><div class="model-list" role="list" aria-label="${esc(role.title)}模型回退顺序">${rows}</div><footer class="card-foot"><span>从上到下依次回退</span><span>${role.order.length} 个候选</span></footer></article>`;
 }
+/** B7 D-3：rename 后崩溃窗恢复提示——只在 state.recovery.backupPresent===true 时可见并
+ *  显示服务端 message（条件式措辞）；recovery/backupPresent 缺席或 false 均隐藏。非阻塞，无自动恢复。 */
+function renderRecovery(state){
+  const note=$('recovery');
+  if(!note)return;
+  const on=!!(state&&state.recovery&&state.recovery.backupPresent===true);
+  note.hidden=!on;
+  if(on)note.textContent=String(state.recovery.message||'');
+}
 function render(state){
   if(drag) finishDrag(false);
-  for(const rt of runtimes.values()){clearTimeout(rt.timer);rt.obsolete=true;}
-  runtimes.clear();
   const valid=state.validate&&state.validate.code===0;
   $('v-badge').textContent=valid?'PASS':'FAIL';
   $('v-badge').className='badge '+(valid?'good':'bad');
@@ -196,19 +207,36 @@ function render(state){
   const validationLine=String(state.validate.out||'').trim().split('\n').filter(Boolean).pop()||'';
   $('cards').innerHTML=statusCard('项目仓',state.project)+statusCard('技能仓',state.skill)+`<article class="status-card"><div class="status-top"><span>配置校验</span><span class="clean-state${valid?'':' dirty'}">${valid?'校验通过':'校验失败'}</span></div><div class="status-value">${valid?'PASS':'FAIL'}</div><div class="status-detail" title="${esc(state.validate.out)}">${esc(validationLine)}</div></article>`;
   $('roles').innerHTML=(state.roleGroups||state.roles.map(role=>({id:role.role,label:role.title,roles:[role]}))).map(group=>`<section class="role-group" data-role-group="${esc(group.id)}"><div class="section-head"><h2>${esc(group.label)}</h2></div><div class="roles-grid">${group.roles.map(role=>roleCard(role,state.levels)).join('')}</div></section>`).join('');
+  renderRecovery(state);
   document.querySelectorAll('.role-card').forEach(card=>{
     const role=card.dataset.roleCard;
     const source=state.roles.find(item=>item.role===role);
     const providers=source.order.map(item=>item.provider);
-    const rt={role,saved:[...providers],draft:[...providers],timer:null,busy:false,error:'',card,list:card.querySelector('.model-list'),obsolete:false};
+    /* B7 D-1：在途 runtime（busy＝保存未决；timer＝去抖保存未触发）保留同一对象身份与
+       saved/draft/busy/error，仅把 card/list 重接到新 DOM——新 state 只展示服务端事实，
+       不静默覆盖在途 draft；档位按钮与 save-state 重呈现 saving/disabled，不借新 DOM 变可点。 */
+    const prev=runtimes.get(role);
+    const keep=prev&&!prev.obsolete&&(prev.busy||prev.timer);
+    const rt=keep?prev:{role,saved:[...providers],draft:[...providers],timer:null,busy:false,error:'',card:null,list:null,obsolete:false};
+    rt.card=card;rt.list=card.querySelector('.model-list');
+    if(keep&&!sameOrder(rt.draft,providers)){for(const pv of rt.draft){const row=[...rt.list.children].find(r=>r.dataset.provider===pv);if(row)rt.list.appendChild(row);}}
     runtimes.set(role,rt);
     refreshRows(rt);
-    setStatus(rt,'saved');
+    if(keep&&(rt.busy||rt.timer)){setStatus(rt,'saving');setLevelButtons(rt,true);}
+    else setStatus(rt,'saved');
   });
 }
-async function load(message){
-  try{render(await api('/api/state'));log(message||'状态已刷新。');return true;}
-  catch(error){markDead();log('面板服务未运行或读取失败：'+error);return false;}
+/** B7 R1 B-1＋R2 B-1：状态重拉可携带操作身份守卫——成功/解析异常出口均先核 guard() 再
+ *  render/log/markDead（stale 操作不得 markDead、写日志或写新 runtime）。 */
+async function load(message,guard){
+  try{
+    const state=await api('/api/state');
+    if(guard&&!guard())return false;
+    render(state);log(message||'状态已刷新。');return true;
+  }catch(error){
+    if(guard&&!guard())return false;
+    markDead();log('面板服务未运行或读取失败：'+error);return false;
+  }
 }
 function setStatus(rt,state){
   const button=rt.card&&rt.card.querySelector('.save-state');
@@ -232,58 +260,76 @@ function afterReorder(rt){
 }
 function scheduleSave(rt){
   clearTimeout(rt.timer);rt.timer=null;
-  if(sameOrder(rt.draft,rt.saved)){if(!rt.busy)setStatus(rt,'saved');return;}
+  if(sameOrder(rt.draft,rt.saved)){if(!rt.busy){setStatus(rt,'saved');setLevelButtons(rt,false);}return;}
   setStatus(rt,'saving');
   rt.timer=setTimeout(()=>{rt.timer=null;pumpSave(rt);},500);
 }
 async function pumpSave(rt){
-  if(rt.obsolete||rt.busy)return;
-  if(sameOrder(rt.draft,rt.saved)){setStatus(rt,'saved');return;}
+  /* R2 W-04：busy 未决期去抖到期→draft≠saved 且无 timer 则重挂（档位保存不吞排序草稿） */
+  if(rt.obsolete||rt.busy){if(!rt.obsolete&&rt.busy&&!rt.timer&&!sameOrder(rt.draft,rt.saved))rt.timer=setTimeout(()=>{rt.timer=null;pumpSave(rt);},500);return;}
+  if(sameOrder(rt.draft,rt.saved)){setStatus(rt,'saved');setLevelButtons(rt,false);return;}
   const sent=[...rt.draft];
   rt.busy=true;rt.error='';setStatus(rt,'saving');
   try{
     const result=await api('/api/order',{role:rt.role,order:sent});
     if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
     if(result.ok){
-      rt.saved=sent;rt.busy=false;
+      rt.saved=sent;rt.busy=false;setLevelButtons(rt,false);
       const output=result.validate&&result.validate.out?'\n'+result.validate.out:'';
       log(`${rt.role} 顺序已保存。${output}`);
       if(sameOrder(rt.draft,rt.saved))setStatus(rt,'saved');else pumpSave(rt);
     }else{
+      /* B7 R1 B-2：失败重拉期间保持 busy/未决身份（render 保留同一 runtime·显示 saving）；
+         重拉携带身份守卫；返回后确认同一 runtime 才显式收尾 busy/error/三态——删除向当时
+         任意 fresh runtime 无条件转写错误与三态的回退路径（零转写）。 */
       const reason=(result.validate&&result.validate.out)||result.error||'服务端拒绝了本次排序。';
-      rt.busy=false;rt.error=reason;setStatus(rt,'error');
-      await load(`${rt.role} 保存失败，已恢复服务端顺序。\n${reason}`);
-      const fresh=runtimes.get(rt.role);if(fresh){fresh.error=reason;setStatus(fresh,'error');}
+      rt.error=reason;
+      await load(`${rt.role} 保存失败，已恢复服务端顺序。\n${reason}`,()=>!rt.obsolete&&runtimes.get(rt.role)===rt);
+      if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
+      rt.busy=false;setLevelButtons(rt,false);setStatus(rt,'error');
     }
   }catch(error){
-    if(rt.obsolete)return;
+    if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
     const reason=String(error);
-    rt.busy=false;rt.error=reason;setStatus(rt,'error');
-    await load(`${rt.role} 保存失败，已尝试恢复服务端顺序。\n${reason}`);
-    const fresh=runtimes.get(rt.role);if(fresh){fresh.error=reason;setStatus(fresh,'error');}
+    rt.error=reason;
+    await load(`${rt.role} 保存失败，已尝试恢复服务端顺序。\n${reason}`,()=>!rt.obsolete&&runtimes.get(rt.role)===rt);
+    if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
+    rt.busy=false;setLevelButtons(rt,false);setStatus(rt,'error');
   }
 }
-/** B4 D-7 档位保存：点击即存；三态复用 save-state；保存流程结束（无论配置成败、
- *  sync 成败）一律重拉 /api/state——行 tooltip 与部署警示都取自重拉后的 fresh state。
- *  B4 返工 R1：唯一成功形态=HTTP ok 且 result.ok===true 且 result.sync.code===0；
- *  其余一切形态（400/500、ok:true 缺 sync、非对象响应）统一进 error 分支并展示
- *  error/validate.out/sync.out 与 rolledBack 标记（R2）。 */
+/** B7 D-2＋R1：同角色档位保存重入守卫——发送前同时检查 runtime 存在、!busy、!timer、
+ *  !obsolete、runtimes.get(role)===rt（R1 W-01：排序去抖 timer 未决＝同一互斥态，零 fetch，
+ *  防档位保存打断去抖致 draft 丢失）；任一不满足即返回且零 fetch。受理后立即置 busy 并禁用
+ *  该卡全部档位按钮；成功/HTTP 非成功/JSON 异常/fetch 异常与自有 load() 之后均先做同一身份
+ *  守卫再写状态（不得只 guard 发送前；load 本身携带守卫——B-1）。stale 操作只让响应在服务端
+ *  自然结束，不写新 runtime 的状态/草稿/日志。B4 语义逐字保持：唯一成功形态=HTTP ok 且
+ *  result.ok===true 且 result.sync.code===0（R1）；失败重拉 state 并展示 error/validate.out/
+ *  sync.out 与 rolledBack（R2）；成功/失败分支在确认 runtime 仍当前后显式收尾 busy 与三态。 */
+function setLevelButtons(rt,disabled){
+  const sw=rt.card&&rt.card.querySelector('.level-switch');
+  if(sw)sw.querySelectorAll('.opt').forEach(b=>{b.disabled=disabled;});
+}
 async function saveLevel(role,level){
   const rt=runtimes.get(role);
-  if(!rt||rt.busy)return;
+  if(!rt||rt.busy||rt.timer||rt.obsolete||runtimes.get(role)!==rt)return;
   rt.busy=true;setStatus(rt,'saving');
-  const sw=rt.card&&rt.card.querySelector('.level-switch');
-  if(sw)sw.querySelectorAll('.opt').forEach(b=>{b.disabled=true;});
-  const failWith=async(reason)=>{
-    await load(`${role} 档位保存失败。\n${reason}`);
-    const fresh=runtimes.get(role);if(fresh){fresh.error=reason;setStatus(fresh,'error');}
+  setLevelButtons(rt,true);
+  const stale=()=>rt.obsolete||runtimes.get(role)!==rt;
+  const finish=async(message,reason)=>{
+    await load(message,()=>!stale());
+    if(stale())return;
+    rt.busy=false;setLevelButtons(rt,false);
+    if(reason){rt.error=reason;setStatus(rt,'error');}
+    else{if(sameOrder(rt.draft,rt.saved))setStatus(rt,'saved');else scheduleSave(rt);}
   };
   try{
     const resp=await fetch('/api/level',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,level})});
+    if(stale())return;
     if(resp.status===404)throw new Error('面板服务版本旧——请重启面板服务后再调档位（/api/level 不存在）');
     const result=await resp.json();
+    if(stale())return;
     if(resp.ok&&result&&result.ok===true&&result.sync&&result.sync.code===0){
-      await load(`${role} 档位已保存：${level}。`);
+      await finish(`${role} 档位已保存：${level}。`,null);
     }else{
       const parts=[];
       if(result&&result.ok===false)parts.push((result.validate&&result.validate.out)||'');
@@ -293,10 +339,12 @@ async function saveLevel(role,level){
       if(result&&result.sync&&result.sync.out&&result.ok!==false)parts.push(result.sync.out);
       if(result&&result.error)parts.push(result.error);
       if(result&&result.rolledBack!==undefined)parts.push(`rolledBack=${result.rolledBack}`);
-      await failWith(parts.filter(Boolean).join('\n'));
+      const reason=parts.filter(Boolean).join('\n');
+      await finish(`${role} 档位保存失败。\n${reason}`,reason);
     }
   }catch(error){
-    await failWith(String(error));
+    if(stale())return;
+    await finish(`${role} 档位保存失败。\n${String(error)}`,String(error));
   }
 }
 function animateRows(rows,first){

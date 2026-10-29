@@ -160,6 +160,10 @@ function state() {
   const last = JSON.parse(ledger[ledger.length - 1]);
   const validate = run('node scripts/org-config.mjs validate');
   const tags = (() => { try { return execFileSync(`git -C ${SKILL} tag -l`, { shell: '/bin/bash', encoding: 'utf8' }).trim(); } catch { return ''; } })();
+  // B7 D-3：rename 后崩溃窗恢复提示投影——backupPresent 只由 .panel-bak 存在性派生；
+  // 存在≠已崩溃，message 用条件式措辞且不含「已崩溃」断言；不读/不输出备份内容，
+  // 不自动回滚、不删除备份。正常成功保存留下的备份同样提示（存在即提示·保守设计）。
+  const backupPresent = fs.existsSync(LOCAL + '.panel-bak');
   return {
     now: new Date().toString(),
     project: PROJECT ? git1(PROJECT) : null,
@@ -167,6 +171,12 @@ function state() {
     ledger: { lines: ledger.length, lastRunId: last.runId, lastTs: last.ts },
     validate,
     levels: MATRIX.levels,
+    recovery: {
+      backupPresent,
+      message: backupPresent
+        ? '检测到写前备份 .panel-bak——若上次保存在校验前中断，当前配置可能是未经校验的版本；面板不自动回滚，也不会自动删除该备份，如需恢复请人工核对 .panel-bak 后自行处理。'
+        : '',
+    },
     roles,
     roleGroups,
   };
