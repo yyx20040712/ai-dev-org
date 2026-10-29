@@ -934,7 +934,7 @@
           "to": "1. 详述改"
         },
         "expect_stderr_contains": "[内部] --__selftest-template-root 生效",
-        "note": "外部形态传内部参数=受控例外：exit1（变异模板失配）且 stderr 显著警告双断言（独立输出）"
+        "note": "外部形态传内部参数=受控例外：exit0 生成成功（变异模板标题不参与抽取路径）+stderr 显著警告双断言（独立输出·勘误：原注 exit1）"
       }
     ],
     "gen-commit-summary": [
@@ -1167,20 +1167,24 @@
       {
         "name": "commit-n10-check-alone",
         "args": [
+          "--project",
+          "@PROJECT@",
+          "--ledger",
+          "@LEDGER@",
+          "--runid",
+          "fx-dispatch-2099",
+          "--batch-pointer",
+          "docs/tasks/fx-task.md",
           "--type",
           "feat",
           "--scope",
-          "x",
+          "FX",
           "--subject",
-          "句",
-          "--runid",
-          "r-x",
-          "--batch-pointer",
-          "p-x",
+          "合成提交短句",
           "--check"
         ],
         "expected_exit": 1,
-        "note": "--check 与 --message-file 双向配对（N-1 回审轮 3）"
+        "note": "--check 与 --message-file 双向配对（N-1 回审轮 3）：必填全给仅缺 --message-file→配对守卫真触达（勘误：原缺 --project/--ledger 被必填检查先行拦截）"
       }
     ],
     "residuals-check": [

@@ -232,6 +232,11 @@ function selfTest() {
     const proj1 = mkProject('proj1'), proj2 = mkProject('proj2')
     const proj99 = (() => {
       const proj = join(tmp, 'proj99')
+      for (const [rel, content] of Object.entries(fx.sources)) {
+        const p = join(proj, rel)
+        mkdirSync(dirname(p), { recursive: true })
+        writeFileSync(p, content, 'utf8')
+      }
       mkdirSync(join(proj, 'docs', 'evidence'), { recursive: true })
       for (const f of fx.handoff_existing_99) writeFileSync(join(proj, 'docs', 'evidence', f), '(合成历史件)\n', 'utf8')
       return proj
