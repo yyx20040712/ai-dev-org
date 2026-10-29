@@ -2,7 +2,7 @@
 
 > 状态：active ｜ 权威：registry ｜ 替代：无
 
-当前 **open=9**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
+当前 **open=11**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
 历史文档区存档与技能仓 git 提交历史，不驻技能加载面。
 
 **权威段唯一**：下方 residuals-json 标记对之间的 JSON 是唯一权威（schema=residuals/v1）；「历史旧表」仅供对账、已冻结非权威；禁止双写——冻结表行不得在冻结块外重现，新登记只走 JSON 八键，不再新增 Markdown 行。
@@ -159,6 +159,30 @@
       "phenomenon": "任务书证据层两小缺口（B5 批 tbreview 轮 3 N×2＋implreview 席二 N-3 同族·主控裁定挂册）：①V-08.3 基线深等未覆盖 share-whitelist 顶层 `_note` 与新增顶层键拒斥（本批以 24+/0- numstat＋hunk 范围反证未动）②F 事实台账技能仓 HEAD 仅说明文字绑定、repo_head 字段记主仓头（taskbook-evidence verify 不校验该字段）",
       "status": "open",
       "trigger": "下次动 check-taskbook/taskbook-evidence 工具面或再写带 F/E 台账任务书时收敛（探针补 _note 深等＋顶层键集相等断言；证据件增 skill_head 字段或 F 命令附印技能仓 HEAD）"
+    },
+    {
+      "created_at": "2026-10-31",
+      "description": "返工轮 2 主控裁决登记残留（同 TOCTOU 先例 b1n-toctou 族）",
+      "evidence": [
+        "docs/evidence/B6-docgen-impl-2026-10-29.md §11"
+      ],
+      "id": "b6n-atomicwrite-race",
+      "owner": "B6",
+      "phenomenon": "gen-handoff/gen-close-summary atomicNewWrite 先 existsSync 再 rename，两并发进程可同过存在性检查后写覆盖（单人单进程理论面）",
+      "status": "open",
+      "trigger": "下次动两生成器写侧时评估目标侧独占创建（link/O_EXCL 形态）收敛 existsSync→rename 竞态窗"
+    },
+    {
+      "created_at": "2026-10-31",
+      "description": "返工轮 2 主控裁决登记残留（内建常量将致脚本与冻结表强耦合·暂不内建）",
+      "evidence": [
+        "docs/evidence/B6-docgen-impl-2026-10-29.md §11"
+      ],
+      "id": "b6n-frozen-anchor-external",
+      "owner": "B6",
+      "phenomenon": "residuals-check 冻结哈希仅文件内自洽（表与标记同步改写仍过），锚定由 V-05c 外部探针承担",
+      "status": "open",
+      "trigger": "下次动 residuals-check 或要求 --check 单独承担冻结锚定时内建基线常量或基线文件比对"
     },
     {
       "created_at": null,
