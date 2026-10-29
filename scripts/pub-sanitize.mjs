@@ -176,18 +176,22 @@ function rehashManifest(tree) {
   return changed
 }
 
-/** terms-baseline 重算：树内 check-terms --update（anti-whitewash 断言必须过）；frozen 归一为
- *  FROZEN_DATE 常量并回读断言（跨日重建逐字节稳定——首席 B2/二席 W3）。 */
+/** terms-baseline 重算（D-16a）：树内临时旗标状态件经子进程 env ORG_FLAGS_STATE 驱动（零触生产 flag），显式 on＋
+ *  --surface historical --update（cwd/--project=tree）→ 同态 strict both 复核 → finally 清 .zcode 断言缺席；frozen 双层归一回读断言（跨日幂等——首席 B2/二席 W3）。 */
 function recomputeBaseline(tree) {
-  const r = spawnSync(process.execPath, [join(tree, 'scripts', 'check-terms.mjs'), '--update'], { encoding: 'utf8' })
-  if (r.error || r.status !== 0) fail(`terms-baseline 重算被拒（check-terms --update exit=${r.status}）：${String(r.stdout || '').trim().slice(-160)}${String(r.stderr || '').trim().slice(0, 160)}`)
-  const bp = join(tree, 'scripts', '.golden', 'terms-baseline.json')
-  let base
-  try { base = JSON.parse(readFileSync(bp, 'utf8')) } catch (e) { fail(`terms-baseline 重读失败：${e.message}`) }
-  base.frozen = FROZEN_DATE
-  writeFileSync(bp, JSON.stringify(base, null, 2) + '\n')
-  try { if (JSON.parse(readFileSync(bp, 'utf8')).frozen !== FROZEN_DATE) fail('frozen 归一断言失败') } catch (e) { fail(`terms-baseline 归一断言异常：${e.message}`) }
-  return String(r.stdout || '').trim()
+  const zdir = join(tree, '.zcode'), fp = join(zdir, 'org-flags.json'); mkdirSync(zdir, { recursive: true }); writeFileSync(fp, JSON.stringify({ b2_terms_v2: true }), 'utf8')
+  const env = { ...process.env, ORG_FLAGS_STATE: fp }, run = (a) => spawnSync(process.execPath, [join(tree, 'scripts', 'check-terms.mjs'), ...a], { encoding: 'utf8', cwd: tree, env })
+  let baseline = ''
+  try {
+    const u = run(['--surface', 'historical', '--update', '--project', tree]); if (u.error || u.status !== 0) fail(`terms-baseline 重算被拒（historical update exit=${u.status}）：${String(u.stderr || u.stdout || '').trim().slice(0, 200)}`)
+    baseline = String(u.stdout || '').trim()
+    const g = run(['--strict', '--surface', 'both', '--project', tree]); if (g.error || g.status !== 0) fail(`terms-baseline 重算复核未过（strict both exit=${g.status}）：${String(g.stderr || g.stdout || '').trim().slice(0, 200)}`)
+  } finally { rmSync(zdir, { recursive: true, force: true }); if (existsSync(zdir)) fail('树内临时状态清理失败（.zcode 残留）') }
+  const bp = join(tree, 'scripts', '.golden', 'terms-baseline.json'), base = (() => { try { return JSON.parse(readFileSync(bp, 'utf8')) } catch (e) { return fail(`terms-baseline 重读失败：${e.message}`) } })()
+  base.frozen = FROZEN_DATE; if (isPlain(base.historical)) base.historical.frozen = FROZEN_DATE
+  writeFileSync(bp, JSON.stringify(base, null, 2) + '\n'); const back = JSON.parse(readFileSync(bp, 'utf8'))
+  if (back.frozen !== FROZEN_DATE || (isPlain(base.historical) && back.historical.frozen !== FROZEN_DATE)) fail('frozen 归一断言失败')
+  return baseline
 }
 
 /** 确定性清单：行=sha256␠␠相对路径（排序稳定·无时间戳·头注零 git sha——孤儿 sha↔基 sha 对应由主控结项件承载）。 */
@@ -270,7 +274,11 @@ function pipeline(outArg) {
   c.X1 = applyExactRules(outDir, spec, 'X1')
   c.X2 = applyExactRules(outDir, spec, 'X2')
   c.X4 = applyExactRules(outDir, spec, 'X4')
-  c.X3 = applyFamilyRule(outDir, spec.familyRules.find((f) => f.id === STEP_FAMILY.X3 && f.mode === 'regex'))
+  const x3 = spec.familyRules.find((f) => f.id === STEP_FAMILY.X3 && f.mode === 'regex')
+  const x3re = new RegExp(x3.regex, x3.flags || 'g'); const x3src = readFileSync(join(outDir, 'scripts', 'check-terms.mjs'), 'utf8')
+  x3.counts['scripts/check-terms.mjs'] = x3src.match(x3re) ? x3src.match(x3re).length : 0 // D-16b：X3 对导出树实值 matchAll 覆写（防漂移常量）
+  x3.familyTotal = Object.values(x3.counts).reduce((sx, x) => sx + x, 0)
+  c.X3 = applyFamilyRule(outDir, x3)
   c.X5 = applyFamilyRule(outDir, spec.familyRules.find((f) => f.id === STEP_FAMILY.X5 && f.mode === 'regex'))
   c.X7 = applyExactRules(outDir, spec, 'X7')
   const t = applyT(outDir, spec.codenameMap)

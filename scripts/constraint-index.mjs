@@ -151,8 +151,8 @@ export function runChecks(root, files, cards, parseFindings) {
     if (fm.enforcement === 'machine' && !(typeof fm.check === 'string' && fm.check.trim())) add(1, c, 'enforcement=machine 时 check 必须非空')
     const bookName = BOOK_RE.exec(c.file.split('/').pop())[2], slug = SLUGS[bookName]
     if (!ID_RE.test(c.id)) add(2, c, 'ID 格式不符')
-    else if (c.id.slice(2, 5) !== slug) add(2, c, `ID ${c.id} 中段 ${c.id.slice(2, 5)} 与所在册「${c.file}」期望代号 ${slug} 不一致`)
-    if (fm.category !== bookName.replace(/-/g, '')) add(3, c, `category「${fm.category ?? ''}」与所在册「${bookName}」不一致`)
+    else if (c.id.slice(2, 5) !== slug) add(2, c, `ID ${c.id} 中段 ${c.id.slice(2, 5)} 与所属文档「${c.file}」期望代号 ${slug} 不一致`)
+    if (fm.category !== bookName.replace(/-/g, '')) add(3, c, `category「${fm.category ?? ''}」与所属文档「${bookName}」不一致`)
   }
   const seen = new Map()
   for (const c of cards) { if (seen.has(c.id)) add(2, c, `ID 重复（另见 ${seen.get(c.id).file}:${seen.get(c.id).line}）`); else seen.set(c.id, c) }

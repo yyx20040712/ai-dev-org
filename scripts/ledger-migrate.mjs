@@ -173,7 +173,7 @@ function selfTest() {
       return codes.slice(0, -1).every((c) => c === 3) && codes[codes.length - 1] === 1
     })())
     t('⑪ R2 配置破损不吞：CLI 装载 catch 分支持 exit 3（tripwire·源面断言）', (() => { const src = readFileSync(fileURLToPath(import.meta.url), 'utf8'); return /装载失败：\$\{e\.message\}（返工 R2[^）]*）[\s\S]{0,80}process\.exit\(3\)/.test(src) })())
-    t('⑫ R3 逃逸负例：fixture 模式 candidate 越出夹具根→用法错拒（migratePaths 围栏）', (() => { try { if (typeof migratePaths === 'function') migratePaths({ fixtureRoot: '/synthetic/fx', candidate: '/synthetic/outside/candidate.json' }); return false } catch (e) { return e instanceof UsageError && String(e.message).includes('夹具根') } })())
+    t('⑫ R3 漏网负例：fixture 模式 candidate 越出夹具根→用法错拒（migratePaths 围栏）', (() => { try { if (typeof migratePaths === 'function') migratePaths({ fixtureRoot: '/synthetic/fx', candidate: '/synthetic/outside/candidate.json' }); return false } catch (e) { return e instanceof UsageError && String(e.message).includes('夹具根') } })())
     t('⑰ W-1 负例：夹具内硬链候选件（fs.link→夹具外受害件）→dry-run 用法错拒＋受害件内容零改写（红态=守卫缺席时写穿实改·round3 主席席复算同型）', typeof runDryRun === 'function' && (() => {
       const fx = mkdtempSync(join(tmpdir(), 'lm-w1-')), victim = join(tmpdir(), 'lm-w1-victim-' + process.pid + '.json')
       try {
@@ -215,19 +215,19 @@ export function resolveProjectRoot(explicit, projectsPartition = {}) {
   return null
 }
 const realOf = (x) => { try { return realpathSync(x) } catch { return resolve(x) } } // 缺席目标=字面解析；既存=symlink 真身
-const rejectHardlink = (p, kind) => { let s = null; try { s = lstatSync(p) } catch { return } if (s && s.nlink > 1) throw new UsageError(`${kind} 写目标为硬链接（nlink=${s.nlink}——共享 inode 写穿逃逸面·夹具外受害件会被实际改写——W-1 一律拒）`) } // W-1：hardlink 无 realpath 痕迹，唯 nlink 可辨
+const rejectHardlink = (p, kind) => { let s = null; try { s = lstatSync(p) } catch { return } if (s && s.nlink > 1) throw new UsageError(`${kind} 写目标为硬链接（nlink=${s.nlink}——共享 inode 写穿越界面·夹具外受害件会被实际改写——W-1 一律拒）`) } // W-1：hardlink 无 realpath 痕迹，唯 nlink 可辨
 export function assertFixtureConfine(fixtureRoot, p, kind) { // 返工 R3/R14/R14b：realpath 三面 containment＋写目标节点 lstat（含悬空 symlink 一律拒）
   if (!fixtureRoot || !p) return
   const root = realOf(fixtureRoot), target = resolve(p)
   let st = null
   try { st = lstatSync(target) } catch { st = null } // 缺席=无节点（悬空链接本体 lstat 仍可命中）
   if (st && st.isSymbolicLink())
-    throw new UsageError(`${kind} 写路径为符号链接节点（${target}——含悬空链接·写穿逃逸面——R14b 一律拒）`)
+    throw new UsageError(`${kind} 写路径为符号链接节点（${target}——含悬空链接·写穿越界面——R14b 一律拒）`)
   rejectHardlink(target, kind) // W-1：既存写目标 nlink>1 拒（复用上方 lstat 语义·独立 lstat 保持守卫单源可复用于生产写侧）
   let real = target
   try { real = realpathSync(target) } catch { real = join(realOf(dirname(target)), basename(target)) } // 目标缺席→父目录真身＋basename
   if (real !== root && !real.startsWith(root + '/'))
-    throw new UsageError(`${kind} 写路径越出夹具根（${target}→真身 ${real}）——fixture 模式 symlink 载体逃逸禁入生产（R3/R14）`)
+    throw new UsageError(`${kind} 写路径越出夹具根（${target}→真身 ${real}）——fixture 模式 symlink 载体漏网禁入生产（R3/R14）`)
 }
 export function migratePaths({ fixtureRoot = null, projectRoot = null, candidate = null, manifest = null } = {}) {
   const or = (explicit, dflt) => (explicit ? resolve(explicit) : dflt)

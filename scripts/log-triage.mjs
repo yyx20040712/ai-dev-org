@@ -8,21 +8,21 @@
  *   ②attempt 分布（客户端重试放大统计——maxAttempts=11 噪声源）
  *   ③静默回退检测：~/.zcode/cli/agents/＜会话＞/＜代理＞/metadata.json 声明绑定 vs 日志实际 model 归因
  *     （声明值非 <uuid|builtin:…|account:…>/<model> 形态=疑似枚举假绑定——按流量分级：窗口内有请求=RED/
- *     无请求=WARN 档案面问题；声明≠实际=RED 静默回退；已知键形态异常=WARN 格式漂移疑似 tripwire）
+ *     无请求=WARN 代理档案面问题；声明≠实际=RED 静默回退；已知键形态异常=WARN 格式漂移疑似 tripwire）
  *     比较口径=精确串匹配（保守方向：假 RED 优于假绿，承 W-3 白名单反转哲学）——版本化
  *     别名形态（如 <model>-YYYYMMDD 快照）暂不支持，出现即按回退上报人工复核（审核 W-2）。
  *   ⑥岗×源用量汇总（含 Kimi 双源分列——org-ledger 补记数据源）
  *   ⑦finish 终态派生（子代理通道截断信号——保守口径，词表读 org-config finish_vocab）
  *   --health：源健康检查（A'③）——按供应商五类分诊 → k1/k2 推荐+分类处置建议
- *     （额度类→换源；504 窗口类→不换源、瘦身——第二配额备源同端点共模，05 §九纠偏②）
+ *     （额度类→切换承载源；504 窗口类→不切换承载源、瘦身——第二配额备源同端点共模，05 §九纠偏②）
  *   --slots（P2）：slot 表（agent_slots 全量，按 role/level 排序，family 由 providers
  *     的 family||model_family 解析）+ 观察到的 profileId 未识别清单（不阻断）。
  * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--slots] [--self-test]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
- * 指针化；回炉 r2 削 b8 残留碎片，本件各类退出均属总表既有类目）。
+ * 指针化；返工 r2 削 b8 残留碎片，本件各类退出均属总表既有类目）。
  * 纪律：finish 词表与供应商别名住 org-config（禁硬编码，A3/06 §0）；自然退出（HOST-node25 规避）。
- * 缺输入显式留痕（selfiter 批 evolve-l9-degrade 清偿）：CLI 日志/派发器流水/
+ * 缺输入显式留痕（selfiter 批 evolve-l9-degrade 补还）：CLI 日志/派发器流水/
  *   metadata 目录缺失=stderr [info] 行点名后继续——info 级非降级（新机/未派发
  *   =正常态，与 check-hardcode 词表缺失降级 exit 5 分界：彼为扫描能力受损）。
  */
@@ -78,9 +78,9 @@ const tsMs = (x) => { const t = Date.parse(x); return Number.isNaN(t) ? null : t
 /** 窗口过滤（epoch ms；不可解析/缺失时间戳行=保留，与原字符串比较口径的保守方向一致）。 */
 const inWindow = (t, sinceMs, untilMs) => t === null ? true : !((sinceMs != null && t < sinceMs) || (untilMs != null && t >= untilMs))
 
-/** 缺输入显式留痕（selfiter 批 evolve-l9-degrade 清偿——纯函数，自检可注入 exists）：
+/** 缺输入显式留痕（selfiter 批 evolve-l9-degrade 补还——纯函数，自检可注入 exists）：
  *  CLI 面双形态：date 模式=具体文件（多点全缺才记）；hours 模式=目录级（cliDir
- *  缺失即记——回炉 W1：原 hours 分支 logFiles=[] 致 cliLogPaths 空数组漏留痕，
+ *  缺失即记——返工 W1：原 hours 分支 logFiles=[] 致 cliLogPaths 空数组漏留痕，
  *  恰为目标场景）；routing/agents 两面同前。级别=info 非 degraded（新机/未派发
  *  属正常态，退出码不动）。 */
 export function missingInputNotes({ cliLogPaths = [], cliDir = null, routingLog = null, agentsDir = null, exists = existsSync }) {
@@ -188,8 +188,8 @@ export function unknownSlotProfiles(profileIds, agentSlots) {
   return uniq.filter((id) => !resolveProfileSlot(id, agentSlots)).sort()
 }
 
-/** 读取代理档案 frontmatter 的声明绑定（P2；providers 可注入 fixture，禁读真实档案
- *  的向量走临时目录）：档案缺失/无 frontmatter → null；返回
+/** 读取代理档案 frontmatter 的声明绑定（P2；providers 可注入 fixture，禁读现役代理档案
+ *  的向量走临时目录）：代理档案缺失/无 frontmatter → null；返回
  *  { model, level, providerAlias, family }——model 行若仍带 `$档位` 则拆出 level，
  *  独立 thoughtLevel 行优先；providerAlias/family 走 resolveProviderByFront 值表，
  *  解析不到 family='?'。 */
@@ -234,7 +234,7 @@ export function classifyError({ statusCode, reason, statusMessage, providerMessa
   const code = Number(statusCode) || 0
   const msg = `${statusMessage || ''} ${providerMessage || ''} ${reason || ''}`.toLowerCase()
   // 403=配额族（v2.0.1 修复批 L4：与类目标签「配额限流(429/403)」及派发器 exhaust
-  // 实录口径对齐——原代码落 config 分支=标签撒谎；换源处置对坏 key 403 亦为合理解）
+  // 实录口径对齐——原代码落 config 分支=标签撒谎；切换承载源处置对坏 key 403 亦为合理解）
   if (code === 429 || code === 403 || /rate.?limit|quota|配额|too many requests/.test(msg)) return 'quota' // 配额限流
   if (code === 504 || (code === 0 && /timeout|timed? ?out/.test(msg) && (durationMs || 0) > 240_000)) return 'window' // 网关窗口
   if (code >= 500 || /overload|internal server|bad gateway|service unavailable/.test(msg)) return 'server'           // 服务端过载
@@ -308,10 +308,10 @@ function harvestRouting(rows, sinceMs, untilMs) {
       out.exhaust[src].push({ ts: r.ts, statusCode: r.statusCode, cls, error: r.error, runId: r.runId, role: r.role_id, isMock })
     }
     if (r.event === 'switch') {
-      // 累积形态（selfiter B4 evolve-m6-runid 清偿——原单值覆盖：同 runId 多次
-      // switch 只记末值=换源轨迹截断）。v2.0.1 修复批 M2：收割字段对齐派发器
+      // 累积形态（selfiter B4 evolve-m6-runid 补还——原单值覆盖：同 runId 多次
+      // switch 只记末值=切换承载源轨迹截断）。v2.0.1 修复批 M2：收割字段对齐派发器
       // switch 行实况（from/to——原读 r.source 恒 undefined），并补 to 字段供
-      // ②段换源轨迹聚合（原「消费面按数组聚合」为未兑现声明=死数据）。
+      // ②段切换承载源轨迹聚合（原「消费面按数组聚合」为未兑现声明=死数据）。
       const rec = { ts: r.ts, from: r.from ?? r.source, to: r.to, error: r.error }
       if (out.switch[r.runId]) out.switch[r.runId].push(rec)
       else out.switch[r.runId] = [rec]
@@ -320,7 +320,7 @@ function harvestRouting(rows, sinceMs, untilMs) {
   return out
 }
 
-// ── --health 推荐面（纯函数，自检可注入——验收断言=裁决档 C2：mock429×4+真实504 ⇒ 不换源） ──
+// ── --health 推荐面（纯函数，自检可注入——验收断言=裁决档 C2：mock429×4+真实504 ⇒ 不切换承载源） ──
 export function countRealFailures(exhaustLists) {
   let quota = 0, window504 = 0, mockN = 0
   for (const list of Object.values(exhaustLists)) {
@@ -335,8 +335,8 @@ export function countRealFailures(exhaustLists) {
 export function recommendHealth(cnt, sh = {}) {
   const K1 = sh.primary || '链首选源'
   const K2 = sh.secondary || '备源'
-  if (cnt.quota > 0) return { rec: K2, why: `窗口内检出额度类失效 ×${cnt.quota}——换源有效（备源=不同配额池）` }
-  if (cnt.window504 > 0) return { rec: `${K1}（不换源）`, why: `窗口内检出 504 窗口类 ×${cnt.window504}——双源同端点共模换源无效；处置=审包瘦身/流式化（批档 subagent-plan 05 §九纠偏②）` }
+  if (cnt.quota > 0) return { rec: K2, why: `窗口内检出额度类失效 ×${cnt.quota}——切换承载源有效（备源=不同配额池）` }
+  if (cnt.window504 > 0) return { rec: `${K1}（不切换承载源）`, why: `窗口内检出 504 窗口类 ×${cnt.window504}——双源同端点共模切换承载源无效；处置=审包瘦身/流式化（批档 subagent-plan 05 §九纠偏②）` }
   return { rec: K1, why: '窗口内双源零额度/窗口类失效——按链首选源' }
 }
 
@@ -346,14 +346,14 @@ export function recommendHealth(cnt, sh = {}) {
 // 仅格式校验不参与回退比对）；provider 段=uuid / builtin: / account: 三前缀族。
 const VALID_MODEL_RE = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|builtin:[^\s/]+|account:[^\s/]+)\/[^\s/]+(?:\$[\w-]+)?$/
 
-/** 代理档案目录（v2.1.0 回炉 W12：⑧/⑧前哨的 agents 目录单源——env ZCODE_AGENTS_DIR
+/** 代理档案目录（v2.1.0 返工 W12：⑧/⑧前哨的 agents 目录单源——env ZCODE_AGENTS_DIR
  *  可覆写，与 deploy-check --agents-dir 的定制部署面同构，缺省=宿主惯例路径）。 */
 export function agentsDirOf() {
   return process.env.ZCODE_AGENTS_DIR ? resolve(process.env.ZCODE_AGENTS_DIR) : join(homedir(), '.zcode', 'agents')
 }
 
-/** 跨门岗对终判纯函数（v2.1.0 回炉 W8：三态单源——'?' 任一侧未解析（不构成异构性
- *  证据，人工核）/ 'WARN' 同族=异构对抗退化形态（07 §4 纪律⑤，申报入档禁静默）/
+/** 跨门岗对终判纯函数（v2.1.0 返工 W8：三态单源——'?' 任一侧未解析（不构成不同模型族
+ *  证据，人工核）/ 'WARN' 同族=不同模型族对抗退化形态（07 §4 纪律⑤，申报入档禁静默）/
  *  'ok' 异族成立）。自检可注入向量。 */
 export function crossGateVerdict(fa, fb) {
   if (fa === '?' || fb === '?') return '?'
@@ -364,7 +364,7 @@ export function crossGateVerdict(fa, fb) {
  *  解析后落 providerId/modelId/options.reasoningLevel——2026-09-17 档位批新会话首验
  *  实证）合成同构字符串。两格式归一后走同一校验/比对路径，勿按格式分叉比较口径。
  *  （盲区根因：③ 原只读 model 字符串——新格式绑定岗被静默跳过=检测面恰好漏掉
- *  自己要盯的对象，本会话 k1 真实派发暴露，随批清偿。） */
+ *  自己要盯的对象，本会话 k1 真实派发暴露，随批补还。） */
 export function declaredModelOf(profileSnapshot) {
   if (!profileSnapshot) return null
   const m = profileSnapshot.model
@@ -378,7 +378,7 @@ export function declaredModelOf(profileSnapshot) {
 }
 /** 已知键形态巡检（tripwire，纯函数）：model 键非字符串 / modelSelection 键非
  *  预期结构=宿主 metadata 格式漂移疑似——③ 对未识形态会当非绑定岗静默跳过
- *  （=检测面失明；2026-09-17 在册实例：model 字符串→modelSelection 结构体漂移
+ *  （=检测面失明；2026-09-17 已登记实例：model 字符串→modelSelection 结构体漂移
  *  即此族风险），显式 WARN 请人工核对 declaredModelOf。触发器行=RESIDUALS
  *  host-metadata-schema-drift。 */
 export function detectMetadataShapeDrift(profileSnapshot) {
@@ -424,27 +424,27 @@ export function detectSilentFallback({ metas, subagentNet, providers, agentSlots
       kind: `${finding.kind}${dimension === 'family'
         ? `（跨族回退 family=${declaredFamily}→${actualFamily}）`
         : dimension === 'slot'
-          ? `（同族换源/换档 slot=${declaredSlot || m.profileId} alias=${declaredAlias}→${actualAlias}）`
+          ? `（同族切换承载源/换档 slot=${declaredSlot || m.profileId} alias=${declaredAlias}→${actualAlias}）`
           : ''}`,
     })
-    // tripwire 无条件先行（门一 W-1 回炉：原门控在 !declared 内——双键同场且一键
+    // tripwire 无条件先行（代码审查（岗）W-1 返工：原门控在 !declared 内——双键同场且一键
     // 可解析时另一键畸形漏报；漂移留痕不替代绑定核对，两者并行不互斥）
     if (detectMetadataShapeDrift(ps)) findings.push(make({ level: 'WARN', profile: m.profileId, sid, declared: '(未识形态)', actual: act ? `${act.alias}/${act.modelId}` : '(窗口内无请求记录)', kind: '宿主 metadata 格式漂移疑似——③ 检测面可能失明，请核对 declaredModelOf（触发器行 host-metadata-schema-drift）' }, dimensionOf(false)))
     if (!declared) continue // 无 model/modelSelection=宿主默认，非绑定岗
     // B1 ③ 扩展（2026-10-03 k1default 批）：provider 段按 uuid_prefix 值表可解析=合法
     // 非 uuid 条目 id 声明（宿主注册表非 uuid 条目，批A k1 首派实证——原 hex-only
-    // 判定对正确路由误报「疑似伪值」RED）；值表不命中才落伪值分支。回炉 d1-B-1：
+    // 判定对正确路由误报「疑似伪值」RED）；值表不命中才落伪值分支。返工 d1-B-1：
     // 值表命中前置结构复验 declared 含 '/'——无斜杠裸前缀串（截断形态）RE 本就不容
     // 且后续 split('/') 比对会遇 undefined.split 崩溃，维持伪值分支不进比对。
     const hit = declared.includes('/') ? resolveProviderByFront(declared, providers) : null
     if (!VALID_MODEL_RE.test(declared) && !hit) {
       // 枚举/伪值按流量分级（评估批修正：原一律 RED——历史测试探针零流量也永久
       // 污染退出码，全时段 metadata 扫描窗口化流量天然错位）：窗口内有实际请求=
-      // RED（声明形态非法，路由不可信）；无请求=WARN（档案面问题非窗口内路由
+      // RED（声明形态非法，路由不可信）；无请求=WARN（代理档案面问题非窗口内路由
       // 失效，留痕不阻断——覆盖其流量窗口再跑即升 RED，保守方向不放松）
       findings.push(make(act
         ? { level: 'RED', profile: m.profileId, sid, declared, actual: `${act.alias}/${act.modelId}`, kind: '疑似枚举/伪值且窗口内有实际请求（路由不可信）' }
-        : { level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '疑似枚举/伪值（无可核对请求）——档案面问题，非窗口内路由失效' }, dimensionOf(false)))
+        : { level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '疑似枚举/伪值（无可核对请求）——代理档案面问题，非窗口内路由失效' }, dimensionOf(false)))
       continue
     }
     if (!act) { findings.push(make({ level: 'WARN', profile: m.profileId, sid, declared, actual: '(窗口内无请求记录)', kind: '无可核对请求' }, dimensionOf(false))); continue }
@@ -481,7 +481,7 @@ function harvestAgents(sinceMs, untilMs) {
 
 const pct = (arr, p) => { if (!arr.length) return 0; const s = [...arr].sort((a, b) => a - b); return s[Math.min(s.length - 1, Math.floor(s.length * p))] }
 
-// ── 主流程（N1 回炉 r2：包进 run()——--date 校验路径改 process.exitCode=1+return
+// ── 主流程（N1 返工 r2：包进 run()——--date 校验路径改 process.exitCode=1+return
 //    自然退出形态，对齐本件「自然退出（HOST-node25 规避）」纪律；return 须
 //    函数体承载，缩进重排语义零变化=ds-call-v2 cliMain 先例） ──
 const argv = process.argv.slice(2)
@@ -499,7 +499,7 @@ try {
 function run() {
   if (rawDate && !isValidDateStr(rawDate)) {
     console.error(`[usage] --date 非法值「${rawDate}」——须为真实存在的日期（YYYY-MM-DD，如 2026-09-16）；格式/语义校验拒，窗口日界=UTC（evolve-E2 b3——原静默空窗=假绿面）`)
-    process.exitCode = 1 // 用法错（口径单源=06 §5.8）——自然退出不强杀（N1 回炉）
+    process.exitCode = 1 // 用法错（口径单源=06 §5.8）——自然退出不强杀（N1 返工）
     return
   }
   const { hours, dateStr, sinceMs, untilMs } = resolveWindow({ argv, now }) // 窗口 epoch ms（--hours/--date 同路径；--date 日界=UTC）
@@ -523,10 +523,10 @@ function run() {
     t('403→quota（v2.0.1 修复批 L4：对齐类目标签「配额限流(429/403)」——原落 config 分支=标签撒谎）', classifyError({ statusCode: 403 }) === 'quota')
     t('ECONNRESET→transport', classifyError({ statusMessage: 'fetch failed: ECONNRESET' }) === 'transport')
     t('枚举值判定（sonnet 非 <uuid>/<model> 形态）', !VALID_MODEL_RE.test('sonnet'))
-    // v2.1.0 回炉（W8/W12）：跨门终判三态纯函数+agents 目录覆写
+    // v2.1.0 返工（W8/W12）：跨门终判三态纯函数+agents 目录覆写
     t('跨门终判：同族→WARN', crossGateVerdict('deepseek', 'deepseek') === 'WARN')
     t('跨门终判：异族→ok', crossGateVerdict('kimi', 'deepseek') === 'ok')
-    t('跨门终判：任一侧未解析→?（不构成异构性证据）', crossGateVerdict('?', 'deepseek') === '?' && crossGateVerdict('kimi', '?') === '?')
+    t('跨门终判：任一侧未解析→?（不构成不同模型族证据）', crossGateVerdict('?', 'deepseek') === '?' && crossGateVerdict('kimi', '?') === '?')
     t('agents 目录覆写：env 优先（相对值 resolve）/缺席回落宿主惯例路径（轮2 N-2 补缺省分支）', (() => { const had = Object.prototype.hasOwnProperty.call(process.env, 'ZCODE_AGENTS_DIR'); const saved = process.env.ZCODE_AGENTS_DIR; process.env.ZCODE_AGENTS_DIR = 'demo-agents-rel'; const a = agentsDirOf(); if (had) process.env.ZCODE_AGENTS_DIR = saved; else delete process.env.ZCODE_AGENTS_DIR; const d = agentsDirOf(); return resolve(a).endsWith('demo-agents-rel') && d === join(homedir(), '.zcode', 'agents') })())
     t('合法绑定形态（uuid/model）', VALID_MODEL_RE.test('aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash'))
     t('合法绑定形态（builtin:model/key）', VALID_MODEL_RE.test('builtin:bigmodel-coding-plan/GLM-5.3'))
@@ -562,7 +562,7 @@ function run() {
               { profileId: 'probe-c-x', childSessionId: 's2', profileSnapshot: { model: 'aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash' } }],
       subagentNet: { s2: { alias: 'deepseek', providerId: 'aaaaaaaa-0000-4000-8000-000000000001', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
     })
-    t('probe-b 假绑定零流量=WARN（档案面问题不污染退出码——评估批修正：原一律 RED 致历史探针永久阻断）', fb.length === 1 && fb[0].level === 'WARN' && fb[0].kind.includes('枚举'))
+    t('probe-b 假绑定零流量=WARN（代理档案面问题不污染退出码——评估批修正：原一律 RED 致历史探针永久阻断）', fb.length === 1 && fb[0].level === 'WARN' && fb[0].kind.includes('枚举'))
     t('probe-b 假绑定有流量=RED（枚举+窗口内实际请求=路由不可信）', detectSilentFallback({
       metas: [{ profileId: 'probe-b-live', childSessionId: 's7', profileSnapshot: { model: 'sonnet' } }],
       subagentNet: { s7: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
@@ -576,7 +576,7 @@ function run() {
     t('B1 空 uuid_prefix 不通配（startsWith(\'\') 恒真=吞配回归面，k1 预审 B-1）', resolveProviderByFront('whatever/x', { bad: { uuid_prefix: '', model_family: 'x' }, worse: { model_family: 'y' } }) === null)
     t('B1 双命中最长前缀定序（syn/syn-prov 并存→长者为先）', resolveProviderByFront('syn-provider/m', { a: { uuid_prefix: 'syn' }, b: { uuid_prefix: 'syn-prov' } })?.alias === 'b')
     t('B1 大小写互配（双侧 trim+lowercase 归一——k1 预审 W-2）', resolveProviderByFront('ABC-DEF/x', { ok: { uuid_prefix: ' abc-def ' } })?.alias === 'ok')
-    t('B1 哨兵 front 不误命中（无斜杠全串/空串——(档案缺失) 类不进值表）', resolveProviderByFront('(档案缺失)', b1Prov) === null && resolveProviderByFront('', b1Prov) === null)
+    t('B1 哨兵 front 不误命中（无斜杠全串/空串——(代理档案缺失) 类不进值表）', resolveProviderByFront('(代理档案缺失)', b1Prov) === null && resolveProviderByFront('', b1Prov) === null)
     t('B1 ③ 非 uuid 声明命中+路由一致=零误报（批A k1 实派形态——原误报疑似伪值 RED）', detectSilentFallback({
       metas: [{ profileId: 'b1-live', childSessionId: 's10', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
       subagentNet: { s10: { alias: 'third-syn', providerId: 'syn-provider-host', modelId: 'k3s', lastFinish: 'end_turn', fails: 0 } },
@@ -595,7 +595,7 @@ function run() {
       subagentNet: { s12: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
       providers: b1Prov,
     })[0]?.kind.includes('伪值') === true)
-    // 回炉 d1-B-1 向量：无斜杠裸前缀串（值表可命中）→ 伪值分支不进比对（红态=旧放行后 undefined.split 崩溃）
+    // 返工 d1-B-1 向量：无斜杠裸前缀串（值表可命中）→ 伪值分支不进比对（红态=旧放行后 undefined.split 崩溃）
     t('B1 ③ 无斜杠命中前缀串=伪值不崩（d1-B-1：结构复验先行）', (() => {
       const r = detectSilentFallback({
         metas: [{ profileId: 'b1-bare', childSessionId: 's14', profileSnapshot: { model: 'syn-provider' } }],
@@ -604,16 +604,16 @@ function run() {
       })
       return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('伪值')
     })())
-    // 回炉 k2-W-1 向量：同根前缀变体+路由一致=零报告（取舍行为锁——值表同根=同源，
+    // 返工 k2-W-1 向量：同根前缀变体+路由一致=零报告（取舍行为锁——值表同根=同源，
     // 与收割面 aliasOf 归一 startsWith 口径对齐；逐字比对 provider 段在此口径下不成立）。
-    // 回炉 k2-W-1'：act.providerId 不参与归因（比对三臂均不含按 providerId 查注册表），
+    // 返工 k2-W-1'：act.providerId 不参与归因（比对三臂均不含按 providerId 查注册表），
     // 数据任意填充不架空本锁——注释钉明防误读。
     t('B1 ③ 同根前缀变体声明+路由一致=零报告（k2-W-1 取舍行为锁）', detectSilentFallback({
       metas: [{ profileId: 'b1-typo', childSessionId: 's13', profileSnapshot: { model: 'syn-provider-typo/k3s$max' } }],
       subagentNet: { s13: { alias: 'third-syn', providerId: 'zzz', modelId: 'k3s', lastFinish: 'end_turn', fails: 0 } },
       providers: b1Prov,
     }).length === 0)
-    // 回炉 d1-W#1 向量：斜杠后空模型段（'syn-provider/'）——结构安全（split 得 ''非
+    // 返工 d1-W#1 向量：斜杠后空模型段（'syn-provider/'）——结构安全（split 得 ''非
     // undefined 不崩）+空段≠modelId=回退 RED 可抓，落点钉死非静默。
     t('B1 ③ 斜杠后空模型段=RED 回退不崩（d1-W#1 落点钉死）', (() => {
       const r = detectSilentFallback({
@@ -643,14 +643,14 @@ function run() {
       metas: [{ profileId: 'probe-drift2', childSessionId: 's9', profileSnapshot: { modelSelection: { providerId: 'bbbbbbbb-0000-4000-8000-000000000002' } } }],
       subagentNet: {},
     })[0]?.kind.includes('漂移') === true)
-    t('tripwire 双键同场不漏报（门一 W-1 回炉：合法 model+畸形 modelSelection→漂移 WARN 且绑定核对照走）', (() => {
+    t('tripwire 双键同场不漏报（代码审查（岗）W-1 返工：合法 model+畸形 modelSelection→漂移 WARN 且绑定核对照走）', (() => {
       const r = detectSilentFallback({
         metas: [{ profileId: 'probe-dual', childSessionId: 's10', profileSnapshot: { model: 'aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash', modelSelection: { providerId: 123 } } }],
         subagentNet: { s10: { alias: 'deepseek', providerId: 'aaaaaaaa-0000-4000-8000-000000000001', modelId: 'deepseek-flash', lastFinish: 'end_turn', fails: 0 } },
       })
       return r.length === 1 && r[0].kind.includes('漂移') // 漂移 WARN 留痕+声明=实际无回退发现=绑定核对未被漂移顶替
     })())
-    t('tripwire 与比对并行（门二裁决 P3-②：合法声明+漂移+声明≠实际→漂移 WARN+回退 RED 双条——漂移留痕不替代绑定核对）', (() => {
+    t('tripwire 与比对并行（实证裁决 P3-②：合法声明+漂移+声明≠实际→漂移 WARN+回退 RED 双条——漂移留痕不替代绑定核对）', (() => {
       const r = detectSilentFallback({
         metas: [{ profileId: 'probe-drift-mismatch', childSessionId: 's11', profileSnapshot: { model: 'aaaaaaaa-0000-4000-8000-000000000001/deepseek-flash', modelSelection: { providerId: 123 } } }],
         subagentNet: { s11: { alias: 'kimi-main', providerId: 'bbbbbbbb-0000-4000-8000-000000000002', modelId: 'k3', lastFinish: 'end_turn', fails: 0 } },
@@ -664,7 +664,7 @@ function run() {
       ],
       subagentNet: {},
     }).every((f) => !f.kind.includes('漂移')) && detectMetadataShapeDrift({ modelSelection: { providerId: 'account:bigmodel-individual-coding-plan', modelId: 'GLM-5.3' } }) === false && detectMetadataShapeDrift({ model: 'a/b' }) === false && detectMetadataShapeDrift({}) === false)
-    // 验收断言（裁决档 C2）：mock429×4 + 真实504×1 ⇒ 推荐=不换源
+    // 验收断言（裁决档 C2）：mock429×4 + 真实504×1 ⇒ 推荐=不切换承载源
     const accRows = [
       ...[1, 2, 3, 4].map((i) => ({ ts: `2026-09-16T0${i}:00:00Z`, runId: `m${i}`, event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽', mocked: true })),
       { ts: '2026-09-16T09:00:00Z', runId: 'r1', event: 'exhaust', statusCode: 504, error: 'HTTP 504' },
@@ -672,7 +672,7 @@ function run() {
     const accCnt = countRealFailures(harvestRouting(accRows, null).exhaust)
     const accRec = recommendHealth(accCnt, { primary: 'k1', secondary: 'k2' })
     t('验收断言：mock429×4 不计入（mockN=4/quota=0/window=1）', accCnt.mockN === 4 && accCnt.quota === 0 && accCnt.window504 === 1)
-    t('验收断言：推荐=k1 不换源（当日实陷回归——原输出假推荐 k2）', accRec.rec.includes('k1') && accRec.rec.includes('不换源'))
+    t('验收断言：推荐=k1 不切换承载源（当日实陷回归——原输出假推荐 k2）', accRec.rec.includes('k1') && accRec.rec.includes('不切换承载源'))
     // 全角括号兜底回归（实陷：全角（mock）漏配）
     const fw = harvestRouting([{ ts: '2026-09-16T10:00:00Z', runId: 'fw', event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽（mock）' }], null).exhaust
     t('全角（mock）兜底命中（不计入推荐）', Object.values(fw)[0][0].isMock === true)
@@ -694,7 +694,7 @@ function run() {
     t('M3 --hours 非法值（abc/0/-3）→UsageError（原静默退化为当天日期窗）', (() => { for (const v of ['abc', '0', '-3']) { try { resolveWindow({ argv: ['--hours', v] }); return false } catch (e) { if (!(e instanceof UsageError)) return false } } return true })())
     // v2.0.1 修复批 M2 向量：switch 收割字段对齐派发器行实况（from/to——原读 r.source 恒 undefined）
     const swOut = harvestRouting([{ ts: '2026-09-16T10:00:00Z', runId: 'sw1', event: 'switch', from: 'a', to: 'b', error: 'x' }], null).switch
-    t('M2 switch 收割：from/to 透传（供 ②段换源轨迹聚合）', swOut.sw1?.[0]?.from === 'a' && swOut.sw1?.[0]?.to === 'b')
+    t('M2 switch 收割：from/to 透传（供 ②段切换承载源轨迹聚合）', swOut.sw1?.[0]?.from === 'a' && swOut.sw1?.[0]?.to === 'b')
     const rtRowsB3 = [
       { ts: '2026-09-16T18:00:00.000Z', runId: 'sh-local-0917-0200', event: 'exhaust', statusCode: 504, error: 'x' },
       { ts: '2026-09-16T23:59:59.999Z', runId: 'in-tail', event: 'exhaust', statusCode: 504, error: 'x' },
@@ -715,7 +715,7 @@ function run() {
     t('l9 全缺输入→三面各一行留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliLogPaths: ['/x/a.jsonl'], routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => false }).length === 3)
     t('l9 全在场→零留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliLogPaths: ['/x/a.jsonl'], routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => true }).length === 0)
     t('l9 CLI 面半缺不噪声化（两点仅一点缺=不记该面，他面在场零留痕）', typeof missingInputNotes === 'function' && missingInputNotes({ cliLogPaths: ['/x/a.jsonl', '/x/b.jsonl'], routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: (p) => p !== '/x/b.jsonl' }).length === 0)
-    // 回炉 W1 向量：hours 模式目录缺失（cliDir 形态）+目录在场零留痕——红态=旧接线
+    // 返工 W1 向量：hours 模式目录缺失（cliDir 形态）+目录在场零留痕——红态=旧接线
     // 空数组漏留痕（目标场景零提示）
     t('l9-W1 hours 模式目录缺失→目录级留痕（非空数组静默）', typeof missingInputNotes === 'function' && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: (p) => p === '/x/r.jsonl' }).length === 2 && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: (p) => p === '/x/r.jsonl' })[0].includes('clilog'))
     t('l9-W1 目录在场→零留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => true }).length === 0)
@@ -758,8 +758,8 @@ function run() {
       providers: provP2,
       agentSlots: slotP2,
     })
-    t('P2 回退归因：同族换源→dimension=slot（declaredSlot 命中+kind 末尾片段）', (() => {
-      return fbSlot.length === 1 && fbSlot[0].dimension === 'slot' && fbSlot[0].declaredSlot === 'ops-implreview-699-max' && fbSlot[0].declaredFamily === 'kimi' && fbSlot[0].actualFamily === 'kimi' && fbSlot[0].kind.includes('静默回退') && fbSlot[0].kind.includes('（同族换源/换档 slot=ops-implreview-699-max alias=third-syn→other-syn）')
+    t('P2 回退归因：同族切换承载源→dimension=slot（declaredSlot 命中+kind 末尾片段）', (() => {
+      return fbSlot.length === 1 && fbSlot[0].dimension === 'slot' && fbSlot[0].declaredSlot === 'ops-implreview-699-max' && fbSlot[0].declaredFamily === 'kimi' && fbSlot[0].actualFamily === 'kimi' && fbSlot[0].kind.includes('静默回退') && fbSlot[0].kind.includes('（同族切换承载源/换档 slot=ops-implreview-699-max alias=third-syn→other-syn）')
     })())
     const fbFam = detectSilentFallback({
       metas: [{ profileId: 'ops-implreview-699-max', childSessionId: 's21', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
@@ -776,9 +776,9 @@ function run() {
       try {
         writeFileSync(join(fxDir, 'ops-implreview-syn-max.md'), '---\nname: ops-implreview-syn-max\nmodel: syn-prov/k3s\nthoughtLevel: max\n---\n\nbody\n')
         const b = rdb && rdb('ops-implreview-syn-max', fxDir, provP2)
-        t('P2 readDeclaredBinding：临时 fixture 读 model/thoughtLevel+providerAlias/family（禁读真实档案）', !!b && b.model === 'syn-prov/k3s' && b.level === 'max' && b.providerAlias === 'third-syn' && b.family === 'kimi')
+        t('P2 readDeclaredBinding：临时 fixture 读 model/thoughtLevel+providerAlias/family（禁读真实代理档案）', !!b && b.model === 'syn-prov/k3s' && b.level === 'max' && b.providerAlias === 'third-syn' && b.family === 'kimi')
         writeFileSync(join(fxDir, 'ops-broken.md'), 'no frontmatter\n')
-        t('P2 readDeclaredBinding：档案缺失/无 frontmatter→null', !!rdb && rdb('ops-missing-x', fxDir, provP2) === null && rdb('ops-broken', fxDir, provP2) === null)
+        t('P2 readDeclaredBinding：代理档案缺失/无 frontmatter→null', !!rdb && rdb('ops-missing-x', fxDir, provP2) === null && rdb('ops-broken', fxDir, provP2) === null)
       } finally {
         rmSync(fxDir, { recursive: true, force: true })
       }
@@ -814,7 +814,7 @@ function run() {
     // 取数面矛盾）。
     const logFiles = dateStr ? [`zcode-${dateStr}.jsonl`] : (existsSync(CLI_LOG_DIR) ? readdirSync(CLI_LOG_DIR).filter(f => /^zcode-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)).sort().slice(-(Math.ceil(hours / 24) + 1)) : [])
     // 缺输入显式留痕（evolve-l9-degrade：原三面静默空输出与 M1 静默空窗同族——红态=缺目录零提示）。
-    // 回炉 W1：hours 模式目录缺失走 cliDir 形态（原空数组漏留痕=目标场景零提示）
+    // 返工 W1：hours 模式目录缺失走 cliDir 形态（原空数组漏留痕=目标场景零提示）
     for (const n of missingInputNotes(dateStr
       ? { cliLogPaths: [join(CLI_LOG_DIR, `zcode-${dateStr}.jsonl`)], routingLog: ROUTING_LOG, agentsDir: AGENTS_DIR }
       : { cliDir: CLI_LOG_DIR, routingLog: ROUTING_LOG, agentsDir: AGENTS_DIR })) console.error(n)
@@ -837,19 +837,19 @@ function run() {
       // 启动校验（终审 auditor-W2）：dual 组别名不在 providers 声明面=配置漂移，显式报错勿静默
       const unknownAliases = dual.filter((a) => !merged.providers?.[a])
       if (unknownAliases.length) console.error(`[config] source_health.dual_groups 引用了 providers 未声明的别名：${unknownAliases.join(', ')}——推荐将按未映射回退，请修 org-config`)
-      // B2（2026-10-03 k1default 批）：门一派发推荐方向源改读 standing_pair（常设
-      // 双审对）首元——原读 dual_groups[0]（换源兜底组语义）与常设审核座方向相反
-      // （在册滞后：RESIDUALS gate1-seat-swap-livefire 已知滞后面，本批闭合）；
+      // B2（2026-10-03 k1default 批）：代码审查（岗）派发推荐方向源改读 standing_pair（常设
+      // 双审对）首元——原读 dual_groups[0]（切换承载源兜底组语义）与常设审核座方向相反
+      // （已登记滞后：RESIDUALS gate1-seat-swap-livefire 已知滞后面，本批闭合）；
       // dual_groups 保留 ⑥ 双源分列组定义职不动。防护（k1 预审 B-2/W-4）：非数组/
       // 缺省→空对不崩（recommendHealth 内建兜底文案）；二元结构执法面=health-scan
       // 启动校验（非二元数组 FAIL exit 3），此处防御性呈现不重复执法。
       const recPair = Array.isArray(sh.standing_pair) ? sh.standing_pair : []
       const unknownSp = recPair.filter((a) => !merged.providers?.[a])
       if (unknownSp.length) console.error(`[config] source_health.standing_pair 引用了 providers 未声明的别名：${unknownSp.join(', ')}——推荐席将按未映射回退，请修 org-config`)
-      // 别名∈providers 但未映射门一子代理=推荐席缺位（k1 预审 W-7：映射缺失须告警，
+      // 别名∈providers 但未映射代码审查（岗）子代理=推荐席缺位（k1 预审 W-7：映射缺失须告警，
       // 勿静默 undefined 进推荐）
       const unmappedSp = recPair.filter((a) => merged.providers?.[a] && !subOf[a])
-      if (unmappedSp.length) console.error(`[config] source_health.standing_pair 别名未映射门一子代理（gate1_subagent_of 缺键）：${unmappedSp.join(', ')}——推荐席缺位，请修 org-config`)
+      if (unmappedSp.length) console.error(`[config] source_health.standing_pair 别名未映射代码审查（岗）子代理（gate1_subagent_of 缺键）：${unmappedSp.join(', ')}——推荐席缺位，请修 org-config`)
       W(`== 源健康检查（窗口=${dateStr || `近 ${hours}h`}，cfg:${cfgHash(merged)}）==\n`)
       if (deduped) W(`（request.failed 同秒剔重 ×${deduped}——终审 N2 暴露面，人工判读置信度用）\n`)
       for (const [alias, st] of Object.entries(perProvider)) {
@@ -860,19 +860,19 @@ function run() {
         for (const e of list) W(`   ${e.ts} ${src} statusCode=${e.statusCode} [${CLASS_NAMES[e.cls] || e.cls}] ${e.error}（run=${e.runId} role=${e.role}）${e.isMock ? '【mock 演练行，不计入推荐】' : ''}\n`)
       }
       const cnt = countRealFailures(routing.exhaust)
-      if (cnt.mockN) W(`   （另检出 mock 演练行 ×${cnt.mockN}——R5 换源演练注入，不构成真实源健康信号）\n`)
+      if (cnt.mockN) W(`   （另检出 mock 演练行 ×${cnt.mockN}——R5 切换承载源演练注入，不构成真实源健康信号）\n`)
       if (!Object.keys(routing.exhaust).length) W(`   （窗口内无 exhaust 事件）\n`)
       const { rec, why } = recommendHealth(cnt, { primary: subOf[recPair[0]], secondary: subOf[recPair[1]] })
       // 输出标签改「常设对=」（k1 预审 N-3：勿与 ⑥ 双源组语义混淆）；单元素/
       // 超长形态如实呈现（二元契约执法在 health-scan 启动校验）
       const spNote = recPair.length === 1 ? '——次席未配置' : (recPair.length > 2 ? `——长度${recPair.length}（二元契约面，取前两元；health-scan 启动校验应拦）` : '')
-      W(`\n>> 门一派发推荐：${rec}\n>> 依据：${why}（常设对=${recPair.join('↔') || '未配置'}${spNote}）\n`)
-      // 2026-10-03 纯净化批：R2 干涸窗呈现随派发器删除而删（写入者亡=标记永不再生；
-      // 历史机制档案=git 历史+RESIDUALS r2-drywindow-livefire 行 closed）。
+      W(`\n>> 代码审查（岗）派发推荐：${rec}\n>> 依据：${why}（常设对=${recPair.join('↔') || '未配置'}${spNote}）\n`)
+      // 2026-10-03 清理批次：R2 干涸窗呈现随派发器删除而删（写入者亡=标记永不再生；
+      // 历史机制详见 git 历史+RESIDUALS r2-drywindow-livefire 行 closed）。
       // R3 ⑧ 常设双审对绑定实况核对（agent frontmatter model → uuid 前缀 → provider → model_family；
       //    配置面同族 RED=health-scan 启动校验，此处查实际绑定漂移——两读不混）。
-      //    回炉 B-1：终判三分支——已核对异族=ok／同族=WARN／任一侧未解析=[?] 无法核对
-      //    （原 else 分支把「?」吞成「[ok] 异构成立」=无证据打正向结论的假绿）。
+      //    返工 B-1：终判三分支——已核对异族=ok／同族=WARN／任一侧未解析=[?] 无法核对
+      //    （原 else 分支把「?」吞成「[ok] 不同模型族成立」=无证据打正向结论的假绿）。
       {
         const sp = sh.standing_pair || []
         if (sp.length === 2) {
@@ -885,8 +885,8 @@ function run() {
               try {
                 const fm = readFileSync(join(agentsDirOf(), `${agent}.md`), 'utf8')
                 const mv = /^model:\s*(\S+)/m.exec(fm)
-                front = mv ? mv[1].replace(/^['"]|['"]$/g, '') : '(无 model 字段)' // 回炉 N6：剥离包裹引号防前缀匹配假失败
-              } catch { front = '(档案缺失)' }
+                front = mv ? mv[1].replace(/^['"]|['"]$/g, '') : '(无 model 字段)' // 返工 N6：剥离包裹引号防前缀匹配假失败
+              } catch { front = '(代理档案缺失)' }
             }
             // B1（2026-10-03 k1default 批）：uuid_prefix 值表 startsWith 解析（弃 hex-only
             // 正则——k1 入 standing 后非 uuid 条目 id 8-hex 失明=[?] 态，先修此面）
@@ -896,19 +896,19 @@ function run() {
           for (const r of rows) W(`   [${r.alias}] 子代理=${r.agent || '?'} family=${r.family}（配置期望=${famOfCfg(r.alias) ?? '?'}）front=${r.front.slice(0, 40)}\n`)
           const fams = rows.map((r) => r.family)
           W(fams.includes('?')
-            ? `   [?] 常设双审对无法核对（${fams.map((f, i) => (f === '?' ? sp[i] : null)).filter(Boolean).join(',')} 侧档案缺失/未映射/前缀漂移）——不构成异构性证据，人工核绑定（R3 回炉 B-1：旧版此态误打 [ok]）\n`
+            ? `   [?] 常设双审对无法核对（${fams.map((f, i) => (f === '?' ? sp[i] : null)).filter(Boolean).join(',')} 侧代理档案缺失/未映射/前缀漂移）——不构成不同模型族证据，人工核绑定（R3 返工 B-1：旧版此态误打 [ok]）\n`
             : fams[0] === fams[1]
-              ? `   [WARN] 常设双审对绑定同族（${fams[0]}）——异构对抗已退化（R3 tripwire；health-scan 收口位配置面同款 RED）\n`
-              : `   [ok] 常设双审对异族（${fams[0]} vs ${fams[1]}）——异构成立（R3）\n`)
+              ? `   [WARN] 常设双审对绑定同族（${fams[0]}）——不同模型族对抗已退化（R3 tripwire；health-scan 结项位配置面同款 RED）\n`
+              : `   [ok] 常设双审对异族（${fams[0]} vs ${fams[1]}）——不同模型族成立（R3）\n`)
         }
       }
-      // v2.1.0 批（07 §4 纪律⑤）+回炉（W8：畸形对不静默+计数行；W12：目录可覆写）：
-      // 跨门岗对同族核对——门一常设双审 vs 门二裁决部同族=异构对抗退化形态。
+      // v2.1.0 批（07 §4 纪律⑤）+返工（W8：畸形对不静默+计数行；W12：目录可覆写）：
+      // 跨门岗对同族核对——代码审查（岗）常设双审 vs 实证裁决（岗）裁决部同族=不同模型族对抗退化形态。
       {
         const cgCount = { ok: 0, WARN: 0, '?': 0 }
         for (const pair of Array.isArray(sh.cross_gate_pairs) ? sh.cross_gate_pairs : []) {
           if (!Array.isArray(pair) || pair.length !== 2 || pair.some((x) => typeof x !== 'string')) {
-            W(`   [?] 跨门岗对配置畸形（${JSON.stringify(pair)}）——org-config validate 应拦（纪律⑤），此处不静默跳过（回炉 W8）\n`)
+            W(`   [?] 跨门岗对配置畸形（${JSON.stringify(pair)}）——org-config validate 应拦（纪律⑤），此处不静默跳过（返工 W8）\n`)
             cgCount['?']++
             continue
           }
@@ -927,13 +927,13 @@ function run() {
           cgCount[v]++
           W(
             v === '?'
-              ? `   [?] 跨门岗对无法核对（${pair.join('↔')}——${fa === '?' ? pair[0] : pair[1]} 侧档案缺失/未解析）——不构成异构性证据，人工核绑定（纪律⑤）\n`
+              ? `   [?] 跨门岗对无法核对（${pair.join('↔')}——${fa === '?' ? pair[0] : pair[1]} 侧代理档案缺失/未解析）——不构成不同模型族证据，人工核绑定（纪律⑤）\n`
               : v === 'WARN'
-                ? `   [WARN] 跨门岗对同族（${pair.join('↔')} family=${fa}）——异构对抗退化形态：WARN+申报入档，禁静默（07 §4 纪律⑤；升格 RED=跨门护栏落地或裁决部改绑异族源=用户裁决位）\n`
-                : `   [ok] 跨门岗对异族（${pair.join('↔')} ${fa} vs ${fb}）——跨门异构成立（纪律⑤）\n`)
+                ? `   [WARN] 跨门岗对同族（${pair.join('↔')} family=${fa}）——不同模型族对抗退化形态：WARN+申报入档，禁静默（07 §4 纪律⑤；升格 RED=跨门护栏落地或裁决部改绑异族源=用户裁决位）\n`
+                : `   [ok] 跨门岗对异族（${pair.join('↔')} ${fa} vs ${fb}）——跨门不同模型族成立（纪律⑤）\n`)
         }
         if (Array.isArray(sh.cross_gate_pairs) && sh.cross_gate_pairs.length)
-          W(`   -- 跨门核对汇总：ok ${cgCount.ok} / WARN ${cgCount.WARN} / ? ${cgCount['?']}（纪律⑤；WARN≠阻断，申报面=收口呈报包）\n`)
+          W(`   -- 跨门核对汇总：ok ${cgCount.ok} / WARN ${cgCount.WARN} / ? ${cgCount['?']}（纪律⑤；WARN≠阻断，申报面=结项汇报包）\n`)
       }
     } else if (argv.includes('--slots')) {
       // ── P2：slot 表（全量 agent_slots 按 role/level 排序）+ 未识别 profileId 清单 ──

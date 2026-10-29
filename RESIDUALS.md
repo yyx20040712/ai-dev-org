@@ -2,7 +2,7 @@
 
 > 状态：active ｜ 权威：registry ｜ 替代：无
 
-当前 **open=8**（B1 批挂账 8 行·销账 2 行后余 6；2026-10-29 B2 返工轮 1 挂账 2 行（b2n-vision-local-order/b2n-probe-residual·授权=账本 b2-rework1-dispatch）后余 8；余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
+当前 **open=10**（B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
 历史文档区存档与技能仓 git 提交历史，不驻技能加载面。
 
 ## 新登记行格式
@@ -24,5 +24,8 @@
 | b1n-v18-rerun | V-18 回退演练在 r3 后未复跑（向量面未变·路径等价成立但缺注记；round3 ds N 系） | 下次动迁移器或回退链时复跑 V-18 五步并留 rollback-step0-4-exit= 实录 | open |
 | b1n-doc-sync | 档面数字同步残留：任务书/审计面旧数字（自检向量 16→18 已同步·行数 360→414→438 链有旧值残留处） | closed（B2 面板/矩阵批随动清扫：B1 审计第 7 行终值 16→18、第 12 行 ledger-migrate 摘要 360→438 并补 §14 指针，grep 残留=0——证据=主仓 docs/evidence/B2-panel-matrix-impl-2026-10-29.md） | closed |
 | b1n-projectrootof | org-config projectRootOf 死代码清理（round3 N-1 与审计申报不符项） | closed（B2 批复核：org-config.mjs 已无 projectRootOf，grep 计数=0 保持零出现、无删除动作虚构——证据=主仓 docs/evidence/B2-panel-matrix-impl-2026-10-29.md） | closed |
+| b3n-flag-on-pending | 生产 b2_terms_v2 保持 off（on 态已在临时夹具全验证·但账本 748 行为首冻后新增词面红 1 处——主控裁决行用词失误·既有行禁改） | 账本活文件语义缺口处置后（b3n-ledger-frozen-gap）由主控切 on 并亲跑生产五快扫+regression——证据=主仓 docs/evidence/B3-close-2026-10-29.md | open |
+| b3n-ledger-frozen-gap | 活账本/流水持续追加与 historical 冻结计数语义冲突（设计缺口：首冻后任何新增含禁用词的账本行都使 strict historical 红·748 行即实例） | 下批二选一呈用户：账本与流水移 terms_scan exclude（词面纪律改由新增行零禁用词纪律＋verify-docs 既有面执法）或改尾窗棘轮（基线只锁尾 N 行） | open |
+| b3n-pub-gate-legacy | pub-sanitize --out 四维门禁 9 命中（盘符夹具×4＋代号残留×5：SKILL.md:23／references/07:16/:17／terms-baseline note／agent-slots:684）＝HEAD 既有坏账（管线此前从未跑达门禁步·对照实证） | 下批专项：源面清洗授权（涉 SKILL.md/07 等禁改面须任务书授权）或门禁范围收窄裁决——V-pub 现态=自检 exit0·导出门禁层 exit1（不宣称全绿） | open |
 | b2n-vision-local-order | 本机件 role_fallbacks.vision 仍 3 项（面板有效序 glmflash→ds→699→startplan 补尾，异于矩阵出厂序 glmflash→startplan→ds→699）——用户面板动态基线域，非机检缺陷（org-config 校验只查首元与默认值一致，未对齐出厂序不阻） | 用户经面板自助调整，或下次面板批对齐矩阵出厂序 | open |
-| b2n-probe-residual | references/06:286-288 现役 runbook 残词「probe=进度文件回写」（B2 批删除面仅指定 :23/:25-27/:259/:143-144，:287 按禁扩面纪律保留——实现审计档 §7 第 3 条申报） | 下次动 references/06 时随批清账（删除或改写现役键） | open |
+| b2n-probe-residual | references/06:286-288 现役 runbook 残词「probe=进度文件回写」（B2 批删除面仅指定 :23/:25-27/:259/:143-144，:287 按禁扩面纪律保留——实现审计档 §7 第 3 条申报） | 下次动 references/06 时随批清账（删除或改写现役键）。已处置（2026-10-29 B3 批）：改写为 executor 承载（分笔 commit＋进度文件回写）——证据=主仓 docs/evidence/B3-terms-impl-2026-10-29.md | closed |

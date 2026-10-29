@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "frozen": "2026-10-28",
   "surface": [
     "SKILL.md",
@@ -11,5 +11,841 @@
     "templates/agents/*.md"
   ],
   "note": "check-terms 棘轮基线：file→term→命中行计数——--update 冻结禁手改（D22 生成物豁免）；清理批完成后重冻随批提交（docs/07 §5）",
-  "files": {}
+  "files": {},
+  "historical": {
+    "frozen": "2026-10-29",
+    "surface": [
+      "skill:references/*.md:history-sections",
+      "skill:references/00-glossary.md:term-scan-off",
+      "skill:.zcode/org-ledger.jsonl,scripts/model-routing-log.jsonl",
+      "project:docs/evidence/**,history/**,.zcode/org-ledger.jsonl"
+    ],
+    "files": {
+      "project:.zcode/org-ledger.jsonl": {
+        "战役": 5,
+        "收口": 53,
+        "门一": 18,
+        "清偿": 13,
+        "欠账": 20,
+        "回炉": 46,
+        "门二": 14,
+        "异构": 10,
+        "呈报": 21,
+        "档案": 8,
+        "在册": 16,
+        "烤验": 9,
+        "拟定者": 3,
+        "归档区": 2,
+        "册": 1,
+        "兜底位": 2,
+        "裁决史括注-修订序数": 2,
+        "深备位": 1,
+        "席位": 11,
+        "纯净化批": 1,
+        "审核者": 1,
+        "逃逸": 8,
+        "换源": 5,
+        "排程": 1,
+        "立案": 2,
+        "红线": 3,
+        "档": 2
+      },
+      "project:docs/evidence/B1-impl-2026-10-28.md": {
+        "逃逸": 2
+      },
+      "project:docs/evidence/B3-recon-2026-10-29.md": {
+        "战役": 1,
+        "烤验": 2,
+        "回炉": 4,
+        "编制": 1,
+        "部门墙": 2,
+        "席位": 1,
+        "兜底位": 2,
+        "深备位": 2,
+        "薄册": 1,
+        "纯净化批": 2,
+        "三屋模式": 1,
+        "收口": 5,
+        "立案": 1,
+        "呈报": 1,
+        "门一": 3,
+        "门二": 3,
+        "拟定者": 1,
+        "审核者": 1,
+        "裁决者": 1,
+        "异构": 1,
+        "换源": 1,
+        "红线": 4,
+        "欠账": 4,
+        "清偿": 5,
+        "逃逸": 2,
+        "排程": 1,
+        "在册": 2,
+        "归档区": 2,
+        "档": 1,
+        "档案": 4,
+        "裁决史括注-修订序数": 1,
+        "裁决史括注-日期裁决": 1
+      },
+      "project:docs/evidence/B3-tb-facts.json": {
+        "战役": 1,
+        "烤验": 1,
+        "回炉": 5,
+        "编制": 1,
+        "部门墙": 1,
+        "席位": 1,
+        "兜底位": 1,
+        "深备位": 1,
+        "薄册": 1,
+        "纯净化批": 1,
+        "三屋模式": 1,
+        "收口": 3,
+        "立案": 1,
+        "呈报": 1,
+        "门一": 5,
+        "门二": 5,
+        "拟定者": 1,
+        "审核者": 1,
+        "裁决者": 1,
+        "异构": 1,
+        "换源": 1,
+        "红线": 3,
+        "欠账": 1,
+        "清偿": 1,
+        "逃逸": 1,
+        "排程": 1,
+        "在册": 1,
+        "归档区": 1,
+        "座": 1,
+        "档": 1,
+        "册": 1,
+        "档案": 1
+      },
+      "project:docs/evidence/L10-baseline-2026-10-22.md": {
+        "席位": 1
+      },
+      "project:docs/evidence/L10-close-2026-10-22.md": {
+        "回炉": 2
+      },
+      "project:docs/evidence/L10-probe-2026-10-22.md": {
+        "席位": 1
+      },
+      "project:docs/evidence/L15b-baseline-2026-10-24.md": {
+        "回炉": 2
+      },
+      "project:docs/evidence/L15b-close-2026-10-24.md": {
+        "回炉": 3
+      },
+      "project:docs/evidence/L17-close-2026-10-24.md": {
+        "排程": 1
+      },
+      "project:docs/evidence/L18-impl-2026-10-25.md": {
+        "档案": 1,
+        "逃逸": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/L18-recon-2026-10-25.md": {
+        "战役": 1,
+        "烤验": 1,
+        "回炉": 2,
+        "编制": 1,
+        "部门墙": 1,
+        "席位": 1,
+        "兜底位": 1,
+        "深备位": 1,
+        "薄册": 1,
+        "纯净化批": 1,
+        "三屋模式": 1,
+        "收口": 1,
+        "呈报": 1,
+        "门一": 1,
+        "门二": 1,
+        "拟定者": 1,
+        "审核者": 1,
+        "裁决者": 1,
+        "异构": 1,
+        "换源": 1,
+        "红线": 1
+      },
+      "project:docs/evidence/L19-close-2026-10-24.md": {
+        "清偿": 1
+      },
+      "project:docs/evidence/L2-window-2026-10-22.md": {
+        "档": 2
+      },
+      "project:docs/evidence/L20-close-2026-10-25.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/L21-close-2026-10-25.md": {
+        "逃逸": 1
+      },
+      "project:docs/evidence/L22-close-2026-10-25.md": {
+        "立案": 1,
+        "逃逸": 1
+      },
+      "project:docs/evidence/L22-impl-2026-10-25.md": {
+        "逃逸": 4,
+        "在册": 1
+      },
+      "project:docs/evidence/L22-recon-2026-10-25.md": {
+        "逃逸": 6
+      },
+      "project:docs/evidence/L22-research-2026-10-25.md": {
+        "逃逸": 4,
+        "立案": 3
+      },
+      "project:docs/evidence/L22-tb-facts.json": {
+        "逃逸": 3
+      },
+      "project:docs/evidence/L24-close-2026-10-25.md": {
+        "欠账": 1
+      },
+      "project:docs/evidence/L25-close-2026-10-27.md": {
+        "档案": 2
+      },
+      "project:docs/evidence/L25-impl-2026-10-26.md": {
+        "档案": 2
+      },
+      "project:docs/evidence/L25-recon-2026-10-26.md": {
+        "档案": 3
+      },
+      "project:docs/evidence/L25-tb-facts.json": {
+        "档案": 1
+      },
+      "project:docs/evidence/L3-close-2026-10-22.md": {
+        "档": 1,
+        "档案": 2
+      },
+      "project:docs/evidence/L8-close-2026-10-22.md": {
+        "席位": 3,
+        "异构": 2
+      },
+      "project:docs/evidence/L9-close-2026-10-22.md": {
+        "回炉": 2
+      },
+      "project:docs/evidence/P10-plan-2026-10-25.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/P10-recon-2026-10-25.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/P11-close-2026-10-25.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/P11-impl-2026-10-25.md": {
+        "在册": 1,
+        "档案": 2
+      },
+      "project:docs/evidence/P12-plan-2026-10-26.md": {
+        "档案": 2
+      },
+      "project:docs/evidence/P12-research-2026-10-26.md": {
+        "档案": 3
+      },
+      "project:docs/evidence/P14-close-2026-10-27.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/P14-tb-facts.json": {
+        "战役": 1,
+        "烤验": 1,
+        "回炉": 3,
+        "编制": 1,
+        "部门墙": 1,
+        "席位": 1,
+        "兜底位": 1,
+        "深备位": 1,
+        "薄册": 1,
+        "纯净化批": 2,
+        "三屋模式": 1,
+        "收口": 2,
+        "立案": 2,
+        "呈报": 2,
+        "门一": 2,
+        "门二": 2,
+        "拟定者": 1,
+        "审核者": 1,
+        "异构": 2,
+        "换源": 2,
+        "红线": 1,
+        "欠账": 1,
+        "清偿": 1,
+        "逃逸": 2,
+        "排程": 1,
+        "在册": 1,
+        "归档区": 1,
+        "档案": 1
+      },
+      "project:docs/evidence/P2-gates-2026-10-22.md": {
+        "档案": 1
+      },
+      "project:docs/evidence/P3-gates-2026-10-22.md": {
+        "档案": 1
+      },
+      "project:docs/evidence/P4-close-2026-10-22.md": {
+        "档案": 1
+      },
+      "project:docs/evidence/P4-gates-2026-10-22.md": {
+        "欠账": 1
+      },
+      "project:docs/evidence/P5-close-2026-10-22.md": {
+        "档案": 1,
+        "欠账": 1
+      },
+      "project:docs/evidence/P6-close-2026-10-22.md": {
+        "欠账": 3,
+        "逃逸": 1,
+        "在册": 1,
+        "档案": 1
+      },
+      "project:docs/evidence/P7-baseline-2026-10-22.md": {
+        "档案": 1
+      },
+      "project:docs/evidence/P7-close-2026-10-22.md": {
+        "档案": 2,
+        "逃逸": 1,
+        "在册": 1,
+        "档": 1
+      },
+      "project:docs/evidence/P8a-close-2026-10-23.md": {
+        "在册": 2
+      },
+      "project:docs/evidence/P8a-master-defect-2026-10-23.md": {
+        "在册": 2
+      },
+      "project:docs/evidence/P8b-baseline-2026-10-23.md": {
+        "逃逸": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/P8b-close-2026-10-23.md": {
+        "在册": 2
+      },
+      "project:docs/evidence/P9-recon-2026-10-25.md": {
+        "在册": 2
+      },
+      "project:docs/evidence/R-P13-1-close-2026-10-27.md": {
+        "呈报": 1
+      },
+      "project:docs/evidence/R-P13-1-tb-facts.json": {
+        "战役": 1,
+        "烤验": 1,
+        "回炉": 2,
+        "编制": 1,
+        "部门墙": 1,
+        "席位": 1,
+        "兜底位": 1,
+        "深备位": 1,
+        "薄册": 1,
+        "纯净化批": 2,
+        "三屋模式": 1,
+        "收口": 2,
+        "立案": 2,
+        "呈报": 2,
+        "门一": 2,
+        "门二": 2,
+        "拟定者": 1,
+        "审核者": 1,
+        "异构": 2,
+        "换源": 2,
+        "红线": 1,
+        "欠账": 1,
+        "清偿": 1,
+        "逃逸": 1,
+        "排程": 1,
+        "在册": 1,
+        "归档区": 1,
+        "档案": 1
+      },
+      "project:docs/evidence/R-PUB-1-close-2026-10-27.md": {
+        "归档区": 1
+      },
+      "project:docs/evidence/R-PUB-1-tb-facts.json": {
+        "战役": 1,
+        "烤验": 1,
+        "回炉": 5,
+        "编制": 1,
+        "部门墙": 1,
+        "席位": 1,
+        "兜底位": 1,
+        "深备位": 1,
+        "薄册": 1,
+        "纯净化批": 2,
+        "三屋模式": 1,
+        "收口": 2,
+        "立案": 2,
+        "呈报": 2,
+        "门一": 2,
+        "门二": 2,
+        "拟定者": 1,
+        "审核者": 1,
+        "异构": 2,
+        "换源": 2,
+        "红线": 1,
+        "欠账": 1,
+        "清偿": 1,
+        "逃逸": 2,
+        "排程": 1,
+        "在册": 1,
+        "归档区": 1,
+        "档案": 3,
+        "档": 2,
+        "座": 1,
+        "册": 1
+      },
+      "project:docs/evidence/R-Y5-1-close-2026-10-27.md": {
+        "收口": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/R-Y5-1-tb-facts.json": {
+        "战役": 1,
+        "烤验": 1,
+        "回炉": 2,
+        "编制": 1,
+        "部门墙": 1,
+        "席位": 1,
+        "兜底位": 1,
+        "深备位": 1,
+        "薄册": 1,
+        "纯净化批": 1,
+        "三屋模式": 1,
+        "收口": 2,
+        "立案": 2,
+        "呈报": 2,
+        "门一": 2,
+        "门二": 2,
+        "拟定者": 1,
+        "审核者": 1,
+        "异构": 2,
+        "换源": 1,
+        "红线": 1,
+        "欠账": 1,
+        "清偿": 1,
+        "逃逸": 1,
+        "排程": 1,
+        "在册": 1,
+        "归档区": 1,
+        "档案": 1
+      },
+      "project:docs/evidence/S3-resume-baseline-2026-10-22.md": {
+        "欠账": 1
+      },
+      "project:docs/evidence/S4-P5-baseline-2026-10-22.md": {
+        "档案": 1
+      },
+      "project:docs/evidence/Y2-baseline-2026-10-24.md": {
+        "在册": 2,
+        "逃逸": 1
+      },
+      "project:docs/evidence/Y2-close-2026-10-24.md": {
+        "门二": 1
+      },
+      "project:docs/evidence/Y3-close-2026-10-24.md": {
+        "收口": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/Y3-impl-2026-10-24.md": {
+        "清偿": 1,
+        "欠账": 1
+      },
+      "project:docs/evidence/Y4-close-2026-10-24.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/Y4-impl-2026-10-24.md": {
+        "档案": 1,
+        "排程": 2,
+        "裁决史括注-修订序数": 1
+      },
+      "project:docs/evidence/Y4-tb-facts.json": {
+        "烤验": 6,
+        "收口": 1,
+        "裁决史括注-修订序数": 1,
+        "席位": 1
+      },
+      "project:docs/evidence/Y5-impl-2026-10-24.md": {
+        "册": 2,
+        "档案": 3,
+        "归档区": 2,
+        "欠账": 1,
+        "清偿": 1,
+        "逃逸": 1,
+        "排程": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/Y5-recon-2026-10-24.md": {
+        "烤验": 1,
+        "回炉": 2,
+        "编制": 1,
+        "纯净化批": 1,
+        "三屋模式": 1,
+        "收口": 2,
+        "呈报": 1,
+        "门一": 3,
+        "门二": 3,
+        "换源": 1,
+        "红线": 1,
+        "欠账": 2,
+        "归档区": 1,
+        "档案": 1,
+        "战役": 1,
+        "立案": 1,
+        "拟定者": 2,
+        "审核者": 2
+      },
+      "project:docs/evidence/assembler-role-impl-2026-10-28.md": {
+        "清偿": 1
+      },
+      "project:docs/evidence/baseline-2026-10-21.md": {
+        "档案": 1
+      },
+      "project:docs/evidence/campaign-plan-2026-10-24.md": {
+        "裁决史括注-修订序数": 1,
+        "排程": 2,
+        "欠账": 1,
+        "清偿": 1,
+        "逃逸": 1,
+        "在册": 1,
+        "归档区": 1,
+        "档案": 1,
+        "档": 1,
+        "册": 1
+      },
+      "project:docs/evidence/final-acceptance.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/finwave-a-tb-facts.json": {
+        "回炉": 4,
+        "档": 2,
+        "战役": 1,
+        "烤验": 1,
+        "编制": 1,
+        "部门墙": 1,
+        "席位": 1,
+        "兜底位": 1,
+        "深备位": 1,
+        "薄册": 1,
+        "纯净化批": 1,
+        "三屋模式": 1,
+        "收口": 1,
+        "立案": 1,
+        "呈报": 1,
+        "门一": 2,
+        "门二": 2,
+        "拟定者": 1,
+        "审核者": 1,
+        "异构": 2,
+        "换源": 2,
+        "红线": 1,
+        "欠账": 1,
+        "清偿": 1,
+        "逃逸": 2,
+        "排程": 1,
+        "在册": 1,
+        "归档区": 1,
+        "档案": 2
+      },
+      "project:docs/evidence/finwave-gates-skill.txt": {
+        "收口": 1
+      },
+      "project:docs/evidence/handoff-2026-10-21-01.md": {
+        "档案": 1
+      },
+      "project:docs/evidence/handoff-2026-10-22-01.md": {
+        "在册": 1,
+        "门一": 2,
+        "档案": 1
+      },
+      "project:docs/evidence/handoff-2026-10-22-02.md": {
+        "档案": 1
+      },
+      "project:docs/evidence/handoff-2026-10-22-05.md": {
+        "档案": 2,
+        "档": 1
+      },
+      "project:docs/evidence/handoff-2026-10-22-06.md": {
+        "档案": 1
+      },
+      "project:docs/evidence/handoff-2026-10-22-07.md": {
+        "档": 1
+      },
+      "project:docs/evidence/handoff-2026-10-22-08.md": {
+        "档": 3,
+        "档案": 3,
+        "欠账": 1
+      },
+      "project:docs/evidence/handoff-2026-10-22-09.md": {
+        "档": 2,
+        "欠账": 2
+      },
+      "project:docs/evidence/handoff-2026-10-22-10.md": {
+        "欠账": 4
+      },
+      "project:docs/evidence/handoff-2026-10-22-11.md": {
+        "档": 1,
+        "逃逸": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-22-12.md": {
+        "逃逸": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-22-13.md": {
+        "回炉": 2,
+        "收口": 1
+      },
+      "project:docs/evidence/handoff-2026-10-23-01.md": {
+        "回炉": 1
+      },
+      "project:docs/evidence/handoff-2026-10-24-01.md": {
+        "排程": 2
+      },
+      "project:docs/evidence/handoff-2026-10-24-02.md": {
+        "排程": 2,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-24-03.md": {
+        "在册": 1,
+        "排程": 1
+      },
+      "project:docs/evidence/handoff-2026-10-24-04.md": {
+        "在册": 1,
+        "排程": 1
+      },
+      "project:docs/evidence/handoff-2026-10-24-05.md": {
+        "在册": 1,
+        "排程": 1
+      },
+      "project:docs/evidence/handoff-2026-10-24-06.md": {
+        "欠账": 1,
+        "清偿": 1,
+        "在册": 2
+      },
+      "project:docs/evidence/handoff-2026-10-24-07.md": {
+        "清偿": 1,
+        "在册": 1,
+        "册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-24-08.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-24-09.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-25-01.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-25-02.md": {
+        "欠账": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-25-03.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-25-04.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-25-05.md": {
+        "欠账": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-25-06.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-25-07.md": {
+        "逃逸": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-25-08.md": {
+        "逃逸": 1,
+        "在册": 1,
+        "立案": 1
+      },
+      "project:docs/evidence/handoff-2026-10-25-09.md": {
+        "在册": 1,
+        "立案": 1
+      },
+      "project:docs/evidence/handoff-2026-10-26-10.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-26-11.md": {
+        "排程": 1,
+        "档案": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-26-12.md": {
+        "档案": 1,
+        "欠账": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-26-13.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-26-14.md": {
+        "档案": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-27-01.md": {
+        "档案": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-27-02.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-27-03.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-27-04.md": {
+        "排程": 1
+      },
+      "project:docs/evidence/handoff-2026-10-27-05.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-27-06.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-28-01.md": {
+        "在册": 4
+      },
+      "project:docs/evidence/handoff-2026-10-28-04.md": {
+        "欠账": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-28-06.md": {
+        "欠账": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/handoff-2026-10-28-12.md": {
+        "档案": 1,
+        "档": 1
+      },
+      "project:docs/evidence/handoff-2026-10-29-15.md": {
+        "逃逸": 2
+      },
+      "project:docs/evidence/lang-assessment-2026-10-23.md": {
+        "归档区": 4,
+        "裁决史括注-修订序数": 1,
+        "回炉": 1,
+        "收口": 2,
+        "门一": 1,
+        "欠账": 1,
+        "档案": 1,
+        "换源": 1
+      },
+      "project:docs/evidence/occupancy-check-2026-10-26-0300.md": {
+        "在册": 1
+      },
+      "project:docs/evidence/occupancy-check-2026-10-26-0600.md": {
+        "逃逸": 1,
+        "在册": 2
+      },
+      "project:docs/evidence/occupancy-check-2026-10-27-0700.md": {
+        "排程": 1
+      },
+      "project:docs/evidence/occupancy-check-2026-10-29-0600.md": {
+        "排程": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/panel-ui-ready-2026-10-29.md": {
+        "档": 1
+      },
+      "project:docs/evidence/panel2-close-2026-10-28.md": {
+        "档": 1
+      },
+      "project:docs/evidence/process-improvement-plan-2026-10-25.md": {
+        "在册": 1,
+        "逃逸": 3,
+        "欠账": 1
+      },
+      "project:docs/evidence/startup-check-2026-10-27-0350.md": {
+        "逃逸": 1,
+        "在册": 1,
+        "门一": 1
+      },
+      "project:docs/evidence/startup-check-2026-10-27-0700.md": {
+        "门一": 2
+      },
+      "project:docs/evidence/startup-check-2026-10-27.md": {
+        "逃逸": 1,
+        "在册": 1,
+        "门一": 1,
+        "异构": 1
+      },
+      "project:docs/evidence/startup-check-2026-10-28-0400.md": {
+        "逃逸": 1,
+        "在册": 1
+      },
+      "project:docs/evidence/startup-check-2026-10-28-0630.md": {
+        "逃逸": 1,
+        "在册": 4,
+        "欠账": 1
+      },
+      "project:docs/evidence/v322-close-2026-10-28.md": {
+        "档": 1
+      },
+      "project:history/org-panel-userdomain-2026-10-27/SKILL.md": {
+        "呈报": 1
+      },
+      "project:history/org-panel-userdomain-2026-10-27/panel/server.mjs": {
+        "裁决史括注-日期裁决": 1
+      },
+      "skill:.zcode/org-ledger.jsonl": {
+        "战役": 5,
+        "收口": 51,
+        "门一": 17,
+        "清偿": 13,
+        "欠账": 23,
+        "回炉": 46,
+        "门二": 14,
+        "异构": 10,
+        "呈报": 19,
+        "档案": 8,
+        "在册": 16,
+        "烤验": 9,
+        "拟定者": 3,
+        "归档区": 2,
+        "册": 1,
+        "兜底位": 2,
+        "裁决史括注-修订序数": 2,
+        "深备位": 1,
+        "席位": 11,
+        "纯净化批": 1,
+        "审核者": 1,
+        "逃逸": 3,
+        "换源": 5,
+        "排程": 1,
+        "立案": 2,
+        "红线": 3,
+        "档": 1
+      },
+      "skill:references/00-glossary.md": {
+        "档案": 2,
+        "门二": 2,
+        "战役": 1,
+        "烤验": 1,
+        "回炉": 1,
+        "编制": 1,
+        "部门墙": 1,
+        "席位": 1,
+        "兜底位": 1,
+        "深备位": 1,
+        "薄册": 1,
+        "纯净化批": 1,
+        "三屋模式": 1,
+        "收口": 1,
+        "立案": 1,
+        "呈报": 1,
+        "门一": 1,
+        "拟定者": 1,
+        "审核者": 1,
+        "裁决者": 1,
+        "异构": 1,
+        "换源": 1,
+        "红线": 1,
+        "欠账": 1,
+        "清偿": 1,
+        "逃逸": 1,
+        "排程": 1,
+        "在册": 1,
+        "归档区": 1
+      }
+    }
+  }
 }

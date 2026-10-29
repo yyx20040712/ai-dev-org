@@ -5,7 +5,7 @@
  *      体检矩阵×配置一致性；
  *   ② ROUTE 解析（`ROUTE:` 前缀，`;`/`,`/空白分隔，两空格缩进续行；同角色重复
  *      取最后一次并留 note）；旧名解析（`resolve --agent <旧名>`，8 条登记表，
- *      角色默认型按 agent_defaults 当前默认档、固定 provider 型按 ops-<role>-<provider>-<level>）；
+ *      角色默认型按 agent_defaults 当前默认档位、固定 provider 型按 ops-<role>-<provider>-<level>）；
  *   ③ doctor 八项检查 D1–D8（矩阵完整性/键集/键值一致/绑定可解析/vision 多模态/
  *      实现与审核裁决跨族/族可解析/默认与回退覆盖）+ D9 旧名提示（WARN）；
  *   ④ 写侧命令（select/gen/enable/disable/preset/sync）本版不实现，命中即提示并
@@ -132,7 +132,7 @@ function aliasTableOf(matrix) {
 }
 
 /** 旧名解析候选（不校验 slot 是否已登记）：返回 {alias,role,slot,level,provider} 或 null。
- *  角色默认型（provider=null）取 cfg.agent_defaults 当前默认档（=角色顺序首元素；
+ *  角色默认型（provider=null）取 cfg.agent_defaults 当前默认档位（=角色顺序首元素；
  *  临时窗机制已退役，无第二视图）；固定 provider 型用 ops-<role>-<provider>-<level>。 */
 function aliasCandidate(name, matrix, cfg) {
   const table = aliasTableOf(matrix)
@@ -275,8 +275,8 @@ export function doctorFindings(matrix, cfg, opts = {}) {
   const fAdj = familyOfDefault('adjudicator')
   if (!fExec || !fRev || !fAdj) add('FAIL', 'D6', `无法解析默认实现/审核/裁决族（executor=${fExec || '?'} implreview=${fRev || '?'} adjudicator=${fAdj || '?'}）——明细见 D7/D8`)
   else {
-    if (fExec === fRev) add('FAIL', 'D6', `默认实现族=审核族「${fExec}」——须异构（05 §5）`)
-    if (fExec === fAdj) add('FAIL', 'D6', `默认实现族=裁决族「${fExec}」——须异构（05 §5）`)
+    if (fExec === fRev) add('FAIL', 'D6', `默认实现族=审核族「${fExec}」——须不同模型族（05 §5）`)
+    if (fExec === fAdj) add('FAIL', 'D6', `默认实现族=裁决族「${fExec}」——须不同模型族（05 §5）`)
   }
 
   // D7：每个 slot 的 provider 能在 cfg.providers 解析出 family（WARN）
@@ -318,7 +318,7 @@ export function doctorFindings(matrix, cfg, opts = {}) {
     add('FAIL', 'D9a', 'templates/agents.matrix.json 缺 aliases 分区——旧名解析入口无登记表（唯一登记源=矩阵）')
   } else {
     // 建议值序（临时窗机制退役后无第二视图，直接读合并结果）：
-    // ①候选解析档＝旧名角色当前默认档（agent_defaults）；②该档仍是旧名→
+    // ①候选解析档＝旧名角色当前默认档位（agent_defaults）；②该档仍是旧名→
     //   取该角色矩阵默认派生档；③N2：建议档必须真实存在于 agent_slots，禁推荐不存在档。
     const reportAlias = (name, where, role) => {
       const cand = aliasCandidate(name, matrix, cfg)
@@ -336,7 +336,7 @@ export function doctorFindings(matrix, cfg, opts = {}) {
       }
       // N2：建议值必须真实存在，禁推荐不存在的档。
       if (suggest && !own(cfgSlots, suggest)) suggest = null
-      add('WARN', 'D9', `旧名「${name}」出现在 ${where}——建议替换为「${suggest || `${name} 对应角色的生效默认档`}」`)
+      add('WARN', 'D9', `旧名「${name}」出现在 ${where}——建议替换为「${suggest || `${name} 对应角色的生效默认档位`}」`)
     }
     for (const [role, name] of Object.entries(defaults))
       if (typeof name === 'string' && own(aliasTable, name)) reportAlias(name, `agent_defaults.${role}`, role)
@@ -604,18 +604,18 @@ function selfTest() {
   t('向量27 doctor --role research → status=1 且 [用法错]（doctor 不接受 --role）',
     s27.status === 1 && out27.includes('[用法错]') && out27.includes('--role'))
 
-  // ── L4 新增向量（28–44）：旧名解析随当前默认档、未登记/假绿防线、doctor D9 ──
+  // ── L4 新增向量（28–44）：旧名解析随当前默认档位、未登记/假绿防线、doctor D9 ──
   // （2026-10-27 临时窗机制退役：旧「窗口感知」向量改为 agent_defaults 直读语义）
   const aliasMatrix = loadMatrix(MATRIX_PATH)
   const aliasCfg = () => {
     const c = compliantCfg()
-    // 模拟现役默认档已切 ds（原窗覆盖的等价形态：直改 agent_defaults＝顺序首元素）
+    // 模拟现役默认档位已切 ds（原窗覆盖的等价形态：直改 agent_defaults＝顺序首元素）
     c.agent_defaults.executor = 'ops-executor-ds-high'
     return c
   }
   const aliasCfgLive = aliasCfg()
   const a28 = resolveAlias('ops-executor', aliasMatrix, aliasCfgLive)
-  t('向量28 ops-executor → 随 agent_defaults 当前默认档 ops-executor-ds-high 且字段同构',
+  t('向量28 ops-executor → 随 agent_defaults 当前默认档位 ops-executor-ds-high 且字段同构',
     a28?.alias === 'ops-executor' && a28?.role === 'executor' && a28?.slot === 'ops-executor-ds-high' && a28?.provider === 'ds' && a28?.model === 'model-of-ds' && a28?.level === 'high' && a28?.family === 'deepseek' && a28?.route_source === 'alias')
   const a29 = resolveAlias('ops-drafter', aliasMatrix, aliasCfgLive)
   t('向量29 ops-drafter → ops-planner-699-max', a29?.slot === 'ops-planner-699-max' && a29?.role === 'planner')
@@ -624,12 +624,13 @@ function selfTest() {
   const a31 = resolveAlias('ops-adjudicator', aliasMatrix, aliasCfgLive)
   const exp31 = `ops-adjudicator-${aliasMatrix.roles.adjudicator.default}-${aliasMatrix.roles.adjudicator.level}`
   t('向量31 ops-adjudicator → 矩阵 default 派生槽名', a31?.slot === exp31 && a31?.role === 'adjudicator')
+  const exp41 = `ops-executor-${aliasMatrix.roles.executor.default}-${aliasMatrix.roles.executor.level}`
   const a32 = resolveAlias('ops-probe', aliasMatrix, aliasCfgLive)
   t('向量32 退役别名 ops-probe → null（B2 批 D-3/D-5：诊断整链退役，登记表已除名不静默回落）', a32 === null)
   const a33 = resolveAlias('ops-diagnostics', aliasMatrix, aliasCfgLive)
   t('向量33 退役别名 ops-diagnostics → null（同上——两退役别名解析为 null）', a33 === null)
   const a34 = resolveAlias('ops-executor', aliasMatrix, (() => { const c = aliasCfg(); c.agent_defaults.executor = 'ops-executor-glm-high'; return c })())
-  t('向量34 默认档切回 ops-executor-glm-high 后旧名解析随动（单源直读，无第二视图）', a34?.slot === 'ops-executor-glm-high' && a34?.provider === 'glm')
+  t('向量34 默认档位切回 ops-executor-glm-high 后旧名解析随动（单源直读，无第二视图）', a34?.slot === 'ops-executor-glm-high' && a34?.provider === 'glm')
   const a35 = resolveAlias('ops-gate1-k1', aliasMatrix, aliasCfgLive)
   t('向量35 ops-gate1-k1 → ops-implreview-699-max（role 改 implreview·固定 699 不变）', a35?.slot === 'ops-implreview-699-max')
   const a36 = resolveAlias('ops-gate1-k2', aliasMatrix, aliasCfgLive)
@@ -647,13 +648,13 @@ function selfTest() {
   const cfg41 = aliasCfg()
   cfg41.agent_defaults.executor = 'ops-executor'
   const d41 = doctorFindings(aliasMatrix, cfg41).filter((f) => f.code === 'D9')
-  t('向量41 doctor 旧名污染：agent_defaults 为旧名→建议矩阵默认派生档 ops-executor-glmflash-high（矩阵 default 现为 glmflash，2026-10-26 裁决切换）',
-    d41.length === 1 && d41[0].level === 'WARN' && d41[0].line.includes('ops-executor-glmflash-high'))
+  t('向量41 doctor 旧名污染：agent_defaults 为旧名→建议矩阵默认派生档（期望值随矩阵派生）',
+    d41.length === 1 && d41[0].level === 'WARN' && d41[0].line.includes(exp41))
   const cfg41b = aliasCfg()
   cfg41b.role_fallbacks.executor = ['ops-executor', 'ops-executor-glm-high']
   const d41b = doctorFindings(aliasMatrix, cfg41b).filter((f) => f.code === 'D9')
-  t('向量41b D9 建议＝当前默认档（agent_defaults 直读——默认档非旧名时不落矩阵兜底）',
-    d41b.length === 1 && d41b[0].level === 'WARN' && d41b[0].line.includes('ops-executor-ds-high') && !d41b[0].line.includes('ops-executor-glmflash-high'))
+  t('向量41b D9 建议＝当前默认档位（agent_defaults 直读——默认档位非旧名时不落矩阵兜底）',
+    d41b.length === 1 && d41b[0].level === 'WARN' && d41b[0].line.includes('ops-executor-ds-high') && !d41b[0].line.includes(exp41))
   const expectAliases = ['ops-executor', 'ops-drafter', 'ops-auditor', 'ops-adjudicator', 'ops-gate1-k1', 'ops-gate1-k2', 'ops-gate1-k3', 'ops-gate1-d1']
   const actualAliases = Object.keys(aliasMatrix.aliases || {})
   t('向量42 真实矩阵 aliases 键集恰为 8 个旧名（逐字比对——ops-probe/ops-diagnostics 两退役别名已除名）',
@@ -664,21 +665,21 @@ function selfTest() {
   const d9a = doctorFindings(noAliasMatrix, aliasCfg()).filter((f) => f.code === 'D9a')
   t('向量43 矩阵缺 aliases → resolveAlias null 且 doctor 1 条 FAIL（D9a）',
     a43 === null && d9a.length === 1 && d9a[0].level === 'FAIL' && d9a[0].line.includes('aliases'))
-  // 向量44：兜底分支——候选解析档与当前默认档均为旧名时走矩阵默认派生档，
+  // 向量44：兜底分支——候选解析档与当前默认档位均为旧名时走矩阵默认派生档，
   // 且建议值须真实存在（N2）。
   const d9fallback = (mutate) => {
     const c = aliasCfg()
-    c.role_fallbacks.wizard = ['ops-executor'] // wizard 非真实角色 → live 取 executor 当前默认档
+    c.role_fallbacks.wizard = ['ops-executor'] // wizard 非真实角色 → live 取 executor 当前默认档位
     if (mutate) mutate(c)
     return doctorFindings(aliasMatrix, c).filter((f) => f.code === 'D9' && f.line.includes('role_fallbacks.wizard'))
   }
   const d44live = d9fallback()
   const d44else = d9fallback((c) => { c.agent_defaults.executor = 'ops-executor' })
-  const d44miss = d9fallback((c) => { c.agent_defaults.executor = 'ops-executor'; delete c.agent_slots['ops-executor-glmflash-high'] })
-  t('向量44 D9 兜底分支：当前默认档可读→建议=当前默认档；默认档为旧名→矩阵默认派生档且存在于 agent_slots；派生档不存在→不拼默认、落通用措辞',
+  const d44miss = d9fallback((c) => { c.agent_defaults.executor = 'ops-executor'; delete c.agent_slots[exp41] })
+  t('向量44 D9 兜底分支：当前默认档位可读→建议=当前默认档位；默认档位为旧名→矩阵默认派生档且存在于 agent_slots；派生档不存在→不拼默认、落通用措辞',
     d44live.length === 1 && d44live[0].line.includes('ops-executor-ds-high') && own(aliasCfg().agent_slots, 'ops-executor-ds-high') &&
-    d44else.length === 1 && d44else[0].line.includes('ops-executor-glmflash-high') &&
-    d44miss.length === 1 && !d44miss[0].line.includes('ops-executor-glmflash-high') && d44miss[0].line.includes('对应角色的生效默认档'))
+    d44else.length === 1 && d44else[0].line.includes(exp41) &&
+    d44miss.length === 1 && !d44miss[0].line.includes(exp41) && d44miss[0].line.includes('对应角色的生效默认档位'))
 
   // 向量45/46（L26·账本 L636 ③；46 反转=B2 批 D-5/D-8）：resolve 现状特征固化。
   const e45 = validateRoute(parseRoute('ROUTE: reviewer2-ds'), matrix).join('\n')
