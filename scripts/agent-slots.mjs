@@ -247,12 +247,16 @@ export function doctorFindings(matrix, cfg, opts = {}) {
     if (typeof def.model !== 'string' || !def.model.trim()) add('FAIL', 'D3', `agent_slots.${name}.model 须为非空字符串`)
   }
 
-  // D4：每个矩阵 slot 有绑定、可解析、档位与 slot level 一致
+  // D4：每个矩阵 slot 有绑定、可解析、档位与有效档位一致（B4 D-4 覆盖感知：
+  // thought_level_overrides 在案时以覆盖档为基准——overrides[s.role] ?? s.level；
+  // 无覆盖文案与行为逐字不变。ROUTE/别名 level 仍是槽位定址结构标识，此处零涉。）
+  const levelOverrides = isPlainObject(cfg?.thought_level_overrides) ? cfg.thought_level_overrides : {}
   for (const s of slots) {
     if (!own(bindings, s.slot)) { add('FAIL', 'D4', `slot ${s.slot} 无绑定（agent_bindings 缺键）`); continue }
     const parsed = parseBindingValue(bindings[s.slot])
     if (!parsed) { add('FAIL', 'D4', `slot ${s.slot} 绑定值无法解析（${JSON.stringify(bindings[s.slot])}）——须为 provider/model$level 或 {model,level}`); continue }
-    if (parsed.level !== s.level) add('FAIL', 'D4', `slot ${s.slot} 绑定档位=${parsed.level ?? '缺失'} ≠ slot level=${s.level}`)
+    const eff = levelOverrides[s.role] ?? s.level
+    if (parsed.level !== eff) add('FAIL', 'D4', `slot ${s.slot} 绑定档位=${parsed.level ?? '缺失'} ≠ ${levelOverrides[s.role] != null ? `有效档位=${eff}（thought_level_overrides.${s.role}=${eff} 在案·以覆盖为准）` : `slot level=${s.level}`}`)
   }
 
   // D5：vision 岗每个 slot 的 provider 谓词（矩阵与本机 providers 双源核对；B2 批 D-7a、
@@ -534,6 +538,13 @@ function selfTest() {
   // 向量14：全合规合成配置 → 零 finding
   const f14 = doctorFindings(matrix, compliantCfg())
   t('向量14 doctor 全合规合成配置→零 finding', f14.length === 0)
+  // B4 面板批（D-4）向量：doctor D4 覆盖感知三态（无覆盖旧语义锁＋覆盖两态）
+  const fB4a = doctorFindings(matrix, (() => { const c = compliantCfg(); c.agent_bindings['ops-executor-glm-high'] = 'provider-glm/model-of-glm$max'; return c })())
+  t('向量14b D4 无覆盖不符=FAIL（旧文案·无覆盖字样）', fB4a.some((f) => f.code === 'D4' && f.level === 'FAIL' && f.line.includes('ops-executor-glm-high') && f.line.includes('≠ slot level=high') && !f.line.includes('thought_level_overrides')))
+  const fB4b = doctorFindings(matrix, (() => { const c = compliantCfg(); c.thought_level_overrides = { executor: 'max' }; for (const k of Object.keys(c.agent_bindings)) if (k.startsWith('ops-executor-')) c.agent_bindings[k] = c.agent_bindings[k].replace(/\$high$/, '$max'); return c })())
+  t('向量14c D4 覆盖且绑定=覆盖→零 D4 finding', !fB4b.some((f) => f.code === 'D4'))
+  const fB4c = doctorFindings(matrix, (() => { const c = compliantCfg(); c.thought_level_overrides = { executor: 'max' }; return c })())
+  t('向量14d D4 覆盖但绑定≠覆盖=FAIL 含覆盖文案', fB4c.some((f) => f.code === 'D4' && f.level === 'FAIL' && f.line.includes('ops-executor-') && f.line.includes('thought_level_overrides.executor=max 在案·以覆盖为准')))
   // 向量15：写侧六命令提示未实现并非零退出
   const scriptPath = fileURLToPath(import.meta.url)
   let writeOk = true

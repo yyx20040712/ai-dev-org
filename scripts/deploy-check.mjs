@@ -110,6 +110,9 @@ export function parseBindingValue(v) {
   return null
 }
 
+/** B4 面板批（D-3）：绑定名按现役 SLOT_NAME_RE 同契约解析角色（解析不出=null=按无覆盖处理）。 */
+const b4BindingRoleOf = (bindingName) => { const m = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)$/.exec(String(bindingName || '')); return m ? m[1] : null }
+
 /** ④渲染（v2.1.0 批4；返工 k1 W-2 强化石；P2 批两字段化）：模板占位
  *  `{{binding:<岗>}}` → 本机件 agent_bindings 实值。正文替换保留完整声明
  *  （`provider/model$level`，供 MODEL-SELF 自报行）；frontmatter 的 `model:` 行
@@ -119,7 +122,7 @@ export function parseBindingValue(v) {
  *  （malformed: 前缀）——禁静默带占位部署**。无占位模板=恒等；无 model 行的
  *  未绑定模板=恒等且不算缺失（旧 ops-probe/ops-diagnostics 未绑定形态已随 B2 批
  *  诊断整链退役——现役矩阵各岗绑定面全绑，本分支仅保留通用防御语义）。 */
-export function renderAgentTemplate(text, bindings) {
+export function renderAgentTemplate(text, bindings, levelOverrides) {
   const missing = []
   const src = String(text)
   const out = src.replace(/\{\{binding:([A-Za-z0-9_-]+)\}\}/g, (m, agent) => {
@@ -165,7 +168,13 @@ export function renderAgentTemplate(text, bindings) {
   if (levelPart) {
     if (ti >= 0) {
       const tv = /^thoughtLevel:\s*(.*?)\s*$/.exec(lines[ti])[1].replace(/^['"]|['"]$/g, '')
-      if (tv !== levelPart) missing.push(`conflict:thoughtLevel:${bindingName || 'model'}`)
+      if (tv !== levelPart) {
+        // B4 D-3 覆盖感知：在案覆盖=绑定渲染档位时重写模板出厂行（不记 conflict）；否则原 conflict 文案与行为逐字不变。
+        const role = b4BindingRoleOf(bindingName)
+        const ov = role != null && levelOverrides != null && typeof levelOverrides === 'object' ? levelOverrides[role] : undefined
+        if (ov === levelPart) lines[ti] = `thoughtLevel: ${levelPart}`
+        else missing.push(`conflict:thoughtLevel:${bindingName || 'model'}`)
+      }
     } else {
       lines.splice(mi + 1, 0, `thoughtLevel: ${levelPart}`)
     }
@@ -196,10 +205,10 @@ export function checkThoughtLevel(level) {
 /** P2 检查③：新式名 `ops-<role>-<provider>-<level>.md` → 核对 agent_slots 存在、
  *  provider 与文件名中段一致、slot.model/level 与渲染值一致；legacy 名=skip
  *  （调用方汇总 legacy 件数，不计 warn）。 */
-export function checkAgentName(name, slotDef, rendered = {}) {
+export function checkAgentName(name, slotDef, rendered = {}, levelOverride = null) {
   const m = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
   if (!m) return { level: 'skip', skipped: true, line: '' }
-  const [, , provider, level] = m
+  const [, role, provider, level] = m
   const base = String(name).replace(/\.md$/, '')
   if (!slotDef || typeof slotDef !== 'object') return { level: 'FAIL', line: `${name}：agent_slots 缺「${base}」` }
   const errors = []
@@ -221,8 +230,10 @@ export function checkAgentName(name, slotDef, rendered = {}) {
   }
   if (hasRenderedLevel || slotDef.renderedLevel !== undefined) {
     const lv = renderedLevel == null ? '' : String(renderedLevel)
+    // B4 D-3：渲染档位比对基准=覆盖优先（levelOverride ?? slotDef.level）；无覆盖旧文案逐字不变。
+    const expectLevel = levelOverride ?? slotDef.level
     if (!lv) errors.push('渲染 thoughtLevel 缺失')
-    else if (slotDef.level !== lv) errors.push(`slot.level=${slotDef.level} ≠ 渲染 thoughtLevel=${lv}`)
+    else if (expectLevel !== lv) errors.push(levelOverride != null ? `slot.level=${slotDef.level} ≠ 渲染 thoughtLevel=${lv}（thought_level_overrides.${role}=${levelOverride} 在案·以覆盖为准）` : `slot.level=${slotDef.level} ≠ 渲染 thoughtLevel=${lv}`)
   }
   return errors.length ? { level: 'FAIL', line: `${name}：${errors.join('；')}` } : { level: 'ok', line: `${name}：新式命名/slot/渲染值一致` }
 }
@@ -377,7 +388,7 @@ export function runChecks(agentsDir, cfg, projectDir = null) {
   let unboundThoughtSkipped = 0
   for (const name of listAgentTemplates()) {
     const dst = join(agentsDir, name)
-    const { text: rendered, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), cfg?.agent_bindings || {})
+    const { text: rendered, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), cfg?.agent_bindings || {}, cfg?.thought_level_overrides)
     // 返工 W7b：对账前内容归一化（剥 BOM+CRLF→LF——WP-4 行尾哈希地雷同律；部署件被
     // 记事本改写不再永久假漂移）；返工 k1 N-8：缺绑定=独立的「占位缺绑定」warn 位，
     // 不混入真漂移计数
@@ -391,7 +402,7 @@ export function runChecks(agentsDir, cfg, projectDir = null) {
     const modelCheck = checkModelNoDollar(rendered)
     const thoughtCheck = fm.hasModel ? checkThoughtLevel(fm.thoughtLevel) : null
     if (!fm.hasModel) unboundThoughtSkipped++
-    const nameCheck = checkAgentName(name, cfg?.agent_slots?.[name.replace(/\.md$/, '')], { model: fm.model, level: fm.thoughtLevel })
+    const nameCheck = checkAgentName(name, cfg?.agent_slots?.[name.replace(/\.md$/, '')], { model: fm.model, level: fm.thoughtLevel }, cfg?.thought_level_overrides?.[b4BindingRoleOf(name.replace(/\.md$/, ''))] ?? null)
     if (nameCheck.level === 'skip') legacyNameSkipped++
     const checkFails = []
     if (modelCheck.level === 'FAIL') checkFails.push(modelCheck.line)
@@ -445,14 +456,14 @@ export function runChecks(agentsDir, cfg, projectDir = null) {
 
 /** --install 动作一：补缺失代理件（渲染部署+sha256 复核；漂移件不覆盖；v2.1.0 批4
  *  起绑定模板按 agent_bindings 渲染——缺绑定的占位模板不装=FAIL 指引）。 */
-export function installAgents(agentsDir, bindings = {}) {
+export function installAgents(agentsDir, bindings = {}, levelOverrides = null) {
   const missing = listAgentTemplates().filter((n) => !existsSync(join(agentsDir, n)))
   if (!missing.length) return { level: 'ok', line: 'install-agents——无缺失件（已存在漂移件不覆盖——保护本机定制）' }
   mkdirSync(agentsDir, { recursive: true })
   const bad = []
   const unbound = []
   for (const n of missing) {
-    const { text, missing: miss } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, n), 'utf8'), bindings)
+    const { text, missing: miss } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, n), 'utf8'), bindings, levelOverrides)
     if (miss.length) { unbound.push(n); continue }
     writeFileSync(join(agentsDir, n), text, 'utf8')
     if (sha256Text(text) !== sha256File(join(agentsDir, n))) bad.push(n)
@@ -466,11 +477,11 @@ export function installAgents(agentsDir, bindings = {}) {
  *  畸形/档位冲突=全部不写并逐件打印原因；全部可渲染则逐件覆盖写入（含漂移件）并
  *  回读 sha256 复核。该开关是唯一允许覆盖漂移件的路径；--install 语义不变（只补
  *  缺失、不覆盖漂移）。退出码口径=references/06 §5.8。 */
-export function syncAgents(agentsDir, bindings = {}) {
+export function syncAgents(agentsDir, bindings = {}, levelOverrides = null) {
   const entries = []
   const bad = []
   for (const name of listAgentTemplates()) {
-    const { text, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), bindings)
+    const { text, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), bindings, levelOverrides)
     if (missing.length) bad.push({ name, missing: [...new Set(missing)] })
     else entries.push({ name, text })
   }
@@ -875,6 +886,37 @@ function selfTest() {
     return r.missing.length > 0 && r.text.includes('{{binding:ops-x}}') && fm.hasModel === true && fm.thoughtLevel === null && checkThoughtLevel(null).level === 'FAIL' && combined?.level === 'FAIL'
   })())
 
+  // ── B4 面板批（D-3）向量：渲染/检查覆盖感知六态＋install/sync 覆盖传递 ──
+  {
+    const ovTpl = (lv) => `---\nname: t\nmodel: {{binding:ops-executor-glmflash-high}}\nthoughtLevel: ${lv}\n---\n\n正文 model-field:{{binding:ops-executor-glmflash-high}}\n`
+    const bMax = { 'ops-executor-glmflash-high': 'bigmodel-api/GLM-5.3-Flash$max' }
+    const sd = { provider: 'glmflash', model: 'GLM-5.3-Flash', level: 'high' }
+    t('B4 D-3① 覆盖且绑定=覆盖→模板行重写 max、missing 空', (() => { const r = renderAgentTemplate(ovTpl('high'), bMax, { executor: 'max' }); return r.missing.length === 0 && r.text.includes('thoughtLevel: max') })())
+    t('B4 D-3② 覆盖但绑定≠覆盖→conflict（渲染源=绑定）', renderAgentTemplate(ovTpl('max'), { 'ops-executor-glmflash-high': 'bigmodel-api/GLM-5.3-Flash$high' }, { executor: 'max' }).missing.some((m) => m.startsWith('conflict:thoughtLevel:')))
+    t('B4 D-3③ 无覆盖冲突→conflict（旧文案逐字）', renderAgentTemplate(ovTpl('low'), bMax).missing.some((m) => m === 'conflict:thoughtLevel:ops-executor-glmflash-high'))
+    t('B4 D-3④ 无覆盖不符=FAIL 且无覆盖文案（旧语义）', checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'bigmodel-api/GLM-5.3-Flash', level: 'max' }).level === 'FAIL' && !checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'bigmodel-api/GLM-5.3-Flash', level: 'max' }).line.includes('thought_level_overrides'))
+    t('B4 D-3⑤ 覆盖且渲染=覆盖=ok', checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'bigmodel-api/GLM-5.3-Flash', level: 'max' }, 'max').level === 'ok')
+    t('B4 D-3⑥ 覆盖但渲染≠覆盖=FAIL 含覆盖文案', (() => { const r = checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'bigmodel-api/GLM-5.3-Flash', level: 'high' }, 'max'); return r.level === 'FAIL' && r.line.includes('slot.level=high ≠ 渲染 thoughtLevel=high') && r.line.includes('thought_level_overrides.executor=max 在案·以覆盖为准') })())
+    // install/sync 覆盖传递断言（真实模板→tmp 目录；防只改纯函数不接生产链）
+    const need = new Set(listAgentTemplates().flatMap((n) => [...readFileSync(join(TEMPLATES_AGENTS, n), 'utf8').matchAll(/\{\{binding:([A-Za-z0-9_-]+)\}\}/g)].map((m) => m[1])))
+    const b56 = Object.fromEntries([...need].map((s) => { const p = /^ops-(.+)-([a-z0-9]+)-(low|high|max)$/.exec(s); return [s, `prov-${p[2]}/model-${p[2]}$${p[1] === 'research' ? 'max' : p[3]}`] }))
+    const fStem = (pre) => [...need].find((s) => s.startsWith(pre)) + '.md'
+    const ov = { research: 'max' }
+    const dirI = mkdtempSync(join(tmpdir(), 'deploy-check-b4i-'))
+    try {
+      const ri = installAgents(dirI, b56, ov)
+      const fmR = readFrontmatterFields(readFileSync(join(dirI, fStem('ops-research-')), 'utf8'))
+      const fmE = readFrontmatterFields(readFileSync(join(dirI, fStem('ops-executor-')), 'utf8'))
+      t('B4 D-3 install 覆盖传递：research 件渲染 thoughtLevel=max（重写出厂行）', ri.level === 'ok' && fmR.thoughtLevel === 'max')
+      t('B4 D-3 install 覆盖传递：非目标角色（executor）不受影响仍出厂档', fmE.thoughtLevel === 'high')
+    } finally { rmSync(dirI, { recursive: true, force: true }) }
+    const dirS = mkdtempSync(join(tmpdir(), 'deploy-check-b4s-'))
+    try {
+      const rs = syncAgents(dirS, b56, ov)
+      t('B4 D-3 sync 覆盖传递：全或无完成且 research 件=max', rs.level === 'ok' && rs.wrote === need.size && readFrontmatterFields(readFileSync(join(dirS, fStem('ops-research-')), 'utf8')).thoughtLevel === 'max')
+    } finally { rmSync(dirS, { recursive: true, force: true }) }
+  }
+
   // ── B1 批（D-4/D-8）向量：⑧ project-gate 判定三态＋⑦ 项目账本目录试写（tmp 夹具） ──
   t('B1 project-gate：rc=0→ok（行含 project-gate ok）', projectGateVerdict({ scriptExists: true, rc: 0 }).level === 'ok' && projectGateVerdict({ scriptExists: true, rc: 0 }).line.includes('project-gate ok'))
   t('B1 project-gate：rc≠0→FAIL（行含同款命令与 exit 码）', projectGateVerdict({ scriptExists: true, rc: 1 }).level === 'FAIL' && projectGateVerdict({ scriptExists: true, rc: 1 }).line.includes('exit 1'))
@@ -941,10 +983,11 @@ if (isMain) {
     }
     console.log(`[install] ${lcLine}`)
     let tplBindings = {}
+    let tplOverrides = null
     let tplLoadErr = null
-    try { tplBindings = loadOrgConfig(SKILL_ROOT).merged.agent_bindings || {} } catch (e) { tplLoadErr = e.message /* 返工 W10a：真因分行呈现，不并入「缺绑定」误归因 */ }
+    try { const tplMerged = loadOrgConfig(SKILL_ROOT).merged; tplBindings = tplMerged.agent_bindings || {}; tplOverrides = tplMerged.thought_level_overrides ?? null } catch (e) { tplLoadErr = e.message /* 返工 W10a：真因分行呈现，不并入「缺绑定」误归因 */ }
     if (tplLoadErr) console.log(`[warn] agent_bindings 装载失败（${tplLoadErr}）——下行如报「占位缺绑定」可能为误归因，先修本机件 JSON`)
-    console.log(`[install] ${installAgents(agentsDir, tplBindings).line}`)
+    console.log(`[install] ${installAgents(agentsDir, tplBindings, tplOverrides).line}`)
     console.log(`[install] ${installHook()}`)
     // g3 动作③（返工轮 1 R1/R2 重构错误处置——代码审查（岗）W2/W3）：三源分行归因——
     // ① org-config 装载失败（默认件/覆盖件坏）→干净跳过（warn+指引，不裸崩
@@ -989,7 +1032,7 @@ if (isMain) {
       console.error(`[装载错] org-config 装载失败：${e.message}`)
       process.exit(EXIT_SELF_ERROR)
     }
-    const sync = syncAgents(agentsDir, syncCfg.agent_bindings || {})
+    const sync = syncAgents(agentsDir, syncCfg.agent_bindings || {}, syncCfg.thought_level_overrides ?? null)
     process.exit(sync.level === 'ok' ? 0 : 1)
   }
 

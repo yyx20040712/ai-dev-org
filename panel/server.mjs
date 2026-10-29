@@ -11,12 +11,15 @@
 import http from 'node:http';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PANEL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const LOCAL = path.join(SKILL, 'org-config.local.json');
+// 部署面目录口径=deploy-check DEFAULT_AGENTS_DIR 同契约（homedir 推导，零绝对路径硬编码）
+const AGENTS_DIR = path.join(os.homedir(), '.zcode', 'agents');
 const PORT = Number(process.env.ORG_PANEL_PORT || 8787);
 const PROJECT = process.env.ORG_PANEL_PROJECT || '';
 // 岗位序与槽名正则改矩阵驱动（装配岗批 D-2·账本 701 ③）：ROLE_ORDER=矩阵 roles 键声明序、
@@ -24,6 +27,8 @@ const PROJECT = process.env.ORG_PANEL_PROJECT || '';
 // 禁每请求重复读两份矩阵）。
 const MATRIX = JSON.parse(fs.readFileSync(path.join(SKILL, 'templates', 'agents.matrix.json'), 'utf8'));
 const ROLE_ORDER = Object.keys(MATRIX.roles || {});
+// 可选档位单源=MATRIX.levels（B4 返工 R1：杀字面双源——面板三档选项与 /api/level 校验同源派生）
+const THINK_LEVELS = Array.isArray(MATRIX.levels) && MATRIX.levels.length ? MATRIX.levels : ['low', 'high', 'max'];
 const SLOT_RE = new RegExp(`^ops-(${ROLE_ORDER.join('|')})-([a-z0-9]+)-(low|high|max)$`);
 // 面板分组态（B2 批 D-6·账本 711）：单一 role→group 映射＋固定组元数据派生；
 // 组内 roles 由矩阵键序 filter 而来（不另写组内排序——此后调键序只改矩阵，不改面板码）。
@@ -68,11 +73,38 @@ const git1 = (repo) => {
   } catch { return { head: '?', subject: 'git 不可用', branch: '?', clean: false }; }
 };
 const readLocal = () => JSON.parse(fs.readFileSync(LOCAL, 'utf8'));
+// B4 D-5：原子写=同目录临时文件＋rename 替换；写前保留 .panel-bak（restoreLocal 的
+// 原字节恢复源，语义不变），异常时清理临时文件。备份恢复仍走 .panel-bak 原字节 copy。
 const writeLocal = (obj) => {
   fs.copyFileSync(LOCAL, LOCAL + '.panel-bak');
-  fs.writeFileSync(LOCAL, JSON.stringify(obj, null, 2) + '\n');
+  const tmp = path.join(path.dirname(LOCAL), `.${path.basename(LOCAL)}.${process.pid}.tmp`);
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(obj, null, 2) + '\n');
+    fs.renameSync(tmp, LOCAL);
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch {}
+    throw e;
+  }
 };
 const restoreLocal = () => { fs.copyFileSync(LOCAL + '.panel-bak', LOCAL); };
+
+/** B4 D-6：部署实况档位——agent_defaults[role] 槽对应部署件 frontmatter thoughtLevel。
+ *  解析契约与 deploy-check readFrontmatterFields 同构（首 --- 对到次 ---，剥引号）；本地实现、禁 import deploy-check（CLI 副作用隔离）。缺失/异常/无值='?'。 */
+const deployedLevelOf = (slot) => {
+  try {
+    if (typeof slot !== 'string' || !slot) return '?';
+    const lines = fs.readFileSync(path.join(AGENTS_DIR, `${slot}.md`), 'utf8').replace(/^\uFEFF/, '').split('\n');
+    const start = lines.findIndex((l) => l.trim() === '---');
+    const end = start >= 0 ? lines.findIndex((l, i) => i > start && l.trim() === '---') : -1;
+    if (start < 0 || end < 0) return '?';
+    let found = null; // B4 返工 R5：循环取末个 thoughtLevel 匹配（与 deploy-check readFrontmatterFields 同构）
+    for (let i = start + 1; i < end; i++) {
+      const tm = /^thoughtLevel:\s*(.*?)\s*$/.exec(lines[i]);
+      if (tm) found = tm[1].trim().replace(/^['"]|['"]$/g, '') || '?';
+    }
+    return found ?? '?';
+  } catch { return '?'; }
+};
 
 /** 角色顺序态：单源=合并配置 role_fallbacks（本机件覆盖默认件）；池=agent_slots 该角色全档。 */
 function state() {
@@ -80,17 +112,25 @@ function state() {
   const l = readLocal();
   const matrix = MATRIX; // 矩阵进程级单次读盘（模块顶装载），state() 不重复读
   const bindings = l.agent_bindings || {};
+  // B4 D-6：覆盖表（plain object 守卫）——level=desired（覆盖优先，否则出厂档）；
+  // factoryLevel=矩阵出厂；deployedLevel=部署 frontmatter 实况投影。
+  const overrides = l.thought_level_overrides && typeof l.thought_level_overrides === 'object' && !Array.isArray(l.thought_level_overrides) ? l.thought_level_overrides : {};
   const poolOf = (role) => Object.keys(merged.agent_slots || {}).filter((s) => { const m = SLOT_RE.exec(s); return m && m[1] === role; });
   const roles = ROLE_ORDER.map((role) => {
     const def = (matrix.roles || {})[role] || { title: role, level: 'high' };
     const pool = poolOf(role);
-    const lvl = pool.length ? SLOT_RE.exec(pool[0])[3] : def.level;
+    const factoryLevel = def.level;
+    const levelOverridden = Object.prototype.hasOwnProperty.call(overrides, role);
+    const deployedLevel = deployedLevelOf((merged.agent_defaults || {})[role]);
     const seq = (merged.role_fallbacks || {})[role] || [];
     const ordered = [...seq.filter((s) => pool.includes(s)), ...pool.filter((s) => !seq.includes(s))];
     return {
       role,
       title: def.title,
-      level: lvl,
+      level: levelOverridden ? overrides[role] : factoryLevel,
+      factoryLevel,
+      levelOverridden,
+      deployedLevel,
       order: ordered.map((slot) => {
         const s = (merged.agent_slots || {})[slot] || {};
         const prov = (merged.providers || {})[s.provider] || {};
@@ -126,6 +166,7 @@ function state() {
     skill: { ...git1(SKILL), tags },
     ledger: { lines: ledger.length, lastRunId: last.runId, lastTs: last.ts },
     validate,
+    levels: MATRIX.levels,
     roles,
     roleGroups,
   };
@@ -156,6 +197,52 @@ function setOrder(role, order) {
     const validate = run('node scripts/org-config.mjs validate');
     if (validate.code !== 0) { restoreLocal(); run('node scripts/org-config.mjs validate'); }
     return { ok: validate.code === 0, validate };
+  };
+  const job = writeChain.then(runJob, runJob);
+  writeChain = job.catch(() => {});
+  return job;
+}
+
+/** B4 D-5 档位写入（与 setOrder 共用 writeChain 串行互斥）：D-2 绑定值改写=只替换
+ *  本机件 agent_bindings 中目标角色全部槽位绑定值末个 `$` 后的档位后缀（front/model
+ *  段逐字不动）；level=出厂档时删除覆盖键并还原后缀，不等时写覆盖键并改写后缀。
+ *  全或无：目标角色全部槽位绑定预检（非字符串/缺 `$`/缺 `/`=零写入）；写后 validate
+ *  失败=restoreLocal 回滚＋复跑 validate（rolledBack:true）；validate 过后 sync-agents，
+ *  sync 失败不回滚已验证配置，由响应与日志显式暴露（手动同步可重试）。 */
+function setLevel(role, level) {
+  const runJob = () => {
+    const factory = ((MATRIX.roles || {})[role] || {}).level;
+    if (!factory || !THINK_LEVELS.includes(level)) return { ok: false, error: `参数非法：role∈九角色且 level∈${THINK_LEVELS.join('|')}` };
+    // B4 返工 R4：目标槽集=merged.agent_slots 全池（SLOT_RE 角色 match），并要求全池槽在本机件
+    // agent_bindings 齐备——缺槽=409 预检失败零写入（不改写默认层，防未来槽/绑漂移）。
+    const { merged } = loadOrgConfig(SKILL);
+    const pool = Object.keys(merged.agent_slots || {}).filter((k) => { const m = SLOT_RE.exec(k); return m && m[1] === role; });
+    const l = readLocal();
+    const bindings = l.agent_bindings || {};
+    for (const k of pool) {
+      if (!Object.prototype.hasOwnProperty.call(bindings, k))
+        return { ok: false, error: `槽 ${k} 在本机件 agent_bindings 缺键（该角色全池槽须齐备）——已拒绝写入（零写入）`, rolledBack: false };
+      const v = bindings[k];
+      if (typeof v !== 'string' || !v.includes('$') || !v.includes('/'))
+        return { ok: false, error: `绑定值异常（${k}=${JSON.stringify(v)})——须为 <front>/<model>$<档位>，已拒绝写入（零写入）`, rolledBack: false };
+    }
+    const overrides = { ...(l.thought_level_overrides && typeof l.thought_level_overrides === 'object' && !Array.isArray(l.thought_level_overrides) ? l.thought_level_overrides : {}) };
+    if (level === factory) delete overrides[role]; else overrides[role] = level;
+    const next = { ...l, agent_bindings: { ...bindings } };
+    for (const k of pool) {
+      const v = next.agent_bindings[k];
+      next.agent_bindings[k] = `${v.slice(0, v.lastIndexOf('$'))}$${level}`;
+    }
+    if (Object.keys(overrides).length) next.thought_level_overrides = overrides; else delete next.thought_level_overrides;
+    writeLocal(next);
+    const validate = run('node scripts/org-config.mjs validate');
+    if (validate.code !== 0) {
+      restoreLocal();
+      const revalidate = run('node scripts/org-config.mjs validate');
+      return { ok: false, error: '配置校验失败——已回滚到写前面（.panel-bak 原字节）', validate, revalidate, rolledBack: true };
+    }
+    const sync = run('node scripts/deploy-check.mjs --sync-agents');
+    return { ok: true, validate, sync, rolledBack: false };
   };
   const job = writeChain.then(runJob, runJob);
   writeChain = job.catch(() => {});
@@ -194,6 +281,16 @@ const server = http.createServer((req, res) => {
       if (!ROLE_ORDER.includes(role)) return send(400, { error: `role 必填且∈${ROLE_ORDER.length} 角色（${ROLE_ORDER.join(', ')}）` });
       if (!Array.isArray(order) || order.length === 0 || order.some((p) => typeof p !== 'string')) return send(400, { error: 'order 须为非空 provider 短名数组' });
       return setOrder(role, order).then((r) => send(r.ok ? 200 : 409, r));
+    });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/level') {
+    return readBody(req).then((b) => {
+      let body;
+      try { body = JSON.parse(b || '{}'); } catch { return send(400, { error: '请求体须为 JSON' }); }
+      const { role, level } = body || {};
+      if (!ROLE_ORDER.includes(role)) return send(400, { error: `role 必填且∈${ROLE_ORDER.length} 角色（${ROLE_ORDER.join(', ')}）` });
+      if (!THINK_LEVELS.includes(level)) return send(400, { error: `level 必填且∈${THINK_LEVELS.join('|')}` });
+      return setLevel(role, level).then((r) => send(r.ok ? 200 : 409, r));
     });
   }
   if (req.method === 'POST' && url.pathname === '/api/sync') return send(200, run('node scripts/deploy-check.mjs --sync-agents'));

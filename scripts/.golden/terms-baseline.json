@@ -17,39 +17,9 @@
     "surface": [
       "skill:references/*.md:history-sections",
       "skill:references/00-glossary.md:term-scan-off",
-      "skill:.zcode/org-ledger.jsonl,scripts/model-routing-log.jsonl",
-      "project:docs/evidence/**,history/**,.zcode/org-ledger.jsonl"
+      "project:docs/evidence/**,history/**"
     ],
     "files": {
-      "project:.zcode/org-ledger.jsonl": {
-        "战役": 5,
-        "收口": 53,
-        "门一": 18,
-        "清偿": 13,
-        "欠账": 20,
-        "回炉": 46,
-        "门二": 14,
-        "异构": 10,
-        "呈报": 21,
-        "档案": 8,
-        "在册": 16,
-        "烤验": 9,
-        "拟定者": 3,
-        "归档区": 2,
-        "册": 1,
-        "兜底位": 2,
-        "裁决史括注-修订序数": 2,
-        "深备位": 1,
-        "席位": 11,
-        "纯净化批": 1,
-        "审核者": 1,
-        "逃逸": 8,
-        "换源": 5,
-        "排程": 1,
-        "立案": 2,
-        "红线": 3,
-        "档": 2
-      },
       "project:docs/evidence/B1-impl-2026-10-28.md": {
         "逃逸": 2
       },
@@ -785,35 +755,6 @@
       },
       "project:history/org-panel-userdomain-2026-10-27/panel/server.mjs": {
         "裁决史括注-日期裁决": 1
-      },
-      "skill:.zcode/org-ledger.jsonl": {
-        "战役": 5,
-        "收口": 51,
-        "门一": 17,
-        "清偿": 13,
-        "欠账": 23,
-        "回炉": 46,
-        "门二": 14,
-        "异构": 10,
-        "呈报": 19,
-        "档案": 8,
-        "在册": 16,
-        "烤验": 9,
-        "拟定者": 3,
-        "归档区": 2,
-        "册": 1,
-        "兜底位": 2,
-        "裁决史括注-修订序数": 2,
-        "深备位": 1,
-        "席位": 11,
-        "纯净化批": 1,
-        "审核者": 1,
-        "逃逸": 3,
-        "换源": 5,
-        "排程": 1,
-        "立案": 2,
-        "红线": 3,
-        "档": 1
       },
       "skill:references/00-glossary.md": {
         "档案": 2,

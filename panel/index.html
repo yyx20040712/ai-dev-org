@@ -36,18 +36,26 @@ h1{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0;font-size:25
 .section-head h2{margin:0;font-size:16px;letter-spacing:-.01em}
 .section-head p{margin:3px 0 0;color:var(--muted);font-size:12px}
 .section-hint{flex:none;color:var(--muted);font-size:11px}
-.roles-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
-.role-card{min-width:0;overflow:hidden}
+.roles-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.role-card{min-width:0;overflow:hidden;display:flex;flex-direction:column}
 .role-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:68px;padding:14px 16px;border-bottom:1px solid var(--line)}
 .role-title{display:flex;align-items:center;gap:8px;min-width:0}
 .role-title h3{margin:0;font-size:15px;letter-spacing:-.01em}
 .role-name{overflow:hidden;color:var(--muted);font:11px ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis}
 .level{padding:2px 6px;border:1px solid var(--line);border-radius:5px;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace}
+.level-switch{display:inline-flex;flex:none;overflow:hidden;border:1px solid var(--line);border-radius:5px}
+.level-switch .opt{min-width:36px;padding:2px 7px;border:0;border-right:1px solid var(--line);background:transparent;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace;cursor:pointer}
+.level-switch .opt:last-child{border-right:0}
+.level-switch .opt:hover{background:var(--accent-soft);color:var(--accent)}
+.level-switch .opt.on{background:var(--accent);color:#fff}
+.level-switch.overridden{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.level-switch.warn{border-color:var(--bad)}
+.level-switch.warn .opt.on{background:var(--bad)}
 .save-state{flex:none;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:4px 7px;border:0;border-radius:7px;background:transparent;color:var(--good);font-size:11px;white-space:nowrap}
 .save-state[data-state="saving"]{color:var(--muted)}
 .save-state[data-state="error"]{background:var(--bad-soft);color:var(--bad);cursor:pointer}
 .save-state[data-state="error"]:hover{filter:brightness(.97)}
-.model-list{position:relative;display:flex;flex-direction:column;gap:6px;max-height:438px;overflow:auto;padding:10px;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent;overscroll-behavior:contain}
+.model-list{position:relative;display:flex;flex-direction:column;gap:6px;flex:1;max-height:520px;overflow:auto;padding:10px;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent;overscroll-behavior:contain}
 .model-row{position:relative;display:flex;align-items:center;gap:8px;min-width:0;min-height:65px;padding:8px 8px 8px 6px;border:1px solid var(--line);border-radius:10px;background:var(--panel);cursor:grab;transition:border-color .16s,background .16s,box-shadow .16s;touch-action:pan-y}
 .model-row:hover{border-color:var(--line-strong);background:var(--panel-2)}
 .model-row:first-child{border-color:color-mix(in srgb,var(--accent) 35%,var(--line));background:linear-gradient(100deg,var(--accent-soft),var(--panel) 45%)}
@@ -157,14 +165,25 @@ function statusCard(title,git){
   if(!git)return `<article class="status-card"><div class="status-top"><span>${esc(title)}</span><span class="clean-state">未配置</span></div><div class="status-value">—</div><div class="status-detail">ORG_PANEL_PROJECT 未设置时隐藏（入仓参数化版）</div></article>`;
   return `<article class="status-card"><div class="status-top"><span>${esc(title)}</span><span class="clean-state${git.clean?'':' dirty'}">${git.clean?'工作树 clean':'有未提交改动'}</span></div><div class="status-value" title="${esc(git.branch)} · ${esc(git.head)}">${esc(git.branch)} · ${esc(git.head)}</div><div class="status-detail" title="${esc(git.subject)}">${esc(git.subject)}${title==='技能仓'?' · 标签 '+esc(git.tags||'无'):''}</div></article>`;
 }
-function roleCard(role){
+function roleCard(role,levels){
+  // B4 D-7：三档分段开关只由 state.levels 派生；levels 缺席/非数组=旧面板服务，
+  // 回落静态徽章（不可点、title 固定），不 crash、不触发 dead-banner。
+  const levelsOk=Array.isArray(levels)&&levels.length>0;
+  const drift=role.deployedLevel&&role.deployedLevel!=='?'&&role.deployedLevel!==role.level;
+  const levelCtl=levelsOk?(()=>{
+    const tips=[];
+    if(role.levelOverridden)tips.push(`出厂 ${role.factoryLevel}·本机 ${role.level}`);
+    if(drift)tips.push(`配置 ${role.level}·部署 ${role.deployedLevel}——重渲染后生效`);
+    const title=tips.join('；')||'思考强度档位（点击即存）';
+    return `<span class="level-switch${role.levelOverridden?' overridden':''}${drift?' warn':''}" title="${esc(title)}">${levels.map((lv)=>`<button type="button" class="opt${lv===role.level?' on':''}" data-level="${esc(lv)}" aria-pressed="${lv===role.level?'true':'false'}">${esc(lv)}</button>`).join('')}</span>`;
+  })():`<span class="level" title="面板服务版本旧·重启面板后可调">${esc(role.level)}</span>`;
   const rows=role.order.map((item,index)=>`<div class="model-row" tabindex="0" role="listitem" data-provider="${esc(item.provider)}" data-model="${esc(item.model)}" title="${esc(item.slot)}\n${esc(item.binding)}">
     <span class="order-no">${String(index+1).padStart(2,'0')}</span><span class="drag-handle" aria-hidden="true">⠿</span>
     <div class="row-main"><div class="model-line"><span class="model-name">${esc(item.model)}</span><span class="preferred">首选</span></div>
     <div class="meta"><span class="entry">${esc(item.entry)}</span><span>·</span><span class="provider">${esc(item.provider)}</span><span class="chip ${familyClass(item.family)}">${esc(item.family)}</span>${item.plan?`<span class="chip plan-chip" title="${esc(item.plan)}">账户计划</span>`:''}${item.multimodal?'<span class="chip">多模态</span>':''}</div></div>
     <div class="row-actions"><button type="button" class="move-btn" data-dir="-1" title="上移（Alt+↑）" aria-label="上移 ${esc(item.model)}">↑</button><button type="button" class="move-btn" data-dir="1" title="下移（Alt+↓）" aria-label="下移 ${esc(item.model)}">↓</button></div>
   </div>`).join('');
-  return `<article class="role-card" data-role-card="${esc(role.role)}"><header class="role-head"><div><div class="role-title"><h3>${esc(role.title)}</h3><span class="level">${esc(role.level)}</span></div><div class="role-name">${esc(role.role)}</div></div><button type="button" class="save-state" data-state="saved" title="顺序已保存">已保存 ✓</button></header><div class="model-list" role="list" aria-label="${esc(role.title)}模型回退顺序">${rows}</div><footer class="card-foot"><span>从上到下依次回退</span><span>${role.order.length} 个候选</span></footer></article>`;
+  return `<article class="role-card" data-role-card="${esc(role.role)}"><header class="role-head"><div><div class="role-title"><h3>${esc(role.title)}</h3>${levelCtl}</div><div class="role-name">${esc(role.role)}</div></div><button type="button" class="save-state" data-state="saved" title="顺序已保存">已保存 ✓</button></header><div class="model-list" role="list" aria-label="${esc(role.title)}模型回退顺序">${rows}</div><footer class="card-foot"><span>从上到下依次回退</span><span>${role.order.length} 个候选</span></footer></article>`;
 }
 function render(state){
   if(drag) finishDrag(false);
@@ -176,7 +195,7 @@ function render(state){
   $('sub').textContent=`实测 ${state.now} · 账本 ${state.ledger.lines} 行 · 末行 ${state.ledger.lastRunId}`;
   const validationLine=String(state.validate.out||'').trim().split('\n').filter(Boolean).pop()||'';
   $('cards').innerHTML=statusCard('项目仓',state.project)+statusCard('技能仓',state.skill)+`<article class="status-card"><div class="status-top"><span>配置校验</span><span class="clean-state${valid?'':' dirty'}">${valid?'校验通过':'校验失败'}</span></div><div class="status-value">${valid?'PASS':'FAIL'}</div><div class="status-detail" title="${esc(state.validate.out)}">${esc(validationLine)}</div></article>`;
-  $('roles').innerHTML=(state.roleGroups||state.roles.map(role=>({id:role.role,label:role.title,roles:[role]}))).map(group=>`<section class="role-group" data-role-group="${esc(group.id)}"><div class="section-head"><h2>${esc(group.label)}</h2></div><div class="roles-grid">${group.roles.map(roleCard).join('')}</div></section>`).join('');
+  $('roles').innerHTML=(state.roleGroups||state.roles.map(role=>({id:role.role,label:role.title,roles:[role]}))).map(group=>`<section class="role-group" data-role-group="${esc(group.id)}"><div class="section-head"><h2>${esc(group.label)}</h2></div><div class="roles-grid">${group.roles.map(role=>roleCard(role,state.levels)).join('')}</div></section>`).join('');
   document.querySelectorAll('.role-card').forEach(card=>{
     const role=card.dataset.roleCard;
     const source=state.roles.find(item=>item.role===role);
@@ -242,6 +261,42 @@ async function pumpSave(rt){
     rt.busy=false;rt.error=reason;setStatus(rt,'error');
     await load(`${rt.role} 保存失败，已尝试恢复服务端顺序。\n${reason}`);
     const fresh=runtimes.get(rt.role);if(fresh){fresh.error=reason;setStatus(fresh,'error');}
+  }
+}
+/** B4 D-7 档位保存：点击即存；三态复用 save-state；保存流程结束（无论配置成败、
+ *  sync 成败）一律重拉 /api/state——行 tooltip 与部署警示都取自重拉后的 fresh state。
+ *  B4 返工 R1：唯一成功形态=HTTP ok 且 result.ok===true 且 result.sync.code===0；
+ *  其余一切形态（400/500、ok:true 缺 sync、非对象响应）统一进 error 分支并展示
+ *  error/validate.out/sync.out 与 rolledBack 标记（R2）。 */
+async function saveLevel(role,level){
+  const rt=runtimes.get(role);
+  if(!rt||rt.busy)return;
+  rt.busy=true;setStatus(rt,'saving');
+  const sw=rt.card&&rt.card.querySelector('.level-switch');
+  if(sw)sw.querySelectorAll('.opt').forEach(b=>{b.disabled=true;});
+  const failWith=async(reason)=>{
+    await load(`${role} 档位保存失败。\n${reason}`);
+    const fresh=runtimes.get(role);if(fresh){fresh.error=reason;setStatus(fresh,'error');}
+  };
+  try{
+    const resp=await fetch('/api/level',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,level})});
+    if(resp.status===404)throw new Error('面板服务版本旧——请重启面板服务后再调档位（/api/level 不存在）');
+    const result=await resp.json();
+    if(resp.ok&&result&&result.ok===true&&result.sync&&result.sync.code===0){
+      await load(`${role} 档位已保存：${level}。`);
+    }else{
+      const parts=[];
+      if(result&&result.ok===false)parts.push((result.validate&&result.validate.out)||'');
+      else parts.push(`HTTP ${resp.status}；ok=${result&&result.ok}；sync.code=${result&&result.sync?result.sync.code:'缺席'}——配置或同步未确认成功`);
+      if(result&&result.ok===true&&result.sync&&result.sync.code!==0)parts.push('部署同步失败——点击「重渲染代理文件」按钮重试。');
+      if(result&&result.validate&&result.validate.out&&result.ok!==false)parts.push(result.validate.out);
+      if(result&&result.sync&&result.sync.out&&result.ok!==false)parts.push(result.sync.out);
+      if(result&&result.error)parts.push(result.error);
+      if(result&&result.rolledBack!==undefined)parts.push(`rolledBack=${result.rolledBack}`);
+      await failWith(parts.filter(Boolean).join('\n'));
+    }
+  }catch(error){
+    await failWith(String(error));
   }
 }
 function animateRows(rows,first){
@@ -326,6 +381,8 @@ document.addEventListener('pointermove',event=>{
 document.addEventListener('pointerup',event=>{if(drag&&event.pointerId===drag.pointerId){drag.x=event.clientX;drag.y=event.clientY;finishDrag(true);}});
 document.addEventListener('pointercancel',event=>{if(drag&&event.pointerId===drag.pointerId)finishDrag(true);});
 $('roles').addEventListener('click',event=>{
+  const opt=event.target.closest('.level-switch .opt');
+  if(opt){if(opt.classList.contains('on'))return;const card=opt.closest('.role-card');if(card)saveLevel(card.dataset.roleCard,opt.dataset.level);return;}
   const move=event.target.closest('.move-btn');
   if(move){const row=move.closest('.model-row');const rt=runtimes.get(row.closest('.role-card').dataset.roleCard);moveRow(rt,row,Number(move.dataset.dir));return;}
   const status=event.target.closest('.save-state');
@@ -341,7 +398,7 @@ async function action(id,pending,task){
 }
 $('refresh').onclick=()=>action('refresh','刷新中…',()=>load());
 $('health').onclick=()=>action('health','探测中（约数秒）…',async()=>{const result=await api('/api/health');log(result.out);});
-$('sync').onclick=()=>action('sync','重渲染中…',async()=>{const result=await api('/api/sync');log('exit='+result.code+'\n'+result.out);});
+$('sync').onclick=()=>action('sync','重渲染中…',async()=>{const result=await api('/api/sync',{});log('exit='+result.code+'\n'+result.out);});
 load('状态已载入。拖动模型即可调整回退顺序。');
 </script>
 </body>

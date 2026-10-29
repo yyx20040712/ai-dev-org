@@ -23,11 +23,11 @@
  * 解析 > join(projectDir,'.zcode','org-ledger.jsonl') 兜底——health-scan/regression/deploy-check
  * 消费同一导出，禁各自复写三层序。
  */
-import { readFileSync, writeFileSync, existsSync, openSync, writeSync, closeSync, statSync, rmSync, utimesSync, mkdtempSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, copyFileSync, openSync, writeSync, closeSync, statSync, rmSync, utimesSync, mkdtempSync, mkdirSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 export const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_CFG = join(SKILL_ROOT, 'org-config.default.json')
@@ -468,6 +468,20 @@ export function validateLocalFacts(cfg) {
     if (!hasSlot)
       errors.push(`agent_bindings.${agent} 绑定键无对应 agent_slots 槽——合命名契约的绑定键须 ⊆ agent_slots（default 件先落槽、本机件后落绑）`)
   }
+  // B4 面板批（D-1）：thought_level_overrides 覆盖层校验——非对象/未知角色/非法档位
+  // 逐条错误行（fail-closed）；键缺席与空对象均合法。default 件不加此键。
+  if (cfg?.thought_level_overrides !== undefined) {
+    const tlo = cfg.thought_level_overrides
+    if (!isPlainObject(tlo))
+      errors.push('thought_level_overrides 须为 plain object（角色→low|high|max 映射）')
+    else
+      for (const [role, lv] of Object.entries(tlo)) {
+        if (!REQUIRED_AGENT_ROLES.includes(role))
+          errors.push(`thought_level_overrides.${role} 未知角色——仅允许 ${REQUIRED_AGENT_ROLES.join(', ')}`)
+        if (!['low', 'high', 'max'].includes(lv))
+          errors.push(`thought_level_overrides.${role}=${JSON.stringify(lv)} 非法档位——仅允许 low|high|max`)
+      }
+  }
   return errors
 }
 
@@ -729,6 +743,26 @@ if (isMain) {
     t('v2.1.0 返工：vision 通道 model=TODO→占位错误行', validateLocalFacts({ vision_channels: { glm: { model: 'TODO' } } }).some((e) => e.includes('vision_channels.glm.model=TODO')))
     t('v2.1.0 返工：agent_bindings 占位/空→错误行', validateLocalFacts({ agent_bindings: { 'ops-x': 'TODO' } }).some((e) => e.includes('agent_bindings.ops-x')))
     t('v2.1.0 返工：本机事实占位校验净配置→零错误', validateLocalFacts({}).length === 0 && validateLocalFacts({ vision_channels: { glm: { model: 'REAL' } }, agent_bindings: { x: 'v/k3$max' } }).length === 0)
+    // B4 面板批（D-1）向量：thought_level_overrides 校验六态＋三层合并透传（loader 零改）
+    t('B4 D-1：键缺席→零错误（回归锁）', validateLocalFacts({}).length === 0)
+    t('B4 D-1：空对象→零错误（合法）', validateLocalFacts({ thought_level_overrides: {} }).length === 0)
+    t('B4 D-1：合法正例（research=max·vision=low）→零错误', validateLocalFacts({ thought_level_overrides: { research: 'max', vision: 'low' } }).length === 0)
+    t('B4 D-1：非 plain object（串/数组）→错误行', validateLocalFacts({ thought_level_overrides: 'max' }).some((e) => e.includes('thought_level_overrides')) && validateLocalFacts({ thought_level_overrides: ['max'] }).some((e) => e.includes('thought_level_overrides')))
+    t('B4 D-1：未知角色 wizard→错误行点名', validateLocalFacts({ thought_level_overrides: { wizard: 'max' } }).some((e) => e.includes('wizard')))
+    t('B4 D-1：非法档位 ultra→错误行点名 research', validateLocalFacts({ thought_level_overrides: { research: 'ultra' } }).some((e) => e.includes('research') && e.includes('ultra')))
+    t('B4 D-1：local 层含 overrides→mergeOrgLayers 合并结果原样透传（loadOrgConfig 由此三读一合并组成）', (() => { const m = mergeOrgLayers({ a: 1 }, { thought_level_overrides: { research: 'max' } }, null); return JSON.stringify(m.thought_level_overrides) === '{"research":"max"}' })())
+    // B4 返工 R2（699-W1/ds-N3）：真正走 loadOrgConfig 的透传向量——/tmp 夹具技能根（源复制＋default/local 两件），生产件零写。
+    {
+      const fxLoad = mkdtempSync(join(tmpdir(), 'orgcfg-load-'))
+      try {
+        mkdirSync(join(fxLoad, 'scripts'), { recursive: true })
+        copyFileSync(fileURLToPath(import.meta.url), join(fxLoad, 'scripts', 'org-config.mjs'))
+        writeFileSync(join(fxLoad, 'org-config.default.json'), '{"a":1}\n'); writeFileSync(join(fxLoad, 'org-config.local.json'), '{"b":2,"thought_level_overrides":{"research":"max"}}\n')
+        const fxMod = await import(pathToFileURL(join(fxLoad, 'scripts', 'org-config.mjs')).href)
+        const loadedFx = fxMod.loadOrgConfig(fxLoad)
+        t('B4 D-1 装载：loadOrgConfig(/tmp 夹具根) 合并结果原样透传 local 层 thought_level_overrides', loadedFx.hasLocal === true && JSON.stringify(loadedFx.merged.thought_level_overrides) === '{"research":"max"}' && fxMod.validateLocalFacts(loadedFx.merged).length === 0)
+      } finally { rmSync(fxLoad, { recursive: true, force: true }) }
+    }
     // R-L19-1 绑定源一致性向量（计划源绑定值斜杠前段须=uuid_prefix 全串；全合成值）
     const rL19Cfg = (front) => ({
       providers: { plan: { uuid_prefix: 'account:demo-plan', entry_name: 'Demo Plan', family: 'glm' } },

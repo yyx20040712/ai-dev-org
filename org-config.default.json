@@ -60,9 +60,9 @@
     "historical": [
       { "root": "skill", "include": ["references/*.md"], "selector": "history-sections" },
       { "root": "skill", "include": ["references/00-glossary.md"], "selector": "term-scan-off" },
-      { "root": "skill", "include": [".zcode/org-ledger.jsonl", "scripts/model-routing-log.jsonl"] },
-      { "root": "project", "include": ["docs/evidence/**", "history/**", ".zcode/org-ledger.jsonl"] }
-    ]
+      { "root": "project", "include": ["docs/evidence/**", "history/**"] }
+    ],
+    "note": "活账本（两仓 .zcode/org-ledger.jsonl）与流水（scripts/model-routing-log.jsonl）已移出历史扫描面（2026-10-29 用户当面二选一 exclude 豁免·b3n-ledger-frozen-gap 处置）：活文件持续合法追加与首冻计数语义冲突；词面纪律改由新增行零禁用词纪律＋verify-docs 既有面执法（授权=账本 b4-ruling-scope/b4b-ledger-exclude 行）。"
   },
   "note": "通用默认件（v2.1.0 三层化批起随包分发，零个人事实）：供应商/项目/视觉通道实值一律住 org-config.local.json（本机件，gitignore 不随包）——深合并序=默认件←本机件←项目覆盖件（语义与规范化哈希=06 §0）。新机首跑=DEPLOY.md（deploy-check --install 脚手架本机件）。",
   "providers": {
