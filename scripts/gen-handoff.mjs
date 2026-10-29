@@ -31,7 +31,7 @@ const usageExit = (m) => { console.error(`[用法错] ${m}（06 §5.8 行 1）`)
 const redExit = (m) => { console.error(`[判红] ${m}`); process.exit(EXIT_RED) }
 const configExit = (m) => { console.error(`[装载错] ${m}（06 §5.8 行 3）`); process.exit(EXIT_CONFIG) }
 
-/** CLI 解析：未知参数/缺值/重复值参/等号形态=用法错（D-1；multi 名单允许多值）。 */
+/** CLI 解析：未知参数/缺值/重复值参/等号形态/空串纯空白值=用法错（D-1＋W-2/N-10 同源；multi 名单允许多值）。 */
 function parseArgs(argv, spec) {
   const out = {}
   for (let i = 0; i < argv.length; i++) {
@@ -44,6 +44,7 @@ function parseArgs(argv, spec) {
     const v = argv[i + 1]
     if (v === undefined) usageExit(`flag ${a} 居末位无值`)
     if (v.startsWith('--')) usageExit(`flag ${a} 的值形如 flag（「${v}」）`)
+    if (v.trim() === '') usageExit(`flag ${a} 的值不得为空串或纯空白（W-2/N-10 同源：空值=用法错）`)
     i++
     if (isValue) { if (out[a] !== undefined) usageExit(`重复 flag：${a}`); out[a] = v } else (out[a] ??= []).push(v)
   }
@@ -80,13 +81,21 @@ function extractSection(text, title) {
   return seg.join('\n')
 }
 
-/** 模板渲染：占位全消解（残留占位=判红），LF、文件末恰一个换行。 */
-function render(tpl, map) {
-  let out = tpl.replace(/\r\n/g, '\n')
-  for (const [k, v] of Object.entries(map)) out = out.split(`{{${k}}}`).join(v)
-  const leftover = out.match(/\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}/)
+/** 模板渲染（W-6 源文隔离）：①槽位占位先换哨兵＋标量替换（骨架渲染）→②骨架残留占位判红
+ *  →③源文经哨兵原样插入——源文字面量（含 {{slot}} 形）不参与占位替换与未消解判定。 */
+function render(tpl, scalars, sources) {
+  let skeleton = tpl.replace(/\r\n/g, '\n')
+  const tokens = new Map()
+  for (const k of Object.keys(sources)) {
+    const tok = `\u0000b6:${k}\u0000`
+    skeleton = skeleton.split(`{{${k}}}`).join(tok)
+    tokens.set(k, tok)
+  }
+  for (const [k, v] of Object.entries(scalars)) skeleton = skeleton.split(`{{${k}}}`).join(v)
+  const leftover = skeleton.match(/\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}/)
   if (leftover) throw new ContentError(`模板占位未消解：${leftover[0]}（槽位集与模板失配）`)
-  return out.replace(/\n+$/, '\n')
+  for (const [k, v] of Object.entries(sources)) skeleton = skeleton.split(tokens.get(k)).join(v)
+  return skeleton.replace(/\n+$/, '\n')
 }
 
 /** 只创建新文件：同目录临时文件＋rename；目标已存在即失败（禁覆盖历史件）。 */
@@ -110,8 +119,9 @@ function scanMaxSequence(projectDir) {
 }
 
 function templatePath() {
-  const rootOverride = process.env.DOCGEN_TEMPLATE_ROOT
-  return rootOverride ? join(rootOverride, 'handoff.md') : join(SKILL_ROOT, 'templates', 'handoff.md')
+  // W-1：生产路径无条件忽略 DOCGEN_TEMPLATE_ROOT——仅当自检父进程同时携带配对内部键时生效（私有夹具通道）
+  if (process.env.DOCGEN_TEMPLATE_FIXTURE === '1' && process.env.DOCGEN_TEMPLATE_ROOT) return join(process.env.DOCGEN_TEMPLATE_ROOT, 'handoff.md')
+  return join(SKILL_ROOT, 'templates', 'handoff.md')
 }
 
 function buildSections(projectDir, rawSections) {
@@ -144,6 +154,9 @@ function runGenerate(args, check) {
   const explicitSeq = args['--sequence'] !== undefined ? args['--sequence'] : null
   if (explicitSeq !== null && !/^\d{2}$/.test(explicitSeq)) usageExit(`--sequence 须两位十进制字符串：${explicitSeq}`)
   const output = resolve(args['--output'])
+  // N-2：输出目录限制两分支同用（生成与 --check 均限项目 docs/evidence 或 /tmp 夹具）
+  const outDir = dirname(output), evidenceDir = resolve(projectDir, 'docs', 'evidence')
+  if (outDir !== evidenceDir && !outDir.startsWith(resolve(tmpdir()) + '/')) throw new ContentError(`输出目录只能是项目 docs/evidence 或 /tmp 夹具：${outDir}`)
   const maxSeq = scanMaxSequence(projectDir)
   let seq
   if (check) {
@@ -159,10 +172,12 @@ function runGenerate(args, check) {
     if (explicitSeq !== null) {
       if (Number(explicitSeq) <= maxSeq) throw new ContentError(`序号冲突：显式 ${explicitSeq} ≤ 现最大值 ${maxSeq}`)
       seq = explicitSeq
-    } else seq = String(maxSeq + 1).padStart(2, '0')
+    } else {
+      // W-7：两位序号空间用尽即明确失败——不生成三位序号文件，停手上报
+      if (maxSeq >= 99) throw new ContentError(`全局最大序号已达 ${maxSeq}——两位序号空间用尽，拒绝推导三位序号（停手上报，不生成文件）`)
+      seq = String(maxSeq + 1).padStart(2, '0')
+    }
     if (basename(output) !== `handoff-${date}-${seq}.md`) throw new ContentError(`目标文件名与 date/NN 不一致：${basename(output)} ≠ handoff-${date}-${seq}.md`)
-    const outDir = dirname(output), evidenceDir = resolve(projectDir, 'docs', 'evidence')
-    if (outDir !== evidenceDir && !outDir.startsWith(resolve(tmpdir()) + '/')) throw new ContentError(`输出目录只能是项目 docs/evidence 或 /tmp 夹具：${outDir}`)
     if (existsSync(output)) throw new ContentError(`目标已存在，生成模式禁覆盖：${output}`)
   }
   const sections = buildSections(projectDir, args['--section'])
@@ -176,8 +191,8 @@ function runGenerate(args, check) {
   }
   const body = render(tpl, {
     sequence: seq, batch: args['--batch'], authority: args['--authority'], date,
-    supersedes: args['--supersedes'], change_anchor: args['--change-anchor'], ...extracted,
-  })
+    supersedes: args['--supersedes'], change_anchor: args['--change-anchor'],
+  }, extracted)
   if (check) {
     if (!existsSync(output)) redExit(`--check 目标不存在：${output}`)
     const cur = readFileSync(output)
@@ -211,13 +226,23 @@ function selfTest() {
       return proj
     }
     const proj1 = mkProject('proj1'), proj2 = mkProject('proj2')
+    const proj99 = (() => {
+      const proj = join(tmp, 'proj99')
+      mkdirSync(join(proj, 'docs', 'evidence'), { recursive: true })
+      for (const f of fx.handoff_existing_99) writeFileSync(join(proj, 'docs', 'evidence', f), '(合成历史件)\n', 'utf8')
+      return proj
+    })()
     const negOut = join(tmp, 'neg-out')
     mkdirSync(negOut, { recursive: true })
-    const run = (args, env = {}) => spawnSync(process.execPath, [SELF, ...args], { encoding: 'utf8', env: { ...process.env, ...env }, timeout: 60_000 })
-    const subst = (args) => args.map((a) => a.replace(/@PROJECT@/g, proj1).replace(/@PROJECT2@/g, proj2).replace(/@OUT_NEG@/g, negOut))
+    // W-1：非变异子进程显式清除外来继承的模板根/配对键——私有夹具通道仅变异用例可携带
+    const baseEnv = { ...process.env }
+    delete baseEnv.DOCGEN_TEMPLATE_ROOT
+    delete baseEnv.DOCGEN_TEMPLATE_FIXTURE
+    const run = (args, env = baseEnv) => spawnSync(process.execPath, [SELF, ...args], { encoding: 'utf8', env, timeout: 60_000 })
+    const subst = (args) => args.map((a) => a.replace(/@PROJECT@/g, proj1).replace(/@PROJECT2@/g, proj2).replace(/@PROJECT99@/g, proj99).replace(/@OUT_NEG@/g, negOut))
     let mutatedRoot = null
     for (const c of fx.self_test_cases['gen-handoff']) {
-      const env = {}
+      let env = baseEnv
       if (c.mutate_template) {
         const dir = join(tmp, 'mut-templates')
         mkdirSync(dir, { recursive: true })
@@ -225,7 +250,7 @@ function selfTest() {
         if (!prod.includes(c.mutate_template.from)) { note(false, `夹具变异锚缺失：${c.mutate_template.from}`); continue }
         writeFileSync(join(dir, 'handoff.md'), prod.replace(c.mutate_template.from, c.mutate_template.to), 'utf8')
         mutatedRoot = dir
-        env.DOCGEN_TEMPLATE_ROOT = dir
+        env = { ...baseEnv, DOCGEN_TEMPLATE_ROOT: dir, DOCGEN_TEMPLATE_FIXTURE: '1' }
       }
       const r = run(subst(c.args), env)
       const code = r.status === null ? 124 : r.status
@@ -252,10 +277,14 @@ function selfTest() {
 }
 
 const argv = process.argv.slice(2)
-if (argv.includes('--self-test')) process.exit(selfTest() ? EXIT_OK : EXIT_RED)
+const ARG_SPEC = { value: ['--project', '--date', '--sequence', '--batch', '--authority', '--change-anchor', '--supersedes', '--output'], bool: ['--check', '--self-test'], multi: ['--section'] }
+// N-1：--self-test 不绕过参数检查——先按同源 parseArgs 校验（未知/重复/等号/空值=用法错）再进自检
 try {
-  const args = parseArgs(argv, { value: ['--project', '--date', '--sequence', '--batch', '--authority', '--change-anchor', '--supersedes', '--output'], bool: ['--check'], multi: ['--section'] })
-  for (const req of ['--project', '--date', '--batch', '--authority', '--change-anchor', '--supersedes', '--output']) if (args[req] === undefined) usageExit(`缺必填参数：${req}`)
+  parseArgs(argv, ARG_SPEC)
+  if (argv.includes('--self-test')) process.exit(selfTest() ? EXIT_OK : EXIT_RED)
+  const args = parseArgs(argv, ARG_SPEC)
+  // W-2：--section 纳入必填（完全缺失=exit 1）
+  for (const req of ['--project', '--date', '--batch', '--authority', '--change-anchor', '--supersedes', '--output', '--section']) if (args[req] === undefined) usageExit(`缺必填参数：${req}`)
   runGenerate(args, args['--check'] === 1)
 } catch (e) {
   if (e instanceof UsageError) usageExit(e.message)

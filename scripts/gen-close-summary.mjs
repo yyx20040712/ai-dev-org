@@ -44,6 +44,7 @@ function parseArgs(argv, spec) {
     const v = argv[i + 1]
     if (v === undefined) usageExit(`flag ${a} 居末位无值`)
     if (v.startsWith('--')) usageExit(`flag ${a} 的值形如 flag（「${v}」）`)
+    if (v.trim() === '') usageExit(`flag ${a} 的值不得为空串或纯空白（W-2/N-10 同源：空值=用法错）`)
     i++
     if (isValue) { if (out[a] !== undefined) usageExit(`重复 flag：${a}`); out[a] = v } else (out[a] ??= []).push(v)
   }
@@ -78,12 +79,21 @@ function extractSection(text, title) {
   return seg.join('\n')
 }
 
-function render(tpl, map) {
-  let out = tpl.replace(/\r\n/g, '\n')
-  for (const [k, v] of Object.entries(map)) out = out.split(`{{${k}}}`).join(v)
-  const leftover = out.match(/\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}/)
+/** 模板渲染（W-6 源文隔离）：①槽位占位先换哨兵＋标量替换（骨架渲染）→②骨架残留占位判红
+ *  →③源文经哨兵原样插入——源文字面量（含 {{slot}} 形）不参与占位替换与未消解判定。 */
+function render(tpl, scalars, sources) {
+  let skeleton = tpl.replace(/\r\n/g, '\n')
+  const tokens = new Map()
+  for (const k of Object.keys(sources)) {
+    const tok = `\u0000b6:${k}\u0000`
+    skeleton = skeleton.split(`{{${k}}}`).join(tok)
+    tokens.set(k, tok)
+  }
+  for (const [k, v] of Object.entries(scalars)) skeleton = skeleton.split(`{{${k}}}`).join(v)
+  const leftover = skeleton.match(/\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}/)
   if (leftover) throw new ContentError(`模板占位未消解：${leftover[0]}（槽位集与模板失配）`)
-  return out.replace(/\n+$/, '\n')
+  for (const [k, v] of Object.entries(sources)) skeleton = skeleton.split(tokens.get(k)).join(v)
+  return skeleton.replace(/\n+$/, '\n')
 }
 
 function atomicNewWrite(p, content) {
@@ -100,9 +110,10 @@ function assertNoVerdictLine(text, slot) {
 }
 
 function templatePath(kind) {
+  // W-1：生产路径无条件忽略 DOCGEN_TEMPLATE_ROOT——仅当自检父进程同时携带配对内部键时生效（私有夹具通道）
   const name = kind === 'close' ? 'close-summary.md' : 'gates-summary.md'
-  const rootOverride = process.env.DOCGEN_TEMPLATE_ROOT
-  return rootOverride ? join(rootOverride, name) : join(SKILL_ROOT, 'templates', name)
+  if (process.env.DOCGEN_TEMPLATE_FIXTURE === '1' && process.env.DOCGEN_TEMPLATE_ROOT) return join(process.env.DOCGEN_TEMPLATE_ROOT, name)
+  return join(SKILL_ROOT, 'templates', name)
 }
 
 function buildSections(kind, projectDir, rawSections) {
@@ -148,8 +159,8 @@ function runGenerate(args, check) {
   }
   const body = render(tpl, {
     batch: args['--batch'], authority: args['--authority'], date,
-    supersedes: args['--supersedes'], change_anchor: args['--change-anchor'], ...extracted,
-  })
+    supersedes: args['--supersedes'], change_anchor: args['--change-anchor'],
+  }, extracted)
   if (check) {
     if (!existsSync(output)) redExit(`--check 目标不存在：${output}`)
     const cur = readFileSync(output)
@@ -179,12 +190,16 @@ function selfTest() {
       mkdirSync(dirname(p), { recursive: true })
       writeFileSync(p, content, 'utf8')
     }
-    const outA = join(tmp, 'close-out'), outB = join(tmp, 'gates-out'), outC = join(tmp, 'shuffle-out'), negOut = join(tmp, 'neg-out')
-    for (const d of [outA, outB, outC, negOut]) mkdirSync(d, { recursive: true })
-    const run = (args, env = {}) => spawnSync(process.execPath, [SELF, ...args], { encoding: 'utf8', env: { ...process.env, ...env }, timeout: 60_000 })
-    const subst = (args) => args.map((a) => a.replace(/@PROJECT@/g, proj).replace(/@OUT_CLOSE@/g, join(outA, 'fx-close.md')).replace(/@OUT_GATES@/g, join(outB, 'fx-gates.md')).replace(/@OUT_SHUFFLE@/g, join(outC, 'fx-close.md')).replace(/@OUT_NEG@/g, negOut))
+    const outA = join(tmp, 'close-out'), outB = join(tmp, 'gates-out'), outC = join(tmp, 'shuffle-out'), negOut = join(tmp, 'neg-out'), outP = join(tmp, 'plit-out')
+    for (const d of [outA, outB, outC, negOut, outP]) mkdirSync(d, { recursive: true })
+    // W-1：非变异子进程显式清除外来继承的模板根/配对键——私有夹具通道仅变异用例可携带
+    const baseEnv = { ...process.env }
+    delete baseEnv.DOCGEN_TEMPLATE_ROOT
+    delete baseEnv.DOCGEN_TEMPLATE_FIXTURE
+    const run = (args, env = baseEnv) => spawnSync(process.execPath, [SELF, ...args], { encoding: 'utf8', env, timeout: 60_000 })
+    const subst = (args) => args.map((a) => a.replace(/@PROJECT@/g, proj).replace(/@OUT_CLOSE@/g, join(outA, 'fx-close.md')).replace(/@OUT_GATES@/g, join(outB, 'fx-gates.md')).replace(/@OUT_SHUFFLE@/g, join(outC, 'fx-close.md')).replace(/@OUT_NEG@/g, negOut).replace(/@OUT_PLIT@/g, join(outP, 'fx-plit.md')))
     for (const c of fx.self_test_cases['gen-close-summary']) {
-      const env = {}
+      let env = baseEnv
       if (c.mutate_template) {
         const dir = join(tmp, 'mut-templates')
         mkdirSync(dir, { recursive: true })
@@ -192,21 +207,27 @@ function selfTest() {
         const prod = readFileSync(join(SKILL_ROOT, 'templates', name), 'utf8')
         if (!prod.includes(c.mutate_template.from)) { note(false, `夹具变异锚缺失：${name}:${c.mutate_template.from}`); continue }
         writeFileSync(join(dir, name), prod.replace(c.mutate_template.from, c.mutate_template.to), 'utf8')
-        env.DOCGEN_TEMPLATE_ROOT = dir
+        env = { ...baseEnv, DOCGEN_TEMPLATE_ROOT: dir, DOCGEN_TEMPLATE_FIXTURE: '1' }
       }
       const r = run(subst(c.args), env)
       const code = r.status === null ? 124 : r.status
       console.log(`case=${c.name} exit=${code}`)
       if (code !== c.expected_exit) allOk = false
     }
-    const closeOut = join(outA, 'fx-close.md'), gatesOut = join(outB, 'fx-gates.md'), shuffleOut = join(outC, 'fx-close.md')
-    if (!existsSync(closeOut) || !existsSync(gatesOut) || !existsSync(shuffleOut)) { note(false, '正例产物缺席（先修正例再跑对照）'); return allOk }
+    const closeOut = join(outA, 'fx-close.md'), gatesOut = join(outB, 'fx-gates.md'), shuffleOut = join(outC, 'fx-close.md'), plitOut = join(outP, 'fx-plit.md')
+    if (!existsSync(closeOut) || !existsSync(gatesOut) || !existsSync(shuffleOut) || !existsSync(plitOut)) { note(false, '正例产物缺席（先修正例再跑对照）'); return allOk }
     note(readFileSync(closeOut).equals(Buffer.from(fx.expected.close, 'utf8')), '快照期望字节一致（fixture.expected.close）')
     note(readFileSync(gatesOut).equals(Buffer.from(fx.expected.gates, 'utf8')), '快照期望字节一致（fixture.expected.gates）')
     note(readFileSync(closeOut).equals(readFileSync(shuffleOut)), '输入乱序一致（正序 ↔ 逆序逐字节相同）')
+    // W-6 源文隔离断言：details 源文字面量 {{summary}} 原样保留、未被占位替换
+    note(readFileSync(plitOut, 'utf8').includes('{{summary}}'), '源文隔离（W-6）：源文字面量占位形原样保留')
     const before = readFileSync(closeOut)
     const rc = run(subst(fx.self_test_cases['gen-close-summary'].find((c) => c.name === 'close-p1-close-generate').args).concat(['--check']))
-    note(rc.status === 0 && readFileSync(closeOut).equals(before), '--check 一致（内存重算逐字节相同且未写回）')
+    note(rc.status === 0 && readFileSync(closeOut).equals(before), '--check 一致（close 内存重算逐字节相同且未写回）')
+    // W-3：gates 正例 --check 补入（断言未写回）
+    const beforeG = readFileSync(gatesOut)
+    const rg = run(subst(fx.self_test_cases['gen-close-summary'].find((c) => c.name === 'close-p2-gates-generate').args).concat(['--check']))
+    note(rg.status === 0 && readFileSync(gatesOut).equals(beforeG), 'gates --check 一致（W-3：内存重算逐字节相同且未写回）')
     // 固定快照两次生成逐字节一致：干净目录重跑 close 正例比对
     const outD = join(tmp, 'rerun-out')
     mkdirSync(outD, { recursive: true })
@@ -217,10 +238,14 @@ function selfTest() {
 }
 
 const argv = process.argv.slice(2)
-if (argv.includes('--self-test')) process.exit(selfTest() ? EXIT_OK : EXIT_RED)
+const ARG_SPEC = { value: ['--kind', '--project', '--date', '--batch', '--authority', '--change-anchor', '--supersedes', '--output'], bool: ['--check', '--self-test'], multi: ['--section'] }
+// N-1：--self-test 不绕过参数检查——先按同源 parseArgs 校验（未知/重复/等号/空值=用法错）再进自检
 try {
-  const args = parseArgs(argv, { value: ['--kind', '--project', '--date', '--batch', '--authority', '--change-anchor', '--supersedes', '--output'], bool: ['--check'], multi: ['--section'] })
-  for (const req of ['--kind', '--project', '--date', '--batch', '--authority', '--change-anchor', '--supersedes', '--output']) if (args[req] === undefined) usageExit(`缺必填参数：${req}`)
+  parseArgs(argv, ARG_SPEC)
+  if (argv.includes('--self-test')) process.exit(selfTest() ? EXIT_OK : EXIT_RED)
+  const args = parseArgs(argv, ARG_SPEC)
+  // W-2：--section 纳入必填（完全缺失=exit 1）
+  for (const req of ['--kind', '--project', '--date', '--batch', '--authority', '--change-anchor', '--supersedes', '--output', '--section']) if (args[req] === undefined) usageExit(`缺必填参数：${req}`)
   runGenerate(args, args['--check'] === 1)
 } catch (e) {
   if (e instanceof UsageError) usageExit(e.message)

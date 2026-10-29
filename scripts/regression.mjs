@@ -550,14 +550,16 @@ if (want('R16')) {
   const fx16 = mkdtempSync(join(tmpdir(), 'r16-docgen-'))
   try {
     const r16Run = (args, opts = {}) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 60_000, killSignal: 'SIGKILL', ...opts })
-    // ① 四脚本隔离自检（--self-test 子进程真退出码＋确定性/乱序标记断言）
+    // ① 四脚本隔离自检（--self-test 子进程真退出码＋确定性/乱序具体 PASS 行断言——W-4/N-03：
+    //    断言以 PASS 起始的具体行承载，非松散字符串正则）
     const stOk = [], stMark = []
     for (const s of ['gen-handoff', 'gen-close-summary', 'gen-commit-summary', 'residuals-check']) {
       const r = r16Run([join(SCRIPTS, `${s}.mjs`), '--self-test'])
       const out = (r.stdout || '') + (r.stderr || '')
+      const passLines = out.split('\n').filter((l) => l.startsWith('PASS '))
       const pass = r.status === 0
-      const dbl = /两次(生成|写回)逐字节一致/.test(out)
-      const shuf = /乱序/.test(out)
+      const dbl = passLines.some((l) => l.includes('逐字节一致'))
+      const shuf = passLines.some((l) => l.includes('乱序一致'))
       if (!pass || !dbl || !shuf) ok16 = false
       stOk.push(`${s}:${pass ? 'exit=0' : `exit=${r.status}`}`)
       stMark.push(`${s}${dbl ? '双生成✓' : '双生成✗'}${shuf ? '乱序✓' : '乱序✗'}`)
@@ -601,13 +603,41 @@ if (want('R16')) {
     const rFence = r16Run([join(SCRIPTS, 'check-terms.mjs'), '--strict', '--surface', 'active', '--root', dFence], { env: envOn })
     const fenceOk = rFence.status === 0
     if (!fenceOk) ok16 = false
-    // 围栏进 RESIDUALS 权威段 → residuals-check 非零拒绝（双闸缺一不可的第二闸）
+    // 围栏进 RESIDUALS 权威段 → residuals-check 非零拒绝（双闸缺一不可的第二闸）——
+    // W-4：判红只认 status===1（排除 3=装载错假阳性）且输出须含围栏类判红原因
     const fxRes = join(fx16, 'residuals-fenced.md')
     writeFileSync(fxRes, String(fixtureDoc.residuals_canonical).replace('<!-- residuals-json: begin -->\n{', '<!-- residuals-json: begin -->\n```\n{'), 'utf8')
     const rRes = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', fxRes, '--check'])
-    const resOk = rRes.status !== 0
+    const resOut = (rRes.stdout || '') + (rRes.stderr || '')
+    const resOk = rRes.status === 1 && resOut.includes('围栏')
     if (!resOk) ok16 = false
-    det16.push(`③terms 探针 未围栏红=${rawOk ? '✓' : `✗(exit=${rRaw.status})`} 围栏跳过=${fenceOk ? '✓(exit=0 单闸不闭合)' : `✗(exit=${rFence.status})`} residuals 拦围栏=${resOk ? '✓' : `✗(exit=${rRes.status})`}`)
+    // B-1 整段外围栏形态：含运行时禁用词的合法 canonical RESIDUALS 夹具——
+    // 未围栏（check-terms 判红＋residuals-check 通过的快照对照）vs 整段外围栏
+    // （check-terms 跳过＋residuals-check 明确因围栏判红）
+    const K8 = ['created_at', 'description', 'evidence', 'id', 'owner', 'phenomenon', 'status', 'trigger']
+    const canonRes = (res) => JSON.stringify({ residuals: [...res].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)).map((e) => Object.fromEntries(K8.map((k) => [k, e[k]]))), schema: 'residuals/v1' }, null, 2)
+    const withWord = (() => {
+      const src = String(fixtureDoc.residuals_canonical)
+      const ls = src.split('\n')
+      const bi = ls.indexOf('<!-- residuals-json: begin -->'), ei = ls.indexOf('<!-- residuals-json: end -->')
+      const doc = JSON.parse(ls.slice(bi + 1, ei).join('\n'))
+      doc.residuals.push({ created_at: '2099-01-01', description: `含${SYNTH}的合成未来现象`, evidence: ['合成证据'], id: 'fx-probe', owner: '合成责任人', phenomenon: `含${SYNTH}的合成未来现象`, status: 'closed', trigger: '合成未来触发' })
+      const seg = canonRes(doc.residuals).split('\n')
+      ls.splice(bi + 1, ei - bi - 1, ...seg)
+      return ls.join('\n')
+    })()
+    const dSegRaw = mkRoot('terms-seg-raw', { 'fx-res.md': withWord + '\n' }, [{ root: 'skill', include: ['fx-res.md'] }])
+    const rSegRaw = r16Run([join(SCRIPTS, 'check-terms.mjs'), '--strict', '--surface', 'active', '--root', dSegRaw], { env: envOn })
+    const rSegRes = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', join(dSegRaw, 'fx-res.md'), '--check'])
+    const segRawOk = rSegRaw.status === 1 && rSegRes.status === 0
+    const withWordFenced = withWord.replace('<!-- residuals-json: begin -->', '```\n<!-- residuals-json: begin -->').replace('<!-- residuals-json: end -->', '<!-- residuals-json: end -->\n```')
+    const dSegFence = mkRoot('terms-seg-fence', { 'fx-res.md': withWordFenced + '\n' }, [{ root: 'skill', include: ['fx-res.md'] }])
+    const rSegFence = r16Run([join(SCRIPTS, 'check-terms.mjs'), '--strict', '--surface', 'active', '--root', dSegFence], { env: envOn })
+    const rSegFenceRes = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', join(dSegFence, 'fx-res.md'), '--check'])
+    const segFenceOut = (rSegFenceRes.stdout || '') + (rSegFenceRes.stderr || '')
+    const segFenceOk = rSegFence.status === 0 && rSegFenceRes.status === 1 && segFenceOut.includes('围栏')
+    if (!segRawOk || !segFenceOk) ok16 = false
+    det16.push(`③terms 探针 未围栏红=${rawOk ? '✓' : `✗(exit=${rRaw.status})`} 围栏跳过=${fenceOk ? '✓(exit=0 单闸不闭合)' : `✗(exit=${rFence.status})`} residuals 拦围栏=${resOk ? '✓(exit=1 围栏原因)' : `✗(exit=${rRes.status})`} 整段围栏对照=${segRawOk && segFenceOk ? '✓(未围栏:terms红/residuals过；整段围栏:terms跳过/residuals围栏红)' : `✗(raw:${rSegRaw.status}/${rSegRes.status} fence:${rSegFence.status}/${rSegFenceRes.status})`}`)
     // ④ 代号污染负例：宿主注册表动态取一模型名写入临时生成物 → check-hardcode --strict 非零
     let modelName = null
     try {
@@ -627,11 +657,17 @@ if (want('R16')) {
     }
     if (!polOk) ok16 = false
     det16.push(`④hardcode 探针=${polNote}`)
-    // ⑤ b3_docgen_v1：off=production_check=skipped；on=追加现役 RESIDUALS --check 影子对照
+    // ⑤ b3_docgen_v1：off=production_check=skipped；on=追加现役 RESIDUALS --check 影子对照；
+    //    W-4：装载异常不静默降 off——stderr 告警＋判失败（production_check=load_error）
     let b3On = false
-    try { b3On = resolveFlagValue(loadOrgConfig(projectDir).merged, 'b3_docgen_v1', readFlagsState()) === true } catch { b3On = false }
+    let b3LoadErr = null
+    try { b3On = resolveFlagValue(loadOrgConfig(projectDir).merged, 'b3_docgen_v1', readFlagsState()) === true } catch (e) { b3LoadErr = e.message }
     let prodNote = 'skipped'
-    if (b3On) {
+    if (b3LoadErr !== null) {
+      console.error(`[warn] b3_docgen_v1 装载异常（${b3LoadErr}）——R16 按失败处置不静默降 off（W-4）`)
+      prodNote = 'load_error'
+      ok16 = false
+    } else if (b3On) {
       const rProd = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', join(SKILL_ROOT, 'RESIDUALS.md'), '--check'])
       prodNote = rProd.status === 0 ? 'passed' : `failed(exit=${rProd.status})`
       if (rProd.status !== 0) ok16 = false

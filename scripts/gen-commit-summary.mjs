@@ -44,6 +44,7 @@ function parseArgs(argv, spec) {
     const v = argv[i + 1]
     if (v === undefined) usageExit(`flag ${a} 居末位无值`)
     if (v.startsWith('--')) usageExit(`flag ${a} 的值形如 flag（「${v}」）`)
+    if (v.trim() === '') usageExit(`flag ${a} 的值不得为空串或纯空白（W-2/N-10 同源：空值=用法错）`)
     i++
     if (out[a] !== undefined) usageExit(`重复 flag：${a}`)
     out[a] = v
@@ -56,10 +57,11 @@ function buildMessage(args) {
   const type = args['--type']
   if (!TYPES.includes(type)) usageExit(`--type 取值须 ${TYPES.join('|')}（收到「${type}」）`)
   const scope = args['--scope']
-  if (!scope || !scope.trim() || scope.includes('\n')) redExit(`--scope 须非空且无换行：${scope ?? '(缺)'}`)
+  // N-3：--scope 拒括号对与空白字符（防 first line 形态破坏）；换行含 \r\n
+  if (!scope || !scope.trim() || /[\s()]/.test(scope)) redExit(`--scope 须非空且不含空白或括号：${scope ?? '(缺)'}`)
   const subject = args['--subject']
-  if (subject === undefined || !subject.trim() || subject.includes('\n')) redExit('--subject 去首尾空白后须非空且无换行')
-  if (subject.trim().endsWith('。')) redExit('--subject 不以句号结尾（叙事移入账本只留指针）')
+  if (subject === undefined || !subject.trim() || /[\n\r]/.test(subject)) redExit('--subject 去首尾空白后须非空且无换行')
+  if (/[。.]$/.test(subject.trim())) redExit('--subject 不以句号结尾（全角或半角；叙事移入账本只留指针）')
   const first = `${type}(${scope}): ${subject.trim()}`
   if (Array.from(first).length > 72) redExit(`首行超长：${Array.from(first).length} > 72（按 Unicode code point 计数）`)
   const projectDir = resolve(args['--project'])
@@ -69,7 +71,7 @@ function buildMessage(args) {
   if (!ledgerRel || ledgerRel.startsWith('..') || isAbsolute(ledgerRel)) redExit(`账本须在项目内（相对路径得「${ledgerRel || '(项目根外)'}」）`)
   if (!existsSync(ledgerPath)) configExit(`账本不可读：${ledgerPath}`)
   const runid = args['--runid']
-  if (!runid || runid.includes('\n')) redExit('--runid 须非空且无换行')
+  if (!runid || /[\n\r]/.test(runid)) redExit('--runid 须非空且无换行（含 \\r 拒收——N-3）')
   let hits = 0
   for (const line of readFileSync(ledgerPath, 'utf8').split('\n')) {
     if (!line.trim()) continue
@@ -80,7 +82,7 @@ function buildMessage(args) {
   if (hits === 0) throw new ContentError(`账本未命中 runId：${runid}（缺行即停，不读其他行代替）`)
   if (hits > 1) throw new ContentError(`账本 runId 重复命中 ${hits} 行：${runid}（恰一行才继续）`)
   const pointer = args['--batch-pointer']
-  if (!pointer || pointer.includes('\n')) redExit('--batch-pointer 须非空且无换行')
+  if (!pointer || /[\n\r]/.test(pointer)) redExit('--batch-pointer 须非空且无换行（含 \\r 拒收——N-3）')
   if (isAbsolute(pointer) || /^[A-Za-z][A-Za-z0-9+.-]*:\/\//.test(pointer)) redExit(`--batch-pointer 禁绝对路径/URL：${pointer}`)
   const norm = pointer.replace(/\\/g, '/')
   if (norm.split('/').includes('..')) redExit(`--batch-pointer 禁 .. 段：${pointer}`)
@@ -135,9 +137,12 @@ function selfTest() {
 }
 
 const argv = process.argv.slice(2)
-if (argv.includes('--self-test')) process.exit(selfTest() ? EXIT_OK : EXIT_RED)
+const ARG_SPEC = { value: ['--project', '--ledger', '--runid', '--batch-pointer', '--type', '--scope', '--subject', '--message-file'], bool: ['--locked-change', '--check', '--self-test'] }
+// N-1：--self-test 不绕过参数检查——先按同源 parseArgs 校验（未知/重复/等号/空值=用法错）再进自检
 try {
-  const args = parseArgs(argv, { value: ['--project', '--ledger', '--runid', '--batch-pointer', '--type', '--scope', '--subject', '--message-file'], bool: ['--locked-change', '--check'] })
+  parseArgs(argv, ARG_SPEC)
+  if (argv.includes('--self-test')) process.exit(selfTest() ? EXIT_OK : EXIT_RED)
+  const args = parseArgs(argv, ARG_SPEC)
   for (const req of ['--project', '--ledger', '--runid', '--batch-pointer', '--type', '--scope', '--subject']) if (args[req] === undefined) usageExit(`缺必填参数：${req}`)
   if ((args['--check'] === 1) !== (args['--message-file'] !== undefined)) usageExit('--check 与 --message-file 须搭配出现')
   const msg = buildMessage(args)

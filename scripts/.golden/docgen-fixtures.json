@@ -7,7 +7,8 @@
     "docs/evidence/fx-report-gamma.md": "# 合成报告丙\n\n## 重复标题\n合成正文第一处。\n\n## 重复标题\n合成正文第二处。\n",
     "docs/evidence/fx-report-verdict.md": "# 合成结论报告\n\n## 摘要源\nVERDICT: 合成结论机读行\n正文跟随行。\n",
     "docs/evidence/fx-close-detail.md": "# 合成结项源\n\n## 详述源\n合成详述正文。\n\n## 门禁源\n合成门禁正文。\n\n## 回退源\n合成回退正文。\n",
-    "docs/tasks/fx-task.md": "# 合成任务书\n\n内容仅作批档指针存在性夹具。\n"
+    "docs/tasks/fx-task.md": "# 合成任务书\n\n内容仅作批档指针存在性夹具。\n",
+    "docs/evidence/fx-report-placeholder.md": "# 合成占位源\n\n## 占位区\n正文含 {{summary}} 字面量（源文隔离探针段）。\n"
   },
   "handoff_existing": [
     "handoff-2099-01-01-20.md"
@@ -395,6 +396,86 @@
           "@PROJECT@/docs/evidence/handoff-2099-01-02-21.md",
           "--check"
         ]
+      },
+      {
+        "name": "handoff-n8-missing-sections",
+        "expected_exit": 1,
+        "args": [
+          "--project",
+          "@PROJECT@",
+          "--date",
+          "2099-01-02",
+          "--batch",
+          "FX-01",
+          "--authority",
+          "账本 fx-dispatch-2099 行",
+          "--change-anchor",
+          "FX-01·账本 fx-dispatch-2099",
+          "--supersedes",
+          "无",
+          "--sequence",
+          "99",
+          "--output",
+          "@OUT_NEG@/handoff-2099-01-02-99.md"
+        ]
+      },
+      {
+        "name": "handoff-n9-sequence-exhausted",
+        "expected_exit": 1,
+        "args": [
+          "--project",
+          "@PROJECT99@",
+          "--date",
+          "2099-01-02",
+          "--batch",
+          "FX-01",
+          "--authority",
+          "账本 fx-dispatch-2099 行",
+          "--change-anchor",
+          "FX-01·账本 fx-dispatch-2099",
+          "--supersedes",
+          "无",
+          "summary=docs/evidence/fx-report-alpha.md#概览",
+          "health=docs/evidence/fx-report-alpha.md#明细",
+          "session=docs/evidence/fx-report-beta.md#会话记录",
+          "final=docs/evidence/fx-report-beta.md#终态记录",
+          "residuals=docs/evidence/fx-report-beta.md#挂账记录",
+          "candidates=docs/evidence/fx-report-beta.md#候选记录",
+          "first_action=docs/evidence/fx-report-beta.md#第一句",
+          "index=docs/evidence/fx-report-beta.md#索引记录",
+          "--output",
+          "@OUT_NEG@/handoff-2099-01-02-99.md"
+        ]
+      },
+      {
+        "name": "handoff-n10-blank-param",
+        "expected_exit": 1,
+        "args": [
+          "--project",
+          "@PROJECT@",
+          "--date",
+          "2099-01-02",
+          "--batch",
+          "",
+          "--authority",
+          "账本 fx-dispatch-2099 行",
+          "--change-anchor",
+          "FX-01·账本 fx-dispatch-2099",
+          "--supersedes",
+          "无",
+          "summary=docs/evidence/fx-report-alpha.md#概览",
+          "health=docs/evidence/fx-report-alpha.md#明细",
+          "session=docs/evidence/fx-report-beta.md#会话记录",
+          "final=docs/evidence/fx-report-beta.md#终态记录",
+          "residuals=docs/evidence/fx-report-beta.md#挂账记录",
+          "candidates=docs/evidence/fx-report-beta.md#候选记录",
+          "first_action=docs/evidence/fx-report-beta.md#第一句",
+          "index=docs/evidence/fx-report-beta.md#索引记录",
+          "--sequence",
+          "99",
+          "--output",
+          "@OUT_NEG@/handoff-2099-01-02-99.md"
+        ]
       }
     ],
     "gen-close-summary": [
@@ -675,6 +756,58 @@
           "@OUT_GATES@",
           "--check"
         ]
+      },
+      {
+        "name": "close-n5-source-placeholder-literal",
+        "expected_exit": 0,
+        "args": [
+          "--kind",
+          "close",
+          "--project",
+          "@PROJECT@",
+          "--date",
+          "2099-01-02",
+          "--batch",
+          "FX-CLOSE",
+          "--authority",
+          "账本 fx-close-2099 行",
+          "--change-anchor",
+          "FX-CLOSE·账本 fx-close-2099",
+          "--supersedes",
+          "无",
+          "--section",
+          "summary=docs/evidence/fx-report-alpha.md#概览",
+          "--section",
+          "details=docs/evidence/fx-report-placeholder.md#占位区",
+          "--section",
+          "gates=docs/evidence/fx-close-detail.md#门禁源",
+          "--section",
+          "revert=docs/evidence/fx-close-detail.md#回退源",
+          "--output",
+          "@OUT_PLIT@"
+        ]
+      },
+      {
+        "name": "close-n6-missing-sections",
+        "expected_exit": 1,
+        "args": [
+          "--kind",
+          "close",
+          "--project",
+          "@PROJECT@",
+          "--date",
+          "2099-01-02",
+          "--batch",
+          "FX-CLOSE",
+          "--authority",
+          "账本 fx-close-2099 行",
+          "--change-anchor",
+          "FX-CLOSE·账本 fx-close-2099",
+          "--supersedes",
+          "无",
+          "--output",
+          "@OUT_NEG@/fx-c6.md"
+        ]
       }
     ],
     "gen-commit-summary": [
@@ -821,6 +954,46 @@
           "--message-file",
           "@MSG@"
         ]
+      },
+      {
+        "name": "commit-n6-bad-scope",
+        "expected_exit": 1,
+        "args": [
+          "--project",
+          "@PROJECT@",
+          "--ledger",
+          "@LEDGER@",
+          "--runid",
+          "fx-dispatch-2099",
+          "--batch-pointer",
+          "docs/tasks/fx-task.md",
+          "--type",
+          "feat",
+          "--scope",
+          "(FX)",
+          "--subject",
+          "合成提交短句"
+        ]
+      },
+      {
+        "name": "commit-n7-subject-dot",
+        "expected_exit": 1,
+        "args": [
+          "--project",
+          "@PROJECT@",
+          "--ledger",
+          "@LEDGER@",
+          "--runid",
+          "fx-dispatch-2099",
+          "--batch-pointer",
+          "docs/tasks/fx-task.md",
+          "--type",
+          "feat",
+          "--scope",
+          "FX",
+          "--subject",
+          "合成提交短句."
+        ]
       }
     ],
     "residuals-check": [
@@ -875,7 +1048,39 @@
       {
         "name": "residuals-n12-malformed-json",
         "expected_exit": 1
+      },
+      {
+        "name": "residuals-p2-canonical-16",
+        "expected_exit": 0
+      },
+      {
+        "name": "residuals-n13-whole-segment-fenced",
+        "expected_exit": 1
+      },
+      {
+        "name": "residuals-n14-future-bad-date",
+        "expected_exit": 1
+      },
+      {
+        "name": "residuals-n15-frozen-begin-gap",
+        "expected_exit": 1
+      },
+      {
+        "name": "residuals-n16-frozen-end-gap",
+        "expected_exit": 1
+      },
+      {
+        "name": "residuals-n17-json-end-blank",
+        "expected_exit": 1
+      },
+      {
+        "name": "residuals-n18-json-end-comment",
+        "expected_exit": 1
       }
     ]
-  }
+  },
+  "handoff_existing_99": [
+    "handoff-2099-01-01-99.md"
+  ],
+  "residuals_canonical_16": "# 合成残留登记（十六条夹具）\n\n> 状态：active ｜ 权威：registry-fx16 ｜ 替代：无\n\n当前 **open=4**（合成夹具计数行）。\n\n<!-- residuals-json: begin -->\n{\n  \"residuals\": [\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象01\",\n      \"evidence\": [],\n      \"id\": \"fx-m01\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象01\",\n      \"status\": \"open\",\n      \"trigger\": \"合成迁移触发01\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象02\",\n      \"evidence\": [],\n      \"id\": \"fx-m02\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象02\",\n      \"status\": \"open\",\n      \"trigger\": \"合成迁移触发02\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象03\",\n      \"evidence\": [],\n      \"id\": \"fx-m03\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象03\",\n      \"status\": \"open\",\n      \"trigger\": \"合成迁移触发03\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象04\",\n      \"evidence\": [],\n      \"id\": \"fx-m04\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象04\",\n      \"status\": \"open\",\n      \"trigger\": \"合成迁移触发04\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象05\",\n      \"evidence\": [],\n      \"id\": \"fx-m05\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象05\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发05\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象06\",\n      \"evidence\": [],\n      \"id\": \"fx-m06\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象06\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发06\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象07\",\n      \"evidence\": [],\n      \"id\": \"fx-m07\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象07\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发07\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象08\",\n      \"evidence\": [],\n      \"id\": \"fx-m08\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象08\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发08\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象09\",\n      \"evidence\": [],\n      \"id\": \"fx-m09\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象09\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发09\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象10\",\n      \"evidence\": [],\n      \"id\": \"fx-m10\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象10\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发10\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象11\",\n      \"evidence\": [],\n      \"id\": \"fx-m11\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象11\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发11\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象12\",\n      \"evidence\": [],\n      \"id\": \"fx-m12\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象12\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发12\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象13\",\n      \"evidence\": [],\n      \"id\": \"fx-m13\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象13\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发13\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象14\",\n      \"evidence\": [],\n      \"id\": \"fx-m14\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象14\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发14\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象15\",\n      \"evidence\": [],\n      \"id\": \"fx-m15\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象15\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发15\"\n    },\n    {\n      \"created_at\": null,\n      \"description\": \"合成迁移现象16\",\n      \"evidence\": [],\n      \"id\": \"fx-m16\",\n      \"owner\": null,\n      \"phenomenon\": \"合成迁移现象16\",\n      \"status\": \"closed\",\n      \"trigger\": \"合成迁移触发16\"\n    }\n  ],\n  \"schema\": \"residuals/v1\"\n}\n<!-- residuals-json: end -->\n\n## 新登记规则（合成夹具）\n\n登记走 JSON 八键。\n\n## 历史旧表（冻结·非权威）\n\n<!-- residuals-frozen: begin sha256=539834b71c42448fb2c4402bd86968322ea9b720d86ac46101fd4ccb68843feb 冻结·非权威 -->\n| 登记号 | 现象 | 触发处置 | 状态 |\n|---|---|---|---|\n| fx-m01 | 合成迁移现象01 | 合成迁移触发01 | open |\n| fx-m02 | 合成迁移现象02 | 合成迁移触发02 | open |\n| fx-m03 | 合成迁移现象03 | 合成迁移触发03 | open |\n| fx-m04 | 合成迁移现象04 | 合成迁移触发04 | open |\n| fx-m05 | 合成迁移现象05 | 合成迁移触发05 | closed |\n| fx-m06 | 合成迁移现象06 | 合成迁移触发06 | closed |\n| fx-m07 | 合成迁移现象07 | 合成迁移触发07 | closed |\n| fx-m08 | 合成迁移现象08 | 合成迁移触发08 | closed |\n| fx-m09 | 合成迁移现象09 | 合成迁移触发09 | closed |\n| fx-m10 | 合成迁移现象10 | 合成迁移触发10 | closed |\n| fx-m11 | 合成迁移现象11 | 合成迁移触发11 | closed |\n| fx-m12 | 合成迁移现象12 | 合成迁移触发12 | closed |\n| fx-m13 | 合成迁移现象13 | 合成迁移触发13 | closed |\n| fx-m14 | 合成迁移现象14 | 合成迁移触发14 | closed |\n| fx-m15 | 合成迁移现象15 | 合成迁移触发15 | closed |\n| fx-m16 | 合成迁移现象16 | 合成迁移触发16 | closed |\n<!-- residuals-frozen: end -->\n"
 }

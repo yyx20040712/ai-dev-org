@@ -46,6 +46,7 @@ function parseArgs(argv) {
     if (a === '--file') {
       const v = argv[i + 1]
       if (v === undefined || v.startsWith('--')) usageExit('--file 须带值')
+      if (v.trim() === '') usageExit('--file 的值不得为空串或纯空白（W-2/N-10 同源：空值=用法错）')
       if (out['--file'] !== undefined) usageExit('重复 flag：--file')
       out['--file'] = v; i++; continue
     }
@@ -58,21 +59,48 @@ function parseArgs(argv) {
 const canonDoc = (residuals) => JSON.stringify({ residuals: [...residuals].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((e) => Object.fromEntries(KEY8.map((k) => [k, e[k]]))), schema: 'residuals/v1' }, null, 2) + '\n'
 const sha256 = (s) => createHash('sha256').update(Buffer.from(s, 'utf8')).digest('hex')
 
+/** created_at 合法 ISO 日期或时间（W-5：日历往返校验——非法月/日/时/分/秒拒绝，2099-02-30 类伪日期拒收）。 */
+function isValidIsoDateTime(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.exec(s)
+  if (!m) return false
+  const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3])
+  const dt = new Date(y, mo - 1, d)
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return false
+  if (m[4] !== undefined) {
+    if (Number(m[4]) > 23 || Number(m[5]) > 59) return false
+    if (m[6] !== undefined && Number(m[6]) > 59) return false
+  }
+  return true
+}
+
 /** 全量校验：返回 {doc, segment, frozenBlock, frozenIds, frozenHash, dualWrite, openCount}；判红抛 ContentError。 */
 function validate(text, opts = {}) {
   const lines = text.split('\n')
   if (text.includes('term-scan:' + ' off') || text.includes('term-scan:' + ' on')) throw new ContentError('文件含 term-scan off/on 开关标记（权威段不可借开关绕开扫描——D-5 文件级禁令）')
+  // B-1 全文件围栏状态跟踪：权威标记及 JSON 内容位于任何 Markdown 围栏内均判红
+  // （含整段外围栏形态——标记与内容逐行全部落入围栏区时，段内围栏行检查不可见，故独立跟踪）。
+  const fenced = new Array(lines.length).fill(false)
+  {
+    let inFence = false
+    lines.forEach((l, idx) => {
+      if (/^\s*(```|~~~)/.test(l)) { fenced[idx] = true; inFence = !inFence; return }
+      fenced[idx] = inFence
+    })
+  }
   const count = (s) => lines.filter((l) => l.trim() === s).length
   if (count(JSON_BEGIN) !== 1) throw new ContentError(`residuals-json begin 标记须恰一处（现 ${count(JSON_BEGIN)}）——无第二权威段`)
   if (count(JSON_END) !== 1) throw new ContentError(`residuals-json end 标记须恰一处（现 ${count(JSON_END)}）——无第二权威段`)
   const ji = lines.findIndex((l) => l.trim() === JSON_BEGIN)
   const je = lines.findIndex((l) => l.trim() === JSON_END)
   if (je < ji) throw new ContentError('residuals-json end 标记出现在 begin 之前')
+  if (fenced[ji]) throw new ContentError('权威 begin 标记位于 Markdown 围栏内（B-1：标记与内容不得借围栏绕开词面与零代号扫描）')
+  if (fenced[je]) throw new ContentError('权威 end 标记位于 Markdown 围栏内（B-1：标记与内容不得借围栏绕开扫描）')
   if (lines[ji + 1] === undefined || lines[ji + 1] !== '{') throw new ContentError('begin 标记行后须紧接「{」行（不得有空行或注释）')
   if (lines[je - 1] === undefined || lines[je - 1] !== '}') throw new ContentError('end 标记行前须紧接「}」行（不得有空行或注释）')
   const segLines = lines.slice(ji + 1, je)
   if (segLines.some((l) => l.trim() === '')) throw new ContentError('JSON 段内含空行（标记与内容须邻接）')
   if (segLines.some((l) => /^\s*(```|~~~)/.test(l))) throw new ContentError('JSON 段禁 Markdown 围栏（非围栏字符串才可被词面与零代号扫描）')
+  if (lines.slice(ji + 1, je).some((_, k) => fenced[ji + 1 + k])) throw new ContentError('JSON 段内容位于 Markdown 围栏内（B-1 整段外围栏形态——权威段须为可扫描的非围栏正文）')
   let doc
   try { doc = JSON.parse(segLines.join('\n')) } catch (e) { throw new ContentError(`JSON 段不可解析：${e.message}`) }
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new ContentError('JSON 段须为对象')
@@ -132,7 +160,7 @@ function validate(text, opts = {}) {
     } else {
       future++
       if (typeof e.owner !== 'string' || !e.owner.trim()) throw new ContentError(`未来条目 ${e.id} owner 须非空字符串（迁移缺省形态不接受新登记）`)
-      if (typeof e.created_at !== 'string' || !/^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/.test(e.created_at)) throw new ContentError(`未来条目 ${e.id} created_at 须合法 ISO 日期或时间`)
+      if (typeof e.created_at !== 'string' || !isValidIsoDateTime(e.created_at)) throw new ContentError(`未来条目 ${e.id} created_at 须合法 ISO 日期或时间（日历往返校验——伪日期拒绝）`)
       if (!Array.isArray(e.evidence) || !e.evidence.every((x) => typeof x === 'string')) throw new ContentError(`未来条目 ${e.id} evidence 须字符串数组`)
       if (typeof e.description !== 'string' || !e.description.trim()) throw new ContentError(`未来条目 ${e.id} description 须非空`)
     }
@@ -186,8 +214,19 @@ function selfTest() {
   const MARKER_OFF = 'term-scan:' + ' off'
   try {
     const base = fx.residuals_canonical
+    // 未来条目 canonical 追加器（W-5/B-1 用）：保持段 canonical 字节，仅引入待验条目
+    const spliceEntry = (src, entry) => {
+      const v = validate(src)
+      const doc = JSON.parse(JSON.stringify(v.doc))
+      doc.residuals.push(entry)
+      const seg = canonDoc(doc.residuals).replace(/\n$/, '').split('\n')
+      const ls = src.split('\n')
+      ls.splice(v.ji + 1, v.je - v.ji - 1, ...seg)
+      return ls.join('\n')
+    }
     const variants = {
       'residuals-p1-canonical': base,
+      'residuals-p2-canonical-16': fx.residuals_canonical_16,
       'residuals-n1-missing-key': base.replace(/^      "owner": null,\n/m, ''),
       'residuals-n2-extra-key': base.replace(/^      "id": "fx-alpha",\n/m, '      "extra": 1,\n      "id": "fx-alpha",\n'),
       'residuals-n3-duplicate-id': base.replace('"id": "fx-beta"', '"id": "fx-alpha"'),
@@ -200,6 +239,12 @@ function selfTest() {
       'residuals-n10-marker-gap': base.replace('<!-- residuals-json: begin -->\n{', '<!-- residuals-json: begin -->\n\n{'),
       'residuals-n11-noncanonical': (() => { const v = validate(base); const doc = JSON.parse(JSON.stringify(v.doc)); doc.residuals.reverse(); const lines = base.split('\n'); const seg = JSON.stringify(doc, null, 4).replace(/\n$/, '').split('\n'); lines.splice(v.ji + 1, v.je - v.ji - 1, ...seg); return lines.join('\n') })(),
       'residuals-n12-malformed-json': base.replace('"schema": "residuals/v1"', '"schema": "residuals/v1'),
+      'residuals-n13-whole-segment-fenced': base.replace('<!-- residuals-json: begin -->', '```\n<!-- residuals-json: begin -->').replace('<!-- residuals-json: end -->', '<!-- residuals-json: end -->\n```'),
+      'residuals-n14-future-bad-date': spliceEntry(base, { created_at: '2099-02-30', description: '合成未来现象', evidence: ['合成证据'], id: 'fx-future2', owner: '合成责任人', phenomenon: '合成未来现象', status: 'closed', trigger: '合成未来触发' }),
+      'residuals-n15-frozen-begin-gap': base.replace(/(<!-- residuals-frozen: begin [^\n]*-->)\n(\| 登记号)/, '$1\n\n$2'),
+      'residuals-n16-frozen-end-gap': base.replace('closed |\n<!-- residuals-frozen: end -->', 'closed |\n\n<!-- residuals-frozen: end -->'),
+      'residuals-n17-json-end-blank': base.replace('}\n<!-- residuals-json: end -->', '}\n\n<!-- residuals-json: end -->'),
+      'residuals-n18-json-end-comment': base.replace('}\n<!-- residuals-json: end -->', '}\n<!-- 夹层注释 -->\n<!-- residuals-json: end -->'),
     }
     const run = (args) => spawnSync(process.execPath, [SELF, ...args], { encoding: 'utf8', timeout: 60_000 })
     for (const c of fx.self_test_cases['residuals-check']) {
@@ -225,8 +270,10 @@ function selfTest() {
 }
 
 const argv = process.argv.slice(2)
-if (argv.includes('--self-test')) process.exit(selfTest() ? EXIT_OK : EXIT_RED)
+// N-1：--self-test 不绕过参数检查——先按同源 parseArgs 校验（未知/重复/等价形态/空值=用法错）再进自检
 try {
+  parseArgs(argv)
+  if (argv.includes('--self-test')) process.exit(selfTest() ? EXIT_OK : EXIT_RED)
   const args = parseArgs(argv)
   if (args['--file'] === undefined) usageExit('缺必填参数：--file <路径>')
   if (args['--write']) runWrite(resolve(args['--file']))
