@@ -2,7 +2,7 @@
 
 > 状态：active ｜ 权威：registry ｜ 替代：无
 
-当前 **open=8**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
+当前 **open=9**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；；2026-10-30 B8 事故新挂 1 行（b8n-test-harness-runaway·授权=账本 b8-incident 行·纯 JSON 登记不触冻结旧表）后余 9。余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
 历史文档区存档与技能仓 git 提交历史，不驻技能加载面。
 
 **权威段唯一**：下方 residuals-json 标记对之间的 JSON 是唯一权威（schema=residuals/v1）；「历史旧表」仅供对账、已冻结非权威；禁止双写——冻结表行不得在冻结块外重现，新登记只走 JSON 八键，不再新增 Markdown 行。
@@ -211,6 +211,20 @@
       "phenomenon": "面板展示态竞争六条（终审附注：收笔登记、实施转下批，均有守卫兜底无数据面风险）",
       "status": "open",
       "trigger": "下次面板批或再动 panel/index.html 时收敛（错误态保持/timer 期按钮一致态/向量补强）"
+    },
+    {
+      "created_at": "2026-10-30",
+      "description": "B8 实现岗红队台架失控循环（/tmp/B8-red-lm 无终止 --verify/--self-test 驱动＋自检自拷贝递归＋异步 spawn 不收割）致整机两次拖垮重启；处置预定＝任务书 r4-r7 反失控条款（哨兵防递归/异步收割/进程目录预算/台架一次性形态/资源面申报）＋V-11 资源纪律实录验收",
+      "evidence": [
+        "docs/evidence/B8-incident-2026-10-30.md",
+        "docs/evidence/B8-incident-2026-10-30-quarantine.diff",
+        "docs/tasks/B8-migrator-hardening.md"
+      ],
+      "id": "b8n-test-harness-runaway",
+      "owner": "B8",
+      "phenomenon": "无人值守实现批自建测试台架无资源界：无终止循环×自引用测试递归×异步子进程不收割（2026-10-30 实测 load 891+/进程 2600+/Committed_AS 4.7 倍超限/7 万临时目录）",
+      "status": "open",
+      "trigger": "B8 实现批结项时随批销账（V-11 资源纪律实录通过即 closed）；R2-T3 resource-sampler 工具化后升格为常备工具面"
     },
     {
       "created_at": null,
