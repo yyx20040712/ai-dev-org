@@ -174,10 +174,10 @@
       "id": "T",
       "mode": "rename",
       "counts": {
-        "content": 489,
+        "content": 491,
         "filename": 25
       },
-      "familyTotal": 514,
+      "familyTotal": 516,
       "note": "全局改名声明（X1 前置）：内容=488·文件名=25——2026-10-29 B3 批活动面词面改词后全仓实测重算（原「296−7/15」口径随 d6 清零批失效）；声明值以管线实跑为准，实跑≠声明即 exit 3；2026-10-30 B7 重算：根因＝B4 返工注释 scripts/org-config.mjs:754 引入 1 处代号，B4–B6 收笔未复跑 --out 致声明休眠，证据指针＝docs/evidence/B7-recon-2026-10-30.md"
     },
     {
