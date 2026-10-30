@@ -19,6 +19,13 @@
  * flag——schema 同源）；状态件=SKILL_ROOT/.zcode/org-flags.json（仅 flags set 可写，读写走
  * 同一装载＋withFileLock，锁=状态件同目录派生）；测试重定向钩子=env ORG_FLAGS_STATE
  * （内部测试设施，同 GLM_LOOK_HOST_CONFIG 先例——缺省行为不变）。
+ * B8 D-4 notice：CLI 预检通过后、业务装载前向 stderr 打 ORG_FLAGS_STATE default/override
+ * 单行（只显示路径与来源，不读取/打印状态内容；stdout 机器格式不变）。
+ * B8 D-5 CLI 预检：参数组合闭集前置校验（15 非法例族）——未知命令/flag、位置参数、等号
+ * 形态、重复/缺值、flags 子命令形态错在任何装载与写入之前 exit 1；--self-test 与一切其他
+ * 参数互斥；合法命令装载失败=3；业务判红=1；2 永不发（06 §5.8）。
+ * B8 r4 哨兵：--self-test 入口检测 env ORG_B8_TEST_DEPTH 即固定 exit 1 并输出逐字标记行
+ * （防自检副本递归放大）；自检内部 spawn 一律显式 env、不携带该键。
  * ledgerPathFor（B1/D-8 路径随动单源）：--ledger 显式参 > merged ledger_path 相对项目根
  * 解析 > join(projectDir,'.zcode','org-ledger.jsonl') 兜底——health-scan/regression/deploy-check
  * 消费同一导出，禁各自复写三层序。
@@ -28,6 +35,7 @@ import { join, dirname, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { spawnSync } from 'node:child_process'
 
 export const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const DEFAULT_CFG = join(SKILL_ROOT, 'org-config.default.json')
@@ -640,17 +648,53 @@ export function validateAgentSlots(cfg) {
   return errors
 }
 
-// ── CLI ──
+// ── CLI（B8 D-5 预检闭集→B8 r4 哨兵→B8 D-4 notice→self-test→装载→分派）──
 const isMain =
   process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
+/** B8 D-5：参数组合闭集前置校验（先于 notice/装载/任何写入；用法错=UsageError→exit 1）。
+ *  合法形态闭集：--self-test 单独｜[--project D] resolve|hash|validate｜flags｜flags get NAME｜
+ *  flags set NAME on|off。返回 {projectDir, cmd, rest}（cmd='--self-test' 为单独自检态）。 */
+export function precheckOrgCli(argv, cwd = process.cwd()) {
+  const usage = (m) => { throw new UsageError(m) }
+  const eq = argv.find((a) => typeof a === 'string' && a.startsWith('--') && a.includes('='))
+  if (eq !== undefined) usage(`等号形态「${eq}」不支持——flag 一律空格分隔取值`)
+  if (argv.includes('--self-test')) {
+    if (argv.length !== 1) usage('--self-test 须单独使用（与命令/其他参数互斥——B8 D-5）')
+    return { projectDir: cwd, cmd: '--self-test', rest: [] }
+  }
+  const unknownFlag = argv.find((a) => typeof a === 'string' && a.startsWith('--') && a !== '--project')
+  if (unknownFlag !== undefined) usage(`未知参数：${unknownFlag}（本脚本仅提供 --project 取值参与命令词）`)
+  const projectDir = cliFlag(argv, '--project') || cwd // cliFlag 三校验（重复/末位缺值/值形如 flag）→UsageError
+  const positional = argv.filter((a, i) => typeof a === 'string' && !a.startsWith('--') && argv[i - 1] !== '--project')
+  const cmd = positional[0]
+  if (cmd === undefined) usage('缺命令：resolve|hash|validate|flags（或 --self-test 单独使用）')
+  if (!['resolve', 'hash', 'validate', 'flags'].includes(cmd)) usage(`未知命令「${cmd}」（可用：resolve|hash|validate|flags）`)
+  const rest = positional.slice(1)
+  if (cmd !== 'flags' && rest.length) usage(`${cmd} 不收额外位置参数（收到：${rest.join(',')}）`)
+  if (cmd === 'flags') {
+    const sub = rest[0] === undefined ? 'list' : rest[0]
+    if (!['list', 'get', 'set'].includes(sub)) usage(`未知 flags 子命令「${sub}」（可用：list/get/set）`)
+    if (sub === 'list' && rest.length > 1) usage(`flags list 不收额外位置参数（收到：${rest.slice(1).join(',')}）`)
+    if (sub === 'get') {
+      if (rest.length < 2) usage('flags get 缺 name（形态：flags get <name>）')
+      if (rest.length > 2) usage(`flags get 不收额外位置参数（收到：${rest.slice(2).join(',')}）`)
+    }
+    if (sub === 'set') {
+      if (rest.length < 2) usage('flags set 缺 name（形态：flags set <name> on|off）')
+      if (rest.length < 3) usage('flags set 缺 value（形态：flags set <name> on|off）')
+      if (rest[2] !== 'on' && rest[2] !== 'off') usage(`flag 取值须 on|off（收到「${rest[2]}」）`)
+      if (rest.length > 3) usage(`flags set 不收额外位置参数（收到：${rest.slice(3).join(',')}）`)
+    }
+  }
+  return { projectDir, cmd, rest }
+}
 if (isMain) {
   const argv = process.argv.slice(2)
-  const selfTest = argv.includes('--self-test')
   // g3 批（evolve-l4-flags）：--project 裸 indexOf 改走单源 cliFlag（重复/末位
   // 缺值/值形如 flag→[用法错] exit 1——原裸取 argv[i+1] 缺值时 undefined 崩装载）
-  let projectDir = process.cwd()
+  let projectDir = process.cwd(), cmd = null, rest = []
   try {
-    projectDir = cliFlag(argv, '--project') || process.cwd()
+    ({ projectDir, cmd, rest } = precheckOrgCli(argv)) // B8 D-5：闭集前置校验（先于 notice/装载/任何写入）
   } catch (e) {
     if (e instanceof UsageError) {
       console.error(`[用法错] ${e.message}`)
@@ -658,9 +702,11 @@ if (isMain) {
     }
     throw e
   }
-  const cmd = argv.find((a, i) => !a.startsWith('--') && argv[i - 1] !== '--project')
+  if (cmd === '--self-test' && process.env.ORG_B8_TEST_DEPTH) { console.error('[sentinel] self-test rejected（ORG_B8_TEST_DEPTH 在环境——自检副本递归守卫·B8 r4）'); process.exit(1) }
+  const fsEnv = process.env.ORG_FLAGS_STATE // B8 D-4：env notice（stderr 单行·预检后装载前·只显示路径与来源，不读不印状态内容）
+  if (cmd !== '--self-test') console.error(fsEnv ? `[notice] ORG_FLAGS_STATE=override:${resolve(fsEnv)}（显式覆盖）` : `[notice] ORG_FLAGS_STATE=default:${join(SKILL_ROOT, '.zcode', 'org-flags.json')}（未设置，使用缺省）`)
 
-  if (selfTest) {
+  if (cmd === '--self-test') {
     let fails = 0, n = 0
     const t = (name, cond) => (n++, console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`), cond || fails++)
     const base = { a: { x: 1, y: 2 }, b: [1, 2], c: 3 }
@@ -960,6 +1006,56 @@ if (isMain) {
       } catch { t('B1 flags：两进程同刻 set 并发（临时目录异常）', false) }
       finally { if (fxLock) rmSync(fxLock, { recursive: true, force: true }) }
     }
+    // B8 D-4/D-5 向量组：CLI 预检闭集＋装载顺序＋合法 flags/notice 回归（/tmp 隔离技能根·子进程真退出码·零真实面写）
+    {
+      const selfPath = fileURLToPath(import.meta.url)
+      const mkIso = (defaultContent) => {
+        const iso = mkdtempSync(join(tmpdir(), 'oc-b8-'))
+        mkdirSync(join(iso, 'scripts'), { recursive: true })
+        copyFileSync(selfPath, join(iso, 'scripts', 'org-config.mjs'))
+        writeFileSync(join(iso, 'org-config.default.json'), defaultContent)
+        return iso
+      }
+      const envOf = (iso, extra = {}) => { const e = { PATH: process.env.PATH, HOME: iso, ...extra }; if (!('ORG_FLAGS_STATE' in extra)) delete e.ORG_FLAGS_STATE; return e } // 外来 env 显式收敛（ORG_B8_TEST_DEPTH/ORG_FLAGS_STATE 不随宿主泄入；显式重定向优先——B8 D-4/r4）
+      const runIso = (iso, args, env) => spawnSync(process.execPath, [join(iso, 'scripts', 'org-config.mjs'), ...args], { encoding: 'utf8', env, timeout: 60_000 })
+      const isoBroken = mkIso('{ broken json')
+      try {
+        const invalids = [
+          ['--self-test', 'resolve'],
+          ['--self-test', '--wat'],
+          ['frobnicate'],
+          ['--wat', 'resolve'],
+          ['--project=/tmp/x', 'resolve'],
+          ['--project', '/a', '--project', '/b', 'resolve'],
+          ['--project'],
+          ['validate', 'extra'],
+          ['flags', 'list', 'extra'],
+          ['flags', 'get'],
+          ['flags', 'get', 'a', 'b'],
+          ['flags', 'set', 'a'],
+          ['flags', 'set', 'a', 'maybe'],
+          ['flags', 'set', 'a', 'on', 'b'],
+          ['resolve', 'stray'],
+        ]
+        const codes = invalids.map((a) => { const r = runIso(isoBroken, a, envOf(isoBroken)); return { c: r.status, err: (r.stderr || '').includes('[用法错]') } })
+        t('B8 D-5 预检：15 非法组合（self-test+resolve／self-test+未知 flag／未知命令／未知 flag／等号形态／重复 project／project 缺值／validate 额外参数／flags list 额外参数／get 缺 name／get 额外参数／set 缺 value／set 非 on/off／set 额外参数／额外位置参数）全真 exit 1', codes.length === 15 && codes.every((x) => x.c === 1 && x.err))
+        const rResolve = runIso(isoBroken, ['resolve'], envOf(isoBroken))
+        t('B8 D-5 装载顺序：同一破损 default 根下非法组合仍 1（预检先于装载）而合法 resolve 才 3（装载错族）', rResolve.status === 3 && (rResolve.stderr || '').includes('装载失败'))
+      } finally { rmSync(isoBroken, { recursive: true, force: true }) }
+      const isoOk = mkIso(JSON.stringify({ flags: { b1_gates_v2: { description: 'B8 合成测试旗标', owner_batch: 'B8', default: false } } }))
+      try {
+        const envDefault = envOf(isoOk)
+        const rList = runIso(isoOk, ['flags'], envDefault)
+        const noticeDefault = (rList.stderr || '').includes(`[notice] ORG_FLAGS_STATE=default:${join(isoOk, '.zcode', 'org-flags.json')}`) && (rList.stderr || '').includes('未设置，使用缺省')
+        const rGet = runIso(isoOk, ['flags', 'get', 'b1_gates_v2'], envDefault)
+        const stPath = join(isoOk, 'st-tmp.json')
+        const rSet = runIso(isoOk, ['flags', 'set', 'b1_gates_v2', 'on'], envOf(isoOk, { ORG_FLAGS_STATE: stPath }))
+        const noticeOverride = (rSet.stderr || '').includes(`[notice] ORG_FLAGS_STATE=override:${stPath}`) && (rSet.stderr || '').includes('显式覆盖')
+        let setState = false
+        try { setState = JSON.parse(readFileSync(stPath, 'utf8')).b1_gates_v2 === true } catch { setState = false }
+        t('B8 D-4/D-5 合法回归：flags list/get（临时根零写）＋flags set 仅写临时状态件＋default/override notice 各一（stderr·stdout 机器格式不变）', rList.status === 0 && noticeDefault && rGet.status === 0 && (rGet.stdout || '').includes('b1_gates_v2=false') && rSet.status === 0 && setState && noticeOverride && !existsSync(join(isoOk, '.zcode', 'org-flags.json')) && !(rList.stdout || '').includes('[notice]'))
+      } finally { rmSync(isoOk, { recursive: true, force: true }) }
+    }
     // localDateStr 通用向量（临时窗机制退役后仅存通用日期助手）
     t('localDateStr：本地日期补零（2026-01-05）', localDateStr(new Date(2026, 0, 5)) === '2026-01-05')
     t('localDateStr：月/日双位补零（2026-12-09）', localDateStr(new Date(2026, 11, 9)) === '2026-12-09')
@@ -985,8 +1081,8 @@ if (isMain) {
   } else if (cmd === 'hash') {
     console.log(`cfg:${cfgHash(merged)}`)
   } else if (cmd === 'flags') {
-    // B1/D-6：flags 列表/get/set（未登记名/非法值=用法错 1；状态件破损=装载错 3）
-    const rest = argv.filter((a, i) => !a.startsWith('--') && argv[i - 1] !== '--project').slice(1)
+    // B1/D-6：flags 列表/get/set（未登记名/非法值=用法错 1；状态件破损=装载错 3）；
+    // B8 D-5：子命令形态已由 precheckOrgCli 前置校验（rest 为预检产物）
     const sub = rest[0] || 'list'
     try {
       if (sub === 'list') {

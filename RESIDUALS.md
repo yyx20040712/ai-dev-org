@@ -2,7 +2,7 @@
 
 > 状态：active ｜ 权威：registry ｜ 替代：无
 
-当前 **open=8**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；；2026-10-30 B8 事故新挂 1 行（b8n-test-harness-runaway·授权=账本 b8-incident 行·纯 JSON 登记不触冻结旧表）后余 9。余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
+当前 **open=0**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；；2026-10-30 B8 事故新挂 1 行（b8n-test-harness-runaway·授权=账本 b8-incident 行·纯 JSON 登记不触冻结旧表）后余 9；2026-10-30 B8 实现批销账 8 行（b1n 六项 legacy＋b6n-atomicwrite-race＋b8n-test-harness-runaway）后余 0。余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
 历史文档区存档与技能仓 git 提交历史，不驻技能加载面。
 
 **权威段唯一**：下方 residuals-json 标记对之间的 JSON 是唯一权威（schema=residuals/v1）；「历史旧表」仅供对账、已冻结非权威；禁止双写——冻结表行不得在冻结块外重现，新登记只走 JSON 八键，不再新增 Markdown 行。
@@ -17,8 +17,8 @@
       "id": "b1n-cli-precheck",
       "owner": null,
       "phenomenon": "CLI 预检（参数组合前置校验）与 D-1 exit 家族映射未完全统一（CLI 预检 exit3 映射；round3 ds N 系）",
-      "status": "open",
-      "trigger": "下次动两脚本 CLI 面时随 D-1 家族口径收敛"
+      "status": "closed",
+      "trigger": "已处置（2026-10-30·B8·D-5 预检闭集：两脚本参数组合前置校验先于装载与任何写入——ledger 16 例与 org-config 15 例非法组合全真 exit 1（向量㉓/org 三向量），candidate 缺件/破损→3，破损配置下非法组合仍 1 而合法命令才 3，业务判红=1，2 永不发）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-04"
     },
     {
       "created_at": null,
@@ -37,8 +37,8 @@
       "id": "b1n-env-notice",
       "owner": null,
       "phenomenon": "ORG_QUARANTINE_PATH 等环境变量依赖的缺省提示面不足（env notice；round3 ds N 系）",
-      "status": "open",
-      "trigger": "下次动 org-config/ledger-migrate 文案时补 notice"
+      "status": "closed",
+      "trigger": "已处置（2026-10-30·B8·D-4 notice：ledger-migrate 于 ORG_QUARANTINE_PATH、org-config 于 ORG_FLAGS_STATE 各在 CLI 预检后装载前向 stderr 打 default:/override: 单行（只显路径与来源·不读不印状态内容·stdout 机器格式不变），缺省行注明未设置使用缺省、覆盖行注明显式覆盖；向量㉒与 org-config 合法回归断言＋V-04 四组 notice 实录）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-04"
     },
     {
       "created_at": null,
@@ -47,8 +47,8 @@
       "id": "b1n-hermetic",
       "owner": null,
       "phenomenon": "ledger-migrate 自检夹具 hermetic 化未竟（对宿主环境有隐依赖面——env/路径缺省；B1 round3 ds 席 N 系）",
-      "status": "open",
-      "trigger": "下次动 ledger-migrate 自检面或 B2 检查器硬化批时收敛（自检全自包含夹具）"
+      "status": "closed",
+      "trigger": "已处置（2026-10-30·B8·D-1 hermetic 化：自检⑬⑯改全合成——/tmp 隔离技能根复制两脚本＋合成 default={}＋合成源与合成 manifest＋空 HOME，24 向量零宿主真实源/manifest/local/HOME 依赖；V-01 隔离根 exit 0/24 PASS 且真实面逐路径哈希前后不变，before 基线副本红证归因=缺真实源）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-01"
     },
     {
       "created_at": null,
@@ -57,8 +57,8 @@
       "id": "b1n-portability",
       "owner": null,
       "phenomenon": "st_nlink>1 hardlink 判定的平台可移植性（跨设备载体/非 POSIX 形态未覆盖；round3 ds N 系「平台可移植」）",
-      "status": "open",
-      "trigger": "技能迁移他机或非 Linux 载体部署时验证并按需加平台分支"
+      "status": "closed",
+      "trigger": "已处置（2026-10-30·B8·D-3 平台分支：hardlinkWritePolicy 纯函数单源＋向量㉑ linux/win32/unsupported 三平台注入＋真实 Linux 硬链 victim 负例实测，win32 既存目标 fail-closed 与 unsupported 拒写为静态保守分支；仅 Linux 实证；静态平台分支；未跨机（cross_machine_tested=false））——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-03"
     },
     {
       "created_at": null,
@@ -77,8 +77,8 @@
       "id": "b1n-toctou",
       "owner": null,
       "phenomenon": "ledger-migrate 写路径 lstat→write 间隙 TOCTOU 窗口（锁内复查已收敛·残余为同进程间隙竞态；round3 挂账）",
-      "status": "open",
-      "trigger": "下次动迁移器写侧时评估 fd 级防护（O_NOFOLLOW/O_EXCL 或 stat 后持 fd 写）"
+      "status": "closed",
+      "trigger": "已处置（2026-10-30·B8·D-2 写侧收敛：候选件/项目账本/隔离件/manifest/rollback 追加全部经 secureWriteFile 唯一写通道——O_NOFOLLOW 打开不带 O_TRUNC→持 fd fstat 最终身份判定（非普通文件/nlink>1 拒）→同 fd 读截写回→finally 关 fd；向量⑱⑲⑳预检后路径替换负例 victim 零改写，V-02 三路径探针全绿，旧 lstat→write 窗写穿红证随档）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-02"
     },
     {
       "created_at": null,
@@ -87,8 +87,8 @@
       "id": "b1n-v18-rerun",
       "owner": null,
       "phenomenon": "V-18 回退演练在 r3 后未复跑（向量面未变·路径等价成立但缺注记；round3 ds N 系）",
-      "status": "open",
-      "trigger": "下次动迁移器或回退链时复跑 V-18 五步并留 rollback-step0-4-exit= 实录"
+      "status": "closed",
+      "trigger": "已处置（2026-10-30·B8·D-7 复跑：以冻结源只读副本建 /tmp 四件套五步真跑，rollback-step0-4-exit=0/1/0/0/0，步2 异常行三断言＋manifest 字节不变，source 717→718→719 仅旧账本副本追加，步4 health-scan --ledger RED=0，生产冻结源前后哈希不变）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-06"
     },
     {
       "created_at": null,
@@ -178,12 +178,13 @@
       "created_at": "2026-10-31",
       "description": "返工轮 2 主控裁决登记残留（同 TOCTOU 先例 b1n-toctou 族）",
       "evidence": [
-        "docs/evidence/B6-docgen-impl-2026-10-29.md §11"
+        "docs/evidence/B6-docgen-impl-2026-10-29.md §11",
+        "docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-05（两生成器目标侧独占创建与并发验收）"
       ],
       "id": "b6n-atomicwrite-race",
       "owner": "B6",
       "phenomenon": "gen-handoff/gen-close-summary atomicNewWrite 先 existsSync 再 rename，两并发进程可同过存在性检查后写覆盖（单人单进程理论面）",
-      "status": "open",
+      "status": "closed",
       "trigger": "下次动两生成器写侧时评估目标侧独占创建（link/O_EXCL 形态）收敛 existsSync→rename 竞态窗"
     },
     {
@@ -219,12 +220,13 @@
       "evidence": [
         "docs/evidence/B8-incident-2026-10-30.md",
         "docs/evidence/B8-incident-2026-10-30-quarantine.diff",
-        "docs/tasks/B8-migrator-hardening.md"
+        "docs/tasks/B8-migrator-hardening.md",
+        "docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-11（测试面资源纪律实录）"
       ],
       "id": "b8n-test-harness-runaway",
       "owner": "B8",
       "phenomenon": "无人值守实现批自建测试台架无资源界：无终止循环×自引用测试递归×异步子进程不收割（2026-10-30 实测 load 891+/进程 2600+/Committed_AS 4.7 倍超限/7 万临时目录）",
-      "status": "open",
+      "status": "closed",
       "trigger": "B8 实现批结项时随批销账（V-11 资源纪律实录通过即 closed）；R2-T3 resource-sampler 工具化后升格为常备工具面"
     },
     {
@@ -248,16 +250,16 @@
 
 ## 历史旧表（冻结·非权威）
 
-<!-- residuals-frozen: begin sha256=c26fd1240ffed641ba731248d61f96165e8d3e91d1fa22bc0a3e84ac8862266e 冻结·非权威 -->
+<!-- residuals-frozen: begin sha256=deab8eee600e3a6caf9d9c6c8dc26610bdbb17b68d98d1728f1228dba5490053 冻结·非权威 -->
 | 登记号 | 现象 | 触发处置 | 状态 |
 |---|---|---|---|
 | binding-live-registry-drift | executor 默认槽 startplan 的绑定值所指计划源供应商在宿主供应商注册表已不存在（现行注册表计划源=individual-coding-plan／offpeak-idle-plan／highspeed-card 三家），实派即 provider-not-found；机检面（validate／doctor／deploy-check）均不查宿主注册表活性，仅实派或 ListModels 可见 | 已裁决闭合：startplan 槽保留（供应商将更新·届时用户经面板自动调整）；本次用户已把 glmflash 调为 executor 首位（面板=顺序日常唯一写者·startplan 居回退序第 2）；再触发=startplan 供应商恢复或再变时由用户面板调整，无需机检面动作 | closed |
-| b1n-hermetic | ledger-migrate 自检夹具 hermetic 化未竟（对宿主环境有隐依赖面——env/路径缺省；B1 round3 ds 席 N 系） | 下次动 ledger-migrate 自检面或 B2 检查器硬化批时收敛（自检全自包含夹具） | open |
-| b1n-toctou | ledger-migrate 写路径 lstat→write 间隙 TOCTOU 窗口（锁内复查已收敛·残余为同进程间隙竞态；round3 挂账） | 下次动迁移器写侧时评估 fd 级防护（O_NOFOLLOW/O_EXCL 或 stat 后持 fd 写） | open |
-| b1n-portability | st_nlink>1 hardlink 判定的平台可移植性（跨设备载体/非 POSIX 形态未覆盖；round3 ds N 系「平台可移植」） | 技能迁移他机或非 Linux 载体部署时验证并按需加平台分支 | open |
-| b1n-env-notice | ORG_QUARANTINE_PATH 等环境变量依赖的缺省提示面不足（env notice；round3 ds N 系） | 下次动 org-config/ledger-migrate 文案时补 notice | open |
-| b1n-cli-precheck | CLI 预检（参数组合前置校验）与 D-1 exit 家族映射未完全统一（CLI 预检 exit3 映射；round3 ds N 系） | 下次动两脚本 CLI 面时随 D-1 家族口径收敛 | open |
-| b1n-v18-rerun | V-18 回退演练在 r3 后未复跑（向量面未变·路径等价成立但缺注记；round3 ds N 系） | 下次动迁移器或回退链时复跑 V-18 五步并留 rollback-step0-4-exit= 实录 | open |
+| b1n-hermetic | ledger-migrate 自检夹具 hermetic 化未竟（对宿主环境有隐依赖面——env/路径缺省；B1 round3 ds 席 N 系） | 已处置（2026-10-30·B8·D-1 hermetic 化：自检⑬⑯改全合成——/tmp 隔离技能根复制两脚本＋合成 default={}＋合成源与合成 manifest＋空 HOME，24 向量零宿主真实源/manifest/local/HOME 依赖；V-01 隔离根 exit 0/24 PASS 且真实面逐路径哈希前后不变，before 基线副本红证归因=缺真实源）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-01 | closed |
+| b1n-toctou | ledger-migrate 写路径 lstat→write 间隙 TOCTOU 窗口（锁内复查已收敛·残余为同进程间隙竞态；round3 挂账） | 已处置（2026-10-30·B8·D-2 写侧收敛：候选件/项目账本/隔离件/manifest/rollback 追加全部经 secureWriteFile 唯一写通道——O_NOFOLLOW 打开不带 O_TRUNC→持 fd fstat 最终身份判定（非普通文件/nlink>1 拒）→同 fd 读截写回→finally 关 fd；向量⑱⑲⑳预检后路径替换负例 victim 零改写，V-02 三路径探针全绿，旧 lstat→write 窗写穿红证随档）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-02 | closed |
+| b1n-portability | st_nlink>1 hardlink 判定的平台可移植性（跨设备载体/非 POSIX 形态未覆盖；round3 ds N 系「平台可移植」） | 已处置（2026-10-30·B8·D-3 平台分支：hardlinkWritePolicy 纯函数单源＋向量㉑ linux/win32/unsupported 三平台注入＋真实 Linux 硬链 victim 负例实测，win32 既存目标 fail-closed 与 unsupported 拒写为静态保守分支；仅 Linux 实证；静态平台分支；未跨机（cross_machine_tested=false））——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-03 | closed |
+| b1n-env-notice | ORG_QUARANTINE_PATH 等环境变量依赖的缺省提示面不足（env notice；round3 ds N 系） | 已处置（2026-10-30·B8·D-4 notice：ledger-migrate 于 ORG_QUARANTINE_PATH、org-config 于 ORG_FLAGS_STATE 各在 CLI 预检后装载前向 stderr 打 default:/override: 单行（只显路径与来源·不读不印状态内容·stdout 机器格式不变），缺省行注明未设置使用缺省、覆盖行注明显式覆盖；向量㉒与 org-config 合法回归断言＋V-04 四组 notice 实录）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-04 | closed |
+| b1n-cli-precheck | CLI 预检（参数组合前置校验）与 D-1 exit 家族映射未完全统一（CLI 预检 exit3 映射；round3 ds N 系） | 已处置（2026-10-30·B8·D-5 预检闭集：两脚本参数组合前置校验先于装载与任何写入——ledger 16 例与 org-config 15 例非法组合全真 exit 1（向量㉓/org 三向量），candidate 缺件/破损→3，破损配置下非法组合仍 1 而合法命令才 3，业务判红=1，2 永不发）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-04 | closed |
+| b1n-v18-rerun | V-18 回退演练在 r3 后未复跑（向量面未变·路径等价成立但缺注记；round3 ds N 系） | 已处置（2026-10-30·B8·D-7 复跑：以冻结源只读副本建 /tmp 四件套五步真跑，rollback-step0-4-exit=0/1/0/0/0，步2 异常行三断言＋manifest 字节不变，source 717→718→719 仅旧账本副本追加，步4 health-scan --ledger RED=0，生产冻结源前后哈希不变）——证据＝主仓 docs/evidence/B8-migrator-hardening-impl-2026-10-30.md §V-06 | closed |
 | b1n-doc-sync | 档面数字同步残留：任务书/审计面旧数字（自检向量 16→18 已同步·行数 360→414→438 链有旧值残留处） | closed（B2 面板/矩阵批随动清扫：B1 审计第 7 行终值 16→18、第 12 行 ledger-migrate 摘要 360→438 并补 §14 指针，grep 残留=0——证据=主仓 docs/evidence/B2-panel-matrix-impl-2026-10-29.md） | closed |
 | b1n-projectrootof | org-config projectRootOf 死代码清理（round3 N-1 与审计申报不符项） | closed（B2 批复核：org-config.mjs 已无 projectRootOf，grep 计数=0 保持零出现、无删除动作虚构——证据=主仓 docs/evidence/B2-panel-matrix-impl-2026-10-29.md） | closed |
 | b3n-flag-on-pending | 生产 b2_terms_v2 保持 off（on 态已在临时夹具全验证·但账本 748 行为首冻后新增词面红 1 处——主控裁决行用词失误·既有行禁改） | 已处置（2026-10-29 B4b 批收尾）：账本语义缺口经用户 exclude 豁免处置（b3n-ledger-frozen-gap 同日销账）后，主控切生产 b2_terms_v2 on（flags set·状态件已写）并亲跑生产矩阵全绿——五快扫 exit0（on 态 strict both）＋regression 8/8＋surface both exit0（active 0/新增 0/基线 136 件/495 组/691 次）＋agent-slots doctor FAIL0/WARN0＋主仓 verify-docs FAIL0/WARN2＋deploy-check ok64——证据=主仓账本 b4b-flag-on 行 | closed |

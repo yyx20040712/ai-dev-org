@@ -8,7 +8,9 @@
  *  - details/gates/revert 保留源报告原文，生成器不重新分级、不合并结论、
  *    不计算通过与否、不新写审批词；审核与裁决原文只来自对应岗位报告；
  *  - 五字段引块（状态/权威/更新/替代/变更锚）＋摘要段＋详述结构（08 §8.3）；
- *  - 重复输入按槽位 id、规范化路径、标题稳定排序；生成只创建新文件；--check 内存重算。
+ *  - 重复输入按槽位 id、规范化路径、标题稳定排序；生成只创建新文件（B8 D-6 目标侧独占创建：
+ *    同目录唯一临时件 pid＋单调后缀 wx 写正文→关闭后 linkSync(tmp,target) 原子创建硬链接→
+ *    EEXIST 统一转 ContentError exit 1→finally 删临时链接；禁 existsSync→rename 覆盖主路径）；--check 内存重算。
  * 用法：node scripts/gen-close-summary.mjs --kind <close|gates> --project <dir> --date <YYYY-MM-DD>
  *       --batch <id> --authority <指针> --change-anchor <批次与账本指针>
  *       --supersedes <路径|无> --section <slot>=<报告路径>#<标题> ...
@@ -18,11 +20,11 @@
  * 无条件忽略（齐全也不生效——返工轮 2 主控裁决内部参数制）；唯一夹具注入面=
  * --__selftest-template-root 内部专用参数（--self-test 私有通道，外部慎用）。
  */
-import { readFileSync, writeFileSync, existsSync, renameSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, linkSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs'
 import { join, resolve, dirname, basename } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
+import { spawnSync, spawn } from 'node:child_process'
 import { SKILL_ROOT, UsageError } from './org-config.mjs'
 
 const SELF = fileURLToPath(import.meta.url)
@@ -97,11 +99,22 @@ function render(tpl, scalars, sources) {
   return skeleton.replace(/\n+$/, '\n')
 }
 
+/** 只创建新文件（B8 D-6 目标侧独占创建）：同目录唯一临时件（pid＋单调后缀·wx 独占）写正文→
+ *  关闭后 linkSync(tmp,target) 原子创建硬链接→EEXIST 统一转 ContentError→finally 删临时链接。
+ *  R1 z-W-1/z-B-3：临时件写走三参对象形（flag:'wx' 真生效——原四参形第四参被忽略）且纳入
+ *  try/finally——写失败亦清临时件，零残留不因写异常破例。 */
+let b8TmpSeq = 0
 function atomicNewWrite(p, content) {
-  if (existsSync(p)) throw new ContentError(`目标已存在，生成模式禁覆盖：${p}`)
-  const tmp = join(dirname(p), `.${basename(p)}.tmp-${process.pid}`)
-  writeFileSync(tmp, content, 'utf8')
-  renameSync(tmp, p)
+  const tmp = join(dirname(p), `.${basename(p)}.tmp-${process.pid}-${Date.now()}-${b8TmpSeq++}`)
+  try {
+    writeFileSync(tmp, content, { encoding: 'utf8', flag: 'wx' }) // R1：三参对象形（wx 独占创建真生效）
+    linkSync(tmp, p)
+  } catch (e) {
+    if (e && e.code === 'EEXIST') throw new ContentError(`目标已存在，生成模式禁覆盖：${p}`)
+    throw e
+  } finally {
+    rmSync(tmp, { force: true })
+  }
 }
 
 /** 结论机读行拒入摘要（多行模式·N-2 tolerant 形态：行首空白可有可无、全半角冒号皆拦）。 */
@@ -178,7 +191,24 @@ function runGenerate(args, check) {
 }
 
 // ── --self-test：固定快照驱动，真 CLI 子进程，逐项打印 case=<name> exit=<真值> ──
-function selfTest() {
+/** B8 D-6 竞态探针共用：双写者并发（≤2）＋先挂监听再 await＋超时 kill＋异常路径 kill＋finally 清理（r4 资源纪律；R1 d-W-1 补异常收割）。 */
+const b8ExitOf = (c) => new Promise((r, rej) => { c.on('close', (code) => r(code)); c.on('error', (e) => rej(e)) }) // R2 N-2：error 事件 reject（b8RaceOnce catch 真可达→异常路径 kill 必经）
+async function b8RaceOnce(args, env) {
+  const c1 = spawn(process.execPath, [SELF, ...args], { env, stdio: 'ignore' })
+  const c2 = spawn(process.execPath, [SELF, ...args], { env, stdio: 'ignore' })
+  const ep1 = b8ExitOf(c1), ep2 = b8ExitOf(c2) // 先挂监听再 await（防 close 事件早于监听挂载丢失）
+  const reapAll = () => { for (const c of [c1, c2]) { try { c.kill('SIGKILL') } catch { /* 已退出 */ } } }
+  let timedOut = false
+  const timer = setTimeout(() => { timedOut = true; reapAll() }, 60_000) // 超时强制收割
+  try {
+    const [x1, x2] = [await ep1, await ep2] // await 退出（异常态经 error→-1 同收敛）
+    return { x1, x2, timedOut }
+  } catch (e) {
+    reapAll() // R1 d-W-1：异常路径同样强制收割（双写者不悬挂残留）
+    throw e
+  } finally { clearTimeout(timer) } // finally 清理（定时器必清）
+}
+async function selfTest() {
   const fxPath = join(SKILL_ROOT, 'scripts', '.golden', 'docgen-fixtures.json')
   if (!existsSync(fxPath)) configExit(`固定快照缺失：${fxPath}`)
   let fx
@@ -247,6 +277,24 @@ function selfTest() {
     mkdirSync(outD, { recursive: true })
     const rerun = run(subst(fx.self_test_cases['gen-close-summary'].find((c) => c.name === 'close-p1-close-generate').args).map((a) => a.replace(join(outA, 'fx-close.md'), join(outD, 'fx-close.md'))))
     note(rerun.status === 0 && readFileSync(join(outD, 'fx-close.md')).equals(readFileSync(closeOut)), '固定快照两次生成逐字节一致（outA↔outD）')
+    // B8 D-6：目标侧独占创建竞态探针（非 fixture 附加探针·R16 自动覆盖）——同一新目标两进程并发
+    // →恰一成一败·赢家正文=串行基准字节·零临时残留
+    {
+      const raceProj = join(tmp, 'b8race')
+      mkdirSync(join(raceProj, 'docs', 'evidence'), { recursive: true })
+      const slots4 = [['summary', 's'], ['details', 'd'], ['gates', 'g'], ['revert', 'r']]
+      const zhTitle = { summary: '总览', details: '明细', gates: '门禁', revert: '回退清单' }
+      for (const [slot, fn] of slots4) writeFileSync(join(raceProj, 'docs', 'evidence', `${fn}.md`), `# ${zhTitle[slot]}\n\nB8-race-${slot}\n`)
+      const raceArgs = (outDir) => ['--kind', 'close', '--project', raceProj, '--date', '2099-01-02', '--batch', 'B8RACE', '--authority', 'x', '--change-anchor', 'x', '--supersedes', '无', ...slots4.map(([slot, fn]) => ['--section', `${slot}=docs/evidence/${fn}.md#${zhTitle[slot]}`]).flat(), '--output', join(outDir, 'b8-close.md')]
+      const baseDir = join(tmp, 'b8-race-base'), raceDir = join(tmp, 'b8-race')
+      mkdirSync(baseDir, { recursive: true }); mkdirSync(raceDir, { recursive: true })
+      const rBase = run(raceArgs(baseDir), baseEnv)
+      const target = join(raceDir, 'b8-close.md')
+      const { x1, x2, timedOut } = await b8RaceOnce(raceArgs(raceDir), baseEnv)
+      const winnerBytesOk = existsSync(target) && readFileSync(target).equals(readFileSync(join(baseDir, 'b8-close.md')))
+      const tmpLeft = readdirSync(raceDir).filter((f) => f.includes('.tmp-')).length
+      note(rBase.status === 0 && !timedOut && [x1, x2].sort()[0] === 0 && [x1, x2].sort()[1] === 1 && winnerBytesOk && tmpLeft === 0, 'B8 atomic exclusive-create（目标侧 linkSync 独占创建：并发恰一成一败·赢家正文=串行基准·零临时残留）')
+    }
   } finally { rmSync(tmp, { recursive: true, force: true }) }
   return allOk
 }
@@ -256,7 +304,7 @@ const ARG_SPEC = { value: ['--kind', '--project', '--date', '--batch', '--author
 // N-1：--self-test 不绕过参数检查——先按同源 parseArgs 校验（未知/重复/等号/空值=用法错）再进自检
 try {
   parseArgs(argv, ARG_SPEC)
-  if (argv.includes('--self-test')) process.exit(selfTest() ? EXIT_OK : EXIT_RED)
+  if (argv.includes('--self-test')) process.exit((await selfTest()) ? EXIT_OK : EXIT_RED) // B8 D-6：自检 async 化（竞态探针）·顶层 await 阻断后续主路径
   const args = parseArgs(argv, ARG_SPEC)
   // W-2：--section 纳入必填（完全缺失=exit 1）
   for (const req of ['--kind', '--project', '--date', '--batch', '--authority', '--change-anchor', '--supersedes', '--output', '--section']) if (args[req] === undefined) usageExit(`缺必填参数：${req}`)
