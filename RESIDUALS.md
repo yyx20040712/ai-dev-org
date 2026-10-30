@@ -2,7 +2,7 @@
 
 > 状态：active ｜ 权威：registry ｜ 替代：无
 
-当前 **open=9**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；；2026-10-30 B8 事故新挂 1 行（b8n-test-harness-runaway·授权=账本 b8-incident 行·纯 JSON 登记不触冻结旧表）后余 9。余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
+当前 **open=8**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；；2026-10-30 B8 事故新挂 1 行（b8n-test-harness-runaway·授权=账本 b8-incident 行·纯 JSON 登记不触冻结旧表）后余 9。余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
 历史文档区存档与技能仓 git 提交历史，不驻技能加载面。
 
 **权威段唯一**：下方 residuals-json 标记对之间的 JSON 是唯一权威（schema=residuals/v1）；「历史旧表」仅供对账、已冻结非权威；禁止双写——冻结表行不得在冻结块外重现，新登记只走 JSON 八键，不再新增 Markdown 行。
@@ -204,12 +204,13 @@
       "description": "双审第二席 R2 终轮 N-01~06 六条展示面残留：①档位保存失败 error 态可被后续排序保存成功覆盖为 saved（数据面无风险·render 已回显服务端真值）②排序 timer 未决期档位按钮短暂 enabled（saveLevel 守卫保证零 fetch·点击静默无响应）③c5b opts enabled 断言恒真面与 catch 分支无独立向量④§12 sha256 前缀摘要口径自述⑤定版红「中间态回放」表述与旧日志互斥⑥探针 R1/R2 版标签与机器行计数勘误——均非阻断，详见 B7-close §N",
       "evidence": [
         "docs/evidence/B7-close-2026-10-30.md §N",
-        "docs/evidence/B7-panel-tools-impl-2026-10-30.md"
+        "docs/evidence/B7-panel-tools-impl-2026-10-30.md",
+        "docs/evidence/R0-dispatch-enforcement-impl-2026-10-30.md §3/§6（2026-10-30·R0·b7n①②代码修复红绿 3→0＋14/14·b7n③向量 27→58·④⑤⑥主控勘误注记 B7 审计档 :17/:176·V-07 无头四截图 vision PASS·面板回归 51/15 逐名重建全过）"
       ],
       "id": "b7n-panel-display-polish",
       "owner": "B7",
       "phenomenon": "面板展示态竞争六条（终审附注：收笔登记、实施转下批，均有守卫兜底无数据面风险）",
-      "status": "open",
+      "status": "closed",
       "trigger": "下次面板批或再动 panel/index.html 时收敛（错误态保持/timer 期按钮一致态/向量补强）"
     },
     {

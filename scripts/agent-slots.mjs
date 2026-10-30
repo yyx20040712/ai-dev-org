@@ -10,20 +10,30 @@
  *      实现与审核裁决跨族/族可解析/默认与回退覆盖）+ D9 旧名提示（WARN）；
  *   ④ 写侧命令（select/gen/enable/disable/preset/sync）本版不实现，命中即提示并
  *      非零退出，不静默成功、不伪造写盘。
+ *   ⑤ R0 执法面（全部只读）：dispatch-check＝九岗 dispatch-plan × resolve 结果 ×
+ *      拟派名单（plan §1 slot 列）三方对账，陈旧 ROUTE/启用集不符即 FAIL；
+ *      snapshots＝S1-S4 四源六比较＋S2→S1 单向派生逐字节（出厂滞后=WARN 不阻断、
+ *      出厂互恰破坏或派生漂移=FAIL；S1 providers/series_process 不入比较，
+ *      常设第二审仅 dispatch-check 读 series_process.reviewer_second）。
  * 退出码口径单源=references/06 §5.8（此处不复写数字——语义映射，防双源漂移）。
  * 用法：
  *   node scripts/agent-slots.mjs list [--role <role>] [--json]
  *   node scripts/agent-slots.mjs show <slot> [--json]
  *   node scripts/agent-slots.mjs resolve --route "<route>" [--json]
  *   node scripts/agent-slots.mjs doctor [--json]
+ *   node scripts/agent-slots.mjs dispatch-check --plan <dispatch-plan.md> --route "<ROUTE>" [--project <dir>]
+ *   node scripts/agent-slots.mjs snapshots [--project <dir>] [--json]
  *   node scripts/agent-slots.mjs --self-test
  *   （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 可 import 纯函数零副作用（isMain guard 惯例；自检向量禁动真实 templates/agents/）。
  */
-import { resolve } from 'node:path'
+import { resolve, join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
-import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError, familyOf } from './org-config.mjs'
+import { readFileSync, existsSync, writeFileSync, mkdirSync, mkdtempSync, rmSync, copyFileSync, cpSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { createHash } from 'node:crypto'
+import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError, familyOf, readJson } from './org-config.mjs'
 import { parseBindingValue } from './deploy-check.mjs'
 import { MATRIX_PATH, ROLE_ORDER, SLOT_NAME_RE, loadMatrix, slotsFromMatrix } from './gen-agents.mjs'
 
@@ -355,8 +365,245 @@ export function doctorFindings(matrix, cfg, opts = {}) {
   return findings
 }
 
+// ── R0 执法面（A1/A2）纯函数：snapshots 六比较＋S2→S1 派生＋dispatch-check 三方对账 ──
+// 全部只读；S1=<project>/docs/agent-matrix.json（主仓矩阵）、S2=templates/agents.matrix.json、
+// S3/S4=org-config.default.json / org-config.local.json 的 agent_defaults/role_fallbacks。
+// S1 providers/series_process 与其他键明确排除在快照比较外（series_process.reviewer_second
+// 仅由 dispatch-check 第二席对账消费）。
+
+/** slot→provider 短名规范化（D-A2）：严格解析 ops-<role>-<provider>-<low|high|max>，
+ *  去 ops-<role>- 前缀与档位后缀并校验角色段与所列岗位一致；不合形态/角色不符 → null。
+ *  （非模糊字符串替换——slot 名不可规范化属装载错面，由调用侧 exit 3。） */
+export function slotProviderOf(slot, role) {
+  const parsed = parseSlotKey(slot)
+  if (!parsed || parsed.role !== role) return null
+  return parsed.provider
+}
+
+/** 出厂矩阵投影（S1/S2）：仅九岗 roles.*.default/fallback，按声明序保序拷贝；
+ *  order 可注入（S2→S1 派生固定以 S2 声明序为准）；额外 role 一律不入 projection
+ *  （d-N12：恰九岗，roles/bytes 口径固定）；schema 不符抛错（装载错面）。 */
+export function matrixProjection(matrix, order = null) {
+  const roles = isPlainObject(matrix?.roles) ? matrix.roles : null
+  if (!roles) throw new Error('矩阵缺 roles 分区——快照投影仅取 roles.*.default/fallback')
+  const keys = (order || Object.keys(roles)).filter((r) => ROLE_ORDER.includes(r))
+  for (const role of ROLE_ORDER) if (!own(roles, role)) throw new Error(`矩阵 roles 缺角色「${role}」——九岗投影须齐全`)
+  const out = {}
+  for (const role of keys) {
+    if (!own(roles, role)) throw new Error(`投影序含矩阵没有的角色「${role}」`)
+    const def = roles[role].default
+    const fb = roles[role].fallback
+    if (typeof def !== 'string' || !def) throw new Error(`矩阵 roles.${role}.default 须为非空字符串`)
+    if (!Array.isArray(fb) || !fb.length || fb.some((x) => typeof x !== 'string' || !x)) throw new Error(`矩阵 roles.${role}.fallback 须为非空字符串数组`)
+    out[role] = { default: def, fallback: [...fb] }
+  }
+  return out
+}
+
+/** 配置投影（S3/S4）：agent_defaults/role_fallbacks 逐 slot 严格规范化成 provider 短名；
+ *  slot 不可规范化/角色不符/九岗缺失 → 抛错（装载错面）。 */
+export function configProjection(cfg) {
+  const defaults = isPlainObject(cfg?.agent_defaults) ? cfg.agent_defaults : null
+  const fallbacks = isPlainObject(cfg?.role_fallbacks) ? cfg.role_fallbacks : null
+  if (!defaults || !fallbacks) throw new Error('配置缺 agent_defaults/role_fallbacks 分区——S3/S4 投影依赖')
+  const out = {}
+  for (const role of ROLE_ORDER) {
+    if (!own(defaults, role)) throw new Error(`agent_defaults 缺角色「${role}」`)
+    if (!own(fallbacks, role)) throw new Error(`role_fallbacks 缺角色「${role}」`)
+    const d = slotProviderOf(defaults[role], role)
+    if (d === null) throw new Error(`agent_defaults.${role} 的 slot「${defaults[role]}」不可规范化为 ops-${role}-<provider>-<low|high|max>`)
+    const seq = fallbacks[role]
+    if (!Array.isArray(seq) || !seq.length) throw new Error(`role_fallbacks.${role} 须为非空数组`)
+    const fb = seq.map((s) => {
+      const p = slotProviderOf(s, role)
+      if (p === null) throw new Error(`role_fallbacks.${role} 的 slot「${s}」不可规范化`)
+      return p
+    })
+    out[role] = { default: d, fallback: fb }
+  }
+  return out
+}
+
+/** 规范化投影文本：JSON.stringify(projection,null,2)+'\n'（S2→S1 派生逐字节比较载体）。 */
+export function projectionText(projection) {
+  return JSON.stringify(projection, null, 2) + '\n'
+}
+
+/** S2→S1 单向派生（D-A2）：以 S2 roles 声明序生成仅含 default/fallback 的规范化 JSON
+ *  投影，对 S1 做同序投影后逐字节比较；禁止反向写（本函数与全部调用链零写盘）。 */
+export function deriveS2ToS1(s1, s2) {
+  const order = Object.keys(isPlainObject(s2?.roles) ? s2.roles : {}).filter((r) => ROLE_ORDER.includes(r)) // d-N12：恰九岗·额外 role 不入派生序
+  const p2 = { roles: matrixProjection(s2, order) }
+  const p1 = { roles: matrixProjection(s1, order) }
+  const s2Text = projectionText(p2)
+  const s1Text = projectionText(p1)
+  return { equal: s1Text === s2Text, roles: order.length, bytes: Buffer.byteLength(s2Text), s1_text: s1Text, s2_text: s2Text, order }
+}
+
+const SNAPSHOT_FIELDS = ['default', 'fallback']
+const SNAPSHOT_NAMES = ['S1', 'S2', 'S3', 'S4']
+const FACTORY_PAIRS = [[0, 1], [0, 2], [1, 2]] // S1×S2/S1×S3/S2×S3＝出厂互恰（FAIL 面）
+const LIVE_PAIRS = [[0, 3], [1, 3], [2, 3]]    // S1×S4/S2×S4/S3×S4＝出厂/现役滞后（WARN 面）
+
+function snapshotFieldEqual(a, b) {
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((x, i) => x === b[i])
+  return a === b
+}
+
+/** snapshots 六比较引擎（纯函数·零写盘）：出厂互恰任一字段不一致计 factory_diff；
+ *  现役比较全算并按岗位去重聚合（WARN 行数＝差异岗位数，另计字段差总数）；
+ *  S2→S1 派生逐字节；返回含 ISO inspected_at。 */
+export function snapshotReport({ s1, s2, s3, s4 }) {
+  const proj = [matrixProjection(s1), matrixProjection(s2), configProjection(s3), configProjection(s4)]
+  const factoryDiffs = []
+  for (const [a, b] of FACTORY_PAIRS)
+    for (const role of ROLE_ORDER)
+      for (const field of SNAPSHOT_FIELDS)
+        if (!snapshotFieldEqual(proj[a][role][field], proj[b][role][field]))
+          factoryDiffs.push({ pair: `${SNAPSHOT_NAMES[a]}×${SNAPSHOT_NAMES[b]}`, role, field, [SNAPSHOT_NAMES[a]]: proj[a][role][field], [SNAPSHOT_NAMES[b]]: proj[b][role][field] })
+  const warns = []
+  for (const role of ROLE_ORDER) {
+    const fields = SNAPSHOT_FIELDS.filter((f) => LIVE_PAIRS.some(([a, b]) => !snapshotFieldEqual(proj[a][role][f], proj[b][role][f])))
+    if (fields.length)
+      warns.push({ role, fields, values: Object.fromEntries(SNAPSHOT_NAMES.map((n, i) => [n, proj[i][role]])) })
+  }
+  const derived = deriveS2ToS1(s1, s2)
+  return {
+    inspected_at: new Date().toISOString(),
+    factory_fail: factoryDiffs.length,
+    factory_diffs: factoryDiffs,
+    warn_roles: warns.length,
+    warn_field_diffs: warns.reduce((n, w) => n + w.fields.length, 0),
+    warns,
+    derived_fail: derived.equal ? 0 : 1,
+    derived: { equal: derived.equal, roles: derived.roles, bytes: derived.bytes },
+  }
+}
+
+/** dispatch-plan §1 九岗表行解析：'implreview（第一席）'→seat 1、
+ *  'implreview（第二席·常设）'→seat 2、裸角色→seat 0；非 implreview 带（第一席/第二席）限定＝坏列。 */
+function parseRoleCell(text) {
+  const t = String(text ?? '').trim()
+  const m = /^([a-z]+)\s*(?:（([^）]*)）|\(([^)]*)\))?$/.exec(t)
+  if (!m || !ROLE_ORDER.includes(m[1])) throw new Error(`§1 岗位列「${t}」不是九岗角色或形态不符`)
+  const role = m[1]
+  const qual = m[2] ?? m[3] ?? ''
+  if (!qual) return { role, seat: 0 }
+  if (role !== 'implreview') throw new Error(`§1 岗位「${t}」——非 implreview 岗不得带（第一席/第二席）限定`)
+  if (/第二/.test(qual)) return { role, seat: 2 }
+  if (/第一|常设/.test(qual)) return { role, seat: 1 }
+  throw new Error(`§1 implreview 审席限定「${qual}」无法识别（须含 第一/第二）`)
+}
+
+/** dispatch-plan 解析（D-A1）：§1 九岗表（九角色齐全、implreview 恰两行、其余各一行，
+ *  slot/route_source/启用必填）＋§2 ROUTE 恰一行；任一畸形抛错（CLI 映射装载错）。 */
+export function parseDispatchPlan(text) {
+  const lines = String(text ?? '').split(/\r?\n/)
+  const sectionIdx = (n) => lines.findIndex((l) => new RegExp(`^##\\s*${n}[.、)]`).test(l))
+  const i1 = sectionIdx(1)
+  const i2 = sectionIdx(2)
+  if (i1 < 0) throw new Error('plan 缺 §1 段（须「## 1.」九岗实选表标题）')
+  if (i2 < 0) throw new Error('plan 缺 §2 段（须「## 2.」ROUTE 标题）')
+  if (i2 <= i1) throw new Error('plan §2 须位于 §1 之后')
+  const body = lines.slice(i1 + 1, i2)
+  const first = body.findIndex((l) => l.trim().startsWith('|'))
+  if (first < 0) throw new Error('§1 缺九岗表（须 | 岗位 | 实际 slot | route_source | 启用 | … | 表）')
+  const tableLines = []
+  for (let i = first; i < body.length && body[i].trim().startsWith('|'); i++) tableLines.push(body[i])
+  const cellsOf = (l) => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim())
+  const header = cellsOf(tableLines[0])
+  const idxRole = header.findIndex((h) => /岗\s*位/.test(h))
+  const idxSlot = header.findIndex((h) => /slot/i.test(h))
+  const idxSrc = header.findIndex((h) => h.includes('route_source'))
+  const idxEn = header.findIndex((h) => h.includes('启用'))
+  if (idxRole < 0 || idxSlot < 0 || idxSrc < 0 || idxEn < 0) throw new Error(`§1 表列缺失（须含 岗位/slot/route_source/启用 列），表头=${JSON.stringify(header)}`)
+  const rows = []
+  for (let i = 1; i < tableLines.length; i++) {
+    const c = cellsOf(tableLines[i])
+    if (c.every((x) => /^:?-{3,}:?$/.test(x))) continue // 分隔行
+    if (c.length < header.length) throw new Error(`§1 表行列数=${c.length}＜表头 ${header.length}（坏列）：${tableLines[i].slice(0, 60)}`)
+    const { role, seat } = parseRoleCell(c[idxRole])
+    const slot = c[idxSlot]
+    if (!SLOT_NAME_RE.test(slot)) throw new Error(`§1 行 slot「${slot}」不合 ops-<role>-<provider>-<level>`)
+    if (parseSlotKey(slot).role !== role) throw new Error(`§1 行 slot「${slot}」角色段与岗位列「${c[idxRole]}」不符`)
+    if (!c[idxSrc]) throw new Error(`§1 行（${c[idxRole]}）route_source 列为空`)
+    const enabled = c[idxEn] === '是' ? true : c[idxEn] === '否' ? false : null
+    if (enabled === null) throw new Error(`§1 行（${c[idxRole]}）启用列须为 是/否，实得「${c[idxEn]}」`)
+    rows.push({ role, seat, slot, route_source_text: c[idxSrc], enabled })
+  }
+  for (const role of ROLE_ORDER) {
+    if (role === 'implreview') continue
+    const n = rows.filter((r) => r.role === role).length
+    if (n !== 1) throw new Error(`§1 岗位「${role}」须恰一行，实得 ${n} 行（非 implreview 重复/缺行=畸形）`)
+  }
+  const impl = rows.filter((r) => r.role === 'implreview')
+  if (impl.length !== 2) throw new Error(`§1 implreview 须恰两行（第一席＋第二席），实得 ${impl.length} 行`)
+  if (!impl.some((r) => r.seat === 1) || !impl.some((r) => r.seat === 2)) throw new Error('§1 implreview 两行须分别含 第一席/第二席 限定')
+  const sec2 = lines.slice(i2 + 1)
+  const end2 = sec2.findIndex((l) => /^##\s/.test(l))
+  const scope = end2 < 0 ? sec2 : sec2.slice(0, end2)
+  const routeLines = scope.filter((l) => /^\s*ROUTE\s*:/i.test(l)) // 保留原行原样（逐字比对载体·禁 trim）
+  if (!routeLines.length) throw new Error('§2 缺 ROUTE 行')
+  if (routeLines.length > 1) throw new Error(`§2 ROUTE 多值（${routeLines.length} 行）`)
+  try { parseRoute(routeLines[0]) } catch (e) { throw new Error(`§2 ROUTE 畸形：${e.message}`) }
+  return { rows, route_text: routeLines[0] }
+}
+
+/** dispatch-check 三方对账引擎（纯函数）：plan §1 拟派名单 × resolve(ROUTE)/三层默认 ×
+ *  启用集；ROUTE＞项目覆盖＞本机件＞矩阵默认（未列岗由 loadOrgConfig(projectDir) 合并
+ *  agent_defaults 补全并标 defaults——本批即 S4 现役值，禁读出厂替代）；第二审读 S1
+ *  series_process.reviewer_second 对账、不入 ROUTE。返回 diffs/route_errors/计数。 */
+export function dispatchCheck({ plan, routeText, matrix, cfg, s1 }) {
+  const route = parseRoute(routeText) // 语法错→UsageError（exit 1 面）
+  const routeErrors = validateRoute(route, matrix)
+  const byRole = new Map(resolveRoute(route, matrix, cfg).map((r) => [r.role, r]))
+  const defaults = isPlainObject(cfg?.agent_defaults) ? cfg.agent_defaults : {}
+  for (const role of ROLE_ORDER) {
+    const d = defaults[role]
+    if (typeof d !== 'string' || slotProviderOf(d, role) === null)
+      throw new Error(`agent_defaults.${role} 缺失或不可规范化（${String(d)}）——未列岗默认补全依赖三层装载现役值`)
+  }
+  const slots = isPlainObject(cfg?.agent_slots) ? cfg.agent_slots : {}
+  const diffs = []
+  if (String(routeText) !== plan.route_text) // z-W03/d-N11：去 trim·逐字比对（前导/尾随空白亦判不一致）
+    diffs.push(`--route 与 plan §2 ROUTE 不一致（须逐字一致·前导/尾随空白亦判不一致）：--route=「${JSON.stringify(String(routeText))}」 plan §2=「${JSON.stringify(plan.route_text)}」`)
+  const rows = []
+  let enabled = 0
+  for (const pr of plan.rows.filter((r) => r.seat !== 2)) {
+    const viaRoute = byRole.has(pr.role)
+    const resolved = viaRoute ? byRole.get(pr.role).slot : defaults[pr.role]
+    const source = viaRoute ? 'prompt' : 'defaults'
+    if (pr.enabled) enabled++
+    if (viaRoute && !pr.enabled) diffs.push(`ROUTE 列禁用岗「${pr.role}」（plan §1 启用=否）`)
+    if (!viaRoute && pr.enabled) diffs.push(`启用岗「${pr.role}」未列入 ROUTE（plan §1 启用=是）`)
+    if (!viaRoute && !own(slots, resolved)) // d-N10：S4 补全 slot 须在 cfg.agent_slots 注册
+      throw new Error(`agent_defaults.${pr.role} 指向的补全 slot「${resolved}」未在 cfg.agent_slots 注册——现役默认补全禁用未注册档（装载错）`)
+    if (resolved !== pr.slot) diffs.push(`${pr.role}: 解析=${resolved}（${source}）≠ plan 拟派=${pr.slot}${viaRoute ? '——ROUTE 值陈旧' : '——与现役默认不符'}`)
+    rows.push({ role: pr.role, plan_slot: pr.slot, resolved_slot: resolved, route_source: source, enabled: pr.enabled })
+  }
+  const second = plan.rows.find((r) => r.seat === 2)
+  const reviewerSecond = s1?.series_process?.reviewer_second
+  if (typeof reviewerSecond !== 'string' || !reviewerSecond)
+    throw new Error('S1 docs/agent-matrix.json 缺 series_process.reviewer_second——常设第二审对账依赖（装载错）')
+  if (second.slot !== reviewerSecond)
+    diffs.push(`implreview 第二席: plan=${second.slot} ≠ S1 series_process.reviewer_second=${reviewerSecond}`)
+  return {
+    ok: routeErrors.length === 0 && diffs.length === 0,
+    roles: new Set(rows.map((r) => r.role)).size,
+    enabled,
+    route_items: route.items.length,
+    second_reviewer: reviewerSecond,
+    second_plan_slot: second.slot,
+    rows,
+    diffs,
+    route_errors: routeErrors,
+    notes: route.notes,
+  }
+}
+
+
 // ── CLI 辅助 ──
-const VALUE_FLAGS = new Set(['--role', '--route', '--agent'])
+const VALUE_FLAGS = new Set(['--role', '--route', '--agent', '--plan', '--project'])
 
 function positionals(argv) {
   const out = []
@@ -393,6 +640,30 @@ function loadMatrixOrExit() {
   }
 }
 
+/** R0 命令的 S1 主仓矩阵项目目录解析（D-A1/D-A2）：--project 显式给值则校验其下
+ *  docs/agent-matrix.json 在场；缺省自 cwd 向上找 docs/agent-matrix.json；
+ *  任一失败＝装载错（S1 是 snapshots 六比较与 dispatch-check 第二席的必需源）。 */
+function resolveProjectDirOrExit(flagVal) {
+  if (flagVal !== null) {
+    const dir = resolve(flagVal)
+    if (!existsSync(join(dir, 'docs', 'agent-matrix.json'))) {
+      console.error(`[装载错] --project 目录缺 docs/agent-matrix.json（S1 主仓矩阵·必需源）：${dir}`)
+      process.exit(3)
+    }
+    return dir
+  }
+  let dir = process.cwd()
+  for (;;) {
+    if (existsSync(join(dir, 'docs', 'agent-matrix.json'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) {
+      console.error(`[装载错] 未指定 --project 且自 ${process.cwd()} 向上未找到 docs/agent-matrix.json（S1 主仓矩阵·必需源）`)
+      process.exit(3)
+    }
+    dir = parent
+  }
+}
+
 function usage() {
   return [
     '用法：',
@@ -401,6 +672,8 @@ function usage() {
     '  node scripts/agent-slots.mjs resolve --route "<route>" [--json]',
     '  node scripts/agent-slots.mjs resolve --agent <旧名> [--json]',
     '  node scripts/agent-slots.mjs doctor [--json]',
+    '  node scripts/agent-slots.mjs dispatch-check --plan <dispatch-plan.md> --route "<ROUTE>" [--project <dir>]',
+    '  node scripts/agent-slots.mjs snapshots [--project <dir>] [--json]',
     '  node scripts/agent-slots.mjs --self-test',
   ].join('\n')
 }
@@ -701,6 +974,243 @@ function selfTest() {
   t('向量46 退役角色拒绝语义：ROUTE: diagnostics-ds → validateRoute 报未知角色且解析结果无有效注册槽（B2 批诊断整链退役反转——原正向解析向量作废）',
     e46.includes('未知角色「diagnostics」') && s46.length === 1 && s46[0].slot === '?')
 
+  // ── R0 新增向量（53–60）：dispatch-check 三方对账＋snapshots 六比较/派生＋新 CLI 退出族 ──
+  // 夹具全部落在 mkdtemp('R0-a-st-') 一层临时目录，finally 清理（一次性台架；staging
+  // 副本由本进程直接 spawnSync 运行、不注入哨兵、不嵌套自拷贝——§1 资源纪律注记）。
+  const r0tmp = mkdtempSync(join(tmpdir(), 'R0-a-st-'))
+  try {
+    const mergedCfgR0 = loadOrgConfig(SKILL_ROOT).merged
+    const defaultsNow = isPlainObject(mergedCfgR0.agent_defaults) ? mergedCfgR0.agent_defaults : {}
+    const providerOf = (slot) => parseSlotKey(slot)?.provider || '?'
+    const R0_ENABLED = ['assembler', 'executor', 'tbreview', 'implreview', 'adjudicator', 'vision']
+    const routeNow = `ROUTE: ${R0_ENABLED.map((r) => `${r}-${providerOf(defaultsNow[r])}`).join(';')}`
+    const secondSlot = 'ops-implreview-ds-max'
+    const planText = (routeLine, opts = {}) => {
+      const enOf = (r) => (opts.en && opts.en[r] !== undefined ? opts.en[r] : R0_ENABLED.includes(r) ? '是' : '否')
+      const slotOf = (r) => (opts.slot && opts.slot[r] !== undefined ? opts.slot[r] : defaultsNow[r])
+      const rowOf = (label, r) => `| ${label} | ${slotOf(r)} | 本机件 agent_defaults（S4） | ${enOf(r)} | 理由-${r} |`
+      const body = [
+        '| 岗位 | 实际 slot | route_source | 启用 | 理由 |',
+        '|---|---|---|---|---|',
+        rowOf('research', 'research'),
+        rowOf('planner', 'planner'),
+        rowOf('assembler', 'assembler'),
+        rowOf('executor', 'executor'),
+        rowOf('tbreview', 'tbreview'),
+        rowOf('planreview', 'planreview'),
+        rowOf('implreview（第一席）', 'implreview'),
+        `| implreview（第二席·常设） | ${opts.second !== undefined ? opts.second : secondSlot} | S1 series_process.reviewer_second（常设第二审） | 是 | 理由-第二席 |`,
+        rowOf('adjudicator', 'adjudicator'),
+        rowOf('vision', 'vision'),
+      ]
+      return ['# 合成 dispatch-plan（self-test 夹具）', '', '## 1. 九岗实选表', '', ...body, '', '## 2. 批 ROUTE', '', '```', routeLine, '```', ''].join('\n')
+    }
+    const cfgR0 = { providers: {}, agent_slots: {}, agent_defaults: { ...defaultsNow } }
+    for (const r of ROLE_ORDER) { // d-N10：S4 补全 slot 须在 cfg.agent_slots 注册——夹具同步登记
+      const p = parseSlotKey(defaultsNow[r])
+      cfgR0.agent_slots[defaultsNow[r]] = { provider: p.provider, model: `model-of-${p.provider}`, level: p.level }
+    }
+    const s1R0 = { series_process: { reviewer_second: secondSlot } }
+
+    // 向量53：正例九岗＋第二审＋未启用默认补全（纯函数＋CLI 双形态：--project 显式/缺省向上发现）
+    const planObj53 = parseDispatchPlan(planText(routeNow))
+    const dc53 = dispatchCheck({ plan: planObj53, routeText: routeNow, matrix, cfg: cfgR0, s1: s1R0 })
+    const proj53 = join(r0tmp, 'proj53')
+    mkdirSync(join(proj53, 'docs'), { recursive: true })
+    writeFileSync(join(proj53, 'docs', 'agent-matrix.json'), JSON.stringify({ roles: {}, series_process: { reviewer_second: secondSlot } }))
+    const planPath53 = join(r0tmp, 'plan53.md')
+    writeFileSync(planPath53, planText(routeNow))
+    const s53a = runCli(['dispatch-check', '--plan', planPath53, '--route', routeNow, '--project', proj53])
+    const s53b = spawnSync(process.execPath, [scriptPath, 'dispatch-check', '--plan', planPath53, '--route', routeNow], { cwd: proj53, encoding: 'utf8' })
+    const sum53 = `dispatch_check=PASS roles=9 enabled=6 route_items=6 second_reviewer=${secondSlot}`
+    t('向量53 dispatch-check 正例：九岗全过＋第二审对账＋未启用默认补全（CLI --project 显式与缺省发现均 exit 0）',
+      dc53.ok === true && dc53.roles === 9 && dc53.enabled === 6 && dc53.route_items === 6 && dc53.second_reviewer === secondSlot &&
+      dc53.rows.find((r) => r.role === 'planner').route_source === 'defaults' && dc53.rows.find((r) => r.role === 'planner').resolved_slot === defaultsNow.planner &&
+      dc53.rows.find((r) => r.role === 'executor').route_source === 'prompt' && dc53.rows.find((r) => r.role === 'executor').resolved_slot === defaultsNow.executor &&
+      s53a.status === 0 && `${s53a.stdout || ''}${s53a.stderr || ''}`.includes(sum53) &&
+      s53b.status === 0 && `${s53b.stdout || ''}${s53b.stderr || ''}`.includes(sum53))
+
+    // 向量54：B8 r7 陈旧 ROUTE→对账 FAIL＋逐岗 diff（executor/implreview/adjudicator 陈旧＋启用岗未列）
+    // ＋z-W03/d-N11：--route 前导/尾随空白负例各 exit 1（去 trim·逐字比对·CLI 实跑）
+    const STALE = 'ROUTE: executor-startplan;implreview-699;adjudicator-zipoo'
+    const dc54 = dispatchCheck({ plan: planObj53, routeText: STALE, matrix, cfg: cfgR0, s1: s1R0 })
+    const d54 = dc54.diffs.join('\n')
+    const s54 = runCli(['dispatch-check', '--plan', planPath53, '--route', STALE, '--project', proj53])
+    const out54 = `${s54.stdout || ''}${s54.stderr || ''}`
+    const s54w1 = runCli(['dispatch-check', '--plan', planPath53, '--route', ` ${routeNow}`, '--project', proj53])
+    const out54w1 = `${s54w1.stdout || ''}${s54w1.stderr || ''}`
+    const s54w2 = runCli(['dispatch-check', '--plan', planPath53, '--route', `${routeNow} `, '--project', proj53])
+    const out54w2 = `${s54w2.stdout || ''}${s54w2.stderr || ''}`
+    t('向量54 B8 r7 陈旧 ROUTE→exit 1＋逐岗 diff＋前导/尾随空白 --route 负例各 exit 1（逐字比对）',
+      dc54.ok === false && d54.includes('executor') && d54.includes('startplan') && d54.includes('implreview') && d54.includes('699') &&
+      d54.includes('adjudicator') && d54.includes('zipoo') && d54.includes('未列入 ROUTE') &&
+      s54.status === 1 && out54.includes('dispatch_check=FAIL') && out54.includes('陈旧') && out54.includes('未列入 ROUTE') && out54.includes('plan §2') &&
+      s54w1.status === 1 && out54w1.includes('逐字一致') && out54w1.includes('dispatch_check=FAIL') &&
+      s54w2.status === 1 && out54w2.includes('逐字一致') && out54w2.includes('dispatch_check=FAIL'))
+
+    // staging 技能根副本（一层·外部探针直接运行）：可控 S2/S3/S4 注入面（55/56/57/59 共用）
+    const stage = join(r0tmp, 'stage')
+    mkdirSync(join(stage, 'scripts'), { recursive: true })
+    mkdirSync(join(stage, 'templates'), { recursive: true })
+    cpSync(join(SKILL_ROOT, 'scripts'), join(stage, 'scripts'), { recursive: true })
+    copyFileSync(join(SKILL_ROOT, 'templates', 'agents.matrix.json'), join(stage, 'templates', 'agents.matrix.json'))
+    copyFileSync(join(SKILL_ROOT, 'org-config.default.json'), join(stage, 'org-config.default.json'))
+    copyFileSync(join(SKILL_ROOT, 'org-config.local.json'), join(stage, 'org-config.local.json'))
+    const stageScript = join(stage, 'scripts', 'agent-slots.mjs')
+    const runStage = (args) => spawnSync(process.execPath, [stageScript, ...args], { encoding: 'utf8' })
+    const s1Synth = { roles: Object.fromEntries(ROLE_ORDER.map((r) => [r, { default: matrix.roles[r].default, fallback: [...matrix.roles[r].fallback] }])) }
+    const mkProj = (name, s1obj) => {
+      const p = join(r0tmp, name)
+      mkdirSync(join(p, 'docs'), { recursive: true })
+      writeFileSync(join(p, 'docs', 'agent-matrix.json'), JSON.stringify(s1obj))
+      return p
+    }
+    const hashOf = (p) => createHash('sha256').update(readFileSync(p)).digest('hex')
+
+    // 向量55：缺/畸形 plan→装载错；缺件 exit 3；启用集两方向（ROUTE 列禁用岗/启用岗未列）
+    // ＋z-W04：CLI 子进程三态实跑；＋d-N10：本机件缺席 exit 3＋补全 slot 未注册报错
+    const malformed55 = [
+      ['缺§1§2合一', '# 只有前言\n\n无编号段落的合成件\n'],
+      ['坏表·列缺失', '# x\n## 1. 九岗实选表\n\n| 岗位 | 实际 slot |\n|---|---|\n| planner | ops-planner-zipoo-max |\n\n## 2. 批 ROUTE\n\n```\nROUTE: executor-glm\n```\n'],
+      ['坏表·启用列值', planText(routeNow).replace('| 否 | 理由-planner |', '| 也许 | 理由-planner |')],
+      ['implreview 单行', planText(routeNow).replace(/\| implreview（第二席·常设）[^\n]*\n/, '')],
+    ]
+    let malformedOk = true
+    for (const [name, text] of malformed55) {
+      const r = (() => { try { parseDispatchPlan(text); return null } catch (e) { return e } })()
+      if (!r) { malformedOk = false; console.log(`FAIL 向量55 子项「${name}」未拒收`) }
+    }
+    const routeWithDisabled = `ROUTE: research-${providerOf(defaultsNow.research)};${routeNow.replace('ROUTE: ', '')}`
+    const routeNoVision = `ROUTE: ${R0_ENABLED.filter((r) => r !== 'vision').map((r) => `${r}-${providerOf(defaultsNow[r])}`).join(';')}`
+    const dc55a = dispatchCheck({ plan: parseDispatchPlan(planText(routeWithDisabled)), routeText: routeWithDisabled, matrix, cfg: cfgR0, s1: s1R0 })
+    const dc55b = dispatchCheck({ plan: planObj53, routeText: routeNoVision, matrix, cfg: cfgR0, s1: s1R0 })
+    const planPath55bad = join(r0tmp, 'plan55-bad.md')
+    writeFileSync(planPath55bad, malformed55[1][1])
+    const planPath55dis = join(r0tmp, 'plan55-dis.md')
+    writeFileSync(planPath55dis, planText(routeWithDisabled))
+    const planPath55unl = join(r0tmp, 'plan55-unl.md')
+    writeFileSync(planPath55unl, planText(routeNoVision))
+    const s55 = runCli(['dispatch-check', '--plan', join(r0tmp, 'R0-a-missing.md'), '--route', routeNow, '--project', proj53])
+    const s55m = runCli(['dispatch-check', '--plan', planPath55bad, '--route', 'ROUTE: executor-glm', '--project', proj53])
+    const out55m = `${s55m.stdout || ''}${s55m.stderr || ''}`
+    const s55d = runCli(['dispatch-check', '--plan', planPath55dis, '--route', routeWithDisabled, '--project', proj53])
+    const out55d = `${s55d.stdout || ''}${s55d.stderr || ''}`
+    const s55u = runCli(['dispatch-check', '--plan', planPath55unl, '--route', routeNoVision, '--project', proj53])
+    const out55u = `${s55u.stdout || ''}${s55u.stderr || ''}`
+    const stageNL = join(r0tmp, 'stageNL')
+    cpSync(stage, stageNL, { recursive: true })
+    rmSync(join(stageNL, 'org-config.local.json')) // d-N10：S4 本机件缺席＝禁出厂默认静默代位
+    const s55nl = spawnSync(process.execPath, [join(stageNL, 'scripts', 'agent-slots.mjs'), 'dispatch-check', '--plan', planPath53, '--route', routeNow, '--project', proj53], { encoding: 'utf8' })
+    const out55nl = `${s55nl.stdout || ''}${s55nl.stderr || ''}`
+    const cfgUnreg = clone(cfgR0)
+    delete cfgUnreg.agent_slots[defaultsNow.planner]
+    const e55reg = (() => { try { dispatchCheck({ plan: planObj53, routeText: routeNow, matrix, cfg: cfgUnreg, s1: s1R0 }); return null } catch (e) { return e } })()
+    t('向量55 缺/畸形 plan→装载错拒收＋CLI 三态实跑（畸形 exit 3/禁用岗 exit 1/启用岗未列 exit 1）＋缺件 exit 3＋S4 本机件缺席 exit 3＋补全 slot 未注册报错',
+      malformedOk &&
+      dc55a.ok === false && dc55a.diffs.join('\n').includes('禁用岗') &&
+      dc55b.ok === false && dc55b.diffs.join('\n').includes('未列入 ROUTE') && dc55b.diffs.join('\n').includes('vision') &&
+      s55.status === 3 && `${s55.stdout || ''}${s55.stderr || ''}`.includes('[装载错]') &&
+      s55m.status === 3 && out55m.includes('[装载错]') && out55m.includes('表列缺失') &&
+      s55d.status === 1 && out55d.includes('禁用岗') && out55d.includes('dispatch_check=FAIL') &&
+      s55u.status === 1 && out55u.includes('未列入 ROUTE') && out55u.includes('dispatch_check=FAIL') &&
+      s55nl.status === 3 && out55nl.includes('[装载错]') && out55nl.includes('S4 本机件') && out55nl.includes('静默代位') &&
+      e55reg !== null && e55reg.message.includes('未在 cfg.agent_slots 注册') && e55reg.message.includes('planner'))
+
+    // 向量56：S4 滞后＝WARN 不阻断（exit 0）＋岗位去重计数＋ISO inspected_at（纯函数＋staging CLI）
+    const lagCfg = { s3: { agent_defaults: {}, role_fallbacks: {} }, s4: { agent_defaults: {}, role_fallbacks: {} } }
+    for (const r of ROLE_ORDER) {
+      lagCfg.s3.agent_defaults[r] = `ops-${r}-${matrix.roles[r].default}-${matrix.roles[r].level}`
+      lagCfg.s3.role_fallbacks[r] = matrix.roles[r].fallback.map((p) => `ops-${r}-${p}-${matrix.roles[r].level}`)
+      lagCfg.s4.agent_defaults[r] = lagCfg.s3.agent_defaults[r]
+      lagCfg.s4.role_fallbacks[r] = [...lagCfg.s3.role_fallbacks[r]]
+    }
+    lagCfg.s4.agent_defaults.research = `ops-research-glm-${matrix.roles.research.level}`
+    lagCfg.s4.role_fallbacks.research = [...lagCfg.s4.role_fallbacks.research].reverse()
+    lagCfg.s4.agent_defaults.planner = `ops-planner-yyx-${matrix.roles.planner.level}`
+    lagCfg.s4.role_fallbacks.planner = [...lagCfg.s4.role_fallbacks.planner].reverse()
+    const rep56 = snapshotReport({ s1: s1Synth, s2: matrix, s3: lagCfg.s3, s4: lagCfg.s4 })
+    const stageLocal = JSON.parse(readFileSync(join(stage, 'org-config.local.json'), 'utf8'))
+    stageLocal.agent_defaults.research = `ops-research-glm-${matrix.roles.research.level}`
+    writeFileSync(join(stage, 'org-config.local.json'), JSON.stringify(stageLocal))
+    const s56 = runStage(['snapshots', '--project', mkProj('proj56', s1Synth)])
+    const out56 = `${s56.stdout || ''}${s56.stderr || ''}`
+    t('向量56 快照 S4 滞后＝WARN 不阻断（exit 0）＋岗位去重计数＋ISO inspected_at',
+      rep56.factory_fail === 0 && rep56.warn_roles === 2 && rep56.warn_field_diffs === 4 && rep56.derived_fail === 0 &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(rep56.inspected_at) &&
+      rep56.warns.map((w) => w.role).join(',') === 'research,planner' &&
+      s56.status === 0 && out56.includes('[WARN] research') && out56.includes('inspected_at=') && out56.includes('warn_field_diffs='))
+
+    // 向量57：出厂互恰 tmp 反例→FAIL exit 1（S1×S2 逐字段点名）
+    const s1Factory = clone(s1Synth)
+    s1Factory.roles.planner.default = 'yyx'
+    const s57 = runStage(['snapshots', '--project', mkProj('proj57', s1Factory)])
+    const out57 = `${s57.stdout || ''}${s57.stderr || ''}`
+    t('向量57 出厂互恰 tmp 反例→exit 1（出厂互恰破坏·S1×S2·planner 点名）',
+      s57.status === 1 && out57.includes('[FAIL]') && out57.includes('出厂互恰') && out57.includes('S1×S2') && out57.includes('planner'))
+
+    // 向量58：S2→S1 派生正例逐字节（九岗·规范化投影 Buffer 全等）
+    // ＋d-N12：投影/派生恰九岗——矩阵含第十岗（wizard）时额外 role 不入 projection，
+    // roles=9 且投影文本/bytes 口径与九岗基准完全一致（纯函数＋CLI tmp 反例双面）
+    const der58 = deriveS2ToS1(s1Synth, matrix)
+    const b58 = Buffer.from(der58.s2_text)
+    const mTen = clone(matrix)
+    mTen.roles.wizard = { ...clone(matrix.roles.planner), default: 'zipoo', fallback: ['zipoo'] }
+    const projTen = matrixProjection(mTen)
+    const derTen = deriveS2ToS1(mTen, mTen)
+    const s1Ten = clone(s1Synth)
+    s1Ten.roles.wizard = { default: 'zipoo', fallback: ['zipoo'] }
+    const s58 = runCli(['snapshots', '--json', '--project', mkProj('proj58', s1Ten)])
+    let j58 = null
+    try { j58 = JSON.parse(s58.stdout || '') } catch { j58 = null }
+    t('向量58 S2→S1 派生正例：逐字节一致＋恰九岗＋矩阵含第十岗投影仍九岗（roles/bytes 口径固定）',
+      der58.equal === true && der58.roles === 9 && Buffer.compare(Buffer.from(der58.s1_text), b58) === 0 &&
+      b58.length > 0 && der58.s2_text.endsWith('}\n') && Object.keys(JSON.parse(der58.s2_text).roles).length === 9 &&
+      Object.keys(projTen).length === 9 && !('wizard' in projTen) && Object.keys(projTen).join(',') === ROLE_ORDER.join(',') &&
+      derTen.roles === 9 && derTen.equal === true && derTen.s2_text === der58.s2_text && derTen.bytes === der58.bytes &&
+      s58.status === 0 && j58 !== null && j58.derived.roles === 9 && j58.derived.bytes === der58.bytes &&
+      !JSON.stringify(j58.warns || []).includes('wizard'))
+
+    // 向量59：派生反例→FAIL exit 1＋四源零写（运行前后哈希不变）
+    const s1Mut = clone(s1Synth)
+    s1Mut.roles.planner.fallback = [...s1Mut.roles.planner.fallback].reverse()
+    const proj59 = mkProj('proj59', s1Mut)
+    const files59 = [join(stage, 'templates', 'agents.matrix.json'), join(stage, 'org-config.default.json'), join(stage, 'org-config.local.json'), join(proj59, 'docs', 'agent-matrix.json')]
+    const before59 = files59.map(hashOf)
+    const s59 = runStage(['snapshots', '--project', proj59])
+    const after59 = files59.map(hashOf)
+    const out59 = `${s59.stdout || ''}${s59.stderr || ''}`
+    t('向量59 派生反例→exit 1＋四源零写（fallback 保序破环＝派生漂移·运行前后哈希不变）',
+      s59.status === 1 && out59.includes('派生') && out59.includes('derived_fail=1') && JSON.stringify(before59) === JSON.stringify(after59))
+
+    // 向量60：新 CLI 用法/退出族——未知/等号/缺值/额外参数=1；缺件/缺 project=3
+    const cases60 = [
+      [['dispatch-check', '--bogus'], 1, '[用法错]'],
+      [['dispatch-check', `--plan=${planPath53}`, '--route', routeNow], 1, '等号形态'],
+      [['dispatch-check', '--route', routeNow], 1, '--plan'],
+      [['dispatch-check', '--plan'], 1, '居末位'],
+      [['dispatch-check', '--plan', planPath53, '--route', routeNow, 'R0-a-extra'], 1, '额外参数'],
+      [['dispatch-check', '--json', '--plan', planPath53, '--route', routeNow], 1, '未识别的 flag'],
+      [['dispatch-check', '--plan', join(r0tmp, 'R0-a-missing.md'), '--route', routeNow, '--project', proj53], 3, '[装载错]'],
+      [['snapshots', '--bogus'], 1, '[用法错]'],
+      [['snapshots', 'R0-a-pos'], 1, '额外参数'],
+      [['snapshots', '--plan', 'x'], 1, '未识别的 flag'],
+      [['snapshots', '--project', join(r0tmp, 'R0-a-nodir')], 3, '[装载错]'],
+      [['snapshots', '--project'], 1, '居末位'],
+    ]
+    let ok60 = true
+    for (const [args, want, marker] of cases60) {
+      const r = runCli(args)
+      const out = `${r.stdout || ''}${r.stderr || ''}`
+      if (r.status !== want || !out.includes(marker)) {
+        ok60 = false
+        console.log(`FAIL 向量60 子项 ${JSON.stringify(args)} status=${r.status}(期望 ${want}) marker=${marker}`)
+      }
+    }
+    t('向量60 新 CLI 用法/退出族：未知/等号/缺值/额外参数=用法错，缺件/缺 project=装载错', ok60)
+  } finally {
+    rmSync(r0tmp, { recursive: true, force: true })
+  }
+
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
 }
@@ -712,6 +1222,8 @@ const COMMAND_FLAGS = {
   show: new Set(['--json', '--self-test']),
   resolve: new Set(['--route', '--agent', '--json', '--self-test']),
   doctor: new Set(['--json', '--self-test']),
+  'dispatch-check': new Set(['--plan', '--route', '--project', '--self-test']),
+  snapshots: new Set(['--project', '--json', '--self-test']),
 }
 /** 全局闭集=四命令并集（先拦完全陌生的 flag，再按命令拦跨命令 flag）。 */
 const ALLOWED_FLAGS = new Set(Object.values(COMMAND_FLAGS).flatMap((s) => [...s]))
@@ -891,6 +1403,109 @@ if (isMain) {
       const warn = findings.filter((f) => f.level === 'WARN').length
       console.log(`doctor 汇总：FAIL ${fail}/WARN ${warn}/共 ${findings.length}——${findings.length ? '阻断（逐条点名见上）' : '通过'}`)
       process.exit(findings.length ? 1 : 0)
+    }
+    if (cmd === 'dispatch-check') {
+      const extra = pos.slice(1)
+      if (extra.length) throw new UsageError(`dispatch-check 不接受额外参数：${extra.join(' ')}`)
+      const planPath = cliFlag(argv, '--plan')
+      const routeText = cliFlag(argv, '--route')
+      if (planPath === null) throw new UsageError('dispatch-check 需要 --plan <dispatch-plan.md>')
+      if (routeText === null) throw new UsageError('dispatch-check 需要 --route "<ROUTE>"')
+      const projectDir = resolveProjectDirOrExit(cliFlag(argv, '--project'))
+      const s1Path = join(projectDir, 'docs', 'agent-matrix.json')
+      let plan
+      let s1
+      try {
+        plan = parseDispatchPlan(readFileSync(planPath, 'utf8'))
+      } catch (e) {
+        console.error(`[装载错] dispatch-plan 解析失败（${planPath}）：${e.message}`)
+        process.exit(3)
+      }
+      try {
+        s1 = readJson(s1Path)
+      } catch (e) {
+        console.error(`[装载错] S1 主仓矩阵装载失败（${s1Path}）：${e.message}`)
+        process.exit(3)
+      }
+      const matrix = loadMatrixOrExit()
+      let cfg
+      try {
+        const loaded = loadOrgConfig(projectDir)
+        cfg = loaded.merged
+        if (!isPlainObject(cfg)) throw new Error('合并结果为空/非对象')
+        if (loaded.hasLocal !== true) // d-N10：S4 本机件缺席＝装载错，禁出厂默认静默代位
+          throw new Error('S4 本机件 org-config.local.json 缺席——dispatch-check 禁以出厂默认（S3）静默代位（现役默认权威=S4）')
+      } catch (e) {
+        console.error(`[装载错] org-config 装载失败：${e.message}`)
+        process.exit(3)
+      }
+      let result
+      try {
+        result = dispatchCheck({ plan, routeText, matrix, cfg, s1 })
+      } catch (e) {
+        if (e instanceof UsageError) {
+          console.error(`[用法错] ${e.message}`)
+          process.exit(1)
+        }
+        console.error(`[装载错] ${e.message}`)
+        process.exit(3)
+      }
+      console.log(`plan: ${planPath}（§1 九岗实选表＋§2 ROUTE）`)
+      printTable(['岗位', 'plan_slot', 'resolved_slot', 'route_source', '启用'],
+        result.rows.map((r) => [r.role, r.plan_slot, r.resolved_slot, r.route_source, r.enabled ? '是' : '否']))
+      console.log(`implreview 第二席（常设·S1 series_process.reviewer_second）: plan=${result.second_plan_slot} s1=${result.second_reviewer}`)
+      for (const note of result.notes || []) console.error(`[note] ${note}`)
+      for (const e of result.route_errors) console.error(`[FAIL] ROUTE 校验：${e}`)
+      for (const d of result.diffs) console.error(`[FAIL] ${d}`)
+      console.log(`dispatch_check=${result.ok ? 'PASS' : 'FAIL'} roles=${result.roles} enabled=${result.enabled} route_items=${result.route_items} second_reviewer=${result.second_reviewer}`)
+      process.exit(result.ok ? 0 : 1)
+    }
+    if (cmd === 'snapshots') {
+      const extra = pos.slice(1)
+      if (extra.length) throw new UsageError(`snapshots 不接受额外参数：${extra.join(' ')}`)
+      const projectDir = resolveProjectDirOrExit(cliFlag(argv, '--project'))
+      const paths = {
+        s1: join(projectDir, 'docs', 'agent-matrix.json'),
+        s2: MATRIX_PATH,
+        s3: join(SKILL_ROOT, 'org-config.default.json'),
+        s4: join(SKILL_ROOT, 'org-config.local.json'),
+      }
+      const sources = {}
+      for (const [k, p] of Object.entries(paths)) {
+        try {
+          sources[k] = readJson(p)
+        } catch (e) {
+          console.error(`[装载错] ${k.toUpperCase()} 装载失败（${p}）：${e.message}`)
+          process.exit(3)
+        }
+      }
+      let report
+      try {
+        report = snapshotReport(sources)
+      } catch (e) {
+        console.error(`[装载错] 快照投影/比较失败：${e.message}`)
+        process.exit(3)
+      }
+      const fmt = (v) => `default=${v.default} fallback=${JSON.stringify(v.fallback)}`
+      if (!json) {
+        console.log(`[S1] ${paths.s1}（主仓矩阵·出厂快照）`)
+        console.log(`[S2] ${paths.s2}（技能仓矩阵·出厂快照）`)
+        console.log(`[S3] ${paths.s3}（出厂 agent_defaults/role_fallbacks）`)
+        console.log(`[S4] ${paths.s4}（现役默认权威）`)
+        for (const w of report.warns) console.log(`[WARN] ${w.role} fields=${w.fields.join(',')} | S1 ${fmt(w.values.S1)} | S2 ${fmt(w.values.S2)} | S3 ${fmt(w.values.S3)} | S4 ${fmt(w.values.S4)}`)
+      }
+      for (const d of report.factory_diffs) {
+        const [fa, fb] = d.pair.split('×')
+        console.error(`[FAIL] 出厂互恰破坏 ${d.pair} ${d.role}.${d.field}: ${fa}=${JSON.stringify(d[fa])} ≠ ${fb}=${JSON.stringify(d[fb])}`)
+      }
+      if (report.derived_fail)
+        console.error(`[FAIL] S2→S1 单向派生漂移：共有 default/fallback 子面规范化投影逐字节不一致（roles=${report.derived.roles} bytes=${report.derived.bytes}）——禁反向写修复`)
+      if (json) {
+        console.log(JSON.stringify({ ...report, sources: paths }, null, 2))
+      } else {
+        console.log(`snapshots 汇总：factory_fail=${report.factory_fail} warn_roles=${report.warn_roles} warn_field_diffs=${report.warn_field_diffs} derived_fail=${report.derived_fail} inspected_at=${report.inspected_at}`)
+      }
+      process.exit(report.factory_fail || report.derived_fail ? 1 : 0)
     }
     throw new UsageError(`未知命令「${cmd}」\n${usage()}`)
   } catch (e) {

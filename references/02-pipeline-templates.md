@@ -236,6 +236,10 @@ vision 的 startplan 仅为文本应急候选（multimodal=false，实测不可�
 
 记录：每次派发在变更与成本记录里写 JSON 一行——`{"role":"executor","slot":"ops-executor-glmflash-high","route_source":"prompt","fallback_from":null,"family":"glm","level":"high"}`；`log-triage` 用它核对声明与实际路由是否一致，不一致即告警。
 
+1. 派发前必跑 dispatch-check：对九岗 dispatch-plan、resolve 结果与拟派名单三方对账；陈旧 ROUTE 或启用集不符即停止派发。
+2. 快照语义：S1/S2/S3=出厂快照，S4=现役默认权威；出厂滞后=WARN，实际消费=FAIL；S2→S1 共有 default/fallback 子面单向派生，禁止反向写。
+3. 批次任务书 ROUTE 变更须附九岗全量 before/after diff（含未变岗与常设第二审；B8 r8 为先例）。
+
 ### 8.2 切换语义与命令契约
 
 | 操作 | 命令 | 生效时间 | 是否需要新会话 |
@@ -251,6 +255,9 @@ vision 的 startplan 仅为文本应急候选（multimodal=false，实测不可�
 命令契约（`node scripts/agent-slots.mjs`）：`list [--role <role>] [--json]`｜`show <slot>`｜`resolve --route "<route 串>" [--json]`｜`select [--project <dir>] <role> <slot>`｜`gen <role> <provider> <level> [--dry-run]`｜`enable|disable <slot>`｜`preset balanced|all-glm|all-kimi|ds-audit`｜`doctor [--json]`｜`sync`。
 
 行为约束：`select` 只接受矩阵中已存在的 slot、不改 model/level；`gen` 生成新代理档案并更新矩阵、需要新会话验证、默认 `--dry-run` 先打印将写入的文件；`preset` 只批量 `select`、不改代理档案，`all-glm` 与 `all-kimi` 会让实现与审核同族、应用时必须告警；`doctor` 只读——发现名字与绑定不一致、provider 无法解析、vision 非多模态、默认同族时返回非零；`sync` 从矩阵生成代理档案与路由索引件、不反向写矩阵。
+
+- `dispatch-check --plan <dispatch-plan.md> --route "<ROUTE>" [--project <dir>]`（三方对账，陈旧/启用集不符 exit 1，装载 exit 3）
+- `snapshots [--project <dir>] [--json]`（六比较只读，滞后 WARN/exit 0，互恰或派生 FAIL/exit 1，装载 exit 3）
 
 ### 8.3 调度模式
 

@@ -40,7 +40,7 @@ const ROLE_GROUPS = [
 ];
 
 // 技能仓配置装载器单源复用（三层深合并；isMain 守卫零副作用）
-const { loadOrgConfig } = await import(pathToFileURL(path.join(SKILL, 'scripts', 'org-config.mjs')).href);
+const { loadOrgConfig, cfgHash } = await import(pathToFileURL(path.join(SKILL, 'scripts', 'org-config.mjs')).href);
 
 // 生命周期（随页生灭）：页面心跳注册；全部页面离线（信标或心跳超时）即自动退出。
 const STARTUP_MS = Number(process.env.ORG_PANEL_STARTUP_MS || 60000); // 启动后无人接入的容忍窗
@@ -73,20 +73,91 @@ const git1 = (repo) => {
   } catch { return { head: '?', subject: 'git 不可用', branch: '?', clean: false }; }
 };
 const readLocal = () => JSON.parse(fs.readFileSync(LOCAL, 'utf8'));
+// R0 B2（D-B2）写路径白名单：writeLocal 的备份/临时文件/rename 目标与 restoreLocal 的
+// 恢复目标在每次落盘前逐一校验；路径解析（realpath 父目录＋lstat 本体）后必须仍等于
+// LOCAL 同目录内三项精确成员——LOCAL 本体、LOCAL+'.panel-bak'、'.<basename>.<pid>.tmp'
+// 模式——拒绝 symlink/路径穿越旁路。违者抛错（rejectKind=whitelist:*）＝零写入配置。
+const PANEL_WRITE_ALLOWLIST = {
+  dir: path.dirname(LOCAL),
+  local: LOCAL,
+  bak: LOCAL + '.panel-bak',
+  tmpRe: new RegExp('^\\.' + path.basename(LOCAL).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\.\\d+\\.tmp$'),
+};
+function panelWriteCheck(target) {
+  try {
+    const dir = fs.realpathSync(PANEL_WRITE_ALLOWLIST.dir);
+    const resolved = path.resolve(String(target));
+    const parent = fs.realpathSync(path.dirname(resolved));
+    if (parent !== dir) return { ok: false, reason: '目录越界' };
+    // R1：symlink 判定改 lstat（existsSync 会跟随链接——断链 symlink 被穿透＝旁路洞）
+    let st = null;
+    try { st = fs.lstatSync(resolved); } catch {}
+    if (st && st.isSymbolicLink()) return { ok: false, reason: 'symlink 目标' };
+    if (resolved === PANEL_WRITE_ALLOWLIST.local || resolved === PANEL_WRITE_ALLOWLIST.bak || PANEL_WRITE_ALLOWLIST.tmpRe.test(path.basename(resolved))) return { ok: true };
+    return { ok: false, reason: '白名单外目标' };
+  } catch (e) { return { ok: false, reason: '路径解析失败:' + (e && e.code ? e.code : 'error') }; }
+}
+const writeGuard = (target, kind) => {
+  const c = panelWriteCheck(target);
+  if (!c.ok) { const e = new Error(`写路径白名单拒绝（${kind}·${c.reason}）——本操作零写入`); e.rejectKind = `whitelist:${c.reason}`; throw e; }
+};
 // B4 D-5：原子写=同目录临时文件＋rename 替换；写前保留 .panel-bak（restoreLocal 的
 // 原字节恢复源，语义不变），异常时清理临时文件。备份恢复仍走 .panel-bak 原字节 copy。
 const writeLocal = (obj) => {
+  writeGuard(LOCAL + '.panel-bak', '备份目标');
   fs.copyFileSync(LOCAL, LOCAL + '.panel-bak');
   const tmp = path.join(path.dirname(LOCAL), `.${path.basename(LOCAL)}.${process.pid}.tmp`);
+  writeGuard(tmp, '临时文件');
   try {
     fs.writeFileSync(tmp, JSON.stringify(obj, null, 2) + '\n');
+    writeGuard(LOCAL, 'rename 目标');
     fs.renameSync(tmp, LOCAL);
   } catch (e) {
     try { fs.unlinkSync(tmp); } catch {}
     throw e;
   }
 };
-const restoreLocal = () => { fs.copyFileSync(LOCAL + '.panel-bak', LOCAL); };
+const restoreLocal = () => { writeGuard(LOCAL, '恢复目标'); fs.copyFileSync(LOCAL + '.panel-bak', LOCAL); };
+// R0 B1（D-B1）三写 API 审计链：/api/order、/api/level、/api/sync 每个受理的写操作向
+// SKILL_ROOT/.zcode/panel-write-audit.jsonl 追加恰好一行 JSON（appendFileSync 单行原子
+// 追加·append-only：禁重写/排序/删除/以 bak 倒推历史写序；运行时路径由 SKILL 推导，不写死
+// 绝对路径）。字段固定 {ts,op,before_cfg_sha12,after_cfg_sha12,result,detail}；before/after
+// 均为 cfgHash(loadOrgConfig(SKILL).merged)（org-config.mjs 已导出），写前、写后各算一次；
+// op∈order/level/sync；result∈ok/rolled_back/rejected；ts=ISO；detail 只放 role、
+// HTTP/validate/sync code、错误类别等非密钥摘要。回滚后的 after=回滚完成态；sync 不改
+// 配置时 before=after 仍记录。审计追加失败＝写操作显式失败并按既有回滚链恢复，不得静默
+// 无审计成功。面板对主仓与技能仓 org-ledger.jsonl 零写（主控批后补账，本件是唯一写序记录）。
+const AUDIT_PATH = path.join(SKILL, '.zcode', 'panel-write-audit.jsonl');
+const cfgSha12 = () => cfgHash(loadOrgConfig(SKILL).merged);
+function auditAppend(op, before, after, result, detail) {
+  fs.appendFileSync(AUDIT_PATH, JSON.stringify({ ts: new Date().toISOString(), op, before_cfg_sha12: before, after_cfg_sha12: after, result, detail }) + '\n', 'utf8');
+}
+function auditFailText(e) { return `审计追加失败（${AUDIT_PATH}）——本次写操作判失败：${e && e.code ? e.code + ' ' : ''}${e ? e.message : ''}`; }
+// R1 z-B02/d-W02：哈希字段显式哨兵——before/after 计算失败（配置装载/哈希不可算）时以
+// 'unavailable' 显式占位，绝不伪填对方哈希、绝不借哨兵记 ok/rolled_back（rolled_back 只
+// 在取得真实回滚完成态哈希后记录）。哨兵语义见 panel/README.md 写审计链节。
+const AUDIT_HASH_SENTINEL = 'unavailable';
+function tryCfgSha12() { try { return { ok: true, hash: cfgSha12() }; } catch (e) { return { ok: false, error: e.message }; } }
+/** R1 z-W01/d-N03：尽力回滚链——restoreLocal（白名单守卫内）＋复跑 validate＋回滚完成态
+ *  哈希；回滚失败时 hash 只反映当时实况且 rolledBack=false（不伪报回滚成功）。 */
+function tryRollback() {
+  try {
+    restoreLocal();
+    const revalidate = run('node scripts/org-config.mjs validate');
+    const h = tryCfgSha12();
+    return { rolledBack: true, hash: h.ok ? h.hash : null, revalidate, error: '' };
+  } catch (e) {
+    const h = tryCfgSha12();
+    return { rolledBack: false, hash: h.ok ? h.hash : null, revalidate: null, error: e.message };
+  }
+}
+// R0 B1：handler 级预检拒绝（非 JSON/缺参/形态错）＝零写入受理前拒绝，同样留一行
+// result=rejected 审计（before=after=当时配置哈希，装载失败时用显式哨兵；追加失败时
+// 仍以 400 显式拒绝收口）。
+function auditPreReject(op, category) {
+  const b = tryCfgSha12();
+  try { auditAppend(op, b.ok ? b.hash : AUDIT_HASH_SENTINEL, b.ok ? b.hash : AUDIT_HASH_SENTINEL, 'rejected', category); } catch {}
+}
 
 /** B4 D-6：部署实况档位——agent_defaults[role] 槽对应部署件 frontmatter thoughtLevel。
  *  解析契约与 deploy-check readFrontmatterFields 同构（首 --- 对到次 ---，剥引号）；本地实现、禁 import deploy-check（CLI 副作用隔离）。缺失/异常/无值='?'。 */
@@ -183,30 +254,82 @@ function state() {
 }
 
 /** 顺序写入（串行互斥）：order=provider 短名全排列；原子双写 role_fallbacks＋agent_defaults，
- *  validate 不过即回滚 .panel-bak。返回 {ok, validate}。 */
+ *  validate 不过即回滚 .panel-bak。返回 {ok, validate}。
+ *  R0 B1＋R1 z-B02/z-W01：每个受理写恰追加一行审计；before/after=cfgHash(merged) 写前/写后
+ *  各一次，哈希不可算以 'unavailable' 哨兵显式占位（绝不伪填）；写后异常（validate 失败/
+ *  after 哈希失败/审计追加失败/执行异常）统一走 tryRollback 回滚链——只在取得真实回滚完成态
+ *  哈希时记 rolled_back，回滚失败以 rejected＋rollback_ok=false 显式留痕；写前拒绝记
+ *  rejected（零写入）。审计追加失败＝显式失败＋尽力回滚，无静默无审计成功。 */
 let writeChain = Promise.resolve();
 function setOrder(role, order) {
   const runJob = () => {
-    const { merged } = loadOrgConfig(SKILL);
-    const level = ((MATRIX.roles || {})[role] || {}).level; // 矩阵进程级单次读盘（模块顶装载）
-    if (!level) return { ok: false, error: `未知角色「${role}」` };
-    const pool = [...new Set(Object.keys(merged.agent_slots || {})
-      .map((s) => SLOT_RE.exec(s))
-      .filter((m) => m && m[1] === role)
-      .map((m) => m[2]))];
-    const uniq = [...new Set(order)];
-    if (uniq.length !== order.length) return { ok: false, error: '顺序含重复 provider' };
-    if (uniq.length !== pool.length || !uniq.every((p) => pool.includes(p))) {
-      return { ok: false, error: `顺序须为该角色候选池（${pool.join(', ')}）的全排列` };
+    const before = tryCfgSha12();
+    if (!before.ok) {
+      try { auditAppend('order', AUDIT_HASH_SENTINEL, AUDIT_HASH_SENTINEL, 'rejected', `role=${role} reject=before_hash_unavailable`); } catch (e) { return { ok: false, error: auditFailText(e), rolledBack: false }; }
+      return { ok: false, error: `配置装载失败（before 哈希不可算·零写入）：${before.error}`, rolledBack: false };
     }
-    const slots = uniq.map((p) => `ops-${role}-${p}-${level}`);
-    const l = readLocal();
-    l.role_fallbacks = { ...(l.role_fallbacks || {}), [role]: slots };
-    l.agent_defaults = { ...(l.agent_defaults || {}), [role]: slots[0] };
-    writeLocal(l);
-    const validate = run('node scripts/org-config.mjs validate');
-    if (validate.code !== 0) { restoreLocal(); run('node scripts/org-config.mjs validate'); }
-    return { ok: validate.code === 0, validate };
+    const rejectZeroWrite = (detail, error) => {
+      try { auditAppend('order', before.hash, before.hash, 'rejected', detail); } catch (e) { return { ok: false, error: auditFailText(e), rolledBack: false }; }
+      return { ok: false, error, rolledBack: false };
+    };
+    let written = false;
+    try {
+      const { merged } = loadOrgConfig(SKILL);
+      const level = ((MATRIX.roles || {})[role] || {}).level; // 矩阵进程级单次读盘（模块顶装载）
+      if (!level) return rejectZeroWrite(`role=${role} reject=unknown_role`, `未知角色「${role}」`);
+      const pool = [...new Set(Object.keys(merged.agent_slots || {})
+        .map((s) => SLOT_RE.exec(s))
+        .filter((m) => m && m[1] === role)
+        .map((m) => m[2]))];
+      const uniq = [...new Set(order)];
+      if (uniq.length !== order.length) return rejectZeroWrite(`role=${role} reject=duplicate_provider`, '顺序含重复 provider');
+      if (uniq.length !== pool.length || !uniq.every((p) => pool.includes(p))) {
+        return rejectZeroWrite(`role=${role} reject=not_permutation`, `顺序须为该角色候选池（${pool.join(', ')}）的全排列`);
+      }
+      const slots = uniq.map((p) => `ops-${role}-${p}-${level}`);
+      const l = readLocal();
+      l.role_fallbacks = { ...(l.role_fallbacks || {}), [role]: slots };
+      l.agent_defaults = { ...(l.agent_defaults || {}), [role]: slots[0] };
+      writeLocal(l);
+      written = true;
+      const validate = run('node scripts/org-config.mjs validate');
+      if (validate.code !== 0) {
+        const rb = tryRollback();
+        if (rb.hash !== null && rb.rolledBack) {
+          try { auditAppend('order', before.hash, rb.hash, 'rolled_back', `role=${role} validate=${validate.code} rolled_back=1`); } catch (e) { return { ok: false, error: auditFailText(e), validate, rolledBack: rb.rolledBack }; }
+          return { ok: false, validate, revalidate: rb.revalidate, rolledBack: true };
+        }
+        try { auditAppend('order', before.hash, rb.hash !== null ? rb.hash : AUDIT_HASH_SENTINEL, 'rejected', `role=${role} reject=post_write_validate_${validate.code} rollback_ok=${rb.rolledBack}`); } catch (e) { return { ok: false, error: auditFailText(e), validate, rolledBack: rb.rolledBack }; }
+        return { ok: false, error: `写后校验失败且未能取得真实回滚态哈希（回滚${rb.rolledBack ? '已执行' : '失败：' + rb.error}）——不记 rolled_back，配置态见审计 after 字段`, validate, rolledBack: rb.rolledBack };
+      }
+      const after = tryCfgSha12();
+      if (!after.ok) {
+        const rb = tryRollback();
+        if (rb.hash !== null && rb.rolledBack) {
+          try { auditAppend('order', before.hash, rb.hash, 'rolled_back', `role=${role} reject=after_hash_unavailable rolled_back=1`); } catch (e) { return { ok: false, error: auditFailText(e), rolledBack: rb.rolledBack }; }
+          return { ok: false, error: `after 哈希不可算——已回滚，按真实回滚完成态记 rolled_back（${after.error}）`, rolledBack: true };
+        }
+        try { auditAppend('order', before.hash, rb.hash !== null ? rb.hash : AUDIT_HASH_SENTINEL, 'rejected', `role=${role} reject=after_hash_unavailable rollback_ok=${rb.rolledBack}`); } catch (e) { return { ok: false, error: auditFailText(e), rolledBack: rb.rolledBack }; }
+        return { ok: false, error: `after 哈希不可算且未能确认回滚完成态（${after.error}；回滚${rb.rolledBack ? '已执行' : '失败：' + rb.error}）——显式失败，不记 ok`, rolledBack: rb.rolledBack };
+      }
+      try { auditAppend('order', before.hash, after.hash, 'ok', `role=${role} validate=0`); } catch (e) {
+        const rb = tryRollback();
+        return { ok: false, error: auditFailText(e) + `（已按 .panel-bak 尽力回滚：rolledBack=${rb.rolledBack}）`, validate, rolledBack: rb.rolledBack };
+      }
+      return { ok: true, validate };
+    } catch (e) {
+      if (e && e.rejectKind) return rejectZeroWrite(`role=${role} reject=${e.rejectKind}`, e.message);
+      if (written) {
+        const rb = tryRollback();
+        if (rb.hash !== null && rb.rolledBack) {
+          try { auditAppend('order', before.hash, rb.hash, 'rolled_back', `role=${role} reject=execution:${(e && e.code) || 'error'} rolled_back=1`); } catch (e2) { return { ok: false, error: auditFailText(e2), rolledBack: rb.rolledBack }; }
+          return { ok: false, error: `写后执行异常——已回滚（${e.message}）`, rolledBack: true };
+        }
+        try { auditAppend('order', before.hash, rb.hash !== null ? rb.hash : AUDIT_HASH_SENTINEL, 'rejected', `role=${role} reject=execution:${(e && e.code) || 'error'} rollback_ok=${rb.rolledBack}`); } catch (e2) { return { ok: false, error: auditFailText(e2), rolledBack: rb.rolledBack }; }
+        return { ok: false, error: `写后执行异常且回滚未确认（${e.message}；回滚${rb.rolledBack ? '已执行' : '失败：' + rb.error}）`, rolledBack: rb.rolledBack };
+      }
+      return rejectZeroWrite(`role=${role} reject=execution:${(e && e.code) || 'error'}`, e.message);
+    }
   };
   const job = writeChain.then(runJob, runJob);
   writeChain = job.catch(() => {});
@@ -217,42 +340,87 @@ function setOrder(role, order) {
  *  本机件 agent_bindings 中目标角色全部槽位绑定值末个 `$` 后的档位后缀（front/model
  *  段逐字不动）；level=出厂档时删除覆盖键并还原后缀，不等时写覆盖键并改写后缀。
  *  全或无：目标角色全部槽位绑定预检（非字符串/缺 `$`/缺 `/`=零写入）；写后 validate
- *  失败=restoreLocal 回滚＋复跑 validate（rolledBack:true）；validate 过后 sync-agents，
- *  sync 失败不回滚已验证配置，由响应与日志显式暴露（手动同步可重试）。 */
+ *  失败=回滚链（rolledBack 真值）；validate 过后 sync-agents，sync 失败不回滚已验证
+ *  配置，由响应与日志显式暴露（手动同步可重试）。
+ *  R0 B1＋R1 z-B02/z-W01：审计链同 setOrder（哨兵/回滚链/写前拒绝区分）；sync 失败不改写
+ *  已验证配置，审计 result=ok 且 detail 记 sync 非零码（写序真值）。 */
 function setLevel(role, level) {
   const runJob = () => {
-    const factory = ((MATRIX.roles || {})[role] || {}).level;
-    if (!factory || !THINK_LEVELS.includes(level)) return { ok: false, error: `参数非法：role∈九角色且 level∈${THINK_LEVELS.join('|')}` };
-    // B4 返工 R4：目标槽集=merged.agent_slots 全池（SLOT_RE 角色 match），并要求全池槽在本机件
-    // agent_bindings 齐备——缺槽=409 预检失败零写入（不改写默认层，防未来槽/绑漂移）。
-    const { merged } = loadOrgConfig(SKILL);
-    const pool = Object.keys(merged.agent_slots || {}).filter((k) => { const m = SLOT_RE.exec(k); return m && m[1] === role; });
-    const l = readLocal();
-    const bindings = l.agent_bindings || {};
-    for (const k of pool) {
-      if (!Object.prototype.hasOwnProperty.call(bindings, k))
-        return { ok: false, error: `槽 ${k} 在本机件 agent_bindings 缺键（该角色全池槽须齐备）——已拒绝写入（零写入）`, rolledBack: false };
-      const v = bindings[k];
-      if (typeof v !== 'string' || !v.includes('$') || !v.includes('/'))
-        return { ok: false, error: `绑定值异常（${k}=${JSON.stringify(v)})——须为 <front>/<model>$<档位>，已拒绝写入（零写入）`, rolledBack: false };
+    const before = tryCfgSha12();
+    if (!before.ok) {
+      try { auditAppend('level', AUDIT_HASH_SENTINEL, AUDIT_HASH_SENTINEL, 'rejected', `role=${role} reject=before_hash_unavailable`); } catch (e) { return { ok: false, error: auditFailText(e), rolledBack: false }; }
+      return { ok: false, error: `配置装载失败（before 哈希不可算·零写入）：${before.error}`, rolledBack: false };
     }
-    const overrides = { ...(l.thought_level_overrides && typeof l.thought_level_overrides === 'object' && !Array.isArray(l.thought_level_overrides) ? l.thought_level_overrides : {}) };
-    if (level === factory) delete overrides[role]; else overrides[role] = level;
-    const next = { ...l, agent_bindings: { ...bindings } };
-    for (const k of pool) {
-      const v = next.agent_bindings[k];
-      next.agent_bindings[k] = `${v.slice(0, v.lastIndexOf('$'))}$${level}`;
+    const rejectZeroWrite = (detail, error) => {
+      try { auditAppend('level', before.hash, before.hash, 'rejected', detail); } catch (e) { return { ok: false, error: auditFailText(e), rolledBack: false }; }
+      return { ok: false, error, rolledBack: false };
+    };
+    let written = false;
+    try {
+      const factory = ((MATRIX.roles || {})[role] || {}).level;
+      if (!factory || !THINK_LEVELS.includes(level)) return rejectZeroWrite(`role=${role} reject=bad_params`, `参数非法：role∈九角色且 level∈${THINK_LEVELS.join('|')}`);
+      // B4 返工 R4：目标槽集=merged.agent_slots 全池（SLOT_RE 角色 match），并要求全池槽在本机件
+      // agent_bindings 齐备——缺槽=409 预检失败零写入（不改写默认层，防未来槽/绑漂移）。
+      const { merged } = loadOrgConfig(SKILL);
+      const pool = Object.keys(merged.agent_slots || {}).filter((k) => { const m = SLOT_RE.exec(k); return m && m[1] === role; });
+      const l = readLocal();
+      const bindings = l.agent_bindings || {};
+      for (const k of pool) {
+        if (!Object.prototype.hasOwnProperty.call(bindings, k))
+          return rejectZeroWrite(`role=${role} reject=bindings_missing(${k})`, `槽 ${k} 在本机件 agent_bindings 缺键（该角色全池槽须齐备）——已拒绝写入（零写入）`);
+        const v = bindings[k];
+        if (typeof v !== 'string' || !v.includes('$') || !v.includes('/'))
+          return rejectZeroWrite(`role=${role} reject=bindings_bad_shape(${k})`, `绑定值异常（${k}=${JSON.stringify(v)})——须为 <front>/<model>$<档位>，已拒绝写入（零写入）`);
+      }
+      const overrides = { ...(l.thought_level_overrides && typeof l.thought_level_overrides === 'object' && !Array.isArray(l.thought_level_overrides) ? l.thought_level_overrides : {}) };
+      if (level === factory) delete overrides[role]; else overrides[role] = level;
+      const next = { ...l, agent_bindings: { ...bindings } };
+      for (const k of pool) {
+        const v = next.agent_bindings[k];
+        next.agent_bindings[k] = `${v.slice(0, v.lastIndexOf('$'))}$${level}`;
+      }
+      if (Object.keys(overrides).length) next.thought_level_overrides = overrides; else delete next.thought_level_overrides;
+      writeLocal(next);
+      written = true;
+      const validate = run('node scripts/org-config.mjs validate');
+      if (validate.code !== 0) {
+        const rb = tryRollback();
+        if (rb.hash !== null && rb.rolledBack) {
+          try { auditAppend('level', before.hash, rb.hash, 'rolled_back', `role=${role} level=${level} validate=${validate.code} rolled_back=1`); } catch (e) { return { ok: false, error: auditFailText(e), validate, rolledBack: rb.rolledBack }; }
+          return { ok: false, error: '配置校验失败——已回滚到写前面（.panel-bak 原字节）', validate, revalidate: rb.revalidate, rolledBack: true };
+        }
+        try { auditAppend('level', before.hash, rb.hash !== null ? rb.hash : AUDIT_HASH_SENTINEL, 'rejected', `role=${role} level=${level} reject=post_write_validate_${validate.code} rollback_ok=${rb.rolledBack}`); } catch (e) { return { ok: false, error: auditFailText(e), validate, rolledBack: rb.rolledBack }; }
+        return { ok: false, error: `写后校验失败且未能取得真实回滚态哈希（回滚${rb.rolledBack ? '已执行' : '失败：' + rb.error}）——不记 rolled_back`, validate, rolledBack: rb.rolledBack };
+      }
+      const sync = run('node scripts/deploy-check.mjs --sync-agents');
+      const after = tryCfgSha12();
+      if (!after.ok) {
+        const rb = tryRollback();
+        if (rb.hash !== null && rb.rolledBack) {
+          try { auditAppend('level', before.hash, rb.hash, 'rolled_back', `role=${role} level=${level} reject=after_hash_unavailable rolled_back=1`); } catch (e) { return { ok: false, error: auditFailText(e), validate, sync, rolledBack: rb.rolledBack }; }
+          return { ok: false, error: `after 哈希不可算——已回滚，按真实回滚完成态记 rolled_back（${after.error}）`, validate, sync, rolledBack: true };
+        }
+        try { auditAppend('level', before.hash, rb.hash !== null ? rb.hash : AUDIT_HASH_SENTINEL, 'rejected', `role=${role} level=${level} reject=after_hash_unavailable rollback_ok=${rb.rolledBack}`); } catch (e) { return { ok: false, error: auditFailText(e), validate, sync, rolledBack: rb.rolledBack }; }
+        return { ok: false, error: `after 哈希不可算且未能确认回滚完成态（${after.error}）——显式失败，不记 ok`, validate, sync, rolledBack: rb.rolledBack };
+      }
+      try { auditAppend('level', before.hash, after.hash, 'ok', `role=${role} level=${level} validate=0 sync=${sync.code}`); } catch (e) {
+        const rb = tryRollback();
+        return { ok: false, error: auditFailText(e) + `（已按 .panel-bak 尽力回滚：rolledBack=${rb.rolledBack}）`, validate, sync, rolledBack: rb.rolledBack };
+      }
+      return { ok: true, validate, sync, rolledBack: false };
+    } catch (e) {
+      if (e && e.rejectKind) return rejectZeroWrite(`role=${role} reject=${e.rejectKind}`, e.message);
+      if (written) {
+        const rb = tryRollback();
+        if (rb.hash !== null && rb.rolledBack) {
+          try { auditAppend('level', before.hash, rb.hash, 'rolled_back', `role=${role} level=${level} reject=execution:${(e && e.code) || 'error'} rolled_back=1`); } catch (e2) { return { ok: false, error: auditFailText(e2), rolledBack: rb.rolledBack }; }
+          return { ok: false, error: `写后执行异常——已回滚（${e.message}）`, rolledBack: true };
+        }
+        try { auditAppend('level', before.hash, rb.hash !== null ? rb.hash : AUDIT_HASH_SENTINEL, 'rejected', `role=${role} level=${level} reject=execution:${(e && e.code) || 'error'} rollback_ok=${rb.rolledBack}`); } catch (e2) { return { ok: false, error: auditFailText(e2), rolledBack: rb.rolledBack }; }
+        return { ok: false, error: `写后执行异常且回滚未确认（${e.message}）`, rolledBack: rb.rolledBack };
+      }
+      return rejectZeroWrite(`role=${role} reject=execution:${(e && e.code) || 'error'}`, e.message);
     }
-    if (Object.keys(overrides).length) next.thought_level_overrides = overrides; else delete next.thought_level_overrides;
-    writeLocal(next);
-    const validate = run('node scripts/org-config.mjs validate');
-    if (validate.code !== 0) {
-      restoreLocal();
-      const revalidate = run('node scripts/org-config.mjs validate');
-      return { ok: false, error: '配置校验失败——已回滚到写前面（.panel-bak 原字节）', validate, revalidate, rolledBack: true };
-    }
-    const sync = run('node scripts/deploy-check.mjs --sync-agents');
-    return { ok: true, validate, sync, rolledBack: false };
   };
   const job = writeChain.then(runJob, runJob);
   writeChain = job.catch(() => {});
@@ -286,24 +454,46 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && url.pathname === '/api/order') {
     return readBody(req).then((b) => {
       let body;
-      try { body = JSON.parse(b || '{}'); } catch { return send(400, { error: '请求体须为 JSON' }); }
+      try { body = JSON.parse(b || '{}'); } catch { auditPreReject('order', 'reject=bad_json'); return send(400, { error: '请求体须为 JSON' }); }
       const { role, order } = body || {};
-      if (!ROLE_ORDER.includes(role)) return send(400, { error: `role 必填且∈${ROLE_ORDER.length} 角色（${ROLE_ORDER.join(', ')}）` });
-      if (!Array.isArray(order) || order.length === 0 || order.some((p) => typeof p !== 'string')) return send(400, { error: 'order 须为非空 provider 短名数组' });
+      if (!ROLE_ORDER.includes(role)) { auditPreReject('order', `role=${role} reject=unknown_role`); return send(400, { error: `role 必填且∈${ROLE_ORDER.length} 角色（${ROLE_ORDER.join(', ')}）` }); }
+      if (!Array.isArray(order) || order.length === 0 || order.some((p) => typeof p !== 'string')) { auditPreReject('order', `role=${role} reject=bad_order_shape`); return send(400, { error: 'order 须为非空 provider 短名数组' }); }
       return setOrder(role, order).then((r) => send(r.ok ? 200 : 409, r));
     });
   }
   if (req.method === 'POST' && url.pathname === '/api/level') {
     return readBody(req).then((b) => {
       let body;
-      try { body = JSON.parse(b || '{}'); } catch { return send(400, { error: '请求体须为 JSON' }); }
+      try { body = JSON.parse(b || '{}'); } catch { auditPreReject('level', 'reject=bad_json'); return send(400, { error: '请求体须为 JSON' }); }
       const { role, level } = body || {};
-      if (!ROLE_ORDER.includes(role)) return send(400, { error: `role 必填且∈${ROLE_ORDER.length} 角色（${ROLE_ORDER.join(', ')}）` });
-      if (!THINK_LEVELS.includes(level)) return send(400, { error: `level 必填且∈${THINK_LEVELS.join('|')}` });
+      if (!ROLE_ORDER.includes(role)) { auditPreReject('level', `role=${role} reject=unknown_role`); return send(400, { error: `role 必填且∈${ROLE_ORDER.length} 角色（${ROLE_ORDER.join(', ')}）` }); }
+      if (!THINK_LEVELS.includes(level)) { auditPreReject('level', `role=${role} reject=bad_level`); return send(400, { error: `level 必填且∈${THINK_LEVELS.join('|')}` }); }
       return setLevel(role, level).then((r) => send(r.ok ? 200 : 409, r));
     });
   }
-  if (req.method === 'POST' && url.pathname === '/api/sync') return send(200, run('node scripts/deploy-check.mjs --sync-agents'));
+  if (req.method === 'POST' && url.pathname === '/api/sync') {
+    // R1 z-B01/d-W01：sync 执行＋after＋审计全部纳入 writeChain——与 order/level 同链串行，
+    // 审计行序＝写链执行序（哈希链 before[n]==after[n-1] 在并发下仍闭合）。
+    return readBody(req).then(() => {
+      const runJob = () => {
+        const before = tryCfgSha12();
+        const r = run('node scripts/deploy-check.mjs --sync-agents');
+        const after = tryCfgSha12();
+        // R2 W-06：哈希面任一不可算即禁记 result=ok——哨兵行只配 rejected（真实可用信息：
+        // sync_code＋缺失面标注）；响应附 auditHashDegraded 显式标记（sync 本体结果仍如实回传）。
+        const hashOk = before.ok && after.ok;
+        try {
+          auditAppend('sync', before.ok ? before.hash : AUDIT_HASH_SENTINEL, after.ok ? after.hash : AUDIT_HASH_SENTINEL, r.code === 0 && hashOk ? 'ok' : 'rejected', `sync_code=${r.code}${before.ok ? '' : ' before=unavailable'}${after.ok ? '' : ' after=unavailable'}`);
+        } catch (e) {
+          return { ...r, auditFailed: true, error: auditFailText(e) };
+        }
+        return hashOk ? r : { ...r, auditHashDegraded: true, degraded: [before.ok ? '' : 'before', after.ok ? '' : 'after'].filter(Boolean).join('+') };
+      };
+      const job = writeChain.then(runJob, runJob);
+      writeChain = job.catch(() => {});
+      return job.then((r) => send(r && r.auditFailed ? 500 : 200, r));
+    });
+  }
   send(404, { error: 'not found' });
 });
 setInterval(sweep, 5000);

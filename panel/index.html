@@ -214,16 +214,21 @@ function render(state){
     const providers=source.order.map(item=>item.provider);
     /* B7 D-1：在途 runtime（busy＝保存未决；timer＝去抖保存未触发）保留同一对象身份与
        saved/draft/busy/error，仅把 card/list 重接到新 DOM——新 state 只展示服务端事实，
-       不静默覆盖在途 draft；档位按钮与 save-state 重呈现 saving/disabled，不借新 DOM 变可点。 */
+       不静默覆盖在途 draft；档位按钮与 save-state 重呈现 saving/disabled，不借新 DOM 变可点。
+       R0 B3（b7n①）：持久错误同样保留 runtime 与错误态，render 收尾统一走 settleStatus。
+       R1 z-W02/d-W05：持错保留面收窄＝只保留 error 文本/类别与 runtime 身份；非 busy/timer
+       时以服务端 providers 更新 saved/draft（DOM 已按服务端序渲染）——陈旧失败草稿不跨
+       render 存续，档位错误不被清洗。 */
     const prev=runtimes.get(role);
-    const keep=prev&&!prev.obsolete&&(prev.busy||prev.timer);
-    const rt=keep?prev:{role,saved:[...providers],draft:[...providers],timer:null,busy:false,error:'',card:null,list:null,obsolete:false};
+    const keepPending=prev&&!prev.obsolete&&(prev.busy||prev.timer);
+    const keepError=!keepPending&&prev&&!prev.obsolete&&!!prev.error;
+    const rt=keepPending||keepError?prev:{role,saved:[...providers],draft:[...providers],timer:null,busy:false,error:'',errorKind:'',card:null,list:null,obsolete:false};
+    if(keepError){rt.saved=[...providers];rt.draft=[...providers];}
     rt.card=card;rt.list=card.querySelector('.model-list');
-    if(keep&&!sameOrder(rt.draft,providers)){for(const pv of rt.draft){const row=[...rt.list.children].find(r=>r.dataset.provider===pv);if(row)rt.list.appendChild(row);}}
+    if(keepPending&&!sameOrder(rt.draft,providers)){for(const pv of rt.draft){const row=[...rt.list.children].find(r=>r.dataset.provider===pv);if(row)rt.list.appendChild(row);}}
     runtimes.set(role,rt);
     refreshRows(rt);
-    if(keep&&(rt.busy||rt.timer)){setStatus(rt,'saving');setLevelButtons(rt,true);}
-    else setStatus(rt,'saved');
+    settleStatus(rt);
   });
 }
 /** B7 R1 B-1＋R2 B-1：状态重拉可携带操作身份守卫——成功/解析异常出口均先核 guard() 再
@@ -246,6 +251,15 @@ function setStatus(rt,state){
   else if(state==='saving'){button.textContent=rt.timer?'待保存…':'保存中…';button.title='正在保存最新顺序';}
   else{button.textContent='失败 ✗';button.title='点击查看失败原因';}
 }
+/** R0 B3/B4（b7n①②）：收尾统一优先级＝busy/timer 未决＞持久错误＞saved——render/load/
+ *  pumpSave/saveLevel 各收尾共用；未决期档位按钮与 busy 期一致 disabled，成功/失败/同序
+ *  收尾不得提前 enabled（timer 重挂即保持 disabled）；持久错误（errorKind：level=档位、
+ *  order=排序）只有新档位保存成功或用户明确重试档位才清——排序成功不得覆盖档位错误。 */
+function settleStatus(rt){
+  if(rt.busy||rt.timer){setStatus(rt,'saving');setLevelButtons(rt,true);return;}
+  setLevelButtons(rt,false);
+  setStatus(rt,rt.error?'error':'saved');
+}
 function refreshRows(rt){
   [...rt.list.children].forEach((row,index)=>{
     row.querySelector('.order-no').textContent=String(index+1).padStart(2,'0');
@@ -260,41 +274,44 @@ function afterReorder(rt){
 }
 function scheduleSave(rt){
   clearTimeout(rt.timer);rt.timer=null;
-  if(sameOrder(rt.draft,rt.saved)){if(!rt.busy){setStatus(rt,'saved');setLevelButtons(rt,false);}return;}
+  if(sameOrder(rt.draft,rt.saved)){if(!rt.busy)settleStatus(rt);return;}
   setStatus(rt,'saving');
+  setLevelButtons(rt,true); /* R0 B4（b7n②）：timer 未决即与 busy 期一致 disabled */
   rt.timer=setTimeout(()=>{rt.timer=null;pumpSave(rt);},500);
 }
 async function pumpSave(rt){
   /* R2 W-04：busy 未决期去抖到期→draft≠saved 且无 timer 则重挂（档位保存不吞排序草稿） */
   if(rt.obsolete||rt.busy){if(!rt.obsolete&&rt.busy&&!rt.timer&&!sameOrder(rt.draft,rt.saved))rt.timer=setTimeout(()=>{rt.timer=null;pumpSave(rt);},500);return;}
-  if(sameOrder(rt.draft,rt.saved)){setStatus(rt,'saved');setLevelButtons(rt,false);return;}
+  if(sameOrder(rt.draft,rt.saved)){settleStatus(rt);return;}
   const sent=[...rt.draft];
-  rt.busy=true;rt.error='';setStatus(rt,'saving');
+  rt.busy=true;
+  if(rt.errorKind!=='level'){rt.error='';rt.errorKind='';} /* R0 B3：排序尝试只清排序错误，档位错误保持 */
+  setStatus(rt,'saving');
   try{
     const result=await api('/api/order',{role:rt.role,order:sent});
     if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
     if(result.ok){
-      rt.saved=sent;rt.busy=false;setLevelButtons(rt,false);
+      rt.saved=sent;rt.busy=false;
       const output=result.validate&&result.validate.out?'\n'+result.validate.out:'';
       log(`${rt.role} 顺序已保存。${output}`);
-      if(sameOrder(rt.draft,rt.saved))setStatus(rt,'saved');else pumpSave(rt);
+      if(sameOrder(rt.draft,rt.saved))settleStatus(rt);else pumpSave(rt);
     }else{
       /* B7 R1 B-2：失败重拉期间保持 busy/未决身份（render 保留同一 runtime·显示 saving）；
          重拉携带身份守卫；返回后确认同一 runtime 才显式收尾 busy/error/三态——删除向当时
          任意 fresh runtime 无条件转写错误与三态的回退路径（零转写）。 */
       const reason=(result.validate&&result.validate.out)||result.error||'服务端拒绝了本次排序。';
-      rt.error=reason;
+      if(rt.errorKind!=='level'){rt.error=reason;rt.errorKind='order';} /* R1 d-W03：排序失败不覆盖档位错误 */
       await load(`${rt.role} 保存失败，已恢复服务端顺序。\n${reason}`,()=>!rt.obsolete&&runtimes.get(rt.role)===rt);
       if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
-      rt.busy=false;setLevelButtons(rt,false);setStatus(rt,'error');
+      rt.busy=false;settleStatus(rt);
     }
   }catch(error){
     if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
     const reason=String(error);
-    rt.error=reason;
+    if(rt.errorKind!=='level'){rt.error=reason;rt.errorKind='order';} /* R1 d-W03：排序异常不覆盖档位错误 */
     await load(`${rt.role} 保存失败，已尝试恢复服务端顺序。\n${reason}`,()=>!rt.obsolete&&runtimes.get(rt.role)===rt);
     if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
-    rt.busy=false;setLevelButtons(rt,false);setStatus(rt,'error');
+    rt.busy=false;settleStatus(rt);
   }
 }
 /** B7 D-2＋R1：同角色档位保存重入守卫——发送前同时检查 runtime 存在、!busy、!timer、
@@ -312,15 +329,18 @@ function setLevelButtons(rt,disabled){
 async function saveLevel(role,level){
   const rt=runtimes.get(role);
   if(!rt||rt.busy||rt.timer||rt.obsolete||runtimes.get(role)!==rt)return;
-  rt.busy=true;setStatus(rt,'saving');
+  rt.busy=true;rt.error='';rt.errorKind=''; /* R0 B3（b7n①）：用户明确重试档位即清持久错误 */
+  setStatus(rt,'saving');
   setLevelButtons(rt,true);
   const stale=()=>rt.obsolete||runtimes.get(role)!==rt;
   const finish=async(message,reason)=>{
     await load(message,()=>!stale());
     if(stale())return;
-    rt.busy=false;setLevelButtons(rt,false);
-    if(reason){rt.error=reason;setStatus(rt,'error');}
-    else{if(sameOrder(rt.draft,rt.saved))setStatus(rt,'saved');else scheduleSave(rt);}
+    rt.busy=false;
+    if(reason){rt.error=reason;rt.errorKind='level';}
+    else{rt.error='';rt.errorKind='';}
+    if(!reason&&!sameOrder(rt.draft,rt.saved)){scheduleSave(rt);return;}
+    settleStatus(rt);
   };
   try{
     const resp=await fetch('/api/level',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,level})});
