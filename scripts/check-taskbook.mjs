@@ -13,8 +13,18 @@
 //   T14 事实台账形态漏检（WARN——表格形态漏网＋无章全局补位；--strict 使其退 1）
 //   T15 机检命令转义管道 lint（FAIL——F 条目命令域 grep -E/-P 模式串含转义管道 \| 即红，
 //      ERE/PCRE 下=字面管道符判据恒空跑（Y4 #12b 教训）；普通管道与 BRE 形态不受影响。R-Y5-2①）
+//   T16 术语重定义（FAIL——仅 --semantic-lint；W6 R2-T1 D-3。正文以「是指/定义为/即」本地重定义
+//      公共术语即红，「即可/即停」等非系词用法豁免；围栏与源文引用区不扫描；单源指针形态不报）
+//   T17 断言缺术语（FAIL——仅 --semantic-lint。D 项行、V 标题及显式 ASSERT: 行含必须/须/不得/禁
+//      而无规范对象词即红）
+//   T18 双锚缺失（FAIL——仅 --semantic-lint。D 项缺规范锚（有效文件路径:行号＋非空逐字片段）
+//      或缺 V 映射、V 标题缺 D 回锚即红）
+//   T19 D/V 集合不一致（FAIL——仅 --semantic-lint。D/V id 重复声明、悬空引用、D→V 与 V→D 边
+//      不互认即红；D 完全缺 V 映射归 T18）
+//   T20 修入映射缺失（FAIL——仅 --semantic-lint。编号 §4（## 4.）纪律段含下级子标题整个子树缺
+//      逐字「finding→定点 diff→机检/探针映射」即红）
 // 退出码口径单源=references/06 §5.8（此处不复写映射）
-// 用法：node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--json] [--strict] [--self-test]
+// 用法：node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--evidence <证据.json>] [--semantic-lint] [--json] [--strict] [--self-test]
 // 豁免：任一物理行含 tb-ignore → 该行跳过全部检查并计入跳过数（只对该行生效，不跨行继承）。
 // 供应商事实零硬编码：本脚本不含端点/模型名；夹具一律落 os.tmpdir()，不写技能仓。
 // golden 例外（W5b）：scripts/.golden/taskbook/ 下的参照件为例外——落仓供 R2-T1 消费；self-test 夹具仍一律落 os.tmpdir()。
@@ -591,6 +601,200 @@ export function checkEscapePipe(factEntries) {
   return findings
 }
 
+// ── W6 R2-T1 D-3：opt-in 语义 lint（T16～T20）──
+// 仅 --semantic-lint 启用（assumption 5：缺省不改变 R1 fixture 与既有任务书的默认检查面）。
+// 规则只读任务书文本，不执行验收命令；正反样在 self-test 的 /tmp 合成。
+const T16_TERMS = ['公共七段', '白名单机制', '任务书事实台账', '期望值推导', '源文引用区', 'N=2', '白名单', '事实台账']
+const T16_GAP_CLS = '[\\s「」『』《》（）()·—，,：:；;-]' // 连字符置于类尾：防「—-，」构成 U+2014–U+FF0C 字符范围误吞 CJK（M8 根因）
+const T16_DEF_VERB_RE = new RegExp(`^(?:${T16_GAP_CLS}*)(是指|系指|定义为)`)
+const T16_JI_RE = new RegExp(`^(?:${T16_GAP_CLS}*)即(?![可将使便时刻之停行用改归])`) // W-3/W-8/W-16：「即可/即停/即行」等非系词用法豁免
+const T17_MODAL_RE = /必须|须|不得|禁/
+const T17_OBJECT_RES = [/D[\/↔]V/i, /F[\/↔]E/i, /fixture/i, /scaffold/i, /lint/i, /evidence/i, /\bCI\b/, /退出码/, /双审/, /实证/, /提交/]
+const D_DECL_RE = /^\s*(?:[-*]\s*)?(?:\*\*)?\|?\s*D-(\d{1,2})\b/
+const V_HEAD_RE = /^V-(\d{1,2})\b/
+// W-2（席一）：规范锚=有效文件路径（扩展名判定）＋行号＋非空逐字片段
+const SEMANTIC_CITE_PATH_RE = /\.(?:md|mjs|js|json|jsonl|txt|py|sh|yml|yaml|snippet)$/i
+const SEMANTIC_CITE_RE = /`([^`\s:]+):(\d+)「([^「」\n]+)」`/g
+const SEMANTIC_LITERAL = 'finding→定点 diff→机检/探针映射'
+
+/** 规范锚有效性：反引号内「路径:行号「非空片段」」且路径带受支持扩展名；多命中取其一即真。 */
+export function hasSemanticCite(text) {
+  for (const m of String(text ?? '').matchAll(SEMANTIC_CITE_RE)) {
+    if (SEMANTIC_CITE_PATH_RE.test(m[1])) return true
+  }
+  return false
+}
+
+/** T16 术语重定义：正文（围栏与源文引用区除外）以定义动词本地重解释受保护术语即 FAIL；每行至多一条。 */
+export function checkTermRedefinition(parsed) {
+  const findings = []
+  const lines = parsed?.lines || []
+  const fenced = fencedLines(parsed.blocks || [])
+  const quoted = new Set()
+  for (const s of parsed?.sections || []) {
+    if (/源文引用区/.test(String(s.title ?? ''))) for (let i = s.line; i <= s.endLine; i++) quoted.add(i)
+  }
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced.has(i + 1) || quoted.has(i + 1)) continue
+    const ln = String(lines[i] ?? '')
+    let hit = null
+    for (const term of T16_TERMS) {
+      let idx = ln.indexOf(term)
+      while (idx >= 0 && !hit) {
+        const rest = ln.slice(idx + term.length)
+        if (T16_DEF_VERB_RE.test(rest) || T16_JI_RE.test(rest)) hit = term
+        else idx = ln.indexOf(term, idx + 1)
+      }
+      if (hit) break
+    }
+    if (hit) findings.push({ level: 'FAIL', check: 'T16', line: i + 1, message: `术语本地定义：「${hit}」+定义动词——正文以单源指针承载，禁本地重定义` })
+  }
+  return findings
+}
+
+/** D 项声明行与 V 标题行提取（T17/T18/T19 共用单口径；围栏行不参与 D 项声明）。 */
+export function dItemRows(parsed) {
+  const out = []
+  const lines = parsed?.lines || []
+  const fenced = fencedLines(parsed.blocks || [])
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced.has(i + 1)) continue
+    const m = D_DECL_RE.exec(String(lines[i] ?? ''))
+    if (m) out.push({ id: `D-${m[1]}`, line: i + 1, text: String(lines[i] ?? '') })
+  }
+  return out
+}
+
+export function vHeadingRows(parsed) {
+  const out = []
+  for (const h of parsed?.headings || []) {
+    const m = V_HEAD_RE.exec(String(h.title ?? ''))
+    if (m) out.push({ id: `V-${m[1]}`, line: h.line, text: String(h.title ?? '') })
+  }
+  return out
+}
+
+/** A1（席二 W-2）：标准任务书形态下同 id 的 D 行同时出现在 §3.1 汇总表与 §3.4 带锚明细——
+ *  声明主行=带规范锚的行（无带锚行时取首行），其余同 id 行为镜像行不参与 T18/T19；
+ *  仅当同 id 有多行均带规范锚时计重复（dupCount），T19 据此报重复声明。 */
+export function dDeclRows(parsed) {
+  const byId = new Map()
+  for (const d of dItemRows(parsed)) {
+    const cited = hasSemanticCite(d.text)
+    const cur = byId.get(d.id)
+    if (!cur) { byId.set(d.id, { ...d, cited, dupCount: 0 }); continue }
+    if (cited && !cur.cited) byId.set(d.id, { ...d, cited, dupCount: cur.dupCount })
+    else if (cited && cur.cited) cur.dupCount++
+  }
+  return [...byId.values()]
+}
+
+/** T17 断言缺术语：D 项行、V 标题及显式 ASSERT: 行含模态词而无任一规范对象词即 FAIL。 */
+export function checkAssertionObjects(parsed) {
+  const findings = []
+  const push = (line, message) => findings.push({ level: 'FAIL', check: 'T17', line, message })
+  const scan = (text, line) => {
+    if (!T17_MODAL_RE.test(text)) return
+    if (!T17_OBJECT_RES.some((re) => re.test(text))) push(line, '断言缺规范对象词（须含 D/V、F/E、fixture、scaffold、lint、evidence、CI、退出码、双审、实证、提交之一）')
+  }
+  for (const d of dItemRows(parsed)) scan(d.text, d.line)
+  for (const v of vHeadingRows(parsed)) scan(v.text, v.line)
+  const lines = parsed?.lines || []
+  const fenced = fencedLines(parsed.blocks || [])
+  for (let i = 0; i < lines.length; i++) {
+    if (fenced.has(i + 1)) continue
+    if (/ASSERT:/.test(String(lines[i] ?? ''))) scan(String(lines[i] ?? ''), i + 1)
+  }
+  return findings
+}
+
+/** T18 双锚缺失：D 项（声明主行）须有规范锚（有效文件路径:行号＋非空逐字片段）与至少一个 V 映射；
+ *  V 标题须有至少一个 D 回锚。 */
+export function checkDualAnchors(parsed) {
+  const findings = []
+  for (const d of dDeclRows(parsed)) {
+    if (!hasSemanticCite(d.text)) findings.push({ level: 'FAIL', check: 'T18', line: d.line, message: `${d.id} 缺规范锚（有效文件路径:行号＋非空逐字片段）` })
+    if (!/V-\d{1,2}(?!\d)/.test(d.text)) findings.push({ level: 'FAIL', check: 'T18', line: d.line, message: `${d.id} 缺 V 映射` })
+  }
+  for (const v of vHeadingRows(parsed)) {
+    if (!/D-\d{1,2}(?!\d)/.test(v.text)) findings.push({ level: 'FAIL', check: 'T18', line: v.line, message: `${v.id} 标题缺 D 回锚` })
+  }
+  return findings
+}
+
+/** T19 D/V 集合不一致：D/V id 分别唯一（D 按 dDeclRows 去重口径，多行带锚才计重复）；
+ *  D→V、V→D 引用须指向已声明 id（悬空）；W-13 双向边闭包——每条 D→V 边须有互认的 V→D 回边、
+ *  反之亦然（交叉错配但无悬空 id=T19 红）。D 完全缺 V 映射归 T18（存在性锚），此处不重复报。 */
+export function checkDVGraph(parsed) {
+  const findings = []
+  const dDecls = dDeclRows(parsed)
+  const dDecl = new Map(dDecls.map((d) => [d.id, d]))
+  const vDecl = new Map()
+  for (const v of vHeadingRows(parsed)) {
+    if (vDecl.has(v.id)) findings.push({ level: 'FAIL', check: 'T19', line: v.line, message: `V id 重复声明：${v.id}` })
+    else vDecl.set(v.id, v)
+  }
+  for (const d of dDecls) {
+    if (d.dupCount > 0) findings.push({ level: 'FAIL', check: 'T19', line: d.line, message: `D id 重复声明：${d.id}` })
+  }
+  const dToV = new Set(), vToD = new Set(), dHasV = new Set(), vHasD = new Set()
+  for (const d of dDecls) {
+    for (const m of d.text.matchAll(/V-(\d{1,2})(?!\d)/g)) {
+      const id = `V-${m[1]}`
+      if (!vDecl.has(id)) findings.push({ level: 'FAIL', check: 'T19', line: d.line, message: `悬空引用：${d.id} → ${id}（V 标题未声明）` })
+      else { dToV.add(`${d.id}|${id}`); dHasV.add(d.id) }
+    }
+  }
+  for (const v of vDecl.values()) {
+    for (const m of v.text.matchAll(/D-(\d{1,2})(?!\d)/g)) {
+      const id = `D-${m[1]}`
+      if (!dDecl.has(id)) findings.push({ level: 'FAIL', check: 'T19', line: v.line, message: `悬空引用：${v.id} → ${id}（D 项未声明）` })
+      else { vToD.add(`${id}|${v.id}`); vHasD.add(v.id) }
+    }
+  }
+  // 双向边闭包（W-13）：仅对两侧均有引用的边判互认；一侧零引用=存在性缺陷归 T18，T19 沉默保单缺陷单 id。
+  for (const key of dToV) {
+    const [dId, vId] = key.split('|')
+    if (!vHasD.has(vId)) continue
+    if (!vToD.has(key)) findings.push({ level: 'FAIL', check: 'T19', line: dDecl.get(dId).line, message: `边不互认：${dId}→${vId} 无 ${vId}→${dId} 回边` })
+  }
+  for (const key of vToD) {
+    const [dId, vId] = key.split('|')
+    if (!dHasV.has(dId)) continue
+    if (!dToV.has(key)) findings.push({ level: 'FAIL', check: 'T19', line: vDecl.get(vId).line, message: `边不互认：${vId}→${dId} 无 ${dId}→${vId} 回边` })
+  }
+  return findings
+}
+
+/** T20 修入映射缺失：只认编号 §4 纪律段（2 级「## 4.」标题，W-1/N-3），扫描含下级子标题的
+ *  整个子树；段内（围栏外）须逐字含修入映射字面；报告模板提及不算。 */
+export function checkAmendMapping(parsed) {
+  const findings = []
+  const sec = (parsed?.sections || []).find((s) => s.level === 2 && /^4\.\s/.test(String(s.title ?? '')))
+  if (!sec) {
+    findings.push({ level: 'FAIL', check: 'T20', line: 0, message: '缺编号纪律段（## 4.），修入映射无从承载' })
+    return findings
+  }
+  const fenced = fencedLines(parsed.blocks || [])
+  const body = []
+  for (let ln = sec.line + 1; ln <= sec.endLine; ln++) if (!fenced.has(ln)) body.push(parsed.lines[ln - 1] ?? '')
+  if (!body.join('\n').includes(SEMANTIC_LITERAL)) {
+    findings.push({ level: 'FAIL', check: 'T20', line: sec.line, message: '§4 纪律段缺逐字「finding→定点 diff→机检/探针映射」修入映射（近义句或仅报告模板提及不算）' })
+  }
+  return findings
+}
+
+/** 语义 lint 汇总入口（仅 --semantic-lint 调用；返回 T16～T20 全部 findings）。 */
+export function checkSemanticLint(parsed) {
+  return [
+    ...checkTermRedefinition(parsed),
+    ...checkAssertionObjects(parsed),
+    ...checkDualAnchors(parsed),
+    ...checkDVGraph(parsed),
+    ...checkAmendMapping(parsed),
+  ]
+}
+
 // ── 自检（夹具落 os.tmpdir()，向量 ≥40） ──
 function selfTest(extraRoots = []) {
   const cases = []
@@ -922,6 +1126,130 @@ function selfTest(extraRoots = []) {
     const t14e = parseTaskbook('## 4. 事实台账\n\nF-01 ｜ 合法台账 ｜ `echo ok` ｜ 0 ｜ 2026-10-25\n')
     add('L22 T14-04 两负例：合法机读 F 在章与无章无字样均 0 条 T14，且原解析器仍可读取合法 F',
       checkFactShape(t14e, parseFactEntries(t14e)).length === 0 && parseFactEntries(t14e).length === 1 && checkFactShape(parseTaskbook('普通正文，无任何编号字样。\n'), []).length === 0)
+
+    // ── W6 R2-T1 D-3：T16～T20 语义 lint 向量（正反样 /tmp 合成；十件 R1 fixture 不变） ──
+    const T16P = '白名单机制以「单源=references/02 §4」指针承载\n'
+    const T16N = '白名单机制是指白名单与禁改面的交集机制\n'
+    add('D3 T16 正例：单源指针形态不报', checkTermRedefinition(parseTaskbook(T16P)).length === 0)
+    const t16red = checkTermRedefinition(parseTaskbook(T16N))
+    add('D3 T16 反例：本地定义判 FAIL 恰 1 条', t16red.length === 1 && t16red[0].check === 'T16', JSON.stringify(t16red))
+    add('D3 T16 围栏豁免：围栏内定义不报', checkTermRedefinition(parseTaskbook('```\n' + T16N + '```\n')).length === 0)
+    add('D3 T16 源文引用区豁免：引用区定义不报', checkTermRedefinition(parseTaskbook('## 2. 源文引用区\n\n' + T16N)).length === 0)
+    const T17P = '| D-1 探针 | 必须具 D↔V 双锚 | V-1 |'
+    const T17N = '| D-1 探针 | 必须正确 | V-1 |'
+    add('D3 T17 正例：断言具 D↔V 对象词不报', checkAssertionObjects(parseTaskbook(T17P)).length === 0, JSON.stringify(checkAssertionObjects(parseTaskbook(T17P))))
+    const t17red = checkAssertionObjects(parseTaskbook(T17N))
+    add('D3 T17 反例：断言缺对象词判 FAIL 恰 1 条', t17red.length === 1 && t17red[0].check === 'T17', JSON.stringify(t17red))
+    add('D3 T17 ASSERT 行：含对象词不报／缺对象词报',
+      checkAssertionObjects(parseTaskbook('ASSERT: 提交前须全绿\n')).length === 0 && checkAssertionObjects(parseTaskbook('ASSERT: 必须全绿\n')).length === 1,
+      JSON.stringify(checkAssertionObjects(parseTaskbook('ASSERT: 必须全绿\n'))))
+    const T18ROW = '| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | V-1 |'
+    const t18ok = checkDualAnchors(parseTaskbook('### V-1 探针（D-1）\n\n' + T18ROW + '\n'))
+    add('D3 T18 正例：D 具规范锚＋V 映射、V 具 D 回锚不报', t18ok.length === 0, JSON.stringify(t18ok))
+    const t18noCite = checkDualAnchors(parseTaskbook(T18ROW.replace('规范锚=`docs/note.md:2「line two」`', '规范锚待补')))
+    add('D3 T18 反例 1：D 缺规范锚判 FAIL', t18noCite.length === 1 && t18noCite[0].check === 'T18' && t18noCite[0].message.includes('规范锚'), JSON.stringify(t18noCite))
+    const t18noV = checkDualAnchors(parseTaskbook(T18ROW.replace('| V-1 |', '待映射 |')))
+    add('D3 T18 反例 2：D 缺 V 映射判 FAIL', t18noV.length === 1 && t18noV[0].message.includes('V 映射'), JSON.stringify(t18noV))
+    const t18vHead = checkDualAnchors(parseTaskbook('### V-1 探针\n\n' + T18ROW + '\n'))
+    add('D3 T18 反例 3：V 标题缺 D 回锚判 FAIL', t18vHead.length === 1 && t18vHead[0].message.includes('D 回锚'), JSON.stringify(t18vHead))
+    const T19OK = '### V-1 探针（D-1）\n\n| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | V-1 |\n'
+    add('D3 T19 正例：闭合映射 0 findings', checkDVGraph(parseTaskbook(T19OK)).length === 0, JSON.stringify(checkDVGraph(parseTaskbook(T19OK))))
+    const t19dup = checkDVGraph(parseTaskbook(T19OK + '| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | V-1 |\n'))
+    add('D3 T19 反例 1：D id 重复声明判 FAIL', t19dup.some((f) => f.check === 'T19' && f.message.includes('D id 重复声明')), JSON.stringify(t19dup))
+    const t19dangling = checkDVGraph(parseTaskbook('### V-1 探针（D-1）\n\n| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | V-1、V-9 |\n'))
+    add('D3 T19 反例 2：D→V 悬空引用判 FAIL', t19dangling.length === 1 && t19dangling[0].message.includes('悬空引用'), JSON.stringify(t19dangling))
+    const t19dangV = checkDVGraph(parseTaskbook('### V-1 探针（D-1、D-9）\n\n| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | V-1 |\n'))
+    add('D3 T19 反例 3：V→D 悬空引用判 FAIL', t19dangV.length === 1 && t19dangV[0].message.includes('D-9'), JSON.stringify(t19dangV))
+    const t19extra = checkDVGraph(parseTaskbook('### V-1 探针（D-1）\n\n### V-2 附加（D-1）\n\n| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | V-1 |\n'))
+    add('D3 T19 反例 4：V→D 边无 D→V 回边（边不互认）判 FAIL', t19extra.length === 1 && t19extra[0].message.includes('边不互认'), JSON.stringify(t19extra))
+    add('D3 T20 正例：§4 具逐字映射不报', checkAmendMapping(parseTaskbook('## 4. 纪律\n\n- 每轮呈 finding→定点 diff→机检/探针映射\n')).length === 0)
+    const t20miss = checkAmendMapping(parseTaskbook('## 4. 纪律\n\n- finding、定点 diff 与映射逐轮留痕\n'))
+    add('D3 T20 反例 1：近义句判 FAIL', t20miss.length === 1 && t20miss[0].check === 'T20', JSON.stringify(t20miss))
+    const t20elsewhere = checkAmendMapping(parseTaskbook('## 6. 报告契约\n\n- 报告含 finding→定点 diff→机检/探针映射\n'))
+    add('D3 T20 反例 2：无纪律段判 FAIL（仅他段提及不算）', t20elsewhere.length === 1 && t20elsewhere[0].message.includes('纪律段'), JSON.stringify(t20elsewhere))
+    const t20fence = checkAmendMapping(parseTaskbook('## 4. 纪律\n\n```\nfinding→定点 diff→机检/探针映射\n```\n'))
+    add('D3 T20 反例 3：字面在逐字块内不算', t20fence.length === 1 && t20fence[0].message.includes('缺逐字'), JSON.stringify(t20fence))
+    // 双审修入向量（W-2/W-13/W-1·N-3/W-2席一/W-3·W-8/N-2）
+    const stdForm = [
+      '## 3.1 目标、批型与双锚', '',
+      '| D 项 | 规范锚 | 验收锚 |', '|---|---|---|',
+      '| D-1 探针与夹具 | 规范面 §5.3 | V-1、V-2 |',
+      '| D-2 生成器 | 规范面 §5.3 | V-3 |', '',
+      '## 3.4 D 项', '',
+      '- **D-1 探针与夹具（V-1、V-2）**：规范锚=`docs/note.md:2「line two target-fragment」`。要求 fixture 全绿。',
+      '- **D-2 生成器（V-3）**：规范锚=`docs/note.md:3「line three」`。生成确定性。', '',
+      '### V-1 探针（D-1）', '', '### V-2 夹具（D-1）', '', '### V-3 生成器（D-2）', '',
+      '## 4. 纪律', '', '- 每轮呈 finding→定点 diff→机检/探针映射', '',
+    ].join('\n')
+    const zStd = checkSemanticLint(parseTaskbook(stdForm))
+    add('D3 A1 标准形态正例：§3.1 汇总表＋§3.4 带锚明细→语义 findings=0（D 行按 id 去重优先带锚行）', zStd.length === 0, JSON.stringify(zStd))
+    const a2noV18 = checkDualAnchors(parseTaskbook('### V-1 探针（D-1）\n\n| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | 待映射 |\n'))
+    const a2noV19 = checkDVGraph(parseTaskbook('### V-1 探针（D-1）\n\n| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | 待映射 |\n'))
+    add('D3 A2 负例 1：D 缺 V 回引归 T18（存在性锚·规格 :136）且 T19 零 finding', a2noV18.length === 1 && a2noV18[0].message.includes('V 映射') && a2noV19.length === 0, JSON.stringify([a2noV18, a2noV19]))
+    const a2cross = checkDVGraph(parseTaskbook('### V-1 探针（D-2）\n\n### V-2 附加（D-1）\n\n| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | V-1 |\n| D-2 生成 | 规范锚=`docs/note.md:3「line three」` | V-2 |\n'))
+    add('D3 A2 负例 2：D→V 与 V→D 边不互认（交叉错配无悬空 id）判 T19', a2cross.length >= 1 && a2cross.every((f) => f.check === 'T19' && f.message.includes('边不互认')), JSON.stringify(a2cross))
+    const t18empty = checkDualAnchors(parseTaskbook('### V-1 探针（D-1）\n\n| D-1 探针 | 规范锚=`docs/note.md:2「」` | V-1 |\n'))
+    add('D3 A4 反例 1：规范锚空片段判 FAIL', t18empty.length === 1 && t18empty[0].message.includes('规范锚'), JSON.stringify(t18empty))
+    const t18nopath = checkDualAnchors(parseTaskbook('### V-1 探针（D-1）\n\n| D-1 探针 | 规范锚=`附注:2「锚行原文」` | V-1 |\n'))
+    add('D3 A4 反例 2：规范锚非文件路径（无扩展名）判 FAIL', t18nopath.length === 1 && t18nopath[0].message.includes('规范锚'), JSON.stringify(t18nopath))
+    const t16keji = checkTermRedefinition(parseTaskbook('白名单机制即可通过单源指针承载\n'))
+    add('D3 A5 正例：非定义「即可」不报', t16keji.length === 0, JSON.stringify(t16keji))
+    const t16comma = checkTermRedefinition(parseTaskbook('白名单机制，是指白名单与禁改面的交集机制\n'))
+    add('D3 A5 反例：「，是指」前导逗号判 FAIL', t16comma.length === 1 && t16comma[0].check === 'T16', JSON.stringify(t16comma))
+    const w16pos = checkTermRedefinition(parseTaskbook('所有 B/W 修入后由原审复核对应 diff，N=2 触发即停。\n'))
+    add('W-16 正例：「N=2 触发即停」副词用法不报（含 M8 误伤样本原文）', w16pos.length === 0, JSON.stringify(w16pos))
+    const w16neg = checkTermRedefinition(parseTaskbook('N=2 即连续两个不收敛修入轮的停止条件\n'))
+    add('W-16 反例：「N=2 即<定义内容>」判 FAIL 恰 1 条', w16neg.length === 1 && w16neg[0].check === 'T16', JSON.stringify(w16neg))
+    // CLI 集成：全绿正例＋五种单缺陷变异＋缺省不启用
+    const semPos = [
+      '# 自检语义正例（T16～T20 全绿夹具）', '',
+      '## 1. 身份与禁令', '', '- 领单号=自检', '',
+      '## 2. 必读序', '', '1. 本任务书全文', '',
+      '## 3. 预裁决', '', '- 术语以单源=references/02 §4 指针承载', '',
+      '## 3.2 白名单', '', '| `scripts/present.mjs` | 修改 |', '',
+      '## 4. 纪律', '', '- 逐单元 TDD', '- 每轮呈 finding→定点 diff→机检/探针映射', '',
+      '## 5. 基线数字', '', '- 无', '',
+      '## 6. 报告契约', '', '- 全文落审计档', '',
+      '## 7. 运行时可观察性', '', '- findings 集合可机读', '',
+      '### V-1 探针（D-1）', '', '- ASSERT: 提交前须全绿', '',
+      '| D-1 探针 | 规范锚=`docs/note.md:2「line two target-fragment」` | V-1 |', '',
+      '## 验收命令', '', '```bash', 'echo "exit=$?"', '```', '',
+    ].join('\n')
+    const semPosPath = join(tmp, 'sem-pos.md')
+    writeFileSync(semPosPath, semPos + '\n', 'utf8')
+    const rSemPos = spawnSync(process.execPath, [SELF, semPosPath, '--semantic-lint', '--strict', '--json', '--root', tmp], { encoding: 'utf8' })
+    let semPosJson = null
+    try { semPosJson = JSON.parse(rSemPos.stdout) } catch {}
+    add('D3 CLI 正例：--semantic-lint --strict exit 0 且 T16～T20 为零',
+      rSemPos.status === 0 && semPosJson && semPosJson.findings.every((f) => !/^T1[6-9]$|^T20$/.test(f.check)),
+      `status=${rSemPos.status} out=${rSemPos.stdout.slice(0, 240)}`)
+    const semCases = [
+      ['T16', (s) => s.replace('- 术语以单源=references/02 §4 指针承载', '- 术语以单源=references/02 §4 指针承载\n- 白名单机制是指白名单与禁改面的交集')],
+      ['T17', (s) => s.replace('| D-1 探针 | 规范锚=`docs/note.md:2「line two target-fragment」` | V-1 |', '| D-1 探针 | 规范锚=`docs/note.md:2「line two target-fragment」` 必须正确 | V-1 |')],
+      ['T18', (s) => s.replace('规范锚=`docs/note.md:2「line two target-fragment」`', '规范锚待补')],
+      ['T19', (s) => s.replace('| V-1 |', '| V-1、V-9 |')],
+      ['T20', (s) => s.replace('- 每轮呈 finding→定点 diff→机检/探针映射', '- 修入映射逐轮留痕')],
+    ]
+    for (const [id, fn] of semCases) {
+      const p = join(tmp, `sem-${id}.md`)
+      writeFileSync(p, fn(semPos) + '\n', 'utf8')
+      const r = spawnSync(process.execPath, [SELF, p, '--semantic-lint', '--strict', '--json', '--root', tmp], { encoding: 'utf8' })
+      let j = null
+      try { j = JSON.parse(r.stdout) } catch {}
+      const semIds = (j?.findings || []).filter((f) => /^T1[6-9]$|^T20$/.test(f.check)).map((f) => f.check)
+      add(`D3 CLI 变异 ${id}：exit 1 且语义 id 恰为 [${id}]`, r.status === 1 && JSON.stringify(semIds) === JSON.stringify([id]), `status=${r.status} ids=${JSON.stringify(semIds)}`)
+    }
+    let offOk = true; const offIds = {}
+    for (const [id, fn] of semCases) {
+      const p = join(tmp, `sem-off-${id}.md`)
+      writeFileSync(p, fn(semPos) + '\n', 'utf8')
+      const rOff = spawnSync(process.execPath, [SELF, p, '--strict', '--json', '--root', tmp], { encoding: 'utf8' })
+      let jOff = null
+      try { jOff = JSON.parse(rOff.stdout) } catch {}
+      offIds[id] = (jOff?.findings || []).filter((f) => /^T1[6-9]$|^T20$/.test(f.check)).length
+      if (rOff.status !== 0 || offIds[id] !== 0) offOk = false
+    }
+    add('D3 缺省不启用：五件语义变异全部无旗标运行均无 T16～T20 findings 且 exit 0', offOk, JSON.stringify(offIds))
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
@@ -932,7 +1260,7 @@ function selfTest(extraRoots = []) {
 
 // ── 主入口（只做 IO 与汇总） ──
 function usage() {
-  console.error('用法：node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--evidence <证据.json>] [--json] [--strict] [--self-test]')
+  console.error('用法：node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--evidence <证据.json>] [--semantic-lint] [--json] [--strict] [--self-test]')
 }
 
 function expandRoot(v) {
@@ -941,7 +1269,7 @@ function expandRoot(v) {
 
 function main() {
   const argv = process.argv.slice(2)
-  const flags = { json: false, strict: false, selfTest: false }
+  const flags = { json: false, strict: false, selfTest: false, semanticLint: false }
   const extraRoots = []
   let taskbook = null
   let evidencePath = null
@@ -950,6 +1278,7 @@ function main() {
     if (a === '--json') flags.json = true
     else if (a === '--strict') flags.strict = true
     else if (a === '--self-test') flags.selfTest = true
+    else if (a === '--semantic-lint') flags.semanticLint = true
     else if (a === '--root') {
       const v = argv[++i]
       if (!v) { usage(); process.exit(1) }
@@ -1035,6 +1364,8 @@ function main() {
   } catch (e) { if (e instanceof T13LoadError) { console.error(`[装载错] T13 ${e.message}`); process.exit(3) } throw e }
   findings.push(...scanTermLines(parsed.lines, t13Words, t13Rule2))
   findings.push(...checkFactShape(parsed, factEntries)) // T14 事实台账形态漏检（L22）：默认仅 WARN，--strict 使其退 1；不把表格形态收编为合法 F。
+  // T16～T20 语义 lint（W6 R2-T1 D-3）：仅 --semantic-lint 启用；缺省零改动既有检查面。
+  if (flags.semanticLint) findings.push(...checkSemanticLint(parsed))
 
   const warn = findings.filter((f) => f.level === 'WARN').length
   const fail = findings.filter((f) => f.level === 'FAIL').length

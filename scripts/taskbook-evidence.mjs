@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// taskbook-evidence.mjs — 任务书事实台账落盘与重验（L10，2026-10-22）
-// record：解析 §4 F 条目 → 只读校验 → 逐条执行 → 落盘 JSON
-// verify：按证据条目记录的 cwd 重跑命令，比对 exit 与规范化 stdout
-// 退出码口径单源=references/06 §5.8（用法错 1／装载错 3／校验失败 1／通过 0）。
+// taskbook-evidence.mjs — 任务书事实台账落盘与重验（L10，2026-10-22；W6 R2-T1 D-4 失败隔离）
+// record：解析 §4 F 条目 → 只读校验 → 逐条执行 → 落盘 JSON。任一 F 命令非零退出＝失败隔离（口径单源 references/06 §5.8）：
+//   完整失败 JSON 只写 <out>.failed，有效 <out> 不留存（陈旧件一并清除），终端只报非零条数与
+//   sidecar 路径（不回显 F 命令正文）；成功只写 <out> 并清除陈旧 <out>.failed（schema 不变）。
+// verify：按证据条目记录的 cwd 重跑命令，比对 exit 与规范化 stdout；不一致只报 id、退出码期望/实际
+//   与精确标记「stdout 不一致（正文不回显）」，不打印 expected/actual 正文。
+// 退出码口径单源=references/06 §5.8（此处不复写语义）。
 // 安全边界：只执行任务书声明且通过只读校验的 F 命令；不执行 E 条目与验收命令。
 
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync, mkdirSync, copyFileSync } from 'node:fs'
@@ -14,6 +17,7 @@ import { tmpdir } from 'node:os'
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url))
 const SKILL_ROOT = resolve(SCRIPT_DIR, '..')
+const SELF = fileURLToPath(import.meta.url)
 const SCHEMA = 'taskbook-evidence/v1'
 const WRITE_PATTERNS = [
   ['rm', /\brm\b/], ['mv', /\bmv\b/], ['tee', /\btee\b/], ['dd', /\bdd\b/],
@@ -56,26 +60,24 @@ function repoHead(cwd) {
   return r.status === 0 ? String(r.stdout).trim() : ''
 }
 
-/** record：只读校验通过后逐条执行并落盘；任一 exit≠0 仍落盘但整体失败。
+/** record：只读校验通过后逐条执行并落盘；任一 F 命令非零退出＝失败隔离（D-4·口径单源 references/06 §5.8）——完整失败 JSON 只写
+ *  <out>.failed、有效 <out> 不留存，整体失败；成功只写 <out> 并清除陈旧 <out>.failed。
  *  B7 D-5：entry 新增 skill_head＝SKILL_ROOT git HEAD 实读（repo_head 仍取 --root 仓）；HEAD 不可读＝装载失败（code 3）——预检先于任何 F 命令执行且不落盘证据件。 */
 export function recordTaskbook(taskbookPath, outPath, root = SKILL_ROOT) {
-  if (!existsSync(taskbookPath)) return { code: 3, doc: null }
+  if (!existsSync(taskbookPath)) return { code: 3, doc: null, reason: `任务书不存在：${taskbookPath}` }
   const facts = parseFacts(readFileSync(taskbookPath, 'utf8'))
   for (const f of facts) {
     const hit = writeHit(f.cmd)
-    if (hit) {
-      console.error(`[用法错] ${f.id} 命令含写入形态「${hit}」：${f.cmd}`)
-      return { code: 1, doc: null }
-    }
+    if (hit) return { code: 1, doc: null, reason: `${f.id} 命令含写入形态「${hit}」：${f.cmd}` } // W-3：只读校验拒绝=用法错类，不落 sidecar
   }
   const skillHead = repoHead(SKILL_ROOT)
-  if (!skillHead) return { code: 3, doc: null }
+  if (!skillHead) return { code: 3, doc: null, reason: 'SKILL_ROOT HEAD 不可读（skill_head 绑定失败）' } // N-8：按实际原因打印
   const cwd = resolve(root)
   const entries = []
-  let bad = false
+  let badCount = 0
   for (const f of facts) {
     const r = run(f.cmd, cwd)
-    if (r.exit !== 0) bad = true
+    if (r.exit !== 0) badCount++
     entries.push({
       id: f.id, label: f.label, cmd: f.cmd, cwd,
       exit: r.exit, stdout: r.stdout,
@@ -85,8 +87,16 @@ export function recordTaskbook(taskbookPath, outPath, root = SKILL_ROOT) {
     })
   }
   const doc = { schema: SCHEMA, taskbook: resolve(taskbookPath), generated_at: new Date().toISOString(), entries }
+  const failedPath = outPath + '.failed'
+  if (badCount > 0) {
+    // D-4 失败隔离：失败件只进 sidecar；有效 <out> 不留存（含陈旧件清除）。
+    rmSync(outPath, { force: true })
+    writeFileSync(failedPath, JSON.stringify(doc, null, 2) + '\n', 'utf8')
+    return { code: 1, doc: null, failedCount: badCount, failedPath, kind: 'command-failure' }
+  }
   writeFileSync(outPath, JSON.stringify(doc, null, 2) + '\n', 'utf8')
-  return { code: bad ? 1 : 0, doc }
+  rmSync(failedPath, { force: true })
+  return { code: 0, doc, failedCount: 0, failedPath, kind: 'ok' }
 }
 
 /** verify：先过只读校验并与任务书 F 条目交叉核对，全部通过后才重跑比对。
@@ -122,7 +132,7 @@ export function verifyTaskbook(taskbookPath, evidencePath) {
     const sameExit = r.exit === e.exit
     const sameOut = norm(r.stdout) === norm(e.stdout)
     if (!sameExit || !sameOut) bad = true
-    results.push({ id: e.id, ok: sameExit && sameOut, exit: e.exit, actualExit: r.exit, expected: norm(e.stdout), actual: norm(r.stdout) })
+    results.push({ id: e.id, ok: sameExit && sameOut, sameExit, sameOut, exit: e.exit, actualExit: r.exit, expected: norm(e.stdout), actual: norm(r.stdout) })
   }
   return { code: bad ? 1 : 0, results, reason: '' }
 }
@@ -144,28 +154,30 @@ function selfTest() {
     add('写入形态拒绝：sed -i 命中', writeHit("sed -i 's/a/b/' f") === 'sed -i')
     add('2>/dev/null 放行：不算写入形态', writeHit('grep -c a f 2>/dev/null || true') === null)
     const rec = recordTaskbook(tb, ev, tmp)
-    const doc = JSON.parse(readFileSync(ev, 'utf8'))
+    const failedEv = ev + '.failed'
+    add('D4 失败隔离：有效 <out> 不留存、<out>.failed 落盘且整体退 1', rec.code === 1 && rec.failedCount === 1 && !existsSync(ev) && existsSync(failedEv), `code=${rec.code} failedCount=${rec.failedCount}`)
+    const doc = JSON.parse(readFileSync(failedEv, 'utf8'))
     const e0 = doc.entries[0]
-    add('record 落盘：schema 与字段齐全', rec.code === 1 && doc.schema === SCHEMA && ['id', 'label', 'cmd', 'cwd', 'exit', 'stdout', 'stdout_sha256', 'recorded_at', 'repo_head', 'date', 'declared'].every((k) => k in e0), JSON.stringify(doc).slice(0, 200))
-    add('record 遇 exit≠0：仍落盘且整体退 1', doc.entries.length === 2 && doc.entries[1].exit === 4 && rec.code === 1, JSON.stringify(doc.entries[1]))
-    add('record 只读校验拒绝整批：写入命令不落盘', (() => { const p = join(tmp, 'w.md'); writeFileSync(p, line('F-09', '写', 'rm -f x', '0'), 'utf8'); const o = join(tmp, 'w.json'); return recordTaskbook(p, o, tmp).code === 1 && !existsSync(o) })())
-    add('verify 一致：exit 0', verifyTaskbook(tb, ev).code === 0)
-    const badOut = JSON.parse(readFileSync(ev, 'utf8'))
+    add('record 失败件 schema 与字段齐全（与成功件同构）', doc.schema === SCHEMA && ['id', 'label', 'cmd', 'cwd', 'exit', 'stdout', 'stdout_sha256', 'recorded_at', 'repo_head', 'skill_head', 'date', 'declared'].every((k) => k in e0), JSON.stringify(doc).slice(0, 200))
+    add('record 失败件 entries 完整且含失败 F id 与实际 exit', doc.entries.length === 2 && doc.entries[1].id === 'F-02' && doc.entries[1].exit === 4, JSON.stringify(doc.entries.map((e) => [e.id, e.exit])))
+    add('record 只读校验拒绝整批：写入命令不落盘且无 sidecar', (() => { const p = join(tmp, 'w.md'); writeFileSync(p, line('F-09', '写', 'rm -f x', '0'), 'utf8'); const o = join(tmp, 'w.json'); return recordTaskbook(p, o, tmp).code === 1 && !existsSync(o) && !existsSync(o + '.failed') })())
+    add('verify 一致：exit 0', verifyTaskbook(tb, failedEv).code === 0)
+    const badOut = JSON.parse(readFileSync(failedEv, 'utf8'))
     badOut.entries[0].stdout = 'b\n'
-    writeFileSync(ev, JSON.stringify(badOut), 'utf8')
-    add('verify stdout 不一致：exit 1', verifyTaskbook(tb, ev).code === 1)
+    writeFileSync(failedEv, JSON.stringify(badOut), 'utf8')
+    add('verify stdout 不一致：exit 1', verifyTaskbook(tb, failedEv).code === 1)
     const badExit = JSON.parse(JSON.stringify(doc))
     badExit.entries[1].exit = 0
-    writeFileSync(ev, JSON.stringify(badExit), 'utf8')
-    add('verify exit 不一致：exit 1', verifyTaskbook(tb, ev).code === 1)
+    writeFileSync(failedEv, JSON.stringify(badExit), 'utf8')
+    add('verify exit 不一致：exit 1', verifyTaskbook(tb, failedEv).code === 1)
     add('verify 证据缺失：exit 3', verifyTaskbook(tb, join(tmp, 'nope.json')).code === 3)
-    writeFileSync(ev, JSON.stringify({ schema: 'x', entries: [] }), 'utf8')
-    add('verify schema 不符：exit 3', verifyTaskbook(tb, ev).code === 3)
+    writeFileSync(failedEv, JSON.stringify({ schema: 'x', entries: [] }), 'utf8')
+    add('verify schema 不符：exit 3', verifyTaskbook(tb, failedEv).code === 3)
     const crlf = JSON.parse(JSON.stringify(doc))
     crlf.entries[0].stdout = crlf.entries[0].stdout.replace(/\n/g, '\r\n')
-    writeFileSync(ev, JSON.stringify(crlf), 'utf8')
-    add('stdout 规范化：CRLF 与 LF 等价', verifyTaskbook(tb, ev).code === 0)
-    const pwn = join(tmp, 'pwn.txt'), evWith = (o) => writeFileSync(ev, JSON.stringify({ ...doc, entries: [{ ...doc.entries[0], ...o }] }), 'utf8')
+    writeFileSync(failedEv, JSON.stringify(crlf), 'utf8')
+    add('stdout 规范化：CRLF 与 LF 等价', verifyTaskbook(tb, failedEv).code === 0)
+    const pwn = join(tmp, 'pwn.txt'), evWith = (o) => writeFileSync(failedEv, JSON.stringify({ ...doc, entries: [{ ...doc.entries[0], ...o }] }), 'utf8')
     evWith({ cmd: `printf x > ${pwn}` }); add('W1 证据含写入命令：exit 3 且未执行', verifyTaskbook(tb, ev).code === 3 && !existsSync(pwn))
     evWith({ cmd: 7 }); add('W1 非字符串 cmd：exit 3', verifyTaskbook(tb, ev).code === 3)
     evWith({ cmd: 'printf y' }); add('W1 与任务书 F 条目不匹配：exit 3', verifyTaskbook(tb, ev).code === 3)
@@ -194,8 +206,64 @@ function selfTest() {
         const r = run2(), absent = !existsSync(ovx)
         spawnSync('git', ['-C', iso, 'init', '-q']); spawnSync('git', ['-C', iso, '-c', 'user.name=iso', '-c', 'user.email=iso@l', 'commit', '-q', '--allow-empty', '-m', 'iso'])
         const r2 = run2(), head = String(spawnSync('git', ['-C', iso, 'rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).stdout || '').trim()
-        return r.status === 3 && absent && r2.status === 1 && head !== '' && existsSync(ovx) && JSON.parse(readFileSync(ovx, 'utf8')).entries[0].skill_head === head
+        // D-4 后失败件只进 sidecar（<out> 不留存），skill_head 绑定断言随之改读 <out>.failed
+        return r.status === 3 && String(r.stderr || '').includes('HEAD') && absent && r2.status === 1 && head !== '' && !existsSync(ovx) && existsSync(ovx + '.failed') && JSON.parse(readFileSync(ovx + '.failed', 'utf8')).entries[0].skill_head === head
       } finally { rmSync(iso, { recursive: true, force: true }) }
+    })())
+    // ── D-4 失败隔离 CLI 向量（W6 R2-T1）──
+    add('D4 CLI record 失败最小输出：终端仅非零条数与 sidecar 路径，不含命令正文；预置陈旧 <out> 被清除', (() => {
+      const tb8 = join(tmp, 'tb8.md'), o8 = join(tmp, 'o8.json')
+      writeFileSync(tb8, line('F-31', '哨兵', "printf 'SENTINEL-BODY-9'; exit 5", '0'), 'utf8')
+      writeFileSync(o8, '{"stale":1}', 'utf8')
+      const r = spawnSync(process.execPath, [SELF, 'record', '--taskbook', tb8, '--out', o8], { encoding: 'utf8' })
+      const out = String(r.stdout || '') + String(r.stderr || '')
+      return r.status === 1 && !existsSync(o8) && existsSync(o8 + '.failed') && /非零条目 ×1/.test(out) && out.includes(o8 + '.failed') && !out.includes('SENTINEL-BODY-9')
+    })())
+    add('D4 CLI verify 不一致最小输出：含精确标记，不含 expected/actual 正文', (() => {
+      const tb9 = join(tmp, 'tb9.md'), o9 = join(tmp, 'o9.json')
+      writeFileSync(tb9, line('F-50', '计数', "printf 'ok\\n' | grep -c ok", '1'), 'utf8')
+      recordTaskbook(tb9, o9, tmp)
+      const d9 = JSON.parse(readFileSync(o9, 'utf8')); d9.entries[0].stdout = 'MISMATCH-BODY-7\n'
+      writeFileSync(o9 + '.alt', JSON.stringify(d9), 'utf8')
+      const r = spawnSync(process.execPath, [SELF, 'verify', '--taskbook', tb9, '--evidence', o9 + '.alt'], { encoding: 'utf8' })
+      const out = String(r.stdout || '') + String(r.stderr || '')
+      const ok = r.status === 1 && out.includes('stdout 不一致（正文不回显）') && !out.includes('MISMATCH-BODY-7') && !out.includes('"' + 'ok' + '"')
+      rmSync(o9 + '.alt')
+      return ok
+    })())
+    add('D4 成功 record 清除陈旧 <out>.failed 且成功件在位', (() => {
+      const tb10 = join(tmp, 'tb10.md'), o10 = join(tmp, 'o10.json')
+      writeFileSync(tb10, line('F-60', '成功件', "printf 'v\\n' | grep -c v", '1'), 'utf8')
+      writeFileSync(o10 + '.failed', '{"stale":1}', 'utf8')
+      const r = recordTaskbook(tb10, o10, tmp)
+      return r.code === 0 && existsSync(o10) && !existsSync(o10 + '.failed')
+    })())
+    // ── 双审修入向量（W-3/W-4/N-8/N-9）──
+    add('W-3 CLI 用法错与只读校验拒绝：[用法错] 打印、无 sidecar、无 undefined', (() => {
+      const tb11 = join(tmp, 'tb11.md'), o11 = join(tmp, 'o11.json')
+      writeFileSync(tb11, line('F-70', '写形态', 'rm -f x', '0'), 'utf8')
+      const r1 = spawnSync(process.execPath, [SELF, 'record', '--taskbook', tb11, '--out', o11], { encoding: 'utf8' })
+      const out1 = String(r1.stdout || '') + String(r1.stderr || '')
+      const r2 = spawnSync(process.execPath, [SELF, 'record', '--bogus'], { encoding: 'utf8' })
+      const out2 = String(r2.stdout || '') + String(r2.stderr || '')
+      return r1.status === 1 && !existsSync(o11) && !existsSync(o11 + '.failed') && out1.includes('[用法错]') && !out1.includes('失败件') && !out1.includes('undefined')
+        && r2.status === 1 && out2.includes('用法') && !out2.includes('undefined')
+    })())
+    add('N-8 CLI record 装载错按实际原因打印：任务书不存在', (() => {
+      const r3 = spawnSync(process.execPath, [SELF, 'record', '--taskbook', join(tmp, 'no-such-tb.md'), '--out', join(tmp, 'o12.json')], { encoding: 'utf8' })
+      return r3.status === 3 && String(r3.stderr || '').includes('任务书不存在')
+    })())
+    add('N-9 CLI verify exit-only 不一致：标注（stdout 一致）、无精确标记', (() => {
+      const tb13 = join(tmp, 'tb13.md'), o13 = join(tmp, 'o13.json')
+      writeFileSync(tb13, line('F-80', '计数', "printf 'w\\n' | grep -c w", '1'), 'utf8')
+      recordTaskbook(tb13, o13, tmp)
+      const d13 = JSON.parse(readFileSync(o13, 'utf8')); d13.entries[0].exit = 9
+      writeFileSync(o13 + '.alt2', JSON.stringify(d13), 'utf8')
+      const r = spawnSync(process.execPath, [SELF, 'verify', '--taskbook', tb13, '--evidence', o13 + '.alt2'], { encoding: 'utf8' })
+      const out = String(r.stdout || '') + String(r.stderr || '')
+      const ok = r.status === 1 && out.includes('（stdout 一致）') && !out.includes('stdout 不一致（正文不回显）') && !out.includes('undefined')
+      rmSync(o13 + '.alt2')
+      return ok
     })())
   } finally { rmSync(tmp, { recursive: true, force: true }) }
   const pass = cases.filter((c) => c.ok).length
@@ -231,13 +299,23 @@ function main() {
   }
   if (!opt.taskbook || (sub === 'record' ? !opt.out : !opt.evidence)) { usage(); process.exit(1) }
   if (sub === 'record') {
-    const { code } = recordTaskbook(opt.taskbook, opt.out, opt.root ? resolve(opt.root) : SKILL_ROOT)
-    if (code === 3) console.error(`[装载错] 任务书不存在：${opt.taskbook}`)
+    const { code, failedCount, failedPath, reason } = recordTaskbook(opt.taskbook, opt.out, opt.root ? resolve(opt.root) : SKILL_ROOT)
+    if (code === 3) console.error(`[装载错] ${reason || '任务书或环境不可读'}`)
+    else if (code === 1) {
+      // W-3：仅 F 命令非零报非零条数＋sidecar；用法/只读校验失败=[用法错] 类，不报 sidecar
+      if (failedPath) console.log(`record 失败：非零条目 ×${failedCount}；失败件=${failedPath}（正文不回显）`)
+      else console.error(`[用法错] ${reason || '只读校验未通过，整批拒绝落盘'}`)
+    }
     process.exit(code)
   }
   const { code, results, reason } = verifyTaskbook(opt.taskbook, opt.evidence)
   if (code === 3) console.error(`[装载错] ${reason || '任务书或证据文件不可读/schema 不符'}`)
-  if (code === 1) for (const r of results) if (!r.ok) console.log(`[不一致] ${r.id} exit 期望 ${r.exit} 实际 ${r.actualExit}；stdout 期望 ${JSON.stringify(r.expected)} 实际 ${JSON.stringify(r.actual)}`)
+  // N-9：exit-only 与 stdout 不一致分形态；精确标记仅 stdout 场景
+  if (code === 1) for (const r of results) {
+    if (!r.ok) console.log(r.sameOut
+      ? `[不一致] ${r.id} exit 期望 ${r.exit} 实际 ${r.actualExit}（stdout 一致）`
+      : `[不一致] ${r.id} exit 期望 ${r.exit} 实际 ${r.actualExit}；stdout 不一致（正文不回显）`)
+  }
   if (code === 0 && results.length) console.log(`verify 全一致（${results.length} 条）`)
   process.exit(code)
 }
