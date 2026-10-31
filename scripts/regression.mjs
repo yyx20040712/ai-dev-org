@@ -18,7 +18,14 @@
  *       exit 0——五向量〔dry-run 逐组计数/零漂移/隔离分组计数/manifest 哈希锚篡改检出/
  *       stale candidate〕＋fixture 全程两仓零写入断言在自检内部承载）；
  *   R15'=主仓门禁自检（B1 批：spawn <project>/scripts/verify-docs.mjs --self-test 断言
- *       exit 0——缺件=FAIL 不静默跳过，回归面收缩即绊线拆除）。
+ *       exit 0——缺件=FAIL 不静默跳过，回归面收缩即绊线拆除）；
+ *   R12'=词表棘轮回归面（check-terms 词表装载与棘轮执法向量——W3/B3 系）；
+ *   R16'=文档生成与提交短句自检（B6 批：四脚本隔离自检＋快照确定性＋terms/residuals
+ *       双闸探针＋hardcode 负例＋b3 影子对照）；
+ *   R17'=α/β 门禁自检（W5a 批：spawn <project>/scripts/check-commit-msg.mjs --self-test
+ *       与 <project>/scripts/verify-docs.mjs --self-test——α 全过标记＋β 0/1/3/spawn
+ *       失败四类具名 PASS；仅在 --project <主仓> 语境成立，缺省 cwd=技能仓必 FAIL）。
+ * 现役项=R4/R7/R8/R10/R12/R13/R14/R15/R16/R17 十项（W5a 补 R12/R16/R17 头注随动）。
  * 用法：node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <账本目录>]
  *       [--ledger <账本路径>] [--keep-tmp]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
@@ -41,7 +48,7 @@ let only = null
 let projectDir = process.cwd()
 try {
   const onlyArg = flag('--only')
-  if (onlyArg) only = onlyArg.split(',').map((s) => s.trim().toUpperCase())
+  if (onlyArg) only = [...new Set(onlyArg.split(',').map((s) => s.trim().toUpperCase()))] // 返工 N-①：集合语义去重（R4,R4 不再假红 R-META）
   projectDir = flag('--project') || process.cwd()
 } catch (e) {
   if (e instanceof UsageError) {
@@ -51,7 +58,7 @@ try {
   throw e
 }
 const keepTmp = argv.includes('--keep-tmp')
-const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批）
+const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16', 'R17'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批；R17=W5a α/β 门禁自检）
 if (only && only.some((id) => !KNOWN_ITEMS.includes(id))) {
   console.error(`[用法错] 未知回归项：${only.filter((id) => !KNOWN_ITEMS.includes(id)).join(',')}（现役项=${KNOWN_ITEMS.join('/')}——派发器族项已随 2026-10-03 清理批次删除，详见 git 历史）`)
   process.exit(1)
@@ -689,6 +696,42 @@ if (want('R16')) {
     det16.push(`⑤production_check=${prodNote}`)
   } finally { rmSync(fx16, { recursive: true, force: true }) }
   record('R16', ok16, `文档生成自检——${det16.join(' ')}`)
+}
+
+// ═══ W5a R17：α/β 门禁自检（spawn 主仓 check-commit-msg --self-test 与 verify-docs --self-test；
+//     缺件=FAIL 不跳过；沿用统一超时与 SIGKILL。仅在 --project <主仓> 语境成立——缺省
+//     cwd=技能仓时两脚本缺件必 FAIL，不静默降级。β 判据=0/1/3 映射与 spawn 失败四类具名
+//     PASS（verify-docs 自检 β-E2E 向量行）；α 判据=exit 0＋「全过」标记。 ═══
+if (want('R17')) {
+  const alphaScript = join(projectDir, 'scripts', 'check-commit-msg.mjs')
+  const betaScript = join(projectDir, 'scripts', 'verify-docs.mjs')
+  const r17Run = (script) => spawnSync(node()[0], [script, '--self-test'], { encoding: 'utf8', cwd: projectDir, timeout: 300_000, killSignal: 'SIGKILL', maxBuffer: 64 * 1024 * 1024 })
+  let ok17 = true
+  // ① α 自检：exit 0 且输出含全过标记
+  const aOut = existsSync(alphaScript) ? (() => { const r = r17Run(alphaScript); return { r, out: (r.stdout || '') + (r.stderr || '') } })() : { r: { status: null }, out: 'check-commit-msg 缺件' }
+  const aOk = existsSync(alphaScript) && aOut.r.status === 0 && aOut.out.includes('全过')
+  console.log(`${aOk ? 'PASS' : 'FAIL'} R17-alpha α自检:exit=${aOut.r.status}/全过=${aOut.out.includes('全过')}`)
+  if (!aOk) ok17 = false
+  // ② β 自检：exit 0 且 β 0/1/3 映射与 spawn 失败四类具名 PASS 齐备
+  const bOut = existsSync(betaScript) ? (() => { const r = r17Run(betaScript); return { r, out: (r.stdout || '') + (r.stderr || '') } })() : { r: { status: null }, out: 'verify-docs 缺件' }
+  const betaMarks = ['β-E2E terms0 映射', 'β-E2E terms1 映射', 'β-E2E terms3 映射', 'β-E2E spawn失败 映射']
+  const betaLineHit = (m) => bOut.out.split('\n').some((l) => l.startsWith(`PASS ${m}`)) // 返工 W-4①：整行匹配（PASS <具名>），非仅标记名出现
+  const bOk = existsSync(betaScript) && bOut.r.status === 0 && betaMarks.every(betaLineHit)
+  console.log(`${bOk ? 'PASS' : 'FAIL'} R17-beta β自检:exit=${bOut.r.status}/四类具名整行=${betaMarks.filter(betaLineHit).length}/4`)
+  if (!bOk) ok17 = false
+  record('R17', ok17, `α/β 门禁自检——α ${aOk ? '✓' : '✗'} β ${bOk ? '✓' : '✗'}${!ok17 ? `（α输出尾：${aOut.out.slice(-120)}｜β输出尾：${bOut.out.slice(-120)}）` : ''}`)
+}
+
+// ── 应跑项漏载断言（W5a/D-9）：results 的 id 集与应跑集（考虑 --only 过滤）恰等——
+//    漏载即 FAIL，防静默 9/9 式回归面收缩。 ──
+const expectIds = only ? KNOWN_ITEMS.filter((id) => only.includes(id)) : KNOWN_ITEMS.slice()
+const gotIds = results.map((r) => r.id)
+const dupIds = gotIds.filter((id, i) => gotIds.indexOf(id) !== i)
+const missingIds = expectIds.filter((id) => !gotIds.includes(id))
+const extraIds = gotIds.filter((id) => !expectIds.includes(id))
+if (missingIds.length || extraIds.length || dupIds.length || results.length !== expectIds.length) { // 返工 W-4②：集合双向全等（漏/多）＋无重复＋长度恰等
+  console.log(`FAIL R-META 应跑集失配：漏=${missingIds.join(',') || '无'} 多=${extraIds.join(',') || '无'} 重=${dupIds.join(',') || '无'} 实载=${results.length}/应跑=${expectIds.length}（防静默收缩）`)
+  results.push({ id: 'R-META', pass: false, detail: '应跑集失配（漏/多/重/长度）' })
 }
 
 const fails = results.filter((r) => !r.pass).length

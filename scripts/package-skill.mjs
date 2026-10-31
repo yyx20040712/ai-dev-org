@@ -137,8 +137,9 @@ export function scanTree(root, patterns, entries = [], skip = []) {
   return found
 }
 
-/** 清单：文件+sha256（excludeSelf=manifest 自身不列）。 */
-export function buildManifest(root, headHash, excludeSelf) {
+/** 清单：文件+sha256（excludeSelf=manifest 自身不列）。W5a γ（D-8）：version 由 SKILL.md
+ *  唯一版本行派生（调用方传入，本函数不持第二版次源；未传=头部不含版本键，不冒充）。 */
+export function buildManifest(root, headHash, excludeSelf, version = null) {
   const rows = []
   const walk = (dir) => {
     for (const name of readdirSync(dir).sort()) {
@@ -152,7 +153,29 @@ export function buildManifest(root, headHash, excludeSelf) {
     }
   }
   walk(root)
-  return `# ai-dev-org 分享包清单（生成物——09 §1；基线 git=${headHash}，${new Date().toISOString()}）\n${rows.join('\n')}\n`
+  const vPart = version ? `版本=${version}，` : ''
+  return `# ai-dev-org 分享包清单（生成物——09 §1；基线 git=${headHash}，${vPart}${new Date().toISOString()}）\n${rows.join('\n')}\n`
+}
+
+/** W5a γ 输出摘要行（返工 B-2 派生闭环）：版次与 MANIFEST 头部同源自 extractSkillVersion。 */
+export function packSummaryLine(outDir, head, version, dims) {
+  return `分享包就绪：${outDir}（git=${head.slice(0, 12)}，版本=${version}，含 MANIFEST；门禁零命中——${dims}）`
+}
+
+/** W5a γ（D-8）版次唯一源：从 SKILL.md 文本提取严格 v<major>.<minor>.<patch>。
+ *  缺行/重复/畸形（含出现「当前版本=」但无严格形）均抛 VersionLoadError=配置装载错 3 拒打包。 */
+export function extractSkillVersion(text) {
+  const lines = String(text).split('\n')
+  const strict = /^- 当前版本=(v\d+\.\d+\.\d+)。/
+  const hits = lines.filter((l) => strict.test(l))
+  const candidates = lines.filter((l) => l.includes('当前版本='))
+  const err = (why) => { const e = new Error(`SKILL.md 版本行${why}（版次唯一源=版本行——缺行/重复/畸形均拒打包）`); e.name = 'VersionLoadError'; throw e }
+  if (candidates.length !== 1 || hits.length !== 1) { // 返工 B-2：通过条件=恰一行候选且恰一行严格形
+    if (candidates.length === 0) err('缺失')
+    else if (candidates.length > 1) err(`重复（${candidates.length} 行含「当前版本=」）`)
+    else err('畸形（唯一候选行非「- 当前版本=vX.Y.Z。」严格形）')
+  }
+  return strict.exec(hits[0])[1]
 }
 
 // ── --self-test（fixture 为主，禁动真实状态）──
@@ -202,14 +225,41 @@ function selfTest() {
     rmSync(fx, { recursive: true, force: true })
   }
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
-  process.exit(fails === 0 ? 0 : 1)
+  return fails === 0 // W5a γ：退出收敛到 CLI 分支（分享面自检＋版次自检连跑后统一 exit）
+}
+
+// ── W5a γ（D-8）版次唯一源自检向量：正常/缺行/重复/畸形/派生一致性（fixture 全合成，
+//    不触真实输出目录与真实 SKILL.md）──
+function selfTestVersion() {
+  let fails = 0
+  let n = 0
+  const t = (name, cond) => (n++, console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`), cond || fails++)
+  t('γ① 正常：唯一版本行提取 v3.3.0', extractSkillVersion('- 当前版本=v3.3.0。本技能不内载时间与批次史。\n') === 'v3.3.0')
+  t('γ② 正常：多行文档中定位唯一行', extractSkillVersion('前言\n\n- 当前版本=v3.3.0。正文随行。\n其他行\n') === 'v3.3.0')
+  t('γ③ 缺行→配置装载错（VersionLoadError）', (() => { try { extractSkillVersion('没有版本行的文档\n'); return false } catch (e) { return e.name === 'VersionLoadError' } })())
+  t('γ④ 重复→配置装载错', (() => { try { extractSkillVersion('- 当前版本=v3.3.0。a\n- 当前版本=v3.4.0。b\n'); return false } catch (e) { return e.name === 'VersionLoadError' } })())
+  t('γ⑤ 畸形（段数不足）→配置装载错', (() => { try { extractSkillVersion('- 当前版本=v3.3。\n'); return false } catch (e) { return e.name === 'VersionLoadError' } })())
+  t('γ⑥ 畸形（带「当前版本=」但非严格形）→配置装载错', (() => { try { extractSkillVersion('当前版本=3.3.0（无 v 前缀）\n'); return false } catch (e) { return e.name === 'VersionLoadError' } })())
+  const vf = mkdtempSync(join(tmpdir(), 'pkg-ver-'))
+  try {
+    writeFileSync(join(vf, 'a.txt'), 'x', 'utf8')
+    // B-2（返工）派生闭环：合成 SKILL.md 夹具→提取值同时入 MANIFEST 头部与 CLI 摘要——不再喂常量
+    const SYN_SKILL = '# fx\n- 当前版本=v4.5.6。fx 正文\n'
+    const vFx = extractSkillVersion(SYN_SKILL)
+    t('γ⑦ 派生闭环：提取值同时入 MANIFEST 头部与 CLI 摘要', buildManifest(vf, 'deadbeef1234567890abcd', null, vFx).includes('版本=v4.5.6') && packSummaryLine('/tmp/fx-out', 'deadbeef1234567890abcd', vFx, 'fx-dims').includes('版本=v4.5.6'))
+    t('γ⑧ 派生一致性：未传版次时头部不含版本键（不冒充第二源）', !buildManifest(vf, 'deadbeef', null, null).includes('版本='))
+  } finally { rmSync(vf, { recursive: true, force: true }) }
+  t('γ⑨ 合法行＋畸形候选行→配置装载错（B-2 唯一性）', (() => { try { extractSkillVersion('- 当前版本=v3.3.0。a\n当前版本=v3.3（畸形候选）\n'); return false } catch (e) { return e.name === 'VersionLoadError' } })())
+  t('γ⑩ 合法行＋非严格重复行→配置装载错（B-2 唯一性）', (() => { try { extractSkillVersion('- 当前版本=v3.3.0。a\n- 当前版本=v3.3.0（无句号非严格重复）\n'); return false } catch (e) { return e.name === 'VersionLoadError' } })())
+  console.log(fails === 0 ? `γ 版次自检全过（${n} 向量）` : `γ 版次自检 ${fails} 项失败`)
+  return fails === 0
 }
 
 // ── CLI ──
 const isMain = process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
 if (isMain) {
   const argv = process.argv.slice(2)
-  if (argv.includes('--self-test')) selfTest()
+  if (argv.includes('--self-test')) { const a = selfTest(); const b = selfTestVersion(); process.exit(a && b ? 0 : 1) }
 
   let outDir
   try {
@@ -220,6 +270,16 @@ if (isMain) {
   }
   if (!outDir) { console.error('用法: node scripts/package-skill.mjs --out <输出目录> [--self-test]（细则=PACKAGING.md）'); process.exit(1) }
   outDir = resolve(outDir)
+
+  // W5a γ（D-8）版次唯一源：打包前先从 SKILL.md 唯一版本行提取严格 vX.Y.Z——缺行/重复/
+  // 畸形=配置装载错 3 拒打包；不另设参数/常量/第二版次源，MANIFEST 头部与输出摘要均从此派生。
+  let skillVersion = null
+  try {
+    skillVersion = extractSkillVersion(readFileSync(join(SKILL_ROOT, 'SKILL.md'), 'utf8'))
+  } catch (e) {
+    console.error(`[装载错] ${e.message}（配置装载错=3——06 §5.8 家族）`)
+    process.exit(3)
+  }
 
   const dirty = spawnSync('git', ['status', '--porcelain'], { cwd: SKILL_ROOT, encoding: 'utf8' })
   if (dirty.error || dirty.status !== 0) { console.error('[装载错] git 不可用——打包基线无法核验（06 §5.8 行 3）'); process.exit(3) }
@@ -260,8 +320,8 @@ if (isMain) {
     process.exit(1)
   }
   const manifestRel = 'MANIFEST.txt'
-  writeFileSync(join(outDir, manifestRel), buildManifest(outDir, head, manifestRel), 'utf8')
-  console.log(`分享包就绪：${outDir}（git=${head.slice(0, 12)}，含 MANIFEST；门禁零命中——${dims}）`)
+  writeFileSync(join(outDir, manifestRel), buildManifest(outDir, head, manifestRel, skillVersion), 'utf8')
+  console.log(packSummaryLine(outDir, head, skillVersion, dims))
   process.exit(0)
 }
 

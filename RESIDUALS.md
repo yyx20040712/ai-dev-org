@@ -2,7 +2,7 @@
 
 > 状态：active ｜ 权威：registry ｜ 替代：无
 
-当前 **open=0**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；；2026-10-30 B8 事故新挂 1 行（b8n-test-harness-runaway·授权=账本 b8-incident 行·纯 JSON 登记不触冻结旧表）后余 9；2026-10-30 B8 实现批销账 8 行（b1n 六项 legacy＋b6n-atomicwrite-race＋b8n-test-harness-runaway）后余 0。余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
+当前 **open=1**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；；2026-10-30 B8 事故新挂 1 行（b8n-test-harness-runaway·授权=账本 b8-incident 行·纯 JSON 登记不触冻结旧表）后余 9；2026-10-30 B8 实现批销账 8 行（b1n 六项 legacy＋b6n-atomicwrite-race＋b8n-test-harness-runaway）后余 0。余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
 历史文档区存档与技能仓 git 提交历史，不驻技能加载面。
 
 **权威段唯一**：下方 residuals-json 标记对之间的 JSON 是唯一权威（schema=residuals/v1）；「历史旧表」仅供对账、已冻结非权威；禁止双写——冻结表行不得在冻结块外重现，新登记只走 JSON 八键，不再新增 Markdown 行。
@@ -238,6 +238,18 @@
       "phenomenon": "executor 默认槽 startplan 的绑定值所指计划源供应商在宿主供应商注册表已不存在（现行注册表计划源=individual-coding-plan／offpeak-idle-plan／highspeed-card 三家），实派即 provider-not-found；机检面（validate／doctor／deploy-check）均不查宿主注册表活性，仅实派或 ListModels 可见",
       "status": "closed",
       "trigger": "已裁决闭合：startplan 槽保留（供应商将更新·届时用户经面板自动调整）；本次用户已把 glmflash 调为 executor 首位（面板=顺序日常唯一写者·startplan 居回退序第 2）；再触发=startplan 供应商恢复或再变时由用户面板调整，无需机检面动作"
+    },
+    {
+      "created_at": "2026-10-31",
+      "description": "本地源面与 CI 分发面词表及项目基线可能漂移；技能根基线任何重冻批须同步主仓镜像件，由本地 verify-docs 同源机检执法",
+      "evidence": [
+        "docs/evidence/W5a-gates-2026-10-31.md"
+      ],
+      "id": "vocab-two-face-skew",
+      "owner": "W5a",
+      "phenomenon": "源面与分发面 check-terms 全脚本及未来词表存在两面偏差",
+      "status": "open",
+      "trigger": "下次词表变更批须先推分发面或同步两面；技能根基线任何重冻批（棘轮升降）须同步主仓镜像件——本地 verify-docs 同源机检执法"
     }
   ],
   "schema": "residuals/v1"

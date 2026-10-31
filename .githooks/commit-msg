@@ -1,0 +1,40 @@
+#!/bin/sh
+# 本仓提交说明校验（W5a·α 轨 D-4）：账本与校验脚本单源在主仓——以技能仓为 repo-root、
+# 解析出的主仓根为 ledger-root，调用主仓根下 scripts/check-commit-msg.mjs，原样传退出码。
+# ORG_MAIN_REPO 仅在入口处作为主仓根定位候选读取（docs/agent-matrix.json 只是定位标记，
+# 不构成对伪造主仓根的信任证明——带标记假根为已知限制，不作安全承诺）；随后与另外三个
+# 变量一并从校验子进程环境清除。HOME 不在清洗清单，同为已知限制。
+# fail-closed：node 缺失或主仓根不可定位=拒绝提交（含修复提示），不静默放行。
+set -e
+if ! command -v node >/dev/null 2>&1; then
+  echo "[commit-msg] node 不存在——拒绝提交（fail-closed）" >&2
+  echo "  安装 Node LTS（如 nvm install --lts 或官方安装包）后重试" >&2
+  exit 1
+fi
+# 主仓根定位（D-4 优先序）：①ORG_MAIN_REPO 候选且带 docs/agent-matrix.json 标记；
+# ②$HOME/work/aidevorg 且带同标记。两者均不可用=非零拒绝。
+main_root=""
+candidate="${ORG_MAIN_REPO:-}"
+if [ -n "$candidate" ] && [ -f "$candidate/docs/agent-matrix.json" ]; then
+  main_root="$candidate"
+fi
+if [ -z "$main_root" ]; then
+  def_root="$HOME/work/aidevorg"
+  if [ -f "$def_root/docs/agent-matrix.json" ]; then
+    main_root="$def_root"
+  fi
+fi
+if [ -z "$main_root" ]; then
+  echo "[commit-msg] 主仓根不可定位——拒绝提交。" >&2
+  echo "  修复：设 ORG_MAIN_REPO 指向主仓根（须含 docs/agent-matrix.json），或确保 \$HOME/work/aidevorg 在位" >&2
+  exit 1
+fi
+# 环境清洗（D-4）：定位完成后清除四变量对校验子进程的继承，禁伪造技能根/WARN 基线/
+# 旗标状态/主仓根钝化检查。
+unset ORG_SKILL_ROOT ORG_WARN_BASELINE ORG_FLAGS_STATE ORG_MAIN_REPO
+# 本仓根定位（返工 W-1③）：与主仓钩子同款脚本相对定位（钩子文件位于 <仓根>/.githooks/）——
+# GIT_DIR/GIT_WORK_TREE 无法再借 show-toplevel 劫持 repo-root（堵伪造 MERGE_HEAD 合并
+# 豁免面）；GIT_* 其余面=本地已知限制（证据档 §0③）。
+hook_dir="$(cd "$(dirname "$0")" && pwd -P)"
+skill_root="$(dirname "$hook_dir")"
+exec node "$main_root/scripts/check-commit-msg.mjs" --repo-root "$skill_root" --ledger-root "$main_root" --msg-file "$1"
