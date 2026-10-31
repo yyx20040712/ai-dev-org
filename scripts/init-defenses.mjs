@@ -7,7 +7,7 @@
  *   node scripts/init-defenses.mjs --target <目录> --stack <npm-verify|pnpm-pygates|generic>
  *        [--project <项目名>] [--yes] [--dry-run]
  * 退出码口径单源=references/06 §5.8；本件特有一句（预算自检 FAIL 先回滚
- *   已落盘项再退——回滚动作总表未载，回炉 r2 保留呈终审）。
+ *   已落盘项再退——回滚动作总表未载，返工 r2 保留呈终审）。
  * 覆盖安全：一切写入=「不存在则创建」；须确认的修改仅一处=AGENTS.md
  *   追加 ORG-SEG 段——须 --yes 或 TTY 交互确认，否则 SKIP（.gitignore
  *   幂等片段追加不须确认：含标记即跳过，重复内容不会写入）。
@@ -69,7 +69,7 @@ const agentsPath = join(dir, 'AGENTS.md')
 const orgSegRaw = readFileSync(join(TPL, 'org-seg.snippet.md'), 'utf8').replace(/\r\n/g, '\n')
 if (existsSync(agentsPath)) {
   const orig = readFileSync(agentsPath, 'utf8')
-  if (/ORG-SEG:BEGIN/.test(orig)) skip('ORG-SEG 插入（已存在标记段——多段=预算分散逃逸，禁重复插入）')
+  if (/ORG-SEG:BEGIN/.test(orig)) skip('ORG-SEG 插入（已存在标记段——多段=预算分散漏网，禁重复插入）')
   else {
     let confirm = false
     if (assumeYes) confirm = true

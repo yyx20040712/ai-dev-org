@@ -15,26 +15,26 @@
 
 ## 2. 单批次流水线（基准 12 步）
 
-```
-1. [编排者] 开工体检：工作树清洁+HEAD 基线+门禁全绿+全量不回退——异常即停
-2. [编排者] 技能盘点：枚举当前环境可用技能，逐项标"用/不用+理由"，落盘后才许动手
-3. [编排者] （需探索时）冻结提取 → 任务书（简报/工单）：预裁决编号+全签名+白名单
-           +探针清单+DoD+commit 顺序；记录 BASE 提交号
-4. [实现者] TDD：红（实录）→绿→变异红证→探针（临时脚本用后删）
-           →分笔中文 commit（每笔前 lint）→报告（DONE/DONE_WITH_CONCERNS/
-           NEEDS_CONTEXT/BLOCKED + 自裁申报）
-5. [编排者] 亲验（不信自报）：git 终态+门禁+全量+lint → 生成审计包
-6. [门一]   隔离评审：逐条 [B|W|N] + file:line 证据 + 断言弱化判定 → 审计报告
-7. [门二]   实证终审：逐条裁决+独立复算+亲跑矩阵 → 裁决报告（含回炉建议）
-8. [编排者] 回炉：按裁决逐项下发原实现者；一轮一回审（定点 ADDRESSED+新破坏扫描）
-           —— 回炉有上限（WP R≤5/R≤3 续用原实现者；SY ≤2 超限终止留人；
-           ai-dev-org 新项目默认口径=本件 §9 适配注记）
-9. [编排者] 终裁收口：亲验全绿（真退出码）→ final 报告 → 台账/registry 翻状态
-           → 显式列文件提交（受锁面带 [locked-change] 尾注）
-10.[编排者] push → CI 核查（消费 job 全绿；有触发延迟窗口的先等复查窗口）
-11.[编排者] 成本入账：子代理 token/时长分列（实现者/门一/门二）
-12.元循环：教训三条入账路径——台账教训条目 → 教训库 → 可机器化者升格质量门条款
-```
+>
+> 1. [主控] 开工体检：工作树清洁+HEAD 基线+门禁全绿+全量不回退——异常即停
+> 2. [主控] 技能盘点：枚举当前环境可用技能，逐项标"用/不用+理由"，落盘后才许动手
+> 3. [主控] （需探索时）冻结提取 → 任务书（简报/工单）：预裁决编号+全签名+白名单
+>            +探针清单+DoD+commit 顺序；记录 BASE 提交号
+> 4. [实现岗] TDD：红（实录）→绿→变异红证→探针（临时脚本用后删）
+>            →分笔中文 commit（每笔前 lint）→报告（DONE/DONE_WITH_CONCERNS/
+>            NEEDS_CONTEXT/BLOCKED + 自裁申报）
+> 5. [主控] 亲验（不信自报）：git 终态+门禁+全量+lint → 生成审计包
+> 6. [执行者审核] 隔离评审：逐条 [B|W|N] + file:line 证据 + 断言弱化判定 → 审计报告
+> 7. [实证裁决] 实证终审：逐条裁决+独立复算+亲跑矩阵 → 裁决报告（含返工建议）
+> 8. [主控] 返工：按裁决逐项下发原实现岗；一轮一回审（定点 ADDRESSED+新破坏扫描）
+>            —— 返工有上限（WP R≤5/R≤3 续用原实现岗；SY ≤2 超限终止留人；
+>            ai-dev-org 新项目默认口径=本件 §9 适配注记）
+> 9. [主控] 终裁结项：亲验全绿（真退出码）→ final 报告 → 台账/registry 翻状态
+>            → 显式列文件提交（受锁面带 [locked-change] 尾注）
+> 10.[主控] push → CI 核查（消费 job 全绿；有触发延迟窗口的先等复查窗口）
+> 11.[主控] 成本入账：子代理 token/时长分列（实现岗/执行者审核/实证裁决）
+> 12.元循环：教训三条入账路径——台账教训条目 → 教训库 → 可机器化者升格质量门条款
+>
 
 **步骤 2 的宪法级地位**：未完成技能盘点不得开工。判据：与任务相关的工程技能
 （系统化调试/TDD/完成前验证/子代理开发等）默认"用"；标"不用"必须给具体理由。
@@ -110,8 +110,8 @@ FAIL 一律不得派发；WARN 须逐条处置或登记理由。仓外/历史路
 预扫两面——check-terms 词面＋check-anchors 断锚与路径存在性，两面必扫
 （只扫词面漏断锚即红）。
 
-机检之外，任务书派发前还须经审核岗审核（决策项）：交 `ops-reviewer-kimib-max`
-（默认岗位实例，决策项；任务书由主控撰写、主控承载于 deepseek 族，审核须异族），
+机检之外，任务书派发前还须经审核岗审核（决策项）：交 `ops-tbreview-ds-max`
+（账本 700 ① ruling-assembler-role-spec 起；任务书装配转 Kimi 族 kimia 亲做后的异族配对；2026-10-29 B2 批审核岗三拆起=任务书审核岗 tbreview 承载，ds 首位不变——账本 701 ④；任务书由装配岗装配〔Kimi 族 kimia 承载〕，审核须异族），
 审包自包含（任务书全文+所引原文片段），不含仓库访问授权，输出 VERDICT 与
 [B/W/N]。机检管内部不一致，审核管规格本身错或缺（验收判据不可执行/要求了
 做不到的动作/关键假设未标注）。审核 FAIL 须改后重交，两轮不过=停手交用户。
@@ -210,21 +210,35 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
 
 | 角色 | 可用 provider |
 |---|---|
-| research、planner、executor、reviewer、adjudicator | glm、glmflash、kimia、kimib、kimic、ds |
-| vision | glmflash、ds |
-| diagnostics | ds、glmflash |
+| research | glmflash、startplan、glm、kimia、kimib、kimic、ds |
+| planner | kimia、kimib、kimic、glm、glmflash、startplan、ds |
+| assembler | kimia、kimib、kimic |
+| executor | startplan、glmflash、glm、kimia、kimib、kimic、ds |
+| tbreview | ds、kimia、kimib、kimic、glm、glmflash、startplan |
+| planreview | ds、kimia、kimib、kimic、glm、glmflash、startplan |
+| implreview | kimia、ds、kimib、kimic、glm、glmflash、startplan |
+| adjudicator | kimic、kimia、kimib、glm、glmflash、startplan、ds |
+| vision | glmflash、startplan、ds、kimia |
+
+vision 的 startplan 仅为文本应急候选（multimodal=false，实测不可辨图）：有图片输入或图像判读结论的任务不得由 startplan 承载，须回退 glmflash／ds／kimia；只剩 startplan 可用即停手，禁止以文本猜测图片。
 
 示例：
 
 - `ROUTE: research-kimic;executor-ds`
-- `ROUTE: research-glmflash;planner-kimia;executor-glmflash;reviewer-kimib;adjudicator-kimic;vision-glmflash`
-- `ROUTE: executor-glmflash;reviewer-kimib;adjudicator-kimia;vision-ds`
+- `ROUTE: research-glmflash;planner-kimia;executor-glmflash;implreview-kimia;adjudicator-kimic;vision-glmflash`
+- `ROUTE: executor-glmflash;implreview-kimia;adjudicator-kimia;vision-ds`
+- `ROUTE: tbreview-ds;planreview-ds;implreview-kimia`
+- `ROUTE: vision-startplan`
 
-校验与拒绝：未知角色＝停止派发并列出合法角色；角色不支持该 provider＝停止派发并列出该角色可用 provider；vision 选了非多模态模型＝停止派发（只允许 glmflash、ds）；实现与审核/裁决同族＝告警，要求显式追加 `allow_same_family` 才继续（只能由用户在主控提问后确认，主控不得自行添加）；派发对象非矩阵登记的 ops-* 绑定代理（系统默认代理，如 general-purpose——跟随宿主无绑定）＝停止派发、按矩阵默认重派（实证裁决岗实证部例外——随宿主承载属设计形态）；同一角色出现两次＝取最后一次并在汇报中注明；ROUTE 行格式错误＝停止派发并给出正确示例。
+校验与拒绝：未知角色＝停止派发并列出合法角色（reviewer／diagnostics 等退役键同此拒绝）；角色不支持该 provider＝停止派发并列出该角色可用 provider；vision 选了非多模态模型＝停止派发（只允许 glmflash、ds、kimia；startplan 例外=文本应急候选——multimodal=false，不承载图像判读）；实现与审核/裁决同族＝告警，要求显式追加 `allow_same_family` 才继续（只能由用户在主控提问后确认，主控不得自行添加）；派发对象非矩阵登记的 ops-* 绑定代理（系统默认代理，如 general-purpose——跟随宿主无绑定）＝停止派发、按矩阵默认重派（实证裁决岗实证部例外——随宿主承载属设计形态）；同一角色出现两次＝取最后一次并在汇报中注明；ROUTE 行格式错误＝停止派发并给出正确示例。
 
 优先级：`单批 ROUTE > 项目覆盖件 .zcode/org-config.json > 本机 org-config.local.json > 矩阵默认值`。单批 ROUTE 只影响当前批次；项目覆盖件只改 `default_slot`、不改代理档案能力；本机件改全局默认、影响所有项目；矩阵默认值是最后回退。
 
 记录：每次派发在变更与成本记录里写 JSON 一行——`{"role":"executor","slot":"ops-executor-glmflash-high","route_source":"prompt","fallback_from":null,"family":"glm","level":"high"}`；`log-triage` 用它核对声明与实际路由是否一致，不一致即告警。
+
+1. 派发前必跑 dispatch-check：对九岗 dispatch-plan、resolve 结果与拟派名单三方对账；陈旧 ROUTE 或启用集不符即停止派发。
+2. 快照语义：S1/S2/S3=出厂快照，S4=现役默认权威；出厂滞后=WARN，实际消费=FAIL；S2→S1 共有 default/fallback 子面单向派生，禁止反向写。
+3. 批次任务书 ROUTE 变更须附九岗全量 before/after diff（含未变岗与常设第二审；B8 r8 为先例）。
 
 ### 8.2 切换语义与命令契约
 
@@ -241,6 +255,9 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
 命令契约（`node scripts/agent-slots.mjs`）：`list [--role <role>] [--json]`｜`show <slot>`｜`resolve --route "<route 串>" [--json]`｜`select [--project <dir>] <role> <slot>`｜`gen <role> <provider> <level> [--dry-run]`｜`enable|disable <slot>`｜`preset balanced|all-glm|all-kimi|ds-audit`｜`doctor [--json]`｜`sync`。
 
 行为约束：`select` 只接受矩阵中已存在的 slot、不改 model/level；`gen` 生成新代理档案并更新矩阵、需要新会话验证、默认 `--dry-run` 先打印将写入的文件；`preset` 只批量 `select`、不改代理档案，`all-glm` 与 `all-kimi` 会让实现与审核同族、应用时必须告警；`doctor` 只读——发现名字与绑定不一致、provider 无法解析、vision 非多模态、默认同族时返回非零；`sync` 从矩阵生成代理档案与路由索引件、不反向写矩阵。
+
+- `dispatch-check --plan <dispatch-plan.md> --route "<ROUTE>" [--project <dir>]`（三方对账，陈旧/启用集不符 exit 1，装载 exit 3）
+- `snapshots [--project <dir>] [--json]`（六比较只读，滞后 WARN/exit 0，互恰或派生 FAIL/exit 1，装载 exit 3）
 
 ### 8.3 调度模式
 

@@ -1,8 +1,75 @@
 {
   "version": "1.0.0",
   "ledger_path": ".zcode/org-ledger.jsonl",
+  "flags": {
+    "b1_gates_v2": {
+      "description": "B1 门禁面总开关：on=W 面扩展＋WARN 冻结执法（verify-docs D-2/D-3）；off=旧 W 面构造且不冻结（完整回退路径）。不可关闭面=退出码契约/pre-commit fail-closed/CI/迁移与 manifest/deploy-check --project/flags 能力/R14/R15。",
+      "owner_batch": "B1",
+      "default": false
+    },
+    "b2_terms_v2": {
+      "description": "B2 规格批词面改造开关（B3 批实现）：on=check-terms 读 terms_scan 执行 active/historical/both 三面＋启发式 lexer＋历史基线只降不升；off=legacy 单面扫描（原输出/退出逐字节保留，hook 的 --strict --surface both 同走 legacy）。",
+      "owner_batch": "B2",
+      "default": false
+    },
+    "b3_docgen_v1": {
+      "description": "B6 文档生成与提交短句批开关（owner_batch 沿用原案编号 B3）：off=不接管既有流水线（四生成器与提交短句仅由人显式 CLI 调用）且 R16 只跑隔离自检、不读现役 RESIDUALS；on=R16 追加现役 RESIDUALS --check 影子对照。显式生成器 CLI 与提交短句纪律不随本 flag 改变；不得挂入 pre-commit 硬依赖。生产本批保持 off，on 仅用临时状态件做影子对照。",
+      "owner_batch": "B3",
+      "default": false
+    },
+    "revert_manifest_schema": {
+      "columns": [
+        "path",
+        "commit",
+        "baseline_sha256"
+      ],
+      "note": "内容回退清单三列 schema（B1 D-6/D-13③——随批件 docs/evidence/B1-close-*.md 落档）：path=文件相对路径，commit=基线提交号，baseline_sha256=该件基线内容 sha256。schema 随 B1 flags 面定义（docs/13 §6 表注），后续批复用同形。"
+    }
+  },
   "projects": {
-    "note": "project_id 映射（selfiter 批 B4 project-id-migration 清偿）：键=账本 raw project 名（自由文本史），值=归一化 id；派发器写入账本行 project_id（schema v3），读侧按 project_id ?? project 归一；映射实值住本机件 local/项目覆盖件可增，缺映射=raw 名透传不阻断"
+    "note": "project_id 映射（selfiter 批 B4 project-id-migration 补还）：键=账本 raw project 名（自由文本史），值=归一化 id；派发器写入账本行 project_id（schema v3），读侧按 project_id ?? project 归一；映射实值住本机件 local/项目覆盖件可增，缺映射=raw 名透传不阻断"
+  },
+  "terms_scan": {
+    "baseline": "scripts/.golden/terms-baseline.json",
+    "suffix_lexer": {
+      ".md": "markdown",
+      ".mjs": "javascript",
+      ".js": "javascript",
+      ".sh": "shell",
+      ".json": "json",
+      ".jsonl": "jsonl",
+      ".txt": "plain",
+      ".html": "plain",
+      ".py": "plain",
+      ".yml": "plain",
+      ".yaml": "plain",
+      ".snippet": "plain"
+    },
+    "exclude": [
+      ".git/**",
+      "node_modules/**",
+      "vendor/**",
+      ".venv/**",
+      "venv/**"
+    ],
+    "active": [
+      { "root": "skill", "include": ["SKILL.md", "DEPLOY.md", "RESIDUALS.md"] },
+      { "root": "skill", "include": ["references/*.md"] },
+      { "root": "skill", "include": ["constraints/*.md"] },
+      { "root": "skill", "include": ["templates/**"] },
+      { "root": "skill", "include": ["scripts/*.mjs"] },
+      { "root": "skill", "include": ["scripts/*.json"] },
+      { "root": "skill", "include": ["scripts/.golden/docgen-fixtures.json"] },
+      { "root": "skill", "include": [".githooks/**"], "lexer": "shell" },
+      { "root": "skill", "include": ["org-config.default.json"] }
+    ],
+    "historical": [
+      { "root": "skill", "include": ["references/*.md"], "selector": "history-sections" },
+      { "root": "skill", "include": ["references/00-glossary.md"], "selector": "term-scan-off" },
+      { "root": "skill", "include": ["RESIDUALS.md"], "selector": "history-sections" },
+      { "root": "project", "include": ["docs/evidence/**", "history/**"] }
+    ],
+    "note": "活账本（两仓 .zcode/org-ledger.jsonl）与流水（scripts/model-routing-log.jsonl）已移出历史扫描面（2026-10-29 用户当面二选一 exclude 豁免·b3n-ledger-frozen-gap 处置）：活文件持续合法追加与首冻计数语义冲突；词面纪律改由新增行零禁用词纪律＋verify-docs 既有面执法（授权=账本 b4-ruling-scope/b4b-ledger-exclude 行）。"
   },
   "note": "通用默认件（v2.1.0 三层化批起随包分发，零个人事实）：供应商/项目/视觉通道实值一律住 org-config.local.json（本机件，gitignore 不随包）——深合并序=默认件←本机件←项目覆盖件（语义与规范化哈希=06 §0）。新机首跑=DEPLOY.md（deploy-check --install 脚手架本机件）。",
   "providers": {
@@ -64,6 +131,11 @@
       "model": "GLM-5.3-Flash",
       "level": "high"
     },
+    "ops-research-startplan-high": {
+      "provider": "startplan",
+      "model": "GLM-5.3-Flash",
+      "level": "high"
+    },
     "ops-research-glm-high": {
       "provider": "glm",
       "model": "GLM-5.3",
@@ -89,16 +161,6 @@
       "model": "deepseek-flash",
       "level": "high"
     },
-    "ops-planner-glm-max": {
-      "provider": "glm",
-      "model": "GLM-5.3",
-      "level": "max"
-    },
-    "ops-planner-glmflash-max": {
-      "provider": "glmflash",
-      "model": "GLM-5.3-Flash",
-      "level": "max"
-    },
     "ops-planner-kimia-max": {
       "provider": "kimia",
       "model": "k3.1-pro",
@@ -114,19 +176,54 @@
       "model": "k3.1-pro",
       "level": "max"
     },
+    "ops-planner-glm-max": {
+      "provider": "glm",
+      "model": "GLM-5.3",
+      "level": "max"
+    },
+    "ops-planner-glmflash-max": {
+      "provider": "glmflash",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-planner-startplan-max": {
+      "provider": "startplan",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
     "ops-planner-ds-max": {
       "provider": "ds",
       "model": "deepseek-flash",
       "level": "max"
     },
-    "ops-executor-glm-high": {
-      "provider": "glm",
-      "model": "GLM-5.3",
+    "ops-assembler-kimia-max": {
+      "provider": "kimia",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-assembler-kimib-max": {
+      "provider": "kimib",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-assembler-kimic-max": {
+      "provider": "kimic",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-executor-startplan-high": {
+      "provider": "startplan",
+      "model": "GLM-5.3-Flash",
       "level": "high"
     },
     "ops-executor-glmflash-high": {
       "provider": "glmflash",
       "model": "GLM-5.3-Flash",
+      "level": "high"
+    },
+    "ops-executor-glm-high": {
+      "provider": "glm",
+      "model": "GLM-5.3",
       "level": "high"
     },
     "ops-executor-kimia-high": {
@@ -149,49 +246,114 @@
       "model": "deepseek-flash",
       "level": "high"
     },
-    "ops-executor-startplan-high": {
-      "provider": "startplan",
-      "model": "GLM-5.3-Flash",
-      "level": "high"
-    },
-    "ops-reviewer-glm-max": {
-      "provider": "glm",
-      "model": "GLM-5.3",
-      "level": "max"
-    },
-    "ops-reviewer-glmflash-max": {
-      "provider": "glmflash",
-      "model": "GLM-5.3-Flash",
-      "level": "max"
-    },
-    "ops-reviewer-kimia-max": {
-      "provider": "kimia",
-      "model": "k3.1-pro",
-      "level": "max"
-    },
-    "ops-reviewer-kimib-max": {
-      "provider": "kimib",
-      "model": "k3.1-pro",
-      "level": "max"
-    },
-    "ops-reviewer-kimic-max": {
-      "provider": "kimic",
-      "model": "k3.1-pro",
-      "level": "max"
-    },
-    "ops-reviewer-ds-max": {
+    "ops-tbreview-ds-max": {
       "provider": "ds",
       "model": "deepseek-flash",
       "level": "max"
     },
-    "ops-adjudicator-glm-max": {
+    "ops-tbreview-kimia-max": {
+      "provider": "kimia",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-tbreview-kimib-max": {
+      "provider": "kimib",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-tbreview-kimic-max": {
+      "provider": "kimic",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-tbreview-glm-max": {
       "provider": "glm",
       "model": "GLM-5.3",
       "level": "max"
     },
-    "ops-adjudicator-glmflash-max": {
+    "ops-tbreview-glmflash-max": {
       "provider": "glmflash",
       "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-tbreview-startplan-max": {
+      "provider": "startplan",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-planreview-ds-max": {
+      "provider": "ds",
+      "model": "deepseek-flash",
+      "level": "max"
+    },
+    "ops-planreview-kimia-max": {
+      "provider": "kimia",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-planreview-kimib-max": {
+      "provider": "kimib",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-planreview-kimic-max": {
+      "provider": "kimic",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-planreview-glm-max": {
+      "provider": "glm",
+      "model": "GLM-5.3",
+      "level": "max"
+    },
+    "ops-planreview-glmflash-max": {
+      "provider": "glmflash",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-planreview-startplan-max": {
+      "provider": "startplan",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-implreview-kimia-max": {
+      "provider": "kimia",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-implreview-ds-max": {
+      "provider": "ds",
+      "model": "deepseek-flash",
+      "level": "max"
+    },
+    "ops-implreview-kimib-max": {
+      "provider": "kimib",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-implreview-kimic-max": {
+      "provider": "kimic",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-implreview-glm-max": {
+      "provider": "glm",
+      "model": "GLM-5.3",
+      "level": "max"
+    },
+    "ops-implreview-glmflash-max": {
+      "provider": "glmflash",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-implreview-startplan-max": {
+      "provider": "startplan",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-adjudicator-kimic-max": {
+      "provider": "kimic",
+      "model": "k3.1-pro",
       "level": "max"
     },
     "ops-adjudicator-kimia-max": {
@@ -204,9 +366,19 @@
       "model": "k3.1-pro",
       "level": "max"
     },
-    "ops-adjudicator-kimic-max": {
-      "provider": "kimic",
-      "model": "k3.1-pro",
+    "ops-adjudicator-glm-max": {
+      "provider": "glm",
+      "model": "GLM-5.3",
+      "level": "max"
+    },
+    "ops-adjudicator-glmflash-max": {
+      "provider": "glmflash",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-adjudicator-startplan-max": {
+      "provider": "startplan",
+      "model": "GLM-5.3-Flash",
       "level": "max"
     },
     "ops-adjudicator-ds-max": {
@@ -219,35 +391,38 @@
       "model": "GLM-5.3-Flash",
       "level": "max"
     },
+    "ops-vision-startplan-max": {
+      "provider": "startplan",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
     "ops-vision-ds-max": {
       "provider": "ds",
       "model": "deepseek-flash",
       "level": "max"
     },
-    "ops-diagnostics-ds-max": {
-      "provider": "ds",
-      "model": "deepseek-flash",
-      "level": "max"
-    },
-    "ops-diagnostics-glmflash-max": {
-      "provider": "glmflash",
-      "model": "GLM-5.3-Flash",
+    "ops-vision-kimia-max": {
+      "provider": "kimia",
+      "model": "k3.1-pro",
       "level": "max"
     }
   },
   "agent_defaults": {
     "research": "ops-research-glmflash-high",
     "planner": "ops-planner-kimia-max",
+    "assembler": "ops-assembler-kimia-max",
     "executor": "ops-executor-startplan-high",
-    "reviewer": "ops-reviewer-kimib-max",
+    "tbreview": "ops-tbreview-ds-max",
+    "planreview": "ops-planreview-ds-max",
+    "implreview": "ops-implreview-kimia-max",
     "adjudicator": "ops-adjudicator-kimic-max",
-    "vision": "ops-vision-glmflash-max",
-    "diagnostics": "ops-diagnostics-ds-max"
+    "vision": "ops-vision-glmflash-max"
   },
-  "role_order_note": "role_fallbacks＝角色优先尝试顺序（自上而下；首元素＝agent_defaults 默认档，校验器强制两键一致）。临时到期回落窗机制已退役（2026-10-27 用户裁决：顺序常驻、无到期语义）——顺序的日常调整唯一入口=org-panel 面板（拖拽排序，原子写本机件 role_fallbacks＋agent_defaults 对应角色，validate 不过即回滚），本默认件只承载出厂基线序。",
+  "role_order_note": "role_fallbacks＝角色优先尝试顺序（自上而下；首元素＝agent_defaults 默认档位，校验器强制两键一致）。临时到期回落窗机制已退役（裁决时点 2026-10-27：顺序常驻、无到期语义）——顺序的日常调整唯一入口=org-panel 面板（拖拽排序，原子写本机件 role_fallbacks＋agent_defaults 对应角色，validate 不过即回滚），本默认件只承载出厂基线序。",
   "role_fallbacks": {
     "research": [
       "ops-research-glmflash-high",
+      "ops-research-startplan-high",
       "ops-research-glm-high",
       "ops-research-kimia-high",
       "ops-research-kimib-high",
@@ -260,7 +435,13 @@
       "ops-planner-kimic-max",
       "ops-planner-glm-max",
       "ops-planner-glmflash-max",
+      "ops-planner-startplan-max",
       "ops-planner-ds-max"
+    ],
+    "assembler": [
+      "ops-assembler-kimia-max",
+      "ops-assembler-kimib-max",
+      "ops-assembler-kimic-max"
     ],
     "executor": [
       "ops-executor-startplan-high",
@@ -271,13 +452,32 @@
       "ops-executor-kimic-high",
       "ops-executor-ds-high"
     ],
-    "reviewer": [
-      "ops-reviewer-kimib-max",
-      "ops-reviewer-kimia-max",
-      "ops-reviewer-ds-max",
-      "ops-reviewer-kimic-max",
-      "ops-reviewer-glm-max",
-      "ops-reviewer-glmflash-max"
+    "tbreview": [
+      "ops-tbreview-ds-max",
+      "ops-tbreview-kimia-max",
+      "ops-tbreview-kimib-max",
+      "ops-tbreview-kimic-max",
+      "ops-tbreview-glm-max",
+      "ops-tbreview-glmflash-max",
+      "ops-tbreview-startplan-max"
+    ],
+    "planreview": [
+      "ops-planreview-ds-max",
+      "ops-planreview-kimia-max",
+      "ops-planreview-kimib-max",
+      "ops-planreview-kimic-max",
+      "ops-planreview-glm-max",
+      "ops-planreview-glmflash-max",
+      "ops-planreview-startplan-max"
+    ],
+    "implreview": [
+      "ops-implreview-kimia-max",
+      "ops-implreview-ds-max",
+      "ops-implreview-kimib-max",
+      "ops-implreview-kimic-max",
+      "ops-implreview-glm-max",
+      "ops-implreview-glmflash-max",
+      "ops-implreview-startplan-max"
     ],
     "adjudicator": [
       "ops-adjudicator-kimic-max",
@@ -285,18 +485,17 @@
       "ops-adjudicator-kimib-max",
       "ops-adjudicator-glm-max",
       "ops-adjudicator-glmflash-max",
+      "ops-adjudicator-startplan-max",
       "ops-adjudicator-ds-max"
     ],
     "vision": [
       "ops-vision-glmflash-max",
-      "ops-vision-ds-max"
-    ],
-    "diagnostics": [
-      "ops-diagnostics-ds-max",
-      "ops-diagnostics-glmflash-max"
+      "ops-vision-startplan-max",
+      "ops-vision-ds-max",
+      "ops-vision-kimia-max"
     ]
   },
-  "source_chain_note": "2026-10-03 纯净化批：source_chain（派发链序）已随派发器物理删除——档案=git 历史；现役承载=绑定子代理（07 §1），换位语义=绑定岗切换（06 §4 退役承载注记）。",
+  "source_chain_note": "2026-10-03 清理批次：source_chain（派发链序）已随派发器物理删除——详见 git 历史；现役承载=绑定子代理（07 §1），换位语义=绑定岗切换（06 §4 退役承载注记）。",
   "finish_vocab": {
     "complete": [
       "end_turn",
@@ -310,11 +509,11 @@
     "note": "W-3 白名单反转：仅 complete 视为完整终态；truncation 及一切未知终态=非完整（审计岗 RED）。词表住此处，脚本禁硬编码（A3/06 §0）。"
   },
   "supported_node": {
-    "note": "值守值住本机件 local（v2.1.0 回炉归层：宿主耦合事实不驻通用件——语义与经验单源=references/10 §1）。本机件形态示例：{\"forbid_major\":[25]}；缺省=恒通过（不阻断）。守卫读本项，脚本禁硬编码路径（W-12）。"
+    "note": "值守值住本机件 local（v2.1.0 返工归层：宿主耦合事实不驻通用件——语义与经验单源=references/10 §1）。本机件形态示例：{\"forbid_major\":[25]}；缺省=恒通过（不阻断）。守卫读本项，脚本禁硬编码路径（W-12）。"
   },
   "thresholds": {
     "source_share_warn": 0.6,
-    "source_share_note": "单源占比超此值=配给红线可能失守（P2-3；初始值 0.6，按实测两批后调整）"
+    "source_share_note": "单源占比超此值=配给禁止项可能失守（P2-3；初始值 0.6，按实测两批后调整）"
   },
   "source_health": {
     "dual_groups": [
@@ -324,9 +523,9 @@
       ]
     ],
     "gate1_subagent_of": {
-      "kimi-main": "ops-reviewer-kimia-max",
-      "kimi-backup": "ops-reviewer-kimic-max",
-      "deepseek": "ops-reviewer-ds-max"
+      "kimi-main": "ops-implreview-kimia-max",
+      "kimi-backup": "ops-implreview-kimic-max",
+      "deepseek": "ops-implreview-ds-max"
     },
     "standing_pair": [
       "kimi-backup",
@@ -334,23 +533,23 @@
     ],
     "cross_gate_pairs": [
       [
-        "ops-reviewer-ds-max",
+        "ops-implreview-ds-max",
         "ops-adjudicator-kimia-max"
       ]
     ],
-    "note": "log-triage --health 换源推荐的结构参数：双源分组与别名→门一子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=换源兜底组语义（派发器时代遗留的健康面参数，现役消费=log-triage ⑥ 分列——保留）；standing_pair=常设双审对（2026-09-22 三岗批 R3：对内两源 model_family 必须异族——health-scan 启动校验 RED，防异构退化静默漂移）；cross_gate_pairs=跨门岗对（v2.1.0 批，07 §4 纪律⑤：门一常设双审 vs 门二裁决部同族=异构退化 WARN+申报——log-triage --health ⑧ 核对实况，org-config validate 校结构；2026-10-03 dispatch-retire 批改绑后 ops-reviewer-ds-max↔ops-adjudicator-kimia-max 异族=⑧ ok）；dry_minutes 已随派发器删除（纯净化批——R2 干涸窗机制亡）。model_family 实值住本机件 local（同 providers）。"
+    "note": "log-triage --health 切换承载源推荐的结构参数：双源分组与别名→代码审查（岗）子代理显式映射（终审 auditor-W1：映射键化，勿双体系并置无关联）；--health 启动校验 dual 组别名∈providers，未命中显式报错（W2）。脚本禁硬编码别名（A3/06 §0），别名变更只改本件。dual_groups=切换承载源兜底组语义（派发器时代遗留的健康面参数，现役消费=log-triage ⑥ 分列——保留）；standing_pair=常设双审对（2026-09-22 三岗批 R3：对内两源 model_family 必须异族——health-scan 启动校验 RED，防跨模型族退化静默漂移）；cross_gate_pairs=跨门岗对（v2.1.0 批，07 §4 纪律⑤：代码审查（岗）常设双审 vs 实证裁决（岗）裁决部同族=跨模型族退化 WARN+申报——log-triage --health ⑧ 核对实况，org-config validate 校结构；2026-10-03 dispatch-retire 批改绑后 ops-implreview-ds-max↔ops-adjudicator-kimia-max 异族（2026-10-29 B2 批槽名随动：gate1 映射与跨门对 ds 审核槽由 ops-reviewer-* 改指 ops-implreview-*，别名与 standing_pair 不动）=⑧ ok）；dry_minutes 已随派发器删除（清理批次——R2 干涸窗机制亡）。model_family 实值住本机件 local（同 providers）。"
   },
   "vision_channels": {
-    "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数分区模板：本默认件只留结构说明，通道实值（model/endpoint_contains/prefer_hosts/stream）住本机件 local——字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）；stream=看图通道流式位（selfiter B5；原类比对象 dispatch_request.stream 已随派发器删除——纯净化批）；通道命中=模型名∧端点子串双条件。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实住配置件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑。"
+    "note": "设计岗外呼看图双通道（glm-look.mjs）甄别参数分区模板：本默认件只留结构说明，通道实值（model/endpoint_contains/prefer_hosts/stream）住本机件 local——字段契约：model/endpoint_contains 必选；prefer_hosts 可选（缺省=pid 字典序，勿依赖宿主 config 对象序——RFC 8259 无保序）；stream=看图通道流式位（selfiter B5；原类比对象 dispatch_request.stream 已随派发器删除——清理批次）；通道命中=模型名∧端点子串双条件。事实分层（终审 auditor-B 统一口径）：身份/甄别类供应商事实住配置件；连接/密钥类事实（baseURL 实值/apiKey）住宿主 config——两源各掌其面，非互斥。glm-look 调用时缺 finish_vocab 等配置=exit 3 拒跑。"
   },
   "hardcode_scan": {
     "forbidden_terms": [],
-    "note": "check-hardcode 的额外扫描名单（正则字面量，扫 .md 正文）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。事实分层（同 vision_channels.note，终审 auditor-B 统一口径）：身份/甄别类供应商事实住配置件（providers/vision_channels/source_health），连接/密钥类住宿主 config，.md 正文禁一切 live 事实——实配模型名词表由 check-hardcode 从宿主注册表实时派生，故本名单默认空；项目覆盖件可加自有禁词；strict=升格位（selfiter B6 清偿 check-hardcode-promotion：判据=B3 白名单收缩后经 B4/B5 两批全门禁零误报+零命中——已满足；缺省 RED 生效，--warn 逃生口=试点校准期专用）",
+    "note": "check-hardcode 的额外扫描名单（正则字面量，扫 .md 正文）。通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。事实分层（同 vision_channels.note，终审 auditor-B 统一口径）：身份/甄别类供应商事实住配置件（providers/vision_channels/source_health），连接/密钥类住宿主 config，.md 正文禁一切 live 事实——实配模型名词表由 check-hardcode 从宿主注册表实时派生，故本名单默认空；项目覆盖件可加自有禁词；strict=升格位（selfiter B6 补还 check-hardcode-promotion：判据=B3 白名单收缩后经 B4/B5 两批全门禁零误报+零命中——已满足；缺省 RED 生效，--warn 逃生口=试点校准期专用）",
     "strict": true
   },
-  "ration_redlines_note": "2026-10-03 纯净化批：ration_redlines（配给红线注记分区）已删除——无脚本消费者、语义单源=06 §3/02 §8.3 条文（档案=git 历史）。",
-  "dispatch_request_note": "2026-10-03 纯净化批：dispatch_request（派发器请求参数）已随派发器物理删除——档案=git 历史；vision_channels.<ch>.stream 为 glm-look 视觉外呼的流式位（保留，消费=glm-look）。",
-  "regression_cfg_note": "2026-10-03 纯净化批：regression_cfg.r1_sources（R1 双源抽样源名单）已随 R1 项删除——档案=git 历史；现役回归项=R4/R7/R8/R10（scripts/regression.mjs 单源）。",
+  "ration_redlines_note": "2026-10-03 清理批次：ration_redlines（配给禁止项注记分区）已删除——无脚本消费者、语义单源=06 §3/02 §8.3 条文（详见 git 历史）。",
+  "dispatch_request_note": "2026-10-03 清理批次：dispatch_request（派发器请求参数）已随派发器物理删除——详见 git 历史；vision_channels.<ch>.stream 为 glm-look 视觉外呼的流式位（保留，消费=glm-look）。",
+  "regression_cfg_note": "2026-10-03 清理批次：regression_cfg.r1_sources（R1 双源抽样源名单）已随 R1 项删除——详见 git 历史；现役回归项=R4/R7/R8/R10（scripts/regression.mjs 单源）。",
   "anchors_exempt": {
     "project_names": [
       "scripts/run_gates.py",
@@ -360,29 +559,29 @@
       "check-tickets.mjs",
       "__init__.py"
     ],
-    "note": "check-anchors 项目侧裸文件名豁免点名单单源（v1.7.4 m4 清偿）：项目侧路径不属技能根存在性检查域（同段 PROJECT_PREFIX 正则为语法形态留脚本内）"
+    "note": "check-anchors 项目侧裸文件名豁免点名单单源（v1.7.4 m4 补还）：项目侧路径不属技能根存在性检查域（同段 PROJECT_PREFIX 正则为语法形态留脚本内）"
   },
   "roles": {
     "drafter": {
       "tier": "prime",
       "audit_surface": true,
       "tier_note": "路线级设计拟定（长上下文+重推理档）",
-      "migration_note": "终态注记（2026-10-03 派发器退役批·用户裁决）：承载=会话内绑定子代理 ops-drafter（绑定实值单源=本机件 agent_bindings）；外部派发器通道彻底退役并同日纯净化批物理删除（2026-10-03——档案=git 历史）。roles.* 不删（意图档位与历史单源）"
+      "migration_note": "终态注记（2026-10-03 派发器退役批·用户裁决）：承载=会话内绑定子代理 ops-drafter（绑定实值单源=本机件 agent_bindings）；外部派发器通道彻底退役并同日清理批次物理删除（2026-10-03——详见 git 历史）。roles.* 不删（意图档位与历史单源）"
     },
     "gate1-reviewer": {
       "tier": "audit",
       "audit_surface": true,
       "findings_surface": true,
-      "tier_note": "门一隔离一审（与实现者异构对抗）",
-      "migration_note": "2026-09-16 A'批起迁移期双承载并存：主承载试点=会话内子代理 ops-gate1-k1/k2（frontmatter 绑定 Kimi 双源）；派发器=健康探针（log-triage --health）+后备通道，不拆除。roles.* 不删；health-scan audit_surface 判定以实际承载通道的记账源为准（迁移批逐岗改挂）。2026-09-22 用户裁决（门一异构双审落位，终态=独立子代理三岗制）：常设双审=ops-gate1-k1（kimi-main）+ops-gate1-d1（deepseek 按量档，绑定值单源=agents frontmatter）；ops-gate1-k2 维持 kimi-backup 额度兜底位（源A耗尽承载）。降级形态：链退至 deepseek 时 d1 独立承载一审，该批账本须标注单源降级（异构双审退化），health-scan ② 同源执法不豁免。裁决过程：首案改绑 k2→批中澄清（k2 系额度兜底位）回滚→终态增设 d1 独立岗（明细=RESIDUALS 修订记 2026-09-22 行）。〔前段 2026-09-22 注记的座位分配至此废止〕2026-10-02 用户裁决换位：门一审核座 k1→k2（源B=第二配额备源）——常设双审=k2+d1、单点配置批单审=k2（分级烤验修订二），k1（kimi-main）退额度兜底位（源序关系反转），frontmatter 绑定均不动；standing_pair 同批改 [kimi-backup, deepseek]（换位逐字原文=当日账本 ruling 行承载）。2026-10-03 用户裁决改绑：k1 改绑本机 kimi-third 源（宿主新注册表条目——双注册表合并=readHostConfig/references/10 §2），原 k1 绑定 kimi-main 迁驻新岗 ops-gate1-k3（源A深备位，非自动轮换——用户裁决派发/健康检查推荐源A时启用）；常设双审=k2+d1 与 standing_pair 不动；gate1_subagent_of 由本机件覆盖（kimi-main→k3/kimi-third→k1）。同日用户裁决默认席位换新（k1default 批，修订三）：常设一审 k2→k1（kimi-third 座，改座不改绑，frontmatter 绑定一律不动）、k2 退额度兜底位（kimi-backup 承载，启用=常设位耗尽/不可达时）；standing_pair 由本机件覆盖为 [kimi-third, deepseek]；单点配置批单审随座改 k1（分级烤验修订三）；--health 推荐器方向源改读 standing_pair 首元（脚本批 B2 闭合滞后）。2026-10-03 派发器退役批（用户裁决）：派发器后备通道摘除并同日纯净化批物理删除（2026-10-03），门一承载=绑定子代理四岗终态，全部岗位=子智能体承载"
+      "tier_note": "代码审查（岗）隔离一审（与实现者不同模型族对抗）",
+      "migration_note": "2026-09-16 A'批起迁移期双承载并存：主承载试点=会话内子代理 ops-gate1-k1/k2（frontmatter 绑定 Kimi 双源）；派发器=健康探针（log-triage --health）+后备通道，不拆除。roles.* 不删；health-scan audit_surface 判定以实际承载通道的记账源为准（迁移批逐岗改挂）。2026-09-22 用户裁决（代码审查（岗）不同模型族双审落位，终态=独立子代理三岗制）：常设双审=ops-gate1-k1（kimi-main）+ops-gate1-d1（deepseek 按量档，绑定值单源=agents frontmatter）；ops-gate1-k2 维持 kimi-backup 额度备用位（源A耗尽承载）。降级形态：链退至 deepseek 时 d1 独立承载一审，该批账本须标注单源降级（不同模型族双审退化），health-scan ② 同源执法不豁免。裁决过程：首案改绑 k2→批中澄清（k2 系额度备用位）回滚→终态增设 d1 独立岗（明细=RESIDUALS 登记行 2026-09-22 条）。〔前段 2026-09-22 注记的岗位分配至此废止〕2026-10-02 用户裁决换位：代码审查（岗）审核座 k1→k2（源B=第二配额备源）——常设双审=k2+d1、单点配置批单审=k2（分级强制检查第二轮修订），k1（kimi-main）退额度备用位（源序关系反转），frontmatter 绑定均不动；standing_pair 同批改 [kimi-backup, deepseek]（换位逐字原文=当日账本 ruling 行承载）。2026-10-03 用户裁决改绑：k1 改绑本机 kimi-third 源（宿主新注册表条目——双注册表合并=readHostConfig/references/10 §2），原 k1 绑定 kimi-main 迁驻新岗 ops-gate1-k3（源A第三备用位，非自动轮换——用户裁决派发/健康检查推荐源A时启用）；常设双审=k2+d1 与 standing_pair 不动；gate1_subagent_of 由本机件覆盖（kimi-main→k3/kimi-third→k1）。同日用户裁决默认岗位换新（k1default 批，第三轮修订）：常设一审 k2→k1（kimi-third 座，改座不改绑，frontmatter 绑定一律不动）、k2 退额度备用位（kimi-backup 承载，启用=常设位耗尽/不可达时）；standing_pair 由本机件覆盖为 [kimi-third, deepseek]；单点配置批单审随座改 k1（分级强制检查第三轮修订）；--health 推荐器方向源改读 standing_pair 首元（脚本批 B2 闭合滞后）。2026-10-03 派发器退役批（用户裁决）：派发器后备通道摘除并同日清理批次物理删除（2026-10-03），代码审查（岗）承载=绑定子代理四岗终态，全部岗位=子智能体承载"
     },
     "auditor-readonly": {
       "tier": "debt-readonly",
       "audit_surface": true,
       "findings_surface": true,
-      "tier_note": "兜底审/源尽欠账只读审",
-      "migration_note": "终态注记（2026-10-03 派发器退役批·用户裁决）：承载=会话内绑定子代理 ops-auditor（deepseek 座，绑定实值单源=本机件 agent_bindings）；外部派发器通道彻底退役并同日纯净化批物理删除（2026-10-03——档案=git 历史）。roles.* 不删（意图档位与历史单源）"
+      "tier_note": "备用审/源尽未清事项只读审",
+      "migration_note": "终态注记（2026-10-03 派发器退役批·用户裁决）：承载=会话内绑定子代理 ops-auditor（deepseek 座，绑定实值单源=本机件 agent_bindings）；外部派发器通道彻底退役并同日清理批次物理删除（2026-10-03——详见 git 历史）。roles.* 不删（意图档位与历史单源）"
     }
   },
-  "exhaustion_fallback_note": "2026-10-03 纯净化批：exhaustion_fallback（链尽回退语义标记）已随派发器删除——语义承载=06 §4 退役承载注记（全源尽=主控改派/代位审+欠账申报）"
+  "exhaustion_fallback_note": "2026-10-03 清理批次：exhaustion_fallback（链尽回退语义标记）已随派发器删除——语义承载=06 §4 退役承载注记（全源尽=主控改派/代位审+未清事项申报）"
 }

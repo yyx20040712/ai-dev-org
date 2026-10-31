@@ -18,31 +18,35 @@
  *                  git 不可用/非 git 仓=[warn]（zip 安装形态，跳过）
  *   ⑥ remote       git remote 非空=ok；空=[warn]（备份面）；非 git 仓=[warn]
  *   ⑦ ledger-dir   SKILL_ROOT/.zcode/ 试写临时文件后删 → ok/FAIL
+ *                  （--project 语境改试写项目账本目录——ledgerPathFor 三层解析派生，B1/D-8）
+ *   ⑧ project-gate --project <dir> 语境追加：spawn node scripts/verify-docs.mjs（cwd=项目根，
+ *                  与本地 pre-commit/CI 三面同款命令，B1/D-4）——rc≠0 或脚本缺件=FAIL
  * 汇总行：deploy-check 汇总：ok X/warn Y/FAIL Z——<可部署/处置后复跑/阻断>
  * --install 四动作（v2.1.0 三层化批起）：③a本机件 org-config.local.json
  *   缺失时脚手架（默认件占位复制+note 声明用户配置域；已存在绝不覆盖）；
  *   ④缺失清单逐件复制 templates→agents-dir+sha256 复核；
  *   ⑤hooksPath 未设时 git config core.hooksPath .githooks；③宿主事实派生
- *   项目覆盖件 .zcode/org-config.json（g3 批 deploy-hostfacts-split 清偿
+ *   项目覆盖件 .zcode/org-config.json（g3 批 deploy-hostfacts-split 补还
  *   ——按 entry_name 唯一命中派生 uuid_prefix；已存在绝不覆盖/有零命中或
  *   歧义不写+指引 DEPLOY §3/与默认件一致不写）。绝不改 org-config.default.json
  *   /宿主配置/已存在漂移件；完成后自动复跑七项按同口径退出（写盘后 ③项
  *   spawn org-config validate 自然复跑=派生落盘回读真退出码面）。
- *   错误处置（回炉轮 1，门一 W2/W3）：③ 装载失败（org-config/宿主）分行
+ *   错误处置（返工轮 1，代码审查（岗）W2/W3）：③ 装载失败（org-config/宿主）分行
  *   干净跳过（warn+指引）；写盘/回读抛错=[FAIL] 行带真因计入阻断（exit 1）。
  * --sync-agents（P2）显式重渲染全部模板→agents 目录（全或无覆盖写入+sha256 回读；
  *   唯一允许覆盖漂移件的路径；--install 语义不变=只补缺失不覆盖）。
  * 用法：node scripts/deploy-check.mjs [--install] [--sync-agents] [--self-test] [--agents-dir <dir>]
+ *       [--project <dir>]（B1：项目语境——⑦ 项目账本目录＋⑧ project-gate 同款检查）
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 可 import 纯函数零副作用（isMain guard 惯例；自检向量禁动真实状态）。
  */
-import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
-import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError, readHostConfig, readJson } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cliFlag, UsageError, readHostConfig, readJson, ledgerPathFor } from './org-config.mjs'
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
 export const TEMPLATES_AGENTS = join(SKILL_ROOT, 'templates', 'agents')
@@ -106,15 +110,19 @@ export function parseBindingValue(v) {
   return null
 }
 
-/** ④渲染（v2.1.0 批4；回炉 k1 W-2 强化石；P2 批两字段化）：模板占位
+/** B4 面板批（D-3）：绑定名按现役 SLOT_NAME_RE 同契约解析角色（解析不出=null=按无覆盖处理）。 */
+const b4BindingRoleOf = (bindingName) => { const m = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)$/.exec(String(bindingName || '')); return m ? m[1] : null }
+
+/** ④渲染（v2.1.0 批4；返工 k1 W-2 强化石；P2 批两字段化）：模板占位
  *  `{{binding:<岗>}}` → 本机件 agent_bindings 实值。正文替换保留完整声明
  *  （`provider/model$level`，供 MODEL-SELF 自报行）；frontmatter 的 `model:` 行
  *  改写为不含 `$` 的 model 段，并在其后插入/核对独立 `thoughtLevel:` 行。
  *  已声明占位一次替换，缺绑定保留+点名；**渲染后残留任何 `{{…binding…` 形态
- *  （空格/点号等畸形占位，正则未认=按无占位直装的逃逸面）一并计入 missing
- *  （malformed: 前缀）——禁静默带占位部署**。无占位模板=恒等；无 model 行模板
- *  （ops-probe/ops-diagnostics 未绑定形态）=恒等且不算缺失。 */
-export function renderAgentTemplate(text, bindings) {
+ *  （空格/点号等畸形占位，正则未认=按无占位直装的漏网面）一并计入 missing
+ *  （malformed: 前缀）——禁静默带占位部署**。无占位模板=恒等；无 model 行的
+ *  未绑定模板=恒等且不算缺失（旧 ops-probe/ops-diagnostics 未绑定形态已随 B2 批
+ *  诊断整链退役——现役矩阵各岗绑定面全绑，本分支仅保留通用防御语义）。 */
+export function renderAgentTemplate(text, bindings, levelOverrides) {
   const missing = []
   const src = String(text)
   const out = src.replace(/\{\{binding:([A-Za-z0-9_-]+)\}\}/g, (m, agent) => {
@@ -125,8 +133,8 @@ export function renderAgentTemplate(text, bindings) {
     return parsed.full
   })
   // 畸形占位=非标准形态的 binding 残留（空格/点号等——替换正则未认=按无占位直装的
-  // 逃逸面）；标准形态的「缺绑定保留占位」已在上一段点名，不重复计；
-  // 未闭合形态（漏 }}）二次检测（回炉轮2 d1 W-2）
+  // 漏网面）；标准形态的「缺绑定保留占位」已在上一段点名，不重复计；
+  // 未闭合形态（漏 }}）二次检测（返工轮2 d1 W-2）
   const closed = out.replace(/\{\{binding:[A-Za-z0-9_-]+\}\}/g, '').replace(/\{\{[^}]*binding[^}]*\}\}/gi, '')
   if (/\{\{[^}]*binding/i.test(closed)) missing.push('malformed:未闭合占位')
   for (const residue of out.match(/\{\{[^}]*binding[^}]*\}\}/gi) || [])
@@ -160,7 +168,13 @@ export function renderAgentTemplate(text, bindings) {
   if (levelPart) {
     if (ti >= 0) {
       const tv = /^thoughtLevel:\s*(.*?)\s*$/.exec(lines[ti])[1].replace(/^['"]|['"]$/g, '')
-      if (tv !== levelPart) missing.push(`conflict:thoughtLevel:${bindingName || 'model'}`)
+      if (tv !== levelPart) {
+        // B4 D-3 覆盖感知：在案覆盖=绑定渲染档位时重写模板出厂行（不记 conflict）；否则原 conflict 文案与行为逐字不变。
+        const role = b4BindingRoleOf(bindingName)
+        const ov = role != null && levelOverrides != null && typeof levelOverrides === 'object' ? levelOverrides[role] : undefined
+        if (ov === levelPart) lines[ti] = `thoughtLevel: ${levelPart}`
+        else missing.push(`conflict:thoughtLevel:${bindingName || 'model'}`)
+      }
     } else {
       lines.splice(mi + 1, 0, `thoughtLevel: ${levelPart}`)
     }
@@ -191,10 +205,10 @@ export function checkThoughtLevel(level) {
 /** P2 检查③：新式名 `ops-<role>-<provider>-<level>.md` → 核对 agent_slots 存在、
  *  provider 与文件名中段一致、slot.model/level 与渲染值一致；legacy 名=skip
  *  （调用方汇总 legacy 件数，不计 warn）。 */
-export function checkAgentName(name, slotDef, rendered = {}) {
-  const m = /^ops-(research|planner|executor|reviewer|adjudicator|vision|diagnostics)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
+export function checkAgentName(name, slotDef, rendered = {}, levelOverride = null) {
+  const m = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
   if (!m) return { level: 'skip', skipped: true, line: '' }
-  const [, , provider, level] = m
+  const [, role, provider, level] = m
   const base = String(name).replace(/\.md$/, '')
   if (!slotDef || typeof slotDef !== 'object') return { level: 'FAIL', line: `${name}：agent_slots 缺「${base}」` }
   const errors = []
@@ -216,8 +230,10 @@ export function checkAgentName(name, slotDef, rendered = {}) {
   }
   if (hasRenderedLevel || slotDef.renderedLevel !== undefined) {
     const lv = renderedLevel == null ? '' : String(renderedLevel)
+    // B4 D-3：渲染档位比对基准=覆盖优先（levelOverride ?? slotDef.level）；无覆盖旧文案逐字不变。
+    const expectLevel = levelOverride ?? slotDef.level
     if (!lv) errors.push('渲染 thoughtLevel 缺失')
-    else if (slotDef.level !== lv) errors.push(`slot.level=${slotDef.level} ≠ 渲染 thoughtLevel=${lv}`)
+    else if (expectLevel !== lv) errors.push(levelOverride != null ? `slot.level=${slotDef.level} ≠ 渲染 thoughtLevel=${lv}（thought_level_overrides.${role}=${levelOverride} 在案·以覆盖为准）` : `slot.level=${slotDef.level} ≠ 渲染 thoughtLevel=${lv}`)
   }
   return errors.length ? { level: 'FAIL', line: `${name}：${errors.join('；')}` } : { level: 'ok', line: `${name}：新式命名/slot/渲染值一致` }
 }
@@ -240,7 +256,7 @@ export const lastLine = (s) => String(s || '').trim().split('\n').filter(Boolean
 
 // ── 纯函数（--self-test 向量注入位）──
 
-/** ① 主版本判禁：major ∈ forbid_major → FAIL；配置缺省/空=**warn**（回炉轮2 W-5：
+/** ① 主版本判禁：major ∈ forbid_major → FAIL；配置缺省/空=**warn**（返工轮2 W-5：
  *  守卫值缺失=恒通过属静默降级——如实告警指引填本机件，判据读配置禁硬编码）。 */
 export function checkNodeMajor(nodeVersion, forbidMajor) {
   const major = Number.parseInt(String(nodeVersion).replace(/^v/, '').split('.')[0], 10)
@@ -316,22 +332,44 @@ export function gitState(cwd = SKILL_ROOT) {
   return { repo: true }
 }
 
-/** ⑦ 账本目录可写性（试写临时文件后删；目录缺省顺带创建）。 */
+/** ⑦ 账本目录可写性（试写临时文件后删；目录缺省顺带创建）。
+ *  root 形=SKILL_ROOT（现行）；ledgerPath 形=项目语境按 ledgerPathFor 三层解析派生（B1/D-8）。 */
 export function checkLedgerDir(root = SKILL_ROOT) {
+  return checkLedgerDirPath(join(root, '.zcode'), 'SKILL_ROOT/.zcode/')
+}
+export function checkLedgerDirPath(dir, label) {
   try {
-    const dir = join(root, '.zcode')
     mkdirSync(dir, { recursive: true })
     const probe = join(dir, `.deploy-check-probe-${process.pid}`)
     writeFileSync(probe, 'ok')
     unlinkSync(probe)
-    return { level: 'ok', line: 'ledger-dir——SKILL_ROOT/.zcode/ 可写（账本目录就绪）' }
+    return { level: 'ok', line: `ledger-dir——${label} 可写（账本目录就绪）` }
   } catch (e) {
-    return { level: 'FAIL', line: `ledger-dir——.zcode/ 不可写（${e.message}）——检查目录权限后复跑` }
+    return { level: 'FAIL', line: `ledger-dir——${label} 不可写（${e.message}）——检查目录权限后复跑` }
   }
 }
 
-/** 七项检查主体（打印逐项行并返回结果集；org-config 装载失败/git 判定异常→throw=exit 3）。 */
-export function runChecks(agentsDir, cfg) {
+/** ⑧ project-gate（B1/D-4 三面同款）：spawn node scripts/verify-docs.mjs（cwd=项目根）。
+ *  判定纯函数（自检注入位）＋运行探针分离。 */
+export function projectGateVerdict({ scriptExists, rc, errMsg = null }) {
+  if (!scriptExists) return { level: 'FAIL', line: 'project-gate FAIL——缺 scripts/verify-docs.mjs（同款检查脚本缺件——项目未铺门禁面）' }
+  if (errMsg) return { level: 'FAIL', line: `project-gate FAIL——spawn 失败（${errMsg}）` }
+  return rc === 0
+    ? { level: 'ok', line: 'project-gate ok——node scripts/verify-docs.mjs（三面同款·cwd=项目根）' }
+    : { level: 'FAIL', line: `project-gate FAIL——node scripts/verify-docs.mjs exit ${rc}（三面同款·cwd=项目根——修项目门禁后复跑）` }
+}
+export function runProjectGate(projectDir) {
+  const script = join(projectDir, 'scripts', 'verify-docs.mjs')
+  if (!existsSync(script)) return projectGateVerdict({ scriptExists: false })
+  const r = spawnSync(process.execPath, [script], { cwd: projectDir, encoding: 'utf8', timeout: 180_000, killSignal: 'SIGKILL' })
+  if (r.error) return projectGateVerdict({ scriptExists: true, rc: null, errMsg: r.error.message })
+  return projectGateVerdict({ scriptExists: true, rc: r.status })
+}
+
+/** 七项检查主体（打印逐项行并返回结果集；org-config 装载失败/git 判定异常→throw=exit 3）。
+ *  projectDir 非空=--project 项目语境：⑦ 改试写项目账本目录（ledgerPathFor 三层解析）＋⑧ 追加
+ *  project-gate 同款检查（B1/D-4/D-8）；非项目语境行为零变化。 */
+export function runChecks(agentsDir, cfg, projectDir = null) {
   const results = []
   const push = (r) => { results.push(r); console.log(`[${r.level}] ${r.line}`) }
 
@@ -350,9 +388,9 @@ export function runChecks(agentsDir, cfg) {
   let unboundThoughtSkipped = 0
   for (const name of listAgentTemplates()) {
     const dst = join(agentsDir, name)
-    const { text: rendered, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), cfg?.agent_bindings || {})
-    // 回炉 W7b：对账前内容归一化（剥 BOM+CRLF→LF——WP-4 行尾哈希地雷同律；部署件被
-    // 记事本改写不再永久假漂移）；回炉 k1 N-8：缺绑定=独立的「占位缺绑定」warn 位，
+    const { text: rendered, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), cfg?.agent_bindings || {}, cfg?.thought_level_overrides)
+    // 返工 W7b：对账前内容归一化（剥 BOM+CRLF→LF——WP-4 行尾哈希地雷同律；部署件被
+    // 记事本改写不再永久假漂移）；返工 k1 N-8：缺绑定=独立的「占位缺绑定」warn 位，
     // 不混入真漂移计数
     const norm = (s) => String(s).replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
     const hashEqual = existsSync(dst) && sha256Text(norm(rendered)) === sha256Text(norm(readFileSync(dst, 'utf8')))
@@ -364,7 +402,7 @@ export function runChecks(agentsDir, cfg) {
     const modelCheck = checkModelNoDollar(rendered)
     const thoughtCheck = fm.hasModel ? checkThoughtLevel(fm.thoughtLevel) : null
     if (!fm.hasModel) unboundThoughtSkipped++
-    const nameCheck = checkAgentName(name, cfg?.agent_slots?.[name.replace(/\.md$/, '')], { model: fm.model, level: fm.thoughtLevel })
+    const nameCheck = checkAgentName(name, cfg?.agent_slots?.[name.replace(/\.md$/, '')], { model: fm.model, level: fm.thoughtLevel }, cfg?.thought_level_overrides?.[b4BindingRoleOf(name.replace(/\.md$/, ''))] ?? null)
     if (nameCheck.level === 'skip') legacyNameSkipped++
     const checkFails = []
     if (modelCheck.level === 'FAIL') checkFails.push(modelCheck.line)
@@ -377,12 +415,12 @@ export function runChecks(agentsDir, cfg) {
       continue
     }
     if (missing.length) {
-      // 回炉轮2 N-6：占位异常时部署件缺失仍 FAIL（装好≠绑定对——两害分报，不整项跳过）
+      // 返工轮2 N-6：占位异常时部署件缺失仍 FAIL（装好≠绑定对——两害分报，不整项跳过）
       push({ level: existsSync(dst) ? 'warn' : 'FAIL', line: `agents——${name}（${agentsDir}）${existsSync(dst) ? '占位缺绑定/畸形' : '缺失'}（${[...new Set(missing)].join('、')}）——渲染对账此态不可信；填本机件 agent_bindings 后复跑` })
       continue
     }
     const checkNote = fm.hasModel ? `｜model 无 $｜thoughtLevel=${fm.thoughtLevel}` : '｜未绑定（无 model 行，thoughtLevel 跳过）'
-    push({ level: cls.level, line: `agents——${name}（${agentsDir}）${cls.line}${checkNote}${cls.reason === 'drift' ? '——若为改绑后残留：删除该部署件后 --install 重装即按 agent_bindings 渲染（回炉 W7a）' : ''}（渲染后对账）` })
+    push({ level: cls.level, line: `agents——${name}（${agentsDir}）${cls.line}${checkNote}${cls.reason === 'drift' ? '——若为改绑后残留：删除该部署件后 --install 重装即按 agent_bindings 渲染（返工 W7a）' : ''}（渲染后对账）` })
   }
   console.log(`thoughtLevel 检查——未绑定模板 ${unboundThoughtSkipped} 个跳过（无 model: 行，随宿主模型）`)
   console.log(`name-check——新式命名核对跳过 legacy 件 ${legacyNameSkipped} 个（P5 生成 34 档后启用）`)
@@ -404,20 +442,28 @@ export function runChecks(agentsDir, cfg) {
     )
   }
 
-  push(checkLedgerDir())
+  // ⑦（B1/D-8）：项目语境=按 ledgerPathFor 三层解析派生项目账本目录试写；否则维持 SKILL_ROOT 现行为
+  if (projectDir) {
+    let lp = null
+    try { lp = ledgerPathFor(projectDir) } catch (e) { throw new SelfLoadError(`项目账本路径解析失败（${projectDir}）：${e.message}`) }
+    push(checkLedgerDirPath(dirname(lp), `项目账本目录（${lp}）`))
+    push(runProjectGate(projectDir)) // ⑧ project-gate（仅项目语境追加）
+  } else {
+    push(checkLedgerDir())
+  }
   return results
 }
 
 /** --install 动作一：补缺失代理件（渲染部署+sha256 复核；漂移件不覆盖；v2.1.0 批4
  *  起绑定模板按 agent_bindings 渲染——缺绑定的占位模板不装=FAIL 指引）。 */
-export function installAgents(agentsDir, bindings = {}) {
+export function installAgents(agentsDir, bindings = {}, levelOverrides = null) {
   const missing = listAgentTemplates().filter((n) => !existsSync(join(agentsDir, n)))
   if (!missing.length) return { level: 'ok', line: 'install-agents——无缺失件（已存在漂移件不覆盖——保护本机定制）' }
   mkdirSync(agentsDir, { recursive: true })
   const bad = []
   const unbound = []
   for (const n of missing) {
-    const { text, missing: miss } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, n), 'utf8'), bindings)
+    const { text, missing: miss } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, n), 'utf8'), bindings, levelOverrides)
     if (miss.length) { unbound.push(n); continue }
     writeFileSync(join(agentsDir, n), text, 'utf8')
     if (sha256Text(text) !== sha256File(join(agentsDir, n))) bad.push(n)
@@ -431,11 +477,11 @@ export function installAgents(agentsDir, bindings = {}) {
  *  畸形/档位冲突=全部不写并逐件打印原因；全部可渲染则逐件覆盖写入（含漂移件）并
  *  回读 sha256 复核。该开关是唯一允许覆盖漂移件的路径；--install 语义不变（只补
  *  缺失、不覆盖漂移）。退出码口径=references/06 §5.8。 */
-export function syncAgents(agentsDir, bindings = {}) {
+export function syncAgents(agentsDir, bindings = {}, levelOverrides = null) {
   const entries = []
   const bad = []
   for (const name of listAgentTemplates()) {
-    const { text, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), bindings)
+    const { text, missing } = renderAgentTemplate(readFileSync(join(TEMPLATES_AGENTS, name), 'utf8'), bindings, levelOverrides)
     if (missing.length) bad.push({ name, missing: [...new Set(missing)] })
     else entries.push({ name, text })
   }
@@ -480,11 +526,11 @@ export function installHook() {
 // 供用户填实值（providers/vision_channels/projects 的 TODO 占位）；已存在=
 // 绝不覆盖（用户配置域）。写盘段自包 try/catch（同 installHostFacts 处置纪律）。
 
-/** ③a 纯写盘：脚手架本机件（回炉 W6：**最小骨架**——只落个人事实分区占位
+/** ③a 纯写盘：脚手架本机件（返工 W6：**最小骨架**——只落个人事实分区占位
  *  （providers TODO/agent_bindings/vision_channels/projects 域声明），不复制的
  *  finish_vocab/thresholds/source_health 等通用分区——防本机件陈旧快照静默压住
  *  默认件后续演进=铁律1「静默继承」形态）。已存在=绝不覆盖+可解析性核对
- *  （回炉 W10c：坏 JSON 报 warn 非假 ok）。 */
+ *  （返工 W10c：坏 JSON 报 warn 非假 ok）。 */
 export function installLocalConfig(defaultCfg, localPath) {
   if (existsSync(localPath)) {
     try {
@@ -513,7 +559,7 @@ export function installLocalConfig(defaultCfg, localPath) {
   }
 }
 
-// ── g3 批（deploy-hostfacts-split 残留清偿）：宿主事实派生项目覆盖件 ──
+// ── g3 批（deploy-hostfacts-split 残留补还）：宿主事实派生项目覆盖件 ──
 // 授权形态=仅 --install 显式调用（P4）；供应商事实属用户配置域——派生只读
 // 宿主注册表、只写机局部 .zcode/org-config.json（gitignore 不入库），绝不改
 // org-config.default.json 与宿主 config（key/端点事实永不改、不入库）。
@@ -578,9 +624,9 @@ export function installHostFacts(defaultCfg, hostCfg, overPath) {
     note: 'deploy-check --install 派生件——用户配置域，装后可自由改写；派生规则=按 entry_name 在宿主供应商注册表找唯一命中，uuid_prefix 取其 id 前 8 字符（DEPLOY §3）',
     providers: d.providers,
   }
-  // 回炉轮 1 R1（W2）：写盘段自包 try/catch——IO/回读抛错返回 FAIL 结果带
+  // 返工轮 1 R1（W2）：写盘段自包 try/catch——IO/回读抛错返回 FAIL 结果带
   // 真因（计入 summarize fail→exit 1），不再由调用方笼统报「宿主配置装载失败」
-  // warn（真因掩盖+静默失败面——门一 W2）
+  // warn（真因掩盖+静默失败面——代码审查（岗）W2）
   try {
     mkdirSync(dirname(overPath), { recursive: true })
     writeFileSync(overPath, JSON.stringify(payload, null, 2) + '\n')
@@ -603,7 +649,7 @@ function selfTest() {
   // 向量1：forbid 判定正反例（注入配置对象）
   t('forbid 正例（v25.2.1 ∈ [25] → FAIL）', checkNodeMajor('v25.2.1', [25]).level === 'FAIL')
   t('forbid 反例（v24.21.0 ∉ [25] → ok）', checkNodeMajor('v24.21.0', [25]).level === 'ok')
-  t('forbid 配置缺省（无 forbid_major → warn 静默降级如实告警——回炉轮2 W-5）', checkNodeMajor('v25.2.1', undefined).level === 'warn' && checkNodeMajor('v25.2.1', undefined).line.includes('未配置'))
+  t('forbid 配置缺省（无 forbid_major → warn 静默降级如实告警——返工轮2 W-5）', checkNodeMajor('v25.2.1', undefined).level === 'warn' && checkNodeMajor('v25.2.1', undefined).line.includes('未配置'))
 
   // 向量2：agents 清单派生（fixture 目录）
   const fx = mkdtempSync(join(tmpdir(), 'deploy-check-fx-'))
@@ -636,7 +682,7 @@ function selfTest() {
   const s2 = summarize([{ level: 'ok' }, { level: 'ok' }, { level: 'warn' }])
   t('汇总行：warn 不阻断（→处置后复跑，exit 仍 0）', s2.verdict === '处置后复跑' && exitCodeFrom({ failCount: s2.fail }) === 0)
 
-  // 向量5：g3 批（deploy-hostfacts-split 清偿）宿主事实派生纯函数——红态=函数
+  // 向量5：g3 批（deploy-hostfacts-split 补还）宿主事实派生纯函数——红态=函数
   // 未落→FAIL 不崩（typeof 守卫惯例，同本件向量2 风格）
   const g3Def = typeof deriveHostFacts === 'function' ? deriveHostFacts : null
   const g3Differ = typeof hostFactsDiffer === 'function' ? hostFactsDiffer : null
@@ -682,14 +728,14 @@ function selfTest() {
       const r4 = installHostFacts({ providers: { a: { uuid_prefix: 'deadbeef', entry_name: 'E-A' } } }, { provider: { 'aaaaaaaa-1111': { name: 'E-A' } } }, p4)
       const back4 = existsSync(p4) ? JSON.parse(readFileSync(p4, 'utf8')) : null
       t('g3 install：漂移→写覆盖件（note 声明+派生 providers+落盘回读一致）', r4.wrote === true && !!back4 && typeof back4.note === 'string' && back4.note.includes('deploy-check --install') && JSON.stringify(back4.providers) === JSON.stringify({ a: { uuid_prefix: 'aaaaaaaa', entry_name: 'E-A' } }))
-      // 回炉轮 1 R1：写盘 IO 抛错→FAIL 结果带真因（红态=裸抛不入结果集——
+      // 返工轮 1 R1：写盘 IO 抛错→FAIL 结果带真因（红态=裸抛不入结果集——
       // 旧结构下该错会被调用方笼统报成「宿主配置装载失败」warn=真因掩盖）
       const blocker = join(fxDir, 'blocker-file')
       writeFileSync(blocker, 'x')
       const p5 = join(blocker, 'nested', 'case5.json') // 父级是文件→mkdir/write 必抛 IO 错
       const r5run = (() => { try { return { r: installHostFacts({ providers: { a: { uuid_prefix: 'deadbeef', entry_name: 'E-A' } } }, { provider: { 'aaaaaaaa-1111': { name: 'E-A' } } }, p5) } } catch (e) { return { e } } })()
       t('g3 install：写盘 IO 抛错→FAIL 结果带真因（不裸抛/不误归因装载失败）', r5run.r?.level === 'FAIL' && r5run.r.line.includes('写盘/回读失败') && r5run.r.line.includes(blocker))
-      // 回炉轮 1 R4（门一 N5）：仅 unmatched / 仅 ambiguous 两分支单独钉
+      // 返工轮 1 R4（代码审查（岗）N5）：仅 unmatched / 仅 ambiguous 两分支单独钉
       const fxOnlyU = { providers: { uniq: { uuid_prefix: 'aaaaaaaa', entry_name: 'E-A' }, none: { uuid_prefix: 'bbbbbbbb', entry_name: 'E-B' } } }
       const pU = join(fxDir, 'onlyU.json')
       const rU = installHostFacts(fxOnlyU, fxHost, pU)
@@ -698,7 +744,7 @@ function selfTest() {
       const pA = join(fxDir, 'onlyA.json')
       const rA = installHostFacts(fxOnlyA, fxHost, pA)
       t('g3 install：仅 ambiguous（无 unmatched）→不写+指引（行含 ambi/零命中槽=无）', rA.wrote === false && !existsSync(pA) && rA.line.includes('ambi') && rA.line.includes('无宿主命中 alias=无') && rA.line.includes('DEPLOY §3'))
-      // 回炉轮 2 R5（W1-r1）：hostCfg=null 注入——不裸抛+不写+指引行（全别名
+      // 返工轮 2 R5（W1-r1）：hostCfg=null 注入——不裸抛+不写+指引行（全别名
       // 入 unmatched；理论形态纵深防御面，实装缺席必抛 ENOENT——主控定性）
       const pN = join(fxDir, 'nullhost.json')
       const rN = (() => { try { return { r: installHostFacts(fxOnlyU, null, pN) } } catch (e) { return { e } } })()
@@ -722,11 +768,11 @@ function selfTest() {
       const p2 = join(fxDir, 'case2.json')
       const r2 = installLocalConfig(def, p2)
       const back2 = existsSync(p2) ? JSON.parse(readFileSync(p2, 'utf8')) : null
-      t('v2.1.0 ③a：缺失→最小骨架脚手架（个人分区占位+域声明；不含通用分区——回炉 W6）', r2.wrote === true && r2.level === 'ok' && !!back2 && typeof back2.note === 'string' && back2.note.includes('用户配置域') && back2.providers?.a?.uuid_prefix === 'TODO' && 'agent_bindings' in back2 && !('finish_vocab' in back2) && !('thresholds' in back2))
+      t('v2.1.0 ③a：缺失→最小骨架脚手架（个人分区占位+域声明；不含通用分区——返工 W6）', r2.wrote === true && r2.level === 'ok' && !!back2 && typeof back2.note === 'string' && back2.note.includes('用户配置域') && back2.providers?.a?.uuid_prefix === 'TODO' && 'agent_bindings' in back2 && !('finish_vocab' in back2) && !('thresholds' in back2))
       const p2b = join(fxDir, 'case2b.json')
       writeFileSync(p2b, '{broken json')
       const r2b = installLocalConfig(def, p2b)
-      t('v2.1.0 ③a：本机件存在但坏 JSON→warn 非假 ok（回炉 W10c）', r2b.wrote === false && r2b.level === 'warn' && r2b.line.includes('不可解析'))
+      t('v2.1.0 ③a：本机件存在但坏 JSON→warn 非假 ok（返工 W10c）', r2b.wrote === false && r2b.level === 'warn' && r2b.line.includes('不可解析'))
       const blocker = join(fxDir, 'blocker-file')
       writeFileSync(blocker, 'x')
       const p3 = join(blocker, 'nested', 'case3.json') // 父级是文件→写盘必抛 IO 错
@@ -741,7 +787,7 @@ function selfTest() {
   t('v2.1.0 渲染：全部占位一次替换（frontmatter+尾栏同串）', (() => { const r = renderAgentTemplate('model: {{binding:ops-x}}\nSELF: model-field:{{binding:ops-x}}', { 'ops-x': 'aaaa/k3$max' }); return r.text === 'model: aaaa/k3$max\nSELF: model-field:aaaa/k3$max' && r.missing.length === 0 })())
   t('v2.1.0 渲染：缺绑定→占位保留+点名（禁静默带占位部署）', (() => { const r = renderAgentTemplate('model: {{binding:ops-y}}', { 'ops-x': 'v' }); return r.text === 'model: {{binding:ops-y}}' && r.missing.join() === 'ops-y' })())
   t('v2.1.0 渲染：无占位模板恒等（未绑定岗模板不受影响）', (() => { const r = renderAgentTemplate('无占位模板正文', {}); return r.text === '无占位模板正文' && r.missing.length === 0 })())
-  t('v2.1.0 回炉：畸形占位（空格/点号/未闭合形态）→渲染后残留 tripwire 计入 missing（k1 W-2/轮2 W-2）', (() => { const r1 = renderAgentTemplate('model: {{binding: ops-x}}', {}); const r2 = renderAgentTemplate('model: {{binding:ops.x}}', {}); const r3 = renderAgentTemplate('model: {{binding:ops-x', {}); return r1.missing.some((m) => m.startsWith('malformed:')) && r2.missing.some((m) => m.startsWith('malformed:')) && r3.missing.some((m) => m.includes('未闭合')) && r1.text.includes('{{binding: ops-x}}') })())
+  t('v2.1.0 返工：畸形占位（空格/点号/未闭合形态）→渲染后残留 tripwire 计入 missing（k1 W-2/轮2 W-2）', (() => { const r1 = renderAgentTemplate('model: {{binding: ops-x}}', {}); const r2 = renderAgentTemplate('model: {{binding:ops.x}}', {}); const r3 = renderAgentTemplate('model: {{binding:ops-x', {}); return r1.missing.some((m) => m.startsWith('malformed:')) && r2.missing.some((m) => m.startsWith('malformed:')) && r3.missing.some((m) => m.includes('未闭合')) && r1.text.includes('{{binding: ops-x}}') })())
   t('v2.1.0 渲染：sha256Text 稳定（64 hex）', /^[0-9a-f]{64}$/.test(sha256Text('x')) && sha256Text('x') === sha256Text('x'))
 
   // ── P2 批（2026-10-22）：两字段渲染 parseBindingValue/thoughtLevel + 四项检查 ──
@@ -787,7 +833,7 @@ function selfTest() {
     return r.missing.some((m) => m.startsWith('missing-level:')) && r.missing.some((m) => m.includes('ops-x'))
   })())
   t('P2 渲染：未绑定模板（frontmatter 无 model 行）→恒等且零缺失', (() => {
-    const tpl = '---\nname: ops-probe\n---\n\n正文无占位\n'
+    const tpl = '---\nname: ops-unbound-free\n---\n\n正文无占位\n'
     const r = renderAgentTemplate(tpl, {})
     return r.text === tpl && r.missing.length === 0
   })())
@@ -822,6 +868,16 @@ function selfTest() {
     const c = can && can('ops-executor-ds-max.md', { provider: 'ds', model: 'deepseek-flash', level: 'max', renderedModel: 'uuid/other', renderedLevel: 'max' })
     return a?.level === 'ok' && b?.level === 'ok' && c?.level === 'FAIL'
   })())
+  // 装配岗批（D-2/D-3）：checkAgentName assembler 正负例——正例带 .md 后缀命中去后缀正则；
+  // 负例按现行不匹配 skip 语义断言（不新增 FAIL 语义）。
+  t('装配岗批 agent-name：ops-assembler-kimia-max.md 与 slot/渲染值一致→ok', (() => {
+    const r = can && can('ops-assembler-kimia-max.md', { provider: 'kimia', model: 'k3.1-pro', level: 'max' }, { model: 'new-provider/k3.1-pro', level: 'max' })
+    return !!r && r.level === 'ok'
+  })())
+  t('装配岗批 agent-name：assembler 非法档位形态→skip（现行不匹配语义，不新增 FAIL）', (() => {
+    const r = can && can('ops-assembler-kimia-ultra.md', { provider: 'kimia', model: 'k3.1-pro', level: 'max' })
+    return !!r && r.level === 'skip' && r.skipped === true
+  })())
   // 返工轮 1 B1：未解析占位不豁免 thoughtLevel 检查——有 model 行即检查，缺档位=FAIL
   t('P2 检查：未解析占位+thoughtLevel 缺失→组合结果 FAIL（占位不构成豁免）', (() => {
     const r = renderAgentTemplate(p2Tpl(), {})
@@ -829,6 +885,56 @@ function selfTest() {
     const combined = fm.hasModel ? checkThoughtLevel(fm.thoughtLevel) : null
     return r.missing.length > 0 && r.text.includes('{{binding:ops-x}}') && fm.hasModel === true && fm.thoughtLevel === null && checkThoughtLevel(null).level === 'FAIL' && combined?.level === 'FAIL'
   })())
+
+  // ── B4 面板批（D-3）向量：渲染/检查覆盖感知六态＋install/sync 覆盖传递 ──
+  {
+    const ovTpl = (lv) => `---\nname: t\nmodel: {{binding:ops-executor-glmflash-high}}\nthoughtLevel: ${lv}\n---\n\n正文 model-field:{{binding:ops-executor-glmflash-high}}\n`
+    const bMax = { 'ops-executor-glmflash-high': 'demo-prov/model-a$max' }
+    const sd = { provider: 'glmflash', model: 'model-a', level: 'high' }
+    t('B4 D-3① 覆盖且绑定=覆盖→模板行重写 max、missing 空', (() => { const r = renderAgentTemplate(ovTpl('high'), bMax, { executor: 'max' }); return r.missing.length === 0 && r.text.includes('thoughtLevel: max') })())
+    t('B4 D-3② 覆盖但绑定≠覆盖→conflict（渲染源=绑定）', renderAgentTemplate(ovTpl('max'), { 'ops-executor-glmflash-high': 'demo-prov/model-a$high' }, { executor: 'max' }).missing.some((m) => m.startsWith('conflict:thoughtLevel:')))
+    t('B4 D-3③ 无覆盖冲突→conflict（旧文案逐字）', renderAgentTemplate(ovTpl('low'), bMax).missing.some((m) => m === 'conflict:thoughtLevel:ops-executor-glmflash-high'))
+    t('B4 D-3④ 无覆盖不符=FAIL 且无覆盖文案（旧语义）', checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'demo-prov/model-a', level: 'max' }).level === 'FAIL' && !checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'demo-prov/model-a', level: 'max' }).line.includes('thought_level_overrides'))
+    t('B4 D-3⑤ 覆盖且渲染=覆盖=ok', checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'demo-prov/model-a', level: 'max' }, 'max').level === 'ok')
+    t('B4 D-3⑥ 覆盖但渲染≠覆盖=FAIL 含覆盖文案', (() => { const r = checkAgentName('ops-executor-glmflash-high.md', sd, { model: 'demo-prov/model-a', level: 'high' }, 'max'); return r.level === 'FAIL' && r.line.includes('slot.level=high ≠ 渲染 thoughtLevel=high') && r.line.includes('thought_level_overrides.executor=max 在案·以覆盖为准') })())
+    // install/sync 覆盖传递断言（真实模板→tmp 目录；防只改纯函数不接生产链）
+    const need = new Set(listAgentTemplates().flatMap((n) => [...readFileSync(join(TEMPLATES_AGENTS, n), 'utf8').matchAll(/\{\{binding:([A-Za-z0-9_-]+)\}\}/g)].map((m) => m[1])))
+    const b56 = Object.fromEntries([...need].map((s) => { const p = /^ops-(.+)-([a-z0-9]+)-(low|high|max)$/.exec(s); return [s, `prov-${p[2]}/model-${p[2]}$${p[1] === 'research' ? 'max' : p[3]}`] }))
+    const fStem = (pre) => [...need].find((s) => s.startsWith(pre)) + '.md'
+    const ov = { research: 'max' }
+    const dirI = mkdtempSync(join(tmpdir(), 'deploy-check-b4i-'))
+    try {
+      const ri = installAgents(dirI, b56, ov)
+      const fmR = readFrontmatterFields(readFileSync(join(dirI, fStem('ops-research-')), 'utf8'))
+      const fmE = readFrontmatterFields(readFileSync(join(dirI, fStem('ops-executor-')), 'utf8'))
+      t('B4 D-3 install 覆盖传递：research 件渲染 thoughtLevel=max（重写出厂行）', ri.level === 'ok' && fmR.thoughtLevel === 'max')
+      t('B4 D-3 install 覆盖传递：非目标角色（executor）不受影响仍出厂档', fmE.thoughtLevel === 'high')
+    } finally { rmSync(dirI, { recursive: true, force: true }) }
+    const dirS = mkdtempSync(join(tmpdir(), 'deploy-check-b4s-'))
+    try {
+      const rs = syncAgents(dirS, b56, ov)
+      t('B4 D-3 sync 覆盖传递：全或无完成且 research 件=max', rs.level === 'ok' && rs.wrote === need.size && readFrontmatterFields(readFileSync(join(dirS, fStem('ops-research-')), 'utf8')).thoughtLevel === 'max')
+    } finally { rmSync(dirS, { recursive: true, force: true }) }
+  }
+
+  // ── B1 批（D-4/D-8）向量：⑧ project-gate 判定三态＋⑦ 项目账本目录试写（tmp 夹具） ──
+  t('B1 project-gate：rc=0→ok（行含 project-gate ok）', projectGateVerdict({ scriptExists: true, rc: 0 }).level === 'ok' && projectGateVerdict({ scriptExists: true, rc: 0 }).line.includes('project-gate ok'))
+  t('B1 project-gate：rc≠0→FAIL（行含同款命令与 exit 码）', projectGateVerdict({ scriptExists: true, rc: 1 }).level === 'FAIL' && projectGateVerdict({ scriptExists: true, rc: 1 }).line.includes('exit 1'))
+  t('B1 project-gate：脚本缺件→FAIL（不静默跳过）', projectGateVerdict({ scriptExists: false }).level === 'FAIL' && projectGateVerdict({ scriptExists: false }).line.includes('缺 scripts'))
+  {
+    const fx = mkdtempSync(join(tmpdir(), 'deploy-check-pg-'))
+    try {
+      const r1 = checkLedgerDirPath(join(fx, 'led'), 'tmp 账本目录') // 目录缺省顺带创建
+      const probeLeft = existsSync(join(fx, 'led', `.deploy-check-probe-${process.pid}`))
+      t('B1 ledger-dir：tmp 目录试写→ok＋探针随删＋目录顺带创建', r1.level === 'ok' && !probeLeft && existsSync(join(fx, 'led')))
+      const blocker = join(fx, 'blocker')
+      writeFileSync(blocker, 'x')
+      const r2 = checkLedgerDirPath(join(blocker, 'nested'), '阻断目录')
+      t('B1 ledger-dir：父级是文件→FAIL（不裸抛）', r2.level === 'FAIL' && r2.line.includes('不可写'))
+    } finally {
+      rmSync(fx, { recursive: true, force: true })
+    }
+  }
 
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
@@ -850,8 +956,13 @@ if (isMain) {
   // g3 批（evolve-l4-flags/P9 收敛）：--agents-dir 缺值/值形如 flag/重复→
   // [用法错] exit 1——原 `|| DEFAULT_AGENTS_DIR` 对缺值静默回退默认目录（假动作面）
   let agentsDir = DEFAULT_AGENTS_DIR
+  let projectDir = null
   try {
     if (argv.includes('--agents-dir')) agentsDir = cliFlag(argv, '--agents-dir')
+    if (argv.includes('--project')) {
+      projectDir = cliFlag(argv, '--project')
+      if (!existsSync(projectDir) || !statSync(projectDir).isDirectory()) { console.error(`[用法错] --project 不是存在目录：${projectDir}`); process.exit(1) }
+    }
   } catch (e) {
     if (e instanceof UsageError) {
       console.error(`[用法错] ${e.message}`)
@@ -872,12 +983,13 @@ if (isMain) {
     }
     console.log(`[install] ${lcLine}`)
     let tplBindings = {}
+    let tplOverrides = null
     let tplLoadErr = null
-    try { tplBindings = loadOrgConfig(SKILL_ROOT).merged.agent_bindings || {} } catch (e) { tplLoadErr = e.message /* 回炉 W10a：真因分行呈现，不并入「缺绑定」误归因 */ }
+    try { const tplMerged = loadOrgConfig(SKILL_ROOT).merged; tplBindings = tplMerged.agent_bindings || {}; tplOverrides = tplMerged.thought_level_overrides ?? null } catch (e) { tplLoadErr = e.message /* 返工 W10a：真因分行呈现，不并入「缺绑定」误归因 */ }
     if (tplLoadErr) console.log(`[warn] agent_bindings 装载失败（${tplLoadErr}）——下行如报「占位缺绑定」可能为误归因，先修本机件 JSON`)
-    console.log(`[install] ${installAgents(agentsDir, tplBindings).line}`)
+    console.log(`[install] ${installAgents(agentsDir, tplBindings, tplOverrides).line}`)
     console.log(`[install] ${installHook()}`)
-    // g3 动作③（回炉轮 1 R1/R2 重构错误处置——门一 W2/W3）：三源分行归因——
+    // g3 动作③（返工轮 1 R1/R2 重构错误处置——代码审查（岗）W2/W3）：三源分行归因——
     // ① org-config 装载失败（默认件/覆盖件坏）→干净跳过（warn+指引，不裸崩
     //    不硬停 install 其余动作；覆盖件=用户手改域，note 明示装后可自由改写）；
     // ② 宿主配置装载失败→跳过+指引（现语义维持）；
@@ -898,7 +1010,7 @@ if (isMain) {
         hf = { wrote: false, level: 'warn', line: `install-hostfacts——跳过：宿主配置装载失败（${e.message}）——手工路径=DEPLOY §3` }
       }
       if (hostCfg) hf = installHostFacts(oc.merged, hostCfg, oc.overPath)
-      // 回炉轮 2 R5（W1-r1，纵深防御——evolve-b6 同族）：readHostConfig 返
+      // 返工轮 2 R5（W1-r1，纵深防御——evolve-b6 同族）：readHostConfig 返
       // falsy 的兜底（改述 g3-w1r1：宿主 config 内容为字面 null=合法 JSON，
       // readJson 不抛错、readHostConfig 返 null——极端罕见但可达，非「不可达」；
       // 缺席文件形态实装必抛 ENOENT 走上行 catch——补 else 消 hf 未定义暴露面，
@@ -920,12 +1032,12 @@ if (isMain) {
       console.error(`[装载错] org-config 装载失败：${e.message}`)
       process.exit(EXIT_SELF_ERROR)
     }
-    const sync = syncAgents(agentsDir, syncCfg.agent_bindings || {})
+    const sync = syncAgents(agentsDir, syncCfg.agent_bindings || {}, syncCfg.thought_level_overrides ?? null)
     process.exit(sync.level === 'ok' ? 0 : 1)
   }
 
   // 自身装载错守卫（exit 3 族）：org-config 装载失败（检查主体消费 cfg——
-  // 回炉轮 1 R2 后移至 install 块后：坏覆盖件时 install 三动作先执行、③ 打印
+  // 返工轮 1 R2 后移至 install 块后：坏覆盖件时 install 三动作先执行、③ 打印
   // 干净跳过行，再到此处按装载错退 3，不再整场前置短路）
   let cfg
   try {
@@ -937,7 +1049,7 @@ if (isMain) {
 
   let results
   try {
-    results = runChecks(agentsDir, cfg)
+    results = runChecks(agentsDir, cfg, projectDir)
   } catch (e) {
     if (e instanceof SelfLoadError) {
       console.error(`[装载错] ${e.message}`)
@@ -946,8 +1058,8 @@ if (isMain) {
     throw e
   }
   const sum = summarize(results)
-  // 回炉轮 1 R1：install 动作③ 的 FAIL 计入阻断口径（sum 口径本身不动——
-  // 门一 W2：写盘真因 FAIL 静默 warn=失败面掩盖）
+  // 返工轮 1 R1：install 动作③ 的 FAIL 计入阻断口径（sum 口径本身不动——
+  // 代码审查（岗）W2：写盘真因 FAIL 静默 warn=失败面掩盖）
   console.log(sum.line + (installFailCount ? `——另含 install 动作 FAIL ×${installFailCount}（计入阻断）` : ''))
   process.exit(exitCodeFrom({ failCount: sum.fail + installFailCount }))
 }

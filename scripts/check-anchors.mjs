@@ -13,7 +13,7 @@
 // 级别：断锚/路径缺失=WARN（试点校准期——按裁决档 W6：全量 WARN 基线→误报分类，
 //   连续两轮零误报再议升 --strict）；计数不一致=FAIL（golden 冻结面失守，须 --update 重冻结随批提交）。
 // 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
-// 指针化；回炉 r2 削 b8 残留碎片，golden 缺失语义总表已载）。
+// 指针化；返工 r2 削 b8 残留碎片，golden 缺失语义总表已载）。
 // 用法：node scripts/check-anchors.mjs [--update] [--strict] [--self-test]
 //   --update    重生成 doc-counts.json（冻结动作：随工作单元提交+修订记登记，08 §7）
 //   --strict    WARN 亦退 1（升格开关，试点期不用）
@@ -36,12 +36,12 @@ const flag = (n) => argv.includes(n)
 // ── 扫描面 ──
 // 依赖面预检（v2.0.1 修复批 L13）：references 目录与 01/04 登记表源缺失
 // =配置/装载错族（06 §5.8 行 3）——[fatal] 一行退 3，防裸 readFileSync 抛堆栈
-// （对齐本件 org-config 装载守卫与 ds-call-v2 ConfigError 惯例，风格割裂收口）
+// （对齐本件 org-config 装载守卫与 ds-call-v2 ConfigError 惯例，风格割裂结项）
 if (!existsSync(REF_DIR)) { console.error(`[fatal] references 目录缺失: ${REF_DIR}（check-anchors 扫描面依赖——06 §5.8 行 3）`); process.exit(3) }
 for (const f of ['01-org-principles.md', '04-lessons.md']) {
   if (!existsSync(join(REF_DIR, f))) { console.error(`[fatal] 登记表源缺失: ${join(REF_DIR, f)}（条目索引/计数对账依赖——06 §5.8 行 3）`); process.exit(3) }
 }
-// references 清单确定性排序（selfiter 批 evolve-l3-sort 清偿）：readdirSync
+// references 清单确定性排序（selfiter 批 evolve-l3-sort 补还）：readdirSync
 // 枚举序跨平台/目录序不稳定——WARN/FAIL 报告行序与 diff 对账噪声面
 const docFiles = [
   join(SKILL_ROOT, 'SKILL.md'),
@@ -109,7 +109,7 @@ function checkEntryRefs(ln, entIdx) {
 // 项目侧路径（项目仓/项目覆盖件/项目脚本示例）不属技能根存在性检查域——按前缀+点名跳过（试点基线分类：均为 WP/Synapse 项目侧文件）
 const PROJECT_PREFIX = /^(\.zcode\/|reports\/|briefs\/|docs\/)/
 
-// 点名单单源=org-config anchors_exempt.project_names（v1.7.4 m4 清偿，残留册
+// 点名单单源=org-config anchors_exempt.project_names（v1.7.4 m4 补还，残留册
 // evolve-m4-hardcode 承接）：deriveProjectNames 派生纯函数（主扫描真实装载+
 // --self-test fixture 共用）；缺段/非数组=exit 3（词表缺失族——同 finish_vocab
 // 口径：无兜底名单，缺=配置错即拒跑，无静默回退）。PROJECT_PREFIX 正则=
@@ -119,7 +119,7 @@ function deriveProjectNames(merged) {
   if (!Array.isArray(list))
     return {
       names: null,
-      error: `org-config anchors_exempt.project_names 缺段或非数组（现=${list === undefined ? 'undefined' : JSON.stringify(list) ?? String(list)}）——项目侧点名单单源（v1.7.4 m4 清偿），缺段=exit 3 无静默回退`,
+      error: `org-config anchors_exempt.project_names 缺段或非数组（现=${list === undefined ? 'undefined' : JSON.stringify(list) ?? String(list)}）——项目侧点名单单源（v1.7.4 m4 补还），缺段=exit 3 无静默回退`,
     }
   return { names: new Set(list), error: null }
 }
@@ -160,12 +160,12 @@ function selfTest() {
   const fails = []
   let n = 0
   const t = (name, got, want) => { n++; if (got !== want) fails.push(`${name}:got=${got} want=${want}`) }
-  // 真实文件索引断言（evolve-E2 b7 强化——原 head 断言对自建 Set 恒真=在册盲点，
+  // 真实文件索引断言（evolve-E2 b7 强化——原 head 断言对自建 Set 恒真=已登记盲点，
   // 残留册登记行之一）：拷打真实解析而非合成恒真
   const heads = buildHeadingIndex()
   t('head-06 含 5.8（真实文件解析）', heads['06']?.has('5.8') === true, true)
-  t('head-06 不含 8.6（8.6 系 02 章节——负例防恒真，原恒真断言掩蔽的盲点）', heads['06']?.has('8.6') === false, true)
-  t('head-02 含 8.6（真实文件解析）', heads['02']?.has('8.6') === true, true)
+  t('head-06 不含 8.6（负例防恒真，原恒真断言掩蔽的盲点）', heads['06']?.has('8.6') === false, true)
+  t('head-02 含 8.1（真实文件解析；原锚 §8.6 已迁 06 §1——02 迁移注记，陈旧断言随本批最小修复）', heads['02']?.has('8.1') === true, true)
   const refOk = (v) => { const p = resolveRef(v); return typeof p === 'string' && p.length > 0 }
   t('resolve-home', refOk('~/.zcode/skills/_archive/x.md'), true)
   t('path-like-reject-space', PATH_LIKE.test('Synapse 项目仓 scripts/audits/x.md'), false)
@@ -185,7 +185,7 @@ function selfTest() {
   t('免误伤：K3 编号短语（无文档号·前缀）不命中', refsOf('K3 编号短语不命中')?.length === 0, true)
   t('「」叙述跳过延续 ·XN 族', refsOf('「旧引 02·C2 为断锚」叙述')?.length === 0, true)
   t('两位文档号条目形：10·A1 解析 no=10（现无该号文档=断锚方向）', (() => { const r = refsOf('10·A1'); return Array.isArray(r) && r.length === 1 && r[0].no === '10' && r[0].ok === false })(), true)
-  // m4 清偿向量（v1.7.4）：点名单从 fixture 配置派生正例（名单内路径被豁免）+缺段 exit 3 语义
+  // m4 补还向量（v1.7.4）：点名单从 fixture 配置派生正例（名单内路径被豁免）+缺段 exit 3 语义
   const dOk = typeof deriveProjectNames === 'function' ? deriveProjectNames({ anchors_exempt: { project_names: ['scripts/x.py', 'y.md'] } }) : null
   t('m4 点名单 fixture 派生正例：名单内命中被豁免/名单外不命中（豁免不外溢）', dOk?.error == null && dOk?.names?.has?.('scripts/x.py') === true && dOk?.names?.has?.('scripts/other.py') === false, true)
   const dBad = typeof deriveProjectNames === 'function' ? deriveProjectNames({}) : null
@@ -204,7 +204,7 @@ if (flag('--self-test')) process.exit(selfTest() ? 0 : 1)
 
 // 点名单装载（主流程真实配置；--self-test 用 fixture 不触真实装载）——
 // 缺段/非数组=exit 3（词表缺失族），stderr 点名；装载失败（坏 JSON 等）
-// =06 §5.8 行 3（配置/装载错）：[fatal] 一行+exit 3（门一 N-1，回炉 1 轮——
+// =06 §5.8 行 3（配置/装载错）：[fatal] 一行+exit 3（代码审查（岗）N-1，返工 1 轮——
 // 对齐 ds-call-v2 ConfigError 惯例，防裸抛堆栈噪声/误退出码）
 let mergedCfg
 try {

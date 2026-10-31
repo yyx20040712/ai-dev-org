@@ -1,6 +1,6 @@
 /**
  * 技能垃圾回收（ai-dev-org 工具件）v1.1——清理无效技能与退役重定向页。
- * 分类口径（回炉轮 2 修订——Kimi/DS 双源审）：
+ * 分类口径（返工轮 2 修订——Kimi/DS 双源审）：
  *   redirect = description 含退役/重定向标记 且 正文字节数 <2000B（字节口径）
  *   suspect  = description 含上述标记 但正文较大（疑似而非确证——仅报告，禁入自动删除集）
  *   invalid  = 缺 frontmatter 或缺 name 字段（硬事实）；description 解析存在

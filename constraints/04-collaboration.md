@@ -10,7 +10,7 @@ id: C-COL-01
 title: 评审前自查需求一致性
 category: collaboration
 triggers: [简报评审, 需求源, 一致性, 主授权]
-roles: [planner, reviewer]
+roles: [planner, implreview]
 phases: [design, review]
 severity: warning
 enforcement: review
@@ -29,7 +29,7 @@ id: C-COL-02
 title: 将口径冲突交所有者裁定
 category: collaboration
 triggers: [口径冲突, 审计门, 所有者裁定, 复算]
-roles: [reviewer, adjudicator]
+roles: [implreview, adjudicator]
 phases: [review, adjudicate]
 severity: blocking
 enforcement: review
@@ -67,7 +67,7 @@ id: C-COL-04
 title: 声明返工上限并核对净增 diff
 category: collaboration
 triggers: [返工, 修复轮, 返工上限, 净增 diff]
-roles: [executor, reviewer, adjudicator]
+roles: [executor, implreview, adjudicator]
 phases: [implement, review, adjudicate]
 severity: blocking
 enforcement: review
@@ -90,7 +90,7 @@ id: C-COL-05
 title: 分离实现验收并锁定测试
 category: collaboration
 triggers: [实现验收分离, 测试锁, 激活锁, registry, 控制面]
-roles: [executor, reviewer, adjudicator]
+roles: [executor, implreview, adjudicator]
 phases: [implement, review, close]
 severity: blocking
 enforcement: review
@@ -113,7 +113,7 @@ id: C-COL-06
 title: 偏离任务书必须逐条申报
 category: collaboration
 triggers: [任务书执行, 返工, 自裁处置]
-roles: [executor, reviewer, adjudicator]
+roles: [executor, implreview, adjudicator]
 phases: [implement, review, adjudicate]
 severity: blocking
 enforcement: review
@@ -132,7 +132,7 @@ id: C-COL-07
 title: 区分完整、截断与失败
 category: collaboration
 triggers: [审计账本, 流水终态, 截断标记, 未知终态]
-roles: [planner, executor, reviewer]
+roles: [planner, executor, implreview]
 phases: [design, implement, review]
 severity: blocking
 enforcement: machine
@@ -151,7 +151,7 @@ id: C-COL-08
 title: 改接缝必核对相邻侧
 category: collaboration
 triggers: [接缝, 相邻声明, 语义漂移, 互斥]
-roles: [executor, reviewer]
+roles: [executor, implreview]
 phases: [implement, review]
 severity: blocking
 enforcement: review

@@ -202,7 +202,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -226,7 +226,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -251,7 +251,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -275,7 +275,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -299,7 +299,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -323,7 +323,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -369,7 +369,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -393,7 +393,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -417,7 +417,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -440,7 +440,7 @@
       ],
       "paths": [],
       "roles": [
-        "reviewer",
+        "implreview",
         "adjudicator"
       ],
       "phases": [
@@ -465,7 +465,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer",
+        "implreview",
         "adjudicator"
       ],
       "phases": [
@@ -493,7 +493,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -519,7 +519,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -545,7 +545,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -570,7 +570,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -596,7 +596,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -624,7 +624,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -651,7 +651,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -678,7 +678,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -728,7 +728,7 @@
       "paths": [],
       "roles": [
         "planner",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -752,7 +752,7 @@
       ],
       "paths": [],
       "roles": [
-        "reviewer",
+        "implreview",
         "adjudicator"
       ],
       "phases": [
@@ -801,7 +801,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer",
+        "implreview",
         "adjudicator"
       ],
       "phases": [
@@ -829,7 +829,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer",
+        "implreview",
         "adjudicator"
       ],
       "phases": [
@@ -855,7 +855,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer",
+        "implreview",
         "adjudicator"
       ],
       "phases": [
@@ -883,7 +883,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -909,7 +909,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -934,7 +934,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -960,7 +960,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -986,7 +986,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -1011,7 +1011,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -1038,7 +1038,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -1064,7 +1064,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer",
+        "implreview",
         "adjudicator"
       ],
       "phases": [
@@ -1091,7 +1091,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -1142,7 +1142,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -1167,7 +1167,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -1192,7 +1192,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -1217,7 +1217,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -1242,7 +1242,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "implement",
@@ -1267,7 +1267,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -1292,7 +1292,7 @@
       "paths": [],
       "roles": [
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -1319,7 +1319,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -1347,8 +1347,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer",
-        "diagnostics"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -1373,8 +1372,7 @@
       "paths": [],
       "roles": [
         "planner",
-        "executor",
-        "diagnostics"
+        "executor"
       ],
       "phases": [
         "implement",
@@ -1401,8 +1399,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer",
-        "diagnostics"
+        "implreview"
       ],
       "phases": [
         "design",
@@ -1429,8 +1426,7 @@
       "paths": [],
       "roles": [
         "planner",
-        "executor",
-        "diagnostics"
+        "executor"
       ],
       "phases": [
         "design",
@@ -1456,7 +1452,7 @@
       "roles": [
         "planner",
         "executor",
-        "reviewer"
+        "implreview"
       ],
       "phases": [
         "design",

@@ -7,7 +7,7 @@
  *  - 名单**从 org-config 派生**（hardcode_scan.*），脚本禁硬编码供应商事实（A3）。
  *    通用语法形态（http(s):// 与 api.<host>）属语法非事实，留脚本内。
  *  - 白名单独立 JSON 文件（not .md——避免 .md 白名单被自身扫中）。
- *  - 升格 RED 已生效（selfiter 批 B6 清偿 W-6 愿望式升档）：配置位
+ *  - 升格 RED 已生效（selfiter 批 B6 补还 W-6 愿望式升档）：配置位
  *    hardcode_scan.strict（缺省 true）+`--strict` 双入口，命中=RED 退出；
  *    `--warn`=试点校准期显式降级逃生口。
  *  - 安排性提及边界（08 §1）：岗位×供应商分工链**描述**可写；端点/实配名不可。
@@ -23,7 +23,7 @@
  * （--agents 须带值——裸 flag=用法错，v2.0.1 修复批 M4 收紧：原缺值静默回退
  *   默认 agents 目录=假动作面；扫描范围限 ops-*.md 剥 frontmatter）
  * 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
- * 指针化；回炉 r2 削 b8 残留碎片，降级行语义总表已载）。
+ * 指针化；返工 r2 削 b8 残留碎片，降级行语义总表已载）。
  */
 import { readFileSync, existsSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { join, relative, basename } from 'node:path'
@@ -42,13 +42,13 @@ try {
   if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); process.exit(1) }
   throw e
 }
-// 升格位（selfiter 批 B6 清偿 check-hardcode-promotion）：org-config
+// 升格位（selfiter 批 B6 补还 check-hardcode-promotion）：org-config
 // hardcode_scan.strict（缺省 true）=命中即 RED 退出；--warn=显式降回 WARN
 // （试点校准期逃生口——升格判据=B3 白名单收缩后连续 B4/B5 两批零误报零命中，
 // 已满足）。effective strict 在配置装载后合流（见主流程尾）。
 const warnMode = argv.includes('--warn')
 let DEGRADED = false // 降级运行位（宿主配置/白名单损坏——显式留痕退出码 5，v1.6 批 P2-2：原静默吞错=strict 下假 RED/非 strict 假绿）
-const agentsDir = argv.includes('--agents') ? agentsFlag : null // 门一回炉 W3：cliFlag 缺值即抛=裸 --agents 不可达回退（原「|| 默认目录」死代码已删——行为收紧申报：旧版裸 flag 静默扫默认目录，现=用法错 exit 1，g3「假动作面」立场一致）
+const agentsDir = argv.includes('--agents') ? agentsFlag : null // 代码审查（岗）返工 W3：cliFlag 缺值即抛=裸 --agents 不可达回退（原「|| 默认目录」死代码已删——行为收紧申报：旧版裸 flag 静默扫默认目录，现=用法错 exit 1，g3「假动作面」立场一致）
 const whitelistPath = whitelistFlag || join(SKILL_ROOT, 'scripts', 'hardcode-whitelist.json')
 
 const GENERIC = [
@@ -81,9 +81,9 @@ export function modelVariants(name) {
 export function deriveHostModelTerms(cfg = null) {
   const terms = []
   let hostCfg = cfg
-  // 回炉 d1-W-4：入参类型守卫——旧路径串契约已随 B3 退役，字符串/数组入参会静默
+  // 返工 d1-W-4：入参类型守卫——旧路径串契约已随 B3 退役，字符串/数组入参会静默
   // 得空词表（'str'.provider=undefined）无 DEGRADED=终审 W4 消除过的静默漏检面
-  // 复活，显式降级留痕（exit 5）拒静默。回炉 k2-N-3'：null=出合约哨兵（缺省
+  // 复活，显式降级留痕（exit 5）拒静默。返工 k2-N-3'：null=出合约哨兵（缺省
   // 真实读取的唯一下游=readHostConfig，其双缺=throw 不返 null），非静默豁免。
   if (hostCfg !== null && (typeof hostCfg !== 'object' || Array.isArray(hostCfg))) {
     console.error('[degraded] deriveHostModelTerms 入参形态非宿主合并配置对象（旧路径串契约已随 B3 退役——须传 mergeHostRegistries 返回形态或缺省真实读取）——按不可读降级为通用语法形态，退出码 5')
@@ -167,7 +167,7 @@ export function scanText({ relPath, text, merged, whitelist = [], extraTerms = [
 
 function listMd(dir) {
   const out = []
-  // 确定性排序（selfiter 批 evolve-l3-sort 清偿）：readdirSync 枚举序跨平台/
+  // 确定性排序（selfiter 批 evolve-l3-sort 补还）：readdirSync 枚举序跨平台/
   // 目录序不稳定——diff 对账与报告输出噪声面；一律按名排序后遍历
   const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
   for (const e of entries) {
@@ -237,7 +237,7 @@ function selfTest() {
     const terms = deriveHostModelTerms(merged)
     return terms.length === 1 && terms[0].name.includes('B3OnlyModel')
   })())
-  // 回炉 d1-W-4 向量：旧路径串入参（退役契约误用）→ 显式降级非静默空词表
+  // 返工 d1-W-4 向量：旧路径串入参（退役契约误用）→ 显式降级非静默空词表
   t('B3 退役路径串入参=降级留痕非静默空词表（d1-W-4）', (() => {
     let degraded = false
     const orig = console.error, buf = []
@@ -287,5 +287,5 @@ const strict = !warnMode && (argv.includes('--strict') || merged?.hardcode_scan?
 const W = process.stdout.write.bind(process.stdout)
 for (const h of effective) W(`[WARN] ${h.file}:${h.line} ${h.kind} 命中「${h.match}」——供应商 live 事实不得写入 .md 正文（06 §0/08 §1）；改指针化（指向 org-config）或登记白名单（scripts/hardcode-whitelist.json）\n`)
 if (all.length - effective.length) W(`[info] 白名单豁免 ${all.length - effective.length} 处（${whitelist.length} 条规则）\n`)
-console.log(`check-hardcode 汇总：扫 ${files.length} 个 .md${agentsFiles ? ` + agents 目录 ${agentsFiles} 个 ops-*.md（frontmatter 已剥离）` : ''}，命中 ${effective.length} 处（白名单豁免 ${all.length - effective.length}；词表=org-config ${deriveTerms(merged).length} 条+宿主注册表 ${hostTerms.length} 条）${strict && effective.length ? '——strict：按 RED 处置，不得收口' : strict ? '（strict 已生效，零命中）' : '（WARN 级——--warn 显式降级：校准期逃生口）'}`)
+console.log(`check-hardcode 汇总：扫 ${files.length} 个 .md${agentsFiles ? ` + agents 目录 ${agentsFiles} 个 ops-*.md（frontmatter 已剥离）` : ''}，命中 ${effective.length} 处（白名单豁免 ${all.length - effective.length}；词表=org-config ${deriveTerms(merged).length} 条+宿主注册表 ${hostTerms.length} 条）${strict && effective.length ? '——strict：按 RED 处置，不得结项' : strict ? '（strict 已生效，零命中）' : '（WARN 级——--warn 显式降级：校准期逃生口）'}`)
 process.exit(strict && effective.length ? (DEGRADED ? 5 : 1) : DEGRADED ? 5 : 0) // 降级信号优先于 strict 命中（终审 W4：勿让 1 吞 5）；总表=references/06 §5.8

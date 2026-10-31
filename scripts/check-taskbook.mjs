@@ -10,7 +10,7 @@
 //   T6  任务书退出码契约冲突（FAIL）
 //   T0  结构（WARN）
 //   T13 词面扫描（FAIL——BANNED 22＋规则二两模式，词表单源跨仓读不复制；装载错统一退 3）
-//   T14 事实台账形态漏检（WARN——表格形态逃逸＋无章全局补位；--strict 使其退 1）
+//   T14 事实台账形态漏检（WARN——表格形态漏网＋无章全局补位；--strict 使其退 1）
 //   T15 机检命令转义管道 lint（FAIL——F 条目命令域 grep -E/-P 模式串含转义管道 \| 即红，
 //      ERE/PCRE 下=字面管道符判据恒空跑（Y4 #12b 教训）；普通管道与 BRE 形态不受影响。残留登记项）
 // 退出码口径单源=references/06 §5.8（此处不复写映射）
@@ -563,7 +563,7 @@ export function scanTermLines(lines, banned, rule2Patterns) {
 
 const FACT_REF_RE = /F-\d{2}/
 
-/** T14 形态漏检（输入均为掩蔽后解析结果）：实名台账章内机读 F=0 且章内有 F 编号字样（表格形态逃逸）→ WARN
+/** T14 形态漏检（输入均为掩蔽后解析结果）：实名台账章内机读 F=0 且章内有 F 编号字样（表格形态漏网）→ WARN
  *  行号=首处；无台账章时全局补位一条 WARN。F 字样不因围栏跳过；tb-ignore 行已掩蔽；不升格 FAIL。 */
 export function checkFactShape(parsed, factEntries) {
   const findings = [], lines = parsed?.lines || [], facts = Array.isArray(factEntries) ? factEntries : []
@@ -907,7 +907,7 @@ function selfTest(extraRoots = []) {
     add('L22 T13-05 零复制：活动词表 22 词与规则二两 source 均未以字面量出现在检查器源码', actWords.length === 22 && hitWords.length === 0 && hitR2.length === 0, JSON.stringify({ hitWords, hitR2: hitR2.map((r) => r.source) }))
     const t14a = parseTaskbook('## 4. 事实台账\n\n| F-01 | 甲 | 乙 | 丙 | 丁 |\n')
     const z14a = checkFactShape(t14a, parseFactEntries(t14a)), z14b = checkFactShape(parseTaskbook('正文仅散文引用 F-01 编号。\n'), [])
-    add('L22 T14-01 漏检：实名台账章表格形态逃逸与无章全局补位各 1 条 WARN（行号=首个 F 字样行，不升格 FAIL）',
+    add('L22 T14-01 漏检：实名台账章表格形态漏网与无章全局补位各 1 条 WARN（行号=首个 F 字样行，不升格 FAIL）',
       z14a.length === 1 && z14a[0].level === 'WARN' && z14a[0].check === 'T14' && z14a[0].line === 3 && z14a[0].message.includes('机读 F 为 0') && z14b.length === 1 && z14b[0].level === 'WARN' && z14b[0].check === 'T14' && z14b[0].line === 1, JSON.stringify([z14a, z14b]))
     const t14c = parseTaskbook([
       'F-01 ｜ 基线甲 ｜ `echo 0` ｜ 0 ｜ 2026-10-25', 'F-02 ｜ 基线乙 ｜ `echo 1` ｜ 1 ｜ 2026-10-25', 'F-03 ｜ 基线丙 ｜ `echo 2` ｜ 2 ｜ 2026-10-25', 'F-04 ｜ 基线丁 ｜ `echo 3` ｜ 3 ｜ 2026-10-25',

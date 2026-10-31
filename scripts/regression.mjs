@@ -1,10 +1,10 @@
 /**
  * 技能自包含回归（ai-dev-org——06 §5 的内化执行件；R 清单单源=本脚本 --only
  * 可选项集合，此处不复写清单——evolve-E2 b5 指针化）。
- * 2026-10-03 纯净化批（用户裁决「彻底删除死代码和文档」）：派发器族回归项
+ * 2026-10-03 清理批次（用户裁决「彻底删除死代码和文档」）：派发器族回归项
  * 随 ds-call-v2.mjs/scripts/roles 物理删除而删（R1 语义抽样/R2 golden 自比对/
  * R5 mock 全链演练/R11 干涸窗+同族负例/R9 scrub 受控复制对账/R10③vecDs
- * 纯函数向量/R10④B1 registry 错误面向量）——档案=git 历史（dispatch-retire
+ * 纯函数向量/R10④B1 registry 错误面向量）——详见 git 历史（dispatch-retire
  * 批前提交）。现役项：
  *   R4'=流水与账本字段完整性（流水现役写入者=glm-look；历史派发器行按
  *       08 §3 旧版本类跳过不改写；账本=主控补记单源 02 §9）；
@@ -12,19 +12,24 @@
  *   R8'=三脚本自检套件聚合（org-config/deploy-check/log-triage）；
  *   R10'=glm-look 回归面（结构断言+splitEndpoint 向量+本地 mock 双通道往返
  *       +null 守卫——evolve 批 b1 承载）；
- *   R13'=门禁前移回归面（check-taskbook T13 词面扫描＋T14 防逃逸——L22 批：①隔离自检
- *       子进程 ②strict 通过态 ③表格逃逸红态 ④词表缺失装载错）。
+ *   R13'=门禁前移回归面（check-taskbook T13 词面扫描＋T14 防漏网——L22 批：①隔离自检
+ *       子进程 ②strict 通过态 ③表格漏网红态 ④词表缺失装载错）；
+ *   R14'=账本迁移器自检（B1 批：SKILL_ROOT spawn ledger-migrate.mjs --self-test 断言
+ *       exit 0——五向量〔dry-run 逐组计数/零漂移/隔离分组计数/manifest 哈希锚篡改检出/
+ *       stale candidate〕＋fixture 全程两仓零写入断言在自检内部承载）；
+ *   R15'=主仓门禁自检（B1 批：spawn <project>/scripts/verify-docs.mjs --self-test 断言
+ *       exit 0——缺件=FAIL 不静默跳过，回归面收缩即绊线拆除）。
  * 用法：node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <账本目录>]
  *       [--ledger <账本路径>] [--keep-tmp]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 退出码口径单源=references/06 §5.8。
  */
 import { readFileSync, existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync, spawn } from 'node:child_process'
 import { pathToFileURL } from 'node:url'
-import { SKILL_ROOT, cliFlag, UsageError } from './org-config.mjs'
+import { SKILL_ROOT, cliFlag, UsageError, ledgerPathFor, loadOrgConfig, resolveFlagValue, readFlagsState, readHostConfig, flagsStatePath } from './org-config.mjs'
 import { MANUAL_EVENTS } from './health-scan.mjs' // 人工事件词表单源消费（v2.0.1 修复批 L14——原两处逐字复制=漏改一侧即漂移；health-scan isMain 守卫后 import 零副作用）
 
 const SCRIPTS = join(SKILL_ROOT, 'scripts')
@@ -46,9 +51,9 @@ try {
   throw e
 }
 const keepTmp = argv.includes('--keep-tmp')
-const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随纯净化批删除）
+const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批）
 if (only && only.some((id) => !KNOWN_ITEMS.includes(id))) {
-  console.error(`[用法错] 未知回归项：${only.filter((id) => !KNOWN_ITEMS.includes(id)).join(',')}（现役项=${KNOWN_ITEMS.join('/')}——派发器族项已随 2026-10-03 纯净化批删除，档案=git 历史）`)
+  console.error(`[用法错] 未知回归项：${only.filter((id) => !KNOWN_ITEMS.includes(id)).join(',')}（现役项=${KNOWN_ITEMS.join('/')}——派发器族项已随 2026-10-03 清理批次删除，详见 git 历史）`)
   process.exit(1)
 }
 const want = (id) => !only || only.includes(id)
@@ -57,7 +62,7 @@ const record = (id, pass, detail) => { results.push({ id, pass, detail }); conso
 const node = () => [process.execPath]
 
 // ═══ R4'：流水与账本字段完整性 ═══
-// 流水行分类（2026-10-03 纯净化批后口径）：channel+dispatcher_version=glm-look
+// 流水行分类（2026-10-03 清理批次后口径）：channel+dispatcher_version=glm-look
 // 现役行（按 GLM_REQUIRED 校验）；channel 无 dispatcher_version=外来 legacy 行；
 // 无 channel 有 dispatcher_version=历史派发器行（按 08 §3 旧版本类跳过——
 // 历史行禁改写，ds-call-v2 已删除不再产新行）；两者皆无=极早期 legacy 行
@@ -102,16 +107,31 @@ if (want('R4')) {
     return { pass: bad === 0, kinds, detail: `${label}:尾${ls.length}行坏${bad}行（含未知事件${unknown}）跳${skipped}行(历史/旧版本)外来${foreign}行(他源channel标记) 事件分布=${JSON.stringify(kinds)}` }
   }
   const a = checkLines('流水', LOG_PATH, ['ts', 'runId', 'event'], 100)
-  // 校验域真空显式呈现（k1-W1/d1-W3 回炉：原「全跳过=FAIL」守卫按纯净化批申报软化
+  // 校验域真空显式呈现（k1-W1/d1-W3 返工：原「全跳过=FAIL」守卫按清理批次申报软化
   // ——派发器删除后低频写入窗口下尾行全历史=常态非假绿；真空态如实标注，不静默）
   if (a.kinds && !Object.keys(a.kinds).length) a.detail += '；⚠校验域真空：尾行全为历史/外来行（现役 glm-look 行零——低频写入窗口常态，非校验失效）'
-  // 2026-10-03 纯净化批：流水 cfg 哈希一致性子核对退役——原语义=高频派发行
+  // 2026-10-03 清理批次：流水 cfg 哈希一致性子核对退役——原语义=高频派发行
   // 的「换环境按旧供应商事实硬闯」防线；派发器删除后流水仅剩低频 glm-look
   // 写入（旧行哈希=写入时点事实，配置变更后必然滞后=假红面）。现役配置漂移
   // 观测=health-scan cfg 漂移 WARN+账本行 cfg_hash 主控补记即时值（02 §9）。
-  a.detail += '；cfg哈希子核对=退役（纯净化批——低频写入面假红，观测移交 health-scan）'
+  a.detail += '；cfg哈希子核对=退役（清理批次——低频写入面假红，观测移交 health-scan）'
   const passA = a.pass
-  const ledgerPath = flag('--ledger') || join(projectDir, '.zcode', 'org-ledger.jsonl')
+  // B1 返工 R1：账本路径接三层单源（--ledger 显式参＞merged ledger_path 相对项目根＞join 兜底——与 health-scan 同源）
+  const ledgerPath = ledgerPathFor(projectDir, flag('--ledger'))
+  // R1 三层断言（tmp 夹具·零写两仓）：项目覆盖件 ledger_path 生效／无覆盖件走兜底／显式参恒胜
+  let layerOk = false, layerDet = ''
+  try {
+    const fx4 = mkdtempSync(join(tmpdir(), 'r4-lp-'))
+    try {
+      mkdirSync(join(fx4, '.zcode'), { recursive: true })
+      writeFileSync(join(fx4, '.zcode', 'org-config.json'), JSON.stringify({ ledger_path: 'custom/ledger.jsonl' }))
+      const ov = ledgerPathFor(fx4, null)
+      const fb = ledgerPathFor(join(fx4, 'p2'), null)
+      const ex = ledgerPathFor(fx4, join(fx4, 'explicit.jsonl'))
+      layerOk = ov === join(fx4, 'custom', 'ledger.jsonl') && fb === join(fx4, 'p2', '.zcode', 'org-ledger.jsonl') && ex === join(fx4, 'explicit.jsonl')
+      layerDet = `三层断言:${layerOk ? '✓(覆盖件/兜底/显式参)' : `✗(ov=${ov} fb=${fb} ex=${ex})`}`
+    } finally { rmSync(fx4, { recursive: true, force: true }) }
+  } catch (e) { layerDet = `三层断言:✗(${e.message})` }
   const ledgerReq = (e) => {
     if (!['ok', 'switch', 'exhaust', ...MANUAL_EVENTS].includes(e.event)) return ['__unknown_event__'] // 账本侧未知 event 计坏行（终轮 A'-Kimi：防新增记账事件未同步 schema 即弱校验通过）
     if (MANUAL_EVENTS.has(e.event)) return LEDGER_REQUIRED // 主控人工补记
@@ -129,7 +149,7 @@ if (want('R4')) {
       return Number.isNaN(t) ? true : t < Date.parse('2026-09-16T12:00:00Z')
     },
   })
-  record('R4', passA && b.pass, `${a.detail}；${b.detail}`)
+  record('R4', passA && b.pass && layerOk, `${a.detail}；${b.detail}；${layerDet}`)
 }
 
 // ═══ R7：账本 schema 指针正向校验（A3——SKILL.md/snippet 禁内联字段清单；v1.6 批 kimi-W1） ═══
@@ -174,8 +194,8 @@ if (want('R8')) {
 }
 
 // ═══ R10：glm-look 回归面（evolve 批 E1 2026-09-16——R10 归属 b1，P-4 预裁决；
-//         2026-10-03 纯净化批：③vecDs 纯函数向量与④B1 registry 错误面向量随
-//         ds-call-v2/registry 删除而删，档案=git 历史） ═══
+//         2026-10-03 清理批次：③vecDs 纯函数向量与④B1 registry 错误面向量随
+//         ds-call-v2/registry 删除而删，详见 git 历史） ═══
 //   ①结构断言：glm-look.mjs 非注释行无 fetch( 调用形态+存在 node:http(s) import
 //     （注释剥离口径钉死：先剥 /*…*/ 块注释再跳过 // 整行注释；行内尾注不剔——
 //      代码半行仍在非注释行内受检）；
@@ -313,7 +333,7 @@ process.exit(fails === 0 ? 0 : 1)
     det.push(`⑤null守卫(mock发现面):${nullOk ? `✓(exit=5 降级行+其余源续列)` : `✗(exit=${rNull5.status} stderr尾=${(rNull5.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
     // vmware 迁移批（2026-10-13）向量：宿主真源路径（env 钩子缺席）readHostConfig 双注册表
     // 容错——⑥双件全缺=降级行+exit 5（红态=旧 legacy 直读 ENOENT 栈崩）；⑦v2-only 真源
-    // 发现=新机纯装形态（mergeHostRegistries 物化 providerRules 后通道命中；门一双审
+    // 发现=新机纯装形态（mergeHostRegistries 物化 providerRules 后通道命中；代码审查（岗）双审
     // W1/W-1 测试盲区处置——HOME 重定向隔离，零外呼）
     const envNoHook = { ...process.env }
     delete envNoHook.GLM_LOOK_HOST_CONFIG
@@ -334,7 +354,7 @@ process.exit(fails === 0 ? 0 : 1)
     det.push(`⑦v2-only真源发现:${v2Ok ? `✓(exit=0 ds 通道命中 v2 物化源)` : `✗(exit=${rV2.status} stdout尾=${(rV2.stdout || '').slice(-120).replace(/\n/g, ' ')})`}`)
     // failover 批（2026-10-13）⑧向量：glm 双源——首源（pid 字典序 mock-glm-dead 排前）
     // 恒 401、次源正常。期望=exit 0+正文 MOCK-GLM-OK+流水 fail(mock-glm-dead,401)+
-    // ok(mock-glm-live)。红态=旧码 sources[0] 立断 exit 1 无换源。
+    // ok(mock-glm-live)。红态=旧码 sources[0] 立断 exit 1 无切换承载源。
     const hostCfgFailover = join(r10tmp, 'host-config-failover.json')
     writeFileSync(hostCfgFailover, JSON.stringify({
       provider: {
@@ -348,8 +368,8 @@ process.exit(fails === 0 ? 0 : 1)
       foLogLines.some((e) => e.event === 'fail' && e.source === 'mock-glm-dead' && e.statusCode === 401) &&
       foLogLines.some((e) => e.event === 'ok' && e.source === 'mock-glm-live')
     if (!foOk) ok = false
-    det.push(`⑧源级换源:${foOk ? `✓(exit=0 首源401→次源出活+流水双行)` : `✗(exit=${rFo.status} stderr尾=${(rFo.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
-    // failover 批回炉轮1（k1-W3/d1-W1 处置）：⑨全灭序列=双死源→exit 1+汇总行含
+    det.push(`⑧源级切换承载源:${foOk ? `✓(exit=0 首源401→次源出活+流水双行)` : `✗(exit=${rFo.status} stderr尾=${(rFo.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
+    // failover 批返工轮1（k1-W3/d1-W1 处置）：⑨全灭序列=双死源→exit 1+汇总行含
     // 全部 pid（序=偏好序）；⑩首源成活不触次源=活源 pid 排前（字典序 mock-glm-a<
     // mock-glm-z）→exit 0+ok 归 a+流水零行涉 z。红态=⑨循环尾汇总缺失或 exit≠1/
     // ⑩成活后误触次源。
@@ -390,41 +410,45 @@ process.exit(fails === 0 ? 0 : 1)
   record('R10', ok, `glm-look 回归面——${det.join('；')}`)
 }
 
-// ═══ 词表执法器棘轮面（Y1 批，决策项 ④/campaign §9 阀①③）：①self-test 子进程 ②棘轮通过态 ③新增红态 ④--update 防洗白（新增>0 拒冻+基线件内容比对取证）；夹具全落 os.tmpdir() finally 清理，不写技能仓、不依赖账本 ═══
+// ═══ 词表执法器棘轮面（Y1 批建面；B3 批改＝①27 向量自检＋①-④子进程统一显式 off 态隔离（ORG_FLAGS_STATE 指向本块临时目录状态件，外部生产 on/off 不得渗入——B3 任务书 D-13）＋负例词运行时合成（D-9：扫描面零字面命中））；夹具全落 os.tmpdir() finally 清理，不写技能仓、不依赖账本 ═══
 if (want('R12')) {
   let ok = true; const det = []
   const termsCmd = join(SCRIPTS, 'check-terms.mjs') // 本块脚本字串唯一承载点（多处引用经变量，防复写计数）
-  const r12Run = (args) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 60_000, killSignal: 'SIGKILL' })
-  const rSt = r12Run([termsCmd, '--self-test'])
-  const stOk = rSt.status === 0 && (rSt.stdout || '').trimEnd().split('\n').pop().includes('8 向量')
-  if (!stOk) ok = false
-  det.push(`①self-test:${stOk ? '✓' : `✗(exit=${rSt.status} 尾=${((rSt.stdout || '') + (rSt.stderr || '')).slice(-100).replace(/\n/g, ' ')})`}`)
   const fx = mkdtempSync(join(tmpdir(), 'r12-'))
   try {
+    const r12State = join(fx, 'flags-off.json')
+    writeFileSync(r12State, JSON.stringify({ b2_terms_v2: false }), 'utf8') // ①-④ 统一 off 态隔离（内容仅 b2_terms_v2=false）
+    const r12Run = (args) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 60_000, killSignal: 'SIGKILL', env: { ...process.env, ORG_FLAGS_STATE: r12State } })
+    const T_KAO = '\u70e4\u9a8c' // 负例词运行时合成（D-9：断言仍按原词运行时比较）
+    const T_HUI = '\u56de\u7089' // 同上（第二负例词）
+    const rSt = r12Run([termsCmd, '--self-test'])
+    const stOk = rSt.status === 0 && (rSt.stdout || '').trimEnd().split('\n').pop().includes('27 向量')
+    if (!stOk) ok = false
+    det.push(`①self-test 24向量(off 隔离):${stOk ? '✓' : `✗(exit=${rSt.status} 尾=${((rSt.stdout || '') + (rSt.stderr || '')).slice(-100).replace(/\n/g, ' ')})`}`)
     mkdirSync(join(fx, 'scripts', '.golden'), { recursive: true })
     const baseFile = join(fx, 'scripts', '.golden', 'terms-baseline.json')
-    writeFileSync(baseFile, JSON.stringify({ schemaVersion: 1, files: { 'SKILL.md': { 烤验: 1 } } }), 'utf8') // 基线 1 组 1 次
-    const surf = join(fx, 'SKILL.md'); writeFileSync(surf, '烤验现场\n', 'utf8') // 面文件恰含该 1 次命中
+    writeFileSync(baseFile, JSON.stringify({ schemaVersion: 1, files: { 'SKILL.md': { [T_KAO]: 1 } } }), 'utf8') // 基线 1 组 1 次
+    const surf = join(fx, 'SKILL.md'); writeFileSync(surf, T_KAO + '现场\n', 'utf8') // 面文件恰含该 1 次命中
     const rPass = r12Run([termsCmd, '--root', fx])
     const passOk = rPass.status === 0
     if (!passOk) ok = false
-    det.push(`②棘轮通过:${passOk ? '✓' : `✗(exit=${rPass.status})`}`)
-    writeFileSync(surf, '烤验现场\n回炉现场\n', 'utf8') // 基线外新词命中（基线不变）
+    det.push(`②棘轮通过(off):${passOk ? '✓' : `✗(exit=${rPass.status})`}`)
+    writeFileSync(surf, T_KAO + '现场\n' + T_HUI + '现场\n', 'utf8') // 基线外新词命中（基线不变）
     const rNew = r12Run([termsCmd, '--root', fx])
     const newOk = rNew.status !== 0 && (rNew.stdout || '').includes('新增 ×1')
     if (!newOk) ok = false
-    det.push(`③新增红:${newOk ? '✓(非0+汇总 新增 ×1)' : `✗(exit=${rNew.status})`}`)
+    det.push(`③新增红(off):${newOk ? '✓(非0+汇总 新增 ×1)' : `✗(exit=${rNew.status})`}`)
     const before = readFileSync(baseFile, 'utf8')
-    const rUpd = r12Run([termsCmd, '--root', fx, '--update']) // 新增>0 态下跑 --update
+    const rUpd = r12Run([termsCmd, '--root', fx, '--update']) // off 态 --update（拒用形态——防写回丢 historical 分区）
     const after = readFileSync(baseFile, 'utf8')
     const updOk = rUpd.status === 1 && before === after
     if (!updOk) ok = false
-    det.push(`④防洗白:${updOk ? '✓(拒冻+基线件未改写)' : `✗(exit=${rUpd.status}/改写=${before !== after})`}`)
+    det.push(`④防洗白(off 拒用):${updOk ? '✓(拒冻+基线件未改写)' : `✗(exit=${rUpd.status}/改写=${before !== after})`}`)
   } finally { rmSync(fx, { recursive: true, force: true }) }
   record('R12', ok, `词表棘轮——${det.join(' ')}`)
 }
 
-// ═══ L22 R13：门禁前移回归面（check-taskbook T13 词面扫描＋T14 防逃逸——四向量；样式照 R12）：
+// ═══ L22 R13：门禁前移回归面（check-taskbook T13 词面扫描＋T14 防漏网——四向量；样式照 R12）：
 //     脚本路径变量单点、统一 spawnSync 60s 超时 SIGKILL、tmp 夹具 finally 清理、四项 detail 一次
 //     record；不依赖账本、不写 golden、不改真实任务书、不调外部服务。四子项 PASS 判据（L22 §5.4）：
 //     ①自检子进程 status 0 且 pass=71/fail=0、T13-04 在场且过、词表提取计数 22（不得只凭 stdout「全过」）；
@@ -468,7 +492,7 @@ if (want('R13')) {
     if (!passOk) ok = false
     det.push(`②通过态:${passOk ? '✓(strict exit=0/WARN=0/FAIL=0/T13·T14 零 finding/F·T12 证据链有效)' : `✗(exit=${rPass.status} findings=${JSON.stringify(fs13).slice(0, 120)})`}`)
     // ③漏检红态：合法 F 改 ASCII 表格 F 行（其余不变）→ 至少一条 T14 WARN 且 strict 退 1
-    // （表格形态对解析器不可见=T14 目标逃逸形态；修复方式=恢复全角五字段，非收编表格）
+    // （表格形态对解析器不可见=T14 目标漏网形态；修复方式=恢复全角五字段，非收编表格）
     writeFileSync(tbFile, mkTb('| F-01 | 通过态 | `echo 0` | 0 | 2026-10-25 |'), 'utf8')
     const rRed = r13Run([tbScript, tbFile, '--root', fx, '--evidence', evFile, '--strict', '--json'])
     let jRed = null
@@ -490,6 +514,181 @@ if (want('R13')) {
   } finally { rmSync(fx2, { recursive: true, force: true }) }
   // 四项 detail 一次 record（R12 同款）
   record('R13', ok, `门禁前移——${det.join(' ')}`)
+}
+
+// ═══ B1 R14：账本迁移器自检（spawn SKILL_ROOT ledger-migrate.mjs --self-test 断言 exit 0；
+//     五向量＋fixture 两仓零写入断言由自检内部承载——本项只锚真退出码，不复制向量语义） ═══
+if (want('R14')) {
+  const migScript = join(SCRIPTS, 'ledger-migrate.mjs') // 本块脚本字串唯一承载点（R12/R13 同款）
+  const r14Run = (args) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 120_000, killSignal: 'SIGKILL' })
+  const r = r14Run([migScript, '--self-test'])
+  const out = (r.stdout || '') + (r.stderr || '')
+  const ok14 = r.status === 0 && out.includes('self-test 全过')
+  record('R14', ok14, `迁移器自检:exit=${r.status}/全过=${out.includes('self-test 全过')}${!ok14 ? `（输出尾：${out.slice(-160)}）` : ''}`)
+}
+
+// ═══ B1 R15：主仓门禁自检（spawn <project>/scripts/verify-docs.mjs --self-test 断言 exit 0；
+//     缺件=FAIL 不静默跳过——回归面收缩即绊线拆除；--project 缺省 cwd） ═══
+if (want('R15')) {
+  const vdScript = join(projectDir, 'scripts', 'verify-docs.mjs')
+  if (!existsSync(vdScript)) {
+    record('R15', false, `verify-docs 缺件 ${vdScript}（缺件=FAIL 不静默跳过——绊线在位）`)
+  } else {
+    const r = spawnSync(node()[0], [vdScript, '--self-test'], { encoding: 'utf8', cwd: projectDir, timeout: 120_000, killSignal: 'SIGKILL' })
+    const out = (r.stdout || '') + (r.stderr || '')
+    const ok15 = r.status === 0 && out.includes('self-test 全过')
+    record('R15', ok15, `verify-docs 自检:exit=${r.status}/全过=${out.includes('self-test 全过')}${!ok15 ? `（输出尾：${out.slice(-160)}）` : ''}`)
+  }
+}
+
+// ═══ B6 R16：文档生成与提交短句自检（flag=b3_docgen_v1——off 只跑隔离自检不读现役
+//     RESIDUALS；on 追加现役 RESIDUALS --check 影子对照；生成器 CLI 纪律不随 flag 改变；
+//     夹具全在 /tmp 且 finally 清理；子进程 60 秒超时；stdout 只记计数/类别不泄动态模型名）═══
+if (want('R16')) {
+  let ok16 = true
+  const det16 = []
+  const fx16 = mkdtempSync(join(tmpdir(), 'r16-docgen-'))
+  try {
+    const r16Run = (args, opts = {}) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 60_000, killSignal: 'SIGKILL', ...opts })
+    // ① 四脚本隔离自检（--self-test 子进程真退出码＋确定性/乱序具体 PASS 行断言——W-4/N-03：
+    //    断言以 PASS 起始的具体行承载，非松散字符串正则）
+    const stOk = [], stMark = []
+    for (const s of ['gen-handoff', 'gen-close-summary', 'gen-commit-summary', 'residuals-check']) {
+      const r = r16Run([join(SCRIPTS, `${s}.mjs`), '--self-test'])
+      const out = (r.stdout || '') + (r.stderr || '')
+      const passLines = out.split('\n').filter((l) => l.startsWith('PASS '))
+      const pass = r.status === 0
+      const dbl = passLines.some((l) => l.includes('逐字节一致'))
+      const shuf = passLines.some((l) => l.includes('乱序一致'))
+      if (!pass || !dbl || !shuf) ok16 = false
+      stOk.push(`${s}:${pass ? 'exit=0' : `exit=${r.status}`}`)
+      stMark.push(`${s}${dbl ? '双生成✓' : '双生成✗'}${shuf ? '乱序✓' : '乱序✗'}`)
+    }
+    det16.push(`①四脚本自检 ${stOk.join('/')}（${stMark.join(' ')}）`)
+    // ② 快照两次生成＋输入乱序对照（独立于自检的第一手 CLI 对照：commit 生成器对同一
+    //    合成账本两次运行 stdout 逐字节相同；生成器读取固定快照内的合成夹具）
+    const fixtureDoc = JSON.parse(readFileSync(join(SCRIPTS, '.golden', 'docgen-fixtures.json'), 'utf8'))
+    const proj16 = join(fx16, 'proj')
+    mkdirSync(join(proj16, '.zcode'), { recursive: true })
+    for (const [rel, content] of Object.entries(fixtureDoc.sources)) {
+      const p = join(proj16, rel)
+      mkdirSync(dirname(p), { recursive: true })
+      writeFileSync(p, content, 'utf8')
+    }
+    writeFileSync(join(proj16, '.zcode', 'org-ledger.jsonl'), fixtureDoc.ledger_lines.map((l) => JSON.stringify(l)).join('\n') + '\n', 'utf8')
+    const cArgs = [join(SCRIPTS, 'gen-commit-summary.mjs'), '--project', proj16, '--ledger', join(proj16, '.zcode', 'org-ledger.jsonl'), '--runid', 'fx-dispatch-2099', '--batch-pointer', 'docs/tasks/fx-task.md', '--type', 'feat', '--scope', 'FX', '--subject', '合成提交短句']
+    const c1 = r16Run(cArgs), c2 = r16Run(cArgs)
+    const detOk = c1.status === 0 && c2.status === 0 && (c1.stdout || '') === (c2.stdout || '') && (c1.stdout || '') === fixtureDoc.expected.commit3
+    if (!detOk) ok16 = false
+    det16.push(`②快照两次生成逐字节一致${detOk ? '✓（乱序一致性由①self-test 标记承载）' : '✗'}`)
+    // ③ D-6 扫描正负探针：运行时合成禁用词（源码零字面——转义序列拼接）
+    const SYNTH = '\u6218\u5f79'
+    const mkRoot = (name, files, overlay) => {
+      const d = join(fx16, name)
+      mkdirSync(join(d, '.zcode'), { recursive: true })
+      writeFileSync(join(d, '.zcode', 'org-config.json'), JSON.stringify({ terms_scan: { baseline: 'scripts/.golden/terms-baseline.json', suffix_lexer: { '.md': 'markdown', '.json': 'json' }, exclude: [], active: overlay, historical: [{ root: 'skill', include: ['h.md'] }] } }), 'utf8')
+      for (const [rel, content] of Object.entries(files)) writeFileSync(join(d, rel), content, 'utf8')
+      return d
+    }
+    const stOn = join(fx16, 'on.json')
+    writeFileSync(stOn, '{"b2_terms_v2":true}', 'utf8')
+    const envOn = { ...process.env, ORG_FLAGS_STATE: stOn }
+    // 未围栏 JSON 字符串值 → check-terms active 判红
+    const dRaw = mkRoot('terms-raw', { 'fx.json': `{"note":"合成探针含${SYNTH}字样"}\n` }, [{ root: 'skill', include: ['fx.json'] }])
+    const rRaw = r16Run([join(SCRIPTS, 'check-terms.mjs'), '--strict', '--surface', 'active', '--root', dRaw], { env: envOn })
+    const rawOk = rRaw.status !== 0 && rRaw.status !== 3
+    if (!rawOk) ok16 = false
+    // 同一内容被 Markdown 围栏包住 → check-terms 跳过（退出 0——单闸不闭合的实证）
+    const dFence = mkRoot('terms-fence', { 'fx.md': `\`\`\`text\n合成围栏探针含${SYNTH}字样\n\`\`\`\n` }, [{ root: 'skill', include: ['fx.md'] }])
+    const rFence = r16Run([join(SCRIPTS, 'check-terms.mjs'), '--strict', '--surface', 'active', '--root', dFence], { env: envOn })
+    const fenceOk = rFence.status === 0
+    if (!fenceOk) ok16 = false
+    // 围栏进 RESIDUALS 权威段 → residuals-check 非零拒绝（双闸缺一不可的第二闸）——
+    // W-4：判红只认 status===1（排除 3=装载错假阳性）且输出须含围栏类判红原因
+    const fxRes = join(fx16, 'residuals-fenced.md')
+    writeFileSync(fxRes, String(fixtureDoc.residuals_canonical).replace('<!-- residuals-json: begin -->\n{', '<!-- residuals-json: begin -->\n```\n{'), 'utf8')
+    const rRes = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', fxRes, '--check'])
+    const resOut = (rRes.stdout || '') + (rRes.stderr || '')
+    const resOk = rRes.status === 1 && resOut.includes('围栏')
+    if (!resOk) ok16 = false
+    // B-1 整段外围栏形态：含运行时禁用词的合法 canonical RESIDUALS 夹具——
+    // 未围栏（check-terms 判红＋residuals-check 通过的快照对照）vs 整段外围栏
+    // （check-terms 跳过＋residuals-check 明确因围栏判红）
+    const K8 = ['created_at', 'description', 'evidence', 'id', 'owner', 'phenomenon', 'status', 'trigger']
+    const canonRes = (res) => JSON.stringify({ residuals: [...res].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)).map((e) => Object.fromEntries(K8.map((k) => [k, e[k]]))), schema: 'residuals/v1' }, null, 2)
+    const withWord = (() => {
+      const src = String(fixtureDoc.residuals_canonical)
+      const ls = src.split('\n')
+      const bi = ls.indexOf('<!-- residuals-json: begin -->'), ei = ls.indexOf('<!-- residuals-json: end -->')
+      const doc = JSON.parse(ls.slice(bi + 1, ei).join('\n'))
+      doc.residuals.push({ created_at: '2099-01-01', description: `含${SYNTH}的合成未来现象`, evidence: ['合成证据'], id: 'fx-probe', owner: '合成责任人', phenomenon: `含${SYNTH}的合成未来现象`, status: 'closed', trigger: '合成未来触发' })
+      const seg = canonRes(doc.residuals).split('\n')
+      ls.splice(bi + 1, ei - bi - 1, ...seg)
+      return ls.join('\n')
+    })()
+    const dSegRaw = mkRoot('terms-seg-raw', { 'fx-res.md': withWord + '\n' }, [{ root: 'skill', include: ['fx-res.md'] }])
+    const rSegRaw = r16Run([join(SCRIPTS, 'check-terms.mjs'), '--strict', '--surface', 'active', '--root', dSegRaw], { env: envOn })
+    const rSegRes = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', join(dSegRaw, 'fx-res.md'), '--check'])
+    const segRawOk = rSegRaw.status === 1 && rSegRes.status === 0
+    const withWordFenced = withWord.replace('<!-- residuals-json: begin -->', '```\n<!-- residuals-json: begin -->').replace('<!-- residuals-json: end -->', '<!-- residuals-json: end -->\n```')
+    const dSegFence = mkRoot('terms-seg-fence', { 'fx-res.md': withWordFenced + '\n' }, [{ root: 'skill', include: ['fx-res.md'] }])
+    const rSegFence = r16Run([join(SCRIPTS, 'check-terms.mjs'), '--strict', '--surface', 'active', '--root', dSegFence], { env: envOn })
+    const rSegFenceRes = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', join(dSegFence, 'fx-res.md'), '--check'])
+    const segFenceOut = (rSegFenceRes.stdout || '') + (rSegFenceRes.stderr || '')
+    const segFenceOk = rSegFence.status === 0 && rSegFenceRes.status === 1 && segFenceOut.includes('围栏')
+    if (!segRawOk || !segFenceOk) ok16 = false
+    det16.push(`③terms 探针 未围栏红=${rawOk ? '✓' : `✗(exit=${rRaw.status})`} 围栏跳过=${fenceOk ? '✓(exit=0 单闸不闭合)' : `✗(exit=${rFence.status})`} residuals 拦围栏=${resOk ? '✓(exit=1 围栏原因)' : `✗(exit=${rRes.status})`} 整段围栏对照=${segRawOk && segFenceOk ? '✓(未围栏:terms红/residuals过；整段围栏:terms跳过/residuals围栏红)' : `✗(raw:${rSegRaw.status}/${rSegRes.status} fence:${rSegFence.status}/${rSegFenceRes.status})`}`)
+    // ④ 代号污染负例：宿主注册表动态取一模型名写入临时生成物 → check-hardcode --strict 非零
+    let modelName = null
+    try {
+      const hostCfg = readHostConfig()
+      outer: for (const p of Object.values(hostCfg.provider || {})) {
+        for (const mk of Object.keys(p.models || {})) { modelName = mk; break outer }
+      }
+    } catch { modelName = null }
+    let polOk = false, polNote = '宿主注册表不可读'
+    if (modelName) {
+      const dPol = join(fx16, 'hardcode-probe')
+      mkdirSync(dPol, { recursive: true })
+      writeFileSync(join(dPol, 'gen-out.md'), `合成生成物提及实配模型 ${modelName}（污染负例探针）\n`, 'utf8')
+      const rPol = r16Run([join(SCRIPTS, 'check-hardcode.mjs'), '--root', dPol, '--strict'])
+      polOk = rPol.status !== 0 && rPol.status !== 3
+      polNote = polOk ? `RED(命中类别=实配模型名,exit=${rPol.status})` : `未红(exit=${rPol.status})`
+    }
+    if (!polOk) ok16 = false
+    det16.push(`④hardcode 探针=${polNote}`)
+    // ⑤ b3_docgen_v1：off=production_check=skipped；on=追加现役 RESIDUALS --check 影子对照；
+    //    W-4：装载异常不静默降 off——stderr 告警＋判失败（production_check=load_error）；
+    //    N-6（返工轮 2）：状态件形状损坏（数组/null/标量）fail-closed 判失败（check-terms 先例同律）
+    let b3On = false
+    let b3LoadErr = null
+    let stateObj = null
+    try {
+      const stPath = flagsStatePath()
+      if (existsSync(stPath)) {
+        const rawSt = JSON.parse(readFileSync(stPath, 'utf8').replace(/^\uFEFF/, ''))
+        if (rawSt === null || typeof rawSt !== 'object' || Array.isArray(rawSt)) stateObj = 'bad-shape'
+        else stateObj = rawSt
+      } else stateObj = {}
+      b3On = resolveFlagValue(loadOrgConfig(projectDir).merged, 'b3_docgen_v1', stateObj === 'bad-shape' ? {} : stateObj) === true
+    } catch (e) { b3LoadErr = e.message }
+    let prodNote = 'skipped'
+    if (b3LoadErr !== null) {
+      console.error(`[warn] b3_docgen_v1 装载异常（${b3LoadErr}）——R16 按失败处置不静默降 off（W-4）`)
+      prodNote = 'load_error'
+      ok16 = false
+    } else if (stateObj === 'bad-shape') {
+      console.error(`[warn] flag 状态件形状非法（须普通对象——${flagsStatePath()}）——fail-closed 判失败不静默 skipped（N-6·check-terms 先例同律）`)
+      prodNote = 'state_broken'
+      ok16 = false
+    } else if (b3On) {
+      const rProd = r16Run([join(SCRIPTS, 'residuals-check.mjs'), '--file', join(SKILL_ROOT, 'RESIDUALS.md'), '--check'])
+      prodNote = rProd.status === 0 ? 'passed' : `failed(exit=${rProd.status})`
+      if (rProd.status !== 0) ok16 = false
+    }
+    det16.push(`⑤production_check=${prodNote}`)
+  } finally { rmSync(fx16, { recursive: true, force: true }) }
+  record('R16', ok16, `文档生成自检——${det16.join(' ')}`)
 }
 
 const fails = results.filter((r) => !r.pass).length

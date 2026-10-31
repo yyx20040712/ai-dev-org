@@ -163,3 +163,33 @@ md/文档、测试与快照、审包审出件、commit message、**文件命名*
   **session-logs/**（会话记录）。
 - 本仓不铺设；骨架承载=`templates/evidence-skeleton.md`；init-defenses
   脚手架铺设留后续批（本批不改脚本）。
+
+### 8.5 文档生成器与提交短句（B6 文档生成批）
+
+本节登记四类确定性生成能力的承载与纪律（原案 docs/13 B3 动作 1–7；生成物=固定输入可逐字节重建的快照，论证、异见与用户裁决原文仍由对应岗位在源报告中表达，生成器只逐字引用或持指针）：
+
+- **承载**：`scripts/gen-handoff.mjs`＋`templates/handoff.md`（交接件）；`scripts/gen-close-summary.mjs`＋`templates/close-summary.md`/`templates/gates-summary.md`（close 与 gates 摘要）；`scripts/gen-commit-summary.mjs`（Conventional 提交短句）；`scripts/residuals-check.mjs`（RESIDUALS 权威段校验）。共用固定快照=`scripts/.golden/docgen-fixtures.json`。
+- **模板是唯一人工编辑源**：正文为派生物并挂 `--check`（模板变化后未再生成即失败）；日期、序号从账本或显式参数派生，交接编号跨日单调；重复输入按槽位 id、规范化路径、标题三级稳定排序。
+- **提交短句试点声明**：Conventional 三行短句（首行 `<type>(<scope>): <subject>`，次行账本指针 `Ledger: …#runId=…`，三行批档指针 `Batch: …`）及锁定面例外第四行 `[locked-change]` 均属 `b3_docgen_v1` 试点形态——02 §2「分笔中文 commit」通则不变；连续两批试点无返工笔形态问题后回访是否升格，未回访前不得写成既成通则。
+- **五槽调和映射**：本批生成件与审计档以 状态／权威／更新／替代 为 verify-docs 执法面的必填四槽；变更锚为 §8.1 合规的末行第五槽——生成件必含，审计档可按主控模板选填。§8.1 原文四字段（状态／权威／替代／变更锚）与 verify-docs 四字段（状态／权威／更新／替代）并存，不得改动 §8.1 原文或混写成单一四字段口径。
+- **新模板七节 ↔ 02 §7 七件套一一映射**：
+
+| 02 §7 七件套 | 新模板七节 | 映射说明 |
+|---|---|---|
+| 体检口径 | §1 体检口径 | 开工检查与基线 |
+| 真相 | §3 终态 | 已核事实与生产终态 |
+| 管道 | §2 本会话 | 批次执行链与过程 |
+| 授权 | §5 下一批候选 | 已授权后续选择与边界 |
+| 挂账 | §4 挂账 | 残留登记与触发条件 |
+| 索引 | §7 索引 | 证据和指针 |
+| 开工第一句 | §6 开工第一句 | 下一棒首个动作 |
+
+- **摘要纪律**：摘要槽只逐字汇总既有报告原文和指针；`FINDINGS`/`VERDICT`/审批结论等结论机读行拒入摘要；分级词和裁决词仅由对应岗位产出。
+- **签署边界**：接手人签署＝独立外部流程，生成件不含签署槽；不得为签署新增第九槽或在正文伪造签署。
+
+### 8.6 RESIDUALS 权威段与扫描闭包（B6 文档生成批）
+
+- **唯一权威**：RESIDUALS.md 的 `residuals-json` 标记对之间为唯一权威（schema=residuals/v1，每条恰八键 id/status/owner/trigger/evidence/created_at/phenomenon/description，id 字典序 canonical 化）；旧表整块冻结移入历史小节（sha256 锚＋「冻结·非权威」），仅供对账；禁止双写——冻结表外不得存在同形登记行，新登记只走 JSON 八键。
+- **扫描禁令**：RESIDUALS 全文禁 term-scan off/on 开关标记；权威 JSON 段禁 Markdown 围栏（非围栏字符串才可被词面与零代号扫描；围栏会被 check-terms 跳过，故由 residuals-check 拦截——双闸缺一不可）。解析器挂 `--check`。
+- **账本校验复用**：gen-commit-summary 只逐行定位 runId（恰一行才继续），不声明该行通过 schema 校验；账本校验仍只跑 B1 `ledger-migrate.mjs --verify` 与既有 R4，不另建第二套写入或校验链。
+- **回访条件**：Conventional 试点三行与锁定面例外第四行——连续两批试点无返工笔形态问题后由主控回访是否升格；升格回访时须复核锁定面第四行试点例外。

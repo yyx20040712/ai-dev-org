@@ -36,18 +36,26 @@ h1{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0;font-size:25
 .section-head h2{margin:0;font-size:16px;letter-spacing:-.01em}
 .section-head p{margin:3px 0 0;color:var(--muted);font-size:12px}
 .section-hint{flex:none;color:var(--muted);font-size:11px}
-.roles-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
-.role-card{min-width:0;overflow:hidden}
+.roles-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.role-card{min-width:0;overflow:hidden;display:flex;flex-direction:column}
 .role-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:68px;padding:14px 16px;border-bottom:1px solid var(--line)}
 .role-title{display:flex;align-items:center;gap:8px;min-width:0}
 .role-title h3{margin:0;font-size:15px;letter-spacing:-.01em}
 .role-name{overflow:hidden;color:var(--muted);font:11px ui-monospace,SFMono-Regular,Consolas,monospace;text-overflow:ellipsis}
 .level{padding:2px 6px;border:1px solid var(--line);border-radius:5px;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace}
+.level-switch{display:inline-flex;flex:none;overflow:hidden;border:1px solid var(--line);border-radius:5px}
+.level-switch .opt{min-width:36px;padding:2px 7px;border:0;border-right:1px solid var(--line);background:transparent;color:var(--muted);font:10px ui-monospace,SFMono-Regular,Consolas,monospace;cursor:pointer}
+.level-switch .opt:last-child{border-right:0}
+.level-switch .opt:hover{background:var(--accent-soft);color:var(--accent)}
+.level-switch .opt.on{background:var(--accent);color:#fff}
+.level-switch.overridden{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.level-switch.warn{border-color:var(--bad)}
+.level-switch.warn .opt.on{background:var(--bad)}
 .save-state{flex:none;display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:4px 7px;border:0;border-radius:7px;background:transparent;color:var(--good);font-size:11px;white-space:nowrap}
 .save-state[data-state="saving"]{color:var(--muted)}
 .save-state[data-state="error"]{background:var(--bad-soft);color:var(--bad);cursor:pointer}
 .save-state[data-state="error"]:hover{filter:brightness(.97)}
-.model-list{position:relative;display:flex;flex-direction:column;gap:6px;max-height:438px;overflow:auto;padding:10px;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent;overscroll-behavior:contain}
+.model-list{position:relative;display:flex;flex-direction:column;gap:6px;flex:1;max-height:520px;overflow:auto;padding:10px;scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent;overscroll-behavior:contain}
 .model-row{position:relative;display:flex;align-items:center;gap:8px;min-width:0;min-height:65px;padding:8px 8px 8px 6px;border:1px solid var(--line);border-radius:10px;background:var(--panel);cursor:grab;transition:border-color .16s,background .16s,box-shadow .16s;touch-action:pan-y}
 .model-row:hover{border-color:var(--line-strong);background:var(--panel-2)}
 .model-row:first-child{border-color:color-mix(in srgb,var(--accent) 35%,var(--line));background:linear-gradient(100deg,var(--accent-soft),var(--panel) 45%)}
@@ -79,6 +87,9 @@ h1{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0;font-size:25
 .operations{margin-top:28px;padding:16px}
 .operations .section-head{margin:0 0 13px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.recovery-note{display:flex;gap:8px;align-items:flex-start;margin:0 0 12px;padding:9px 12px;border:1px solid var(--line-strong);border-radius:9px;background:var(--panel-2);color:var(--text);font-size:12px;line-height:1.6}
+.recovery-note::before{content:"ⓘ";flex:none;color:var(--accent);font-weight:800}
+.recovery-note[hidden]{display:none}
 .action-btn{min-height:36px;padding:7px 13px;border:1px solid var(--line-strong);border-radius:8px;background:var(--panel);color:var(--text);cursor:pointer;font-size:12px;font-weight:600;transition:background .15s,border-color .15s,transform .15s}
 .action-btn:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
 .action-btn:active:not(:disabled){transform:translateY(1px)}
@@ -110,10 +121,11 @@ pre{min-height:90px;max-height:260px;overflow:auto;margin:13px 0 0;padding:13px 
     <div><h2>模型路由（按顺序回退）</h2><p>拖动模型调整优先级，排在首位的模型为当前首选。</p></div>
     <span class="section-hint">拖拽排序 · Alt + ↑ / ↓ 换位 · 500ms 去抖保存</span>
   </div>
-  <section class="roles-grid" id="roles" aria-label="岗位模型路由"></section>
+  <section id="roles" aria-label="岗位模型路由"></section>
 
   <section class="operations">
     <div class="section-head"><div><h2>操作与日志</h2><p>查看来源状态，或重新生成本机代理配置。</p></div></div>
+    <div id="recovery" class="recovery-note" role="status" hidden></div>
     <div class="toolbar">
       <button class="action-btn primary" id="refresh">刷新状态</button>
       <button class="action-btn" id="health">源健康（24h）</button>
@@ -157,39 +169,79 @@ function statusCard(title,git){
   if(!git)return `<article class="status-card"><div class="status-top"><span>${esc(title)}</span><span class="clean-state">未配置</span></div><div class="status-value">—</div><div class="status-detail">ORG_PANEL_PROJECT 未设置时隐藏（入仓参数化版）</div></article>`;
   return `<article class="status-card"><div class="status-top"><span>${esc(title)}</span><span class="clean-state${git.clean?'':' dirty'}">${git.clean?'工作树 clean':'有未提交改动'}</span></div><div class="status-value" title="${esc(git.branch)} · ${esc(git.head)}">${esc(git.branch)} · ${esc(git.head)}</div><div class="status-detail" title="${esc(git.subject)}">${esc(git.subject)}${title==='技能仓'?' · 标签 '+esc(git.tags||'无'):''}</div></article>`;
 }
-function roleCard(role){
+function roleCard(role,levels){
+  // B4 D-7：三档分段开关只由 state.levels 派生；levels 缺席/非数组=旧面板服务，
+  // 回落静态徽章（不可点、title 固定），不 crash、不触发 dead-banner。
+  const levelsOk=Array.isArray(levels)&&levels.length>0;
+  const drift=role.deployedLevel&&role.deployedLevel!=='?'&&role.deployedLevel!==role.level;
+  const levelCtl=levelsOk?(()=>{
+    const tips=[];
+    if(role.levelOverridden)tips.push(`出厂 ${role.factoryLevel}·本机 ${role.level}`);
+    if(drift)tips.push(`配置 ${role.level}·部署 ${role.deployedLevel}——重渲染后生效`);
+    const title=tips.join('；')||'思考强度档位（点击即存）';
+    return `<span class="level-switch${role.levelOverridden?' overridden':''}${drift?' warn':''}" title="${esc(title)}">${levels.map((lv)=>`<button type="button" class="opt${lv===role.level?' on':''}" data-level="${esc(lv)}" aria-pressed="${lv===role.level?'true':'false'}">${esc(lv)}</button>`).join('')}</span>`;
+  })():`<span class="level" title="面板服务版本旧·重启面板后可调">${esc(role.level)}</span>`;
   const rows=role.order.map((item,index)=>`<div class="model-row" tabindex="0" role="listitem" data-provider="${esc(item.provider)}" data-model="${esc(item.model)}" title="${esc(item.slot)}\n${esc(item.binding)}">
     <span class="order-no">${String(index+1).padStart(2,'0')}</span><span class="drag-handle" aria-hidden="true">⠿</span>
     <div class="row-main"><div class="model-line"><span class="model-name">${esc(item.model)}</span><span class="preferred">首选</span></div>
     <div class="meta"><span class="entry">${esc(item.entry)}</span><span>·</span><span class="provider">${esc(item.provider)}</span><span class="chip ${familyClass(item.family)}">${esc(item.family)}</span>${item.plan?`<span class="chip plan-chip" title="${esc(item.plan)}">账户计划</span>`:''}${item.multimodal?'<span class="chip">多模态</span>':''}</div></div>
     <div class="row-actions"><button type="button" class="move-btn" data-dir="-1" title="上移（Alt+↑）" aria-label="上移 ${esc(item.model)}">↑</button><button type="button" class="move-btn" data-dir="1" title="下移（Alt+↓）" aria-label="下移 ${esc(item.model)}">↓</button></div>
   </div>`).join('');
-  return `<article class="role-card" data-role-card="${esc(role.role)}"><header class="role-head"><div><div class="role-title"><h3>${esc(role.title)}</h3><span class="level">${esc(role.level)}</span></div><div class="role-name">${esc(role.role)}</div></div><button type="button" class="save-state" data-state="saved" title="顺序已保存">已保存 ✓</button></header><div class="model-list" role="list" aria-label="${esc(role.title)}模型回退顺序">${rows}</div><footer class="card-foot"><span>从上到下依次回退</span><span>${role.order.length} 个候选</span></footer></article>`;
+  return `<article class="role-card" data-role-card="${esc(role.role)}"><header class="role-head"><div><div class="role-title"><h3>${esc(role.title)}</h3>${levelCtl}</div><div class="role-name">${esc(role.role)}</div></div><button type="button" class="save-state" data-state="saved" title="顺序已保存">已保存 ✓</button></header><div class="model-list" role="list" aria-label="${esc(role.title)}模型回退顺序">${rows}</div><footer class="card-foot"><span>从上到下依次回退</span><span>${role.order.length} 个候选</span></footer></article>`;
+}
+/** B7 D-3：rename 后崩溃窗恢复提示——只在 state.recovery.backupPresent===true 时可见并
+ *  显示服务端 message（条件式措辞）；recovery/backupPresent 缺席或 false 均隐藏。非阻塞，无自动恢复。 */
+function renderRecovery(state){
+  const note=$('recovery');
+  if(!note)return;
+  const on=!!(state&&state.recovery&&state.recovery.backupPresent===true);
+  note.hidden=!on;
+  if(on)note.textContent=String(state.recovery.message||'');
 }
 function render(state){
   if(drag) finishDrag(false);
-  for(const rt of runtimes.values()){clearTimeout(rt.timer);rt.obsolete=true;}
-  runtimes.clear();
   const valid=state.validate&&state.validate.code===0;
   $('v-badge').textContent=valid?'PASS':'FAIL';
   $('v-badge').className='badge '+(valid?'good':'bad');
   $('sub').textContent=`实测 ${state.now} · 账本 ${state.ledger.lines} 行 · 末行 ${state.ledger.lastRunId}`;
   const validationLine=String(state.validate.out||'').trim().split('\n').filter(Boolean).pop()||'';
   $('cards').innerHTML=statusCard('项目仓',state.project)+statusCard('技能仓',state.skill)+`<article class="status-card"><div class="status-top"><span>配置校验</span><span class="clean-state${valid?'':' dirty'}">${valid?'校验通过':'校验失败'}</span></div><div class="status-value">${valid?'PASS':'FAIL'}</div><div class="status-detail" title="${esc(state.validate.out)}">${esc(validationLine)}</div></article>`;
-  $('roles').innerHTML=state.roles.map(roleCard).join('');
+  $('roles').innerHTML=(state.roleGroups||state.roles.map(role=>({id:role.role,label:role.title,roles:[role]}))).map(group=>`<section class="role-group" data-role-group="${esc(group.id)}"><div class="section-head"><h2>${esc(group.label)}</h2></div><div class="roles-grid">${group.roles.map(role=>roleCard(role,state.levels)).join('')}</div></section>`).join('');
+  renderRecovery(state);
   document.querySelectorAll('.role-card').forEach(card=>{
     const role=card.dataset.roleCard;
     const source=state.roles.find(item=>item.role===role);
     const providers=source.order.map(item=>item.provider);
-    const rt={role,saved:[...providers],draft:[...providers],timer:null,busy:false,error:'',card,list:card.querySelector('.model-list'),obsolete:false};
+    /* B7 D-1：在途 runtime（busy＝保存未决；timer＝去抖保存未触发）保留同一对象身份与
+       saved/draft/busy/error，仅把 card/list 重接到新 DOM——新 state 只展示服务端事实，
+       不静默覆盖在途 draft；档位按钮与 save-state 重呈现 saving/disabled，不借新 DOM 变可点。
+       R0 B3（b7n①）：持久错误同样保留 runtime 与错误态，render 收尾统一走 settleStatus。
+       R1 z-W02/d-W05：持错保留面收窄＝只保留 error 文本/类别与 runtime 身份；非 busy/timer
+       时以服务端 providers 更新 saved/draft（DOM 已按服务端序渲染）——陈旧失败草稿不跨
+       render 存续，档位错误不被清洗。 */
+    const prev=runtimes.get(role);
+    const keepPending=prev&&!prev.obsolete&&(prev.busy||prev.timer);
+    const keepError=!keepPending&&prev&&!prev.obsolete&&!!prev.error;
+    const rt=keepPending||keepError?prev:{role,saved:[...providers],draft:[...providers],timer:null,busy:false,error:'',errorKind:'',card:null,list:null,obsolete:false};
+    if(keepError){rt.saved=[...providers];rt.draft=[...providers];}
+    rt.card=card;rt.list=card.querySelector('.model-list');
+    if(keepPending&&!sameOrder(rt.draft,providers)){for(const pv of rt.draft){const row=[...rt.list.children].find(r=>r.dataset.provider===pv);if(row)rt.list.appendChild(row);}}
     runtimes.set(role,rt);
     refreshRows(rt);
-    setStatus(rt,'saved');
+    settleStatus(rt);
   });
 }
-async function load(message){
-  try{render(await api('/api/state'));log(message||'状态已刷新。');return true;}
-  catch(error){markDead();log('面板服务未运行或读取失败：'+error);return false;}
+/** B7 R1 B-1＋R2 B-1：状态重拉可携带操作身份守卫——成功/解析异常出口均先核 guard() 再
+ *  render/log/markDead（stale 操作不得 markDead、写日志或写新 runtime）。 */
+async function load(message,guard){
+  try{
+    const state=await api('/api/state');
+    if(guard&&!guard())return false;
+    render(state);log(message||'状态已刷新。');return true;
+  }catch(error){
+    if(guard&&!guard())return false;
+    markDead();log('面板服务未运行或读取失败：'+error);return false;
+  }
 }
 function setStatus(rt,state){
   const button=rt.card&&rt.card.querySelector('.save-state');
@@ -198,6 +250,15 @@ function setStatus(rt,state){
   if(state==='saved'){button.textContent='已保存 ✓';button.title='顺序已保存';}
   else if(state==='saving'){button.textContent=rt.timer?'待保存…':'保存中…';button.title='正在保存最新顺序';}
   else{button.textContent='失败 ✗';button.title='点击查看失败原因';}
+}
+/** R0 B3/B4（b7n①②）：收尾统一优先级＝busy/timer 未决＞持久错误＞saved——render/load/
+ *  pumpSave/saveLevel 各收尾共用；未决期档位按钮与 busy 期一致 disabled，成功/失败/同序
+ *  收尾不得提前 enabled（timer 重挂即保持 disabled）；持久错误（errorKind：level=档位、
+ *  order=排序）只有新档位保存成功或用户明确重试档位才清——排序成功不得覆盖档位错误。 */
+function settleStatus(rt){
+  if(rt.busy||rt.timer){setStatus(rt,'saving');setLevelButtons(rt,true);return;}
+  setLevelButtons(rt,false);
+  setStatus(rt,rt.error?'error':'saved');
 }
 function refreshRows(rt){
   [...rt.list.children].forEach((row,index)=>{
@@ -213,15 +274,19 @@ function afterReorder(rt){
 }
 function scheduleSave(rt){
   clearTimeout(rt.timer);rt.timer=null;
-  if(sameOrder(rt.draft,rt.saved)){if(!rt.busy)setStatus(rt,'saved');return;}
+  if(sameOrder(rt.draft,rt.saved)){if(!rt.busy)settleStatus(rt);return;}
   setStatus(rt,'saving');
+  setLevelButtons(rt,true); /* R0 B4（b7n②）：timer 未决即与 busy 期一致 disabled */
   rt.timer=setTimeout(()=>{rt.timer=null;pumpSave(rt);},500);
 }
 async function pumpSave(rt){
-  if(rt.obsolete||rt.busy)return;
-  if(sameOrder(rt.draft,rt.saved)){setStatus(rt,'saved');return;}
+  /* R2 W-04：busy 未决期去抖到期→draft≠saved 且无 timer 则重挂（档位保存不吞排序草稿） */
+  if(rt.obsolete||rt.busy){if(!rt.obsolete&&rt.busy&&!rt.timer&&!sameOrder(rt.draft,rt.saved))rt.timer=setTimeout(()=>{rt.timer=null;pumpSave(rt);},500);return;}
+  if(sameOrder(rt.draft,rt.saved)){settleStatus(rt);return;}
   const sent=[...rt.draft];
-  rt.busy=true;rt.error='';setStatus(rt,'saving');
+  rt.busy=true;
+  if(rt.errorKind!=='level'){rt.error='';rt.errorKind='';} /* R0 B3：排序尝试只清排序错误，档位错误保持 */
+  setStatus(rt,'saving');
   try{
     const result=await api('/api/order',{role:rt.role,order:sent});
     if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
@@ -229,19 +294,77 @@ async function pumpSave(rt){
       rt.saved=sent;rt.busy=false;
       const output=result.validate&&result.validate.out?'\n'+result.validate.out:'';
       log(`${rt.role} 顺序已保存。${output}`);
-      if(sameOrder(rt.draft,rt.saved))setStatus(rt,'saved');else pumpSave(rt);
+      if(sameOrder(rt.draft,rt.saved))settleStatus(rt);else pumpSave(rt);
     }else{
+      /* B7 R1 B-2：失败重拉期间保持 busy/未决身份（render 保留同一 runtime·显示 saving）；
+         重拉携带身份守卫；返回后确认同一 runtime 才显式收尾 busy/error/三态——删除向当时
+         任意 fresh runtime 无条件转写错误与三态的回退路径（零转写）。 */
       const reason=(result.validate&&result.validate.out)||result.error||'服务端拒绝了本次排序。';
-      rt.busy=false;rt.error=reason;setStatus(rt,'error');
-      await load(`${rt.role} 保存失败，已恢复服务端顺序。\n${reason}`);
-      const fresh=runtimes.get(rt.role);if(fresh){fresh.error=reason;setStatus(fresh,'error');}
+      if(rt.errorKind!=='level'){rt.error=reason;rt.errorKind='order';} /* R1 d-W03：排序失败不覆盖档位错误 */
+      await load(`${rt.role} 保存失败，已恢复服务端顺序。\n${reason}`,()=>!rt.obsolete&&runtimes.get(rt.role)===rt);
+      if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
+      rt.busy=false;settleStatus(rt);
     }
   }catch(error){
-    if(rt.obsolete)return;
+    if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
     const reason=String(error);
-    rt.busy=false;rt.error=reason;setStatus(rt,'error');
-    await load(`${rt.role} 保存失败，已尝试恢复服务端顺序。\n${reason}`);
-    const fresh=runtimes.get(rt.role);if(fresh){fresh.error=reason;setStatus(fresh,'error');}
+    if(rt.errorKind!=='level'){rt.error=reason;rt.errorKind='order';} /* R1 d-W03：排序异常不覆盖档位错误 */
+    await load(`${rt.role} 保存失败，已尝试恢复服务端顺序。\n${reason}`,()=>!rt.obsolete&&runtimes.get(rt.role)===rt);
+    if(rt.obsolete||runtimes.get(rt.role)!==rt)return;
+    rt.busy=false;settleStatus(rt);
+  }
+}
+/** B7 D-2＋R1：同角色档位保存重入守卫——发送前同时检查 runtime 存在、!busy、!timer、
+ *  !obsolete、runtimes.get(role)===rt（R1 W-01：排序去抖 timer 未决＝同一互斥态，零 fetch，
+ *  防档位保存打断去抖致 draft 丢失）；任一不满足即返回且零 fetch。受理后立即置 busy 并禁用
+ *  该卡全部档位按钮；成功/HTTP 非成功/JSON 异常/fetch 异常与自有 load() 之后均先做同一身份
+ *  守卫再写状态（不得只 guard 发送前；load 本身携带守卫——B-1）。stale 操作只让响应在服务端
+ *  自然结束，不写新 runtime 的状态/草稿/日志。B4 语义逐字保持：唯一成功形态=HTTP ok 且
+ *  result.ok===true 且 result.sync.code===0（R1）；失败重拉 state 并展示 error/validate.out/
+ *  sync.out 与 rolledBack（R2）；成功/失败分支在确认 runtime 仍当前后显式收尾 busy 与三态。 */
+function setLevelButtons(rt,disabled){
+  const sw=rt.card&&rt.card.querySelector('.level-switch');
+  if(sw)sw.querySelectorAll('.opt').forEach(b=>{b.disabled=disabled;});
+}
+async function saveLevel(role,level){
+  const rt=runtimes.get(role);
+  if(!rt||rt.busy||rt.timer||rt.obsolete||runtimes.get(role)!==rt)return;
+  rt.busy=true;rt.error='';rt.errorKind=''; /* R0 B3（b7n①）：用户明确重试档位即清持久错误 */
+  setStatus(rt,'saving');
+  setLevelButtons(rt,true);
+  const stale=()=>rt.obsolete||runtimes.get(role)!==rt;
+  const finish=async(message,reason)=>{
+    await load(message,()=>!stale());
+    if(stale())return;
+    rt.busy=false;
+    if(reason){rt.error=reason;rt.errorKind='level';}
+    else{rt.error='';rt.errorKind='';}
+    if(!reason&&!sameOrder(rt.draft,rt.saved)){scheduleSave(rt);return;}
+    settleStatus(rt);
+  };
+  try{
+    const resp=await fetch('/api/level',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,level})});
+    if(stale())return;
+    if(resp.status===404)throw new Error('面板服务版本旧——请重启面板服务后再调档位（/api/level 不存在）');
+    const result=await resp.json();
+    if(stale())return;
+    if(resp.ok&&result&&result.ok===true&&result.sync&&result.sync.code===0){
+      await finish(`${role} 档位已保存：${level}。`,null);
+    }else{
+      const parts=[];
+      if(result&&result.ok===false)parts.push((result.validate&&result.validate.out)||'');
+      else parts.push(`HTTP ${resp.status}；ok=${result&&result.ok}；sync.code=${result&&result.sync?result.sync.code:'缺席'}——配置或同步未确认成功`);
+      if(result&&result.ok===true&&result.sync&&result.sync.code!==0)parts.push('部署同步失败——点击「重渲染代理文件」按钮重试。');
+      if(result&&result.validate&&result.validate.out&&result.ok!==false)parts.push(result.validate.out);
+      if(result&&result.sync&&result.sync.out&&result.ok!==false)parts.push(result.sync.out);
+      if(result&&result.error)parts.push(result.error);
+      if(result&&result.rolledBack!==undefined)parts.push(`rolledBack=${result.rolledBack}`);
+      const reason=parts.filter(Boolean).join('\n');
+      await finish(`${role} 档位保存失败。\n${reason}`,reason);
+    }
+  }catch(error){
+    if(stale())return;
+    await finish(`${role} 档位保存失败。\n${String(error)}`,String(error));
   }
 }
 function animateRows(rows,first){
@@ -326,6 +449,8 @@ document.addEventListener('pointermove',event=>{
 document.addEventListener('pointerup',event=>{if(drag&&event.pointerId===drag.pointerId){drag.x=event.clientX;drag.y=event.clientY;finishDrag(true);}});
 document.addEventListener('pointercancel',event=>{if(drag&&event.pointerId===drag.pointerId)finishDrag(true);});
 $('roles').addEventListener('click',event=>{
+  const opt=event.target.closest('.level-switch .opt');
+  if(opt){if(opt.classList.contains('on'))return;const card=opt.closest('.role-card');if(card)saveLevel(card.dataset.roleCard,opt.dataset.level);return;}
   const move=event.target.closest('.move-btn');
   if(move){const row=move.closest('.model-row');const rt=runtimes.get(row.closest('.role-card').dataset.roleCard);moveRow(rt,row,Number(move.dataset.dir));return;}
   const status=event.target.closest('.save-state');
@@ -341,7 +466,7 @@ async function action(id,pending,task){
 }
 $('refresh').onclick=()=>action('refresh','刷新中…',()=>load());
 $('health').onclick=()=>action('health','探测中（约数秒）…',async()=>{const result=await api('/api/health');log(result.out);});
-$('sync').onclick=()=>action('sync','重渲染中…',async()=>{const result=await api('/api/sync');log('exit='+result.code+'\n'+result.out);});
+$('sync').onclick=()=>action('sync','重渲染中…',async()=>{const result=await api('/api/sync',{});log('exit='+result.code+'\n'+result.out);});
 load('状态已载入。拖动模型即可调整回退顺序。');
 </script>
 </body>

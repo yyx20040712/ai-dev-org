@@ -32,13 +32,13 @@
 //     finish_vocab——闭残留册 glm-look-truncation-field）；
 //   - 流水行 schema 对齐派发器 ctx 五字段（dispatcher_version/role_version/
 //     role_sig/org_config_hash + attempt 序号；ok 行增 finish_class；fail 行
-//     增 statusCode——selfiter 批 glm-look-schema 清偿，双写入者一套行契约，
+//     增 statusCode——selfiter 批 glm-look-schema 补还，双写入者一套行契约，
 //     R4 对 channel+dispatcher_version 双标记行按对齐 schema 校验）；
-//   - 截断终态不因「有正文」豁免（selfiter 批 glm-look-truncation 清偿）：
+//   - 截断终态不因「有正文」豁免（selfiter 批 glm-look-truncation 补还）：
 //     finish=截断即倍升重试（无论正文有无）；3 轮后仍截断=报告照出但
 //     exit 1（「截断的审计报告不算合格审计」——05 §4 判据速查）；
 //   - argv 解析收编 org-config cliFlag 单源（缺值/重复/值形如 flag/等号形态/
-//     未知 flag=用法错 fail-fast——selfiter 批 g3-glmlook-flags 清偿）；
+//     未知 flag=用法错 fail-fast——selfiter 批 g3-glmlook-flags 补还）；
 //   - 视觉方向级决策仍留用户——本通道只产判读证据；
 //   - 退出码经 process.exitCode 自然退出（Node 25 libuv 退出阶段
 //     async.c 断言规避——HOST-node25 同族面，勿用 process.exit 急退）。
@@ -56,7 +56,7 @@ import { request as httpsRequest } from "node:https";
 import { fileURLToPath } from "node:url";
 import { loadOrgConfig, cliFlag, UsageError, cfgHash, withFileLock, parseSseText, collectAnthropicSse, collectOpenaiSse, readHostConfig } from "./org-config.mjs";
 
-const DISPATCHER_VERSION = "glm-look/1.3.3"; // 自版本号（写入者身份——流水 ctx 对齐面）。1.3.3=failover 批 2026-10-13：源级失效换源（sources[0] 单源→偏好序逐源，源内语义不变，末源穷尽才 exit 1——「免费源优先+付费源兜底」用户裁决承载）；1.3.2=vmware 迁移批：真源读取 readHostConfig 双注册表合并
+const DISPATCHER_VERSION = "glm-look/1.3.3"; // 自版本号（写入者身份——流水 ctx 对齐面）。1.3.3=failover 批 2026-10-13：源级失效切换承载源（sources[0] 单源→偏好序逐源，源内语义不变，末源穷尽才 exit 1——「免费源优先+付费源兜底」用户裁决承载）；1.3.2=vmware 迁移批：真源读取 readHostConfig 双注册表合并
 let DEGRADED = false; // 降级运行位（宿主 provider null 条目——发现面部分可用，显式留痕 exit 5）
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url)); // 规范解析（percent-decode）——原 URL pathname 手拼在含空格/中文路径下必坏（v1.6 批 P0-B e）
@@ -73,14 +73,14 @@ const CALL_TIMEOUT_MS = 20 * 60_000; // 单次调用上限=对齐派发器（06 
 // R10 向量脚本 import splitEndpoint 不触配置装载）
 let _orgCfgCache = null;
 const orgCfg = () => { _orgCfgCache ??= loadOrgConfig(SKILL_ROOT).merged; return _orgCfgCache; };
-const chCfg = (ch) => (orgCfg().vision_channels || {})[ch] || {}; // 回炉 W2：未命中通道兜底 {}（旧版恒 {}；discoverSources 解构不崩、走「通道未声明=无源」分支）
+const chCfg = (ch) => (orgCfg().vision_channels || {})[ch] || {}; // 返工 W2：未命中通道兜底 {}（旧版恒 {}；discoverSources 解构不崩、走「通道未声明=无源」分支）
 /** 脱敏（原受控复制自 ds-call-v2.mjs——源件已随派发器退役并物理删除
- * 〔2026-10-03 纯净化批〕，本件为该字面量唯一存活体；受控复制对账者 R9
+ * 〔2026-10-03 清理批次〕，本件为该字面量唯一存活体；受控复制对账者 R9
  * 已同步删除——升格共享模块=未来分发重构时再裁，裁决档 W7 统一判据）。 */
 const SCRUB_RE = /(Bearer\s+)?[A-Za-z0-9_-]{24,}/g // 日志脱敏：长 token 形态一律掩码（K-N2）
 const scrub = (s) => String(s).replace(SCRUB_RE, '<redacted>')
 /** 通道枚举（glm=anthropic 格式 / ds=OpenAI 格式 image_url——载荷与
- * 端点异构，纪律面共用）。 */
+ * 端点形态互异，纪律面共用）。 */
 const CHANNELS = new Set(["glm", "ds"]);
 
 /** URL 拆解为 node:http(s) request 选项三元组（纯函数，export 供 R10 向量）：
@@ -140,8 +140,8 @@ function channelTag(channel) {
 let logWarned = false; // 流水写失败一次性留痕位（v2.0.1 修复批 L8——原 catch 完全静默=证据链无据可查且无人知情，对齐 ds-call-v2 makeSafeAppend 纪律）
 function logEvent(event, fields) {
   const { channel, ...rest } = fields;
-  // ctx 五字段对齐派发器行 schema（selfiter 批 glm-look-schema 清偿）：
-  // role_version/role_sig=会话内岗诚实值（07 §4 设计岗卡，无 registry 档案——
+  // ctx 五字段对齐派发器行 schema（selfiter 批 glm-look-schema 补还）：
+  // role_version/role_sig=会话内岗诚实值（07 §4 设计岗卡，registry 无此类条目——
   // sig=null 表「无签名面」而非缺字段；R4 按 !==undefined 判在场）
   const line = JSON.stringify({
     ts: new Date().toISOString(),
@@ -172,7 +172,7 @@ function discoverSources(channel) {
     cfg = JSON.parse(fs.readFileSync(CONFIG, "utf-8").replace(/^\uFEFF/, ""))
   } else {
     // 宿主真源：双注册表合并+单件缺席容错（org-config.readHostConfig 单点封装——glm-look 未随
-    // 2026-10-03 kimi-third 双注册表批跟进的欠账，新机纯装形态（无 legacy config.json）ENOENT
+    // 2026-10-03 kimi-third 双注册表批跟进的未清事项，新机纯装形态（无 legacy config.json）ENOENT
     // 栈崩于 2026-10-13 VMware 迁移实测；双件全缺=降级零源 exit 5 留痕，非崩）
     try {
       cfg = readHostConfig()
@@ -184,7 +184,7 @@ function discoverSources(channel) {
   }
   const found = [];
   for (const [pid, prov] of Object.entries(cfg.provider || {})) {
-    // null/非对象宿主条目守卫（selfiter 批 evolve-glmlook-150-null 清偿——M3 族
+    // null/非对象宿主条目守卫（selfiter 批 evolve-glmlook-150-null 补还——M3 族
     // 第 4 消费点，同 b4 形态：降级行+跳过；该条目漏检面如实留痕 exit 5）
     if (!prov || typeof prov !== "object") {
       console.error(`[degraded] 宿主配置 provider 含 null/非对象条目（${pid}）——该条目跳过、其余源继续发现（漏检面=该条目端点/模型），退出码 5`);
@@ -211,7 +211,7 @@ function discoverSources(channel) {
   return found.sort((a, b) => a.pid.localeCompare(b.pid));
 }
 
-/** 响应归一（通道异构面收口）：texts/hasText/finish/usage 四元。 */
+/** 响应归一（通道形态互异面收敛）：texts/hasText/finish/usage 四元。 */
 function normalizeResponse(resp, channel) {
   if (channel === "glm") {
     const texts = (resp.content || []).filter((b) => b.type === "text").map((b) => b.text);
@@ -266,7 +266,7 @@ async function main() {
     }
     return DEGRADED ? 5 : 0; // 降级运行=显式留痕不阻断（exit 5 语义族——06 §5.8 行 5 适用面本批扩至本件）
   }
-  // argv 收编 org-config cliFlag 单源（selfiter 批 g3-glmlook-flags 清偿）：
+  // argv 收编 org-config cliFlag 单源（selfiter 批 g3-glmlook-flags 补还）：
   // 缺值/重复/值形如 flag/等号形态=用法错拒收；未知 flag fail-fast（原静默
   // 落入 images 由扩展名报错——错误归因面差）
   let promptFile = "";
@@ -326,7 +326,7 @@ async function main() {
   };
   const prompt = fs.readFileSync(promptFile, "utf-8");
   const imageEntries = images.map((p) => ({ p, media: mediaOf(p), b64: fs.readFileSync(p).toString("base64") }));
-  // 通道载荷异构：glm=anthropic image 块（图先文后）/ ds=OpenAI
+  // 通道载荷形态互异：glm=anthropic image 块（图先文后）/ ds=OpenAI
   // image_url data URL（文先图后——两族官方样例形态）
   const content =
     channel === "glm"
@@ -346,10 +346,10 @@ async function main() {
         ];
 
   const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`; // 后缀 8 字符（selfiter B4：对齐派发器，消同秒碰撞窗）；跨源共用（failover 批——行内 source 字段区分源）
-  // 源级失效换源（failover 批 2026-10-13，用户裁决「周末免费 start-plan 优先+付费
+  // 源级失效切换承载源（failover 批 2026-10-13，用户裁决「周末免费 start-plan 优先+付费
   // Coding Plan 兜底」）：按 discoverSources 偏好序逐源尝试，源内语义不变（非 429 4xx
   // 立断=不再同源重试；429/5xx/网络瞬断=源内 3 次退避；截断=3 轮倍升）；源级穷尽→
-  // continue 换下一源，末源穷尽才循环尾汇总 exit 1。截断/成功产出不换源（证据保全
+  // continue 换下一源，末源穷尽才循环尾汇总 exit 1。截断/成功产出不切换承载源（证据保全
   // 语义保持）。循环体维持原缩进（两空格平移未做）——审包按语义 diff（-w 口径）。
   sourceLoop:
   for (const src of sources) {
@@ -364,7 +364,7 @@ async function main() {
   let resp = null;
   let attemptTokens = maxTokens;
   let norm = null;
-  let roundsRun = 0; // 实跑轮次（门一回炉 N2：零正文归因文案按真轮次——for 块级 attempt 循环外不可见）
+  let roundsRun = 0; // 实跑轮次（代码审查（岗）返工 N2：零正文归因文案按真轮次——for 块级 attempt 循环外不可见）
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     roundsRun = attempt;
     // B5 流式位（selfiter 批）：org-config vision_channels.<ch>.stream=true 请求
@@ -417,8 +417,8 @@ async function main() {
       }
     }
     norm = normalizeResponse(resp, channel);
-    // 截断终态不因「有正文」豁免（selfiter 批 glm-look-truncation 清偿——原
-    // hasText 即 break=截断有正文照当 ok 收下的假成功面）。回炉 W2 修正：
+    // 截断终态不因「有正文」豁免（selfiter 批 glm-look-truncation 补还——原
+    // hasText 即 break=截断有正文照当 ok 收下的假成功面）。返工 W2 修正：
     // 重试条件=终态为截断（无论正文有无）——零正文且非截断=完整但空响应，
     // 立即收（重试不改变空产出，原语义保持；归因文案只对真截断打）。
     // 触发词=truncation 词表成员（修复批 L7——词表新增条目同获倍升重试机会）
@@ -459,7 +459,7 @@ async function main() {
     console.error(`[${channelTag(channel)}] 报告落盘 ${outFile}`);
   }
   console.log(out);
-  // 截断终态不记成功（selfiter 批 glm-look-truncation 清偿）：报告照常输出供人工
+  // 截断终态不记成功（selfiter 批 glm-look-truncation 补还）：报告照常输出供人工
   // 判读（证据保全），但机器面 exit 1——「截断的审计报告不算合格审计」（05 §4）
   if (truncatedFlag) {
     console.error(`[${channelTag(channel)}] finish=${norm.finish} 非完整终态（finish_class=${finishClass}/truncated=true 已落流水）——` +
