@@ -17,6 +17,7 @@
 // 用法：node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--json] [--strict] [--self-test]
 // 豁免：任一物理行含 tb-ignore → 该行跳过全部检查并计入跳过数（只对该行生效，不跨行继承）。
 // 供应商事实零硬编码：本脚本不含端点/模型名；夹具一律落 os.tmpdir()，不写技能仓。
+// golden 例外（W5b）：scripts/.golden/taskbook/ 下的参照件为例外——落仓供 R2-T1 消费；self-test 夹具仍一律落 os.tmpdir()。
 
 import { readFileSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync } from 'node:fs'
 import { join, dirname, resolve, basename } from 'node:path'
