@@ -111,7 +111,7 @@ FAIL 一律不得派发；WARN 须逐条处置或登记理由。仓外/历史路
 （只扫词面漏断锚即红）。
 
 机检之外，任务书派发前还须经审核岗审核（D21）：交 `ops-tbreview-ds-max`
-（账本 700 ① ruling-assembler-role-spec 起；任务书装配转 Kimi 族 699 亲做后的异族配对；2026-10-29 B2 批审核岗三拆起=任务书审核岗 tbreview 承载，ds 首位不变——账本 701 ④；任务书由装配岗装配〔Kimi 族 699 承载〕，审核须异族），
+（账本 700 ① 起；2026-10-29 B2 批审核岗三拆起=任务书审核岗 tbreview 承载——账本 701 ④；任务书由装配岗装配，审核须异族），
 审包自包含（任务书全文+所引原文片段），不含仓库访问授权，输出 VERDICT 与
 [B/W/N]。机检管内部不一致，审核管规格本身错或缺（验收判据不可执行/要求了
 做不到的动作/关键假设未标注）。审核 FAIL 须改后重交，两轮不过=停手交用户。
@@ -236,7 +236,7 @@ vision 的 startplan 仅为文本应急候选（multimodal=false，实测不可�
 
 记录：每次派发在变更与成本记录里写 JSON 一行——`{"role":"executor","slot":"ops-executor-glmflash-high","route_source":"prompt","fallback_from":null,"family":"glm","level":"high"}`；`log-triage` 用它核对声明与实际路由是否一致，不一致即告警。
 
-1. 派发前必跑 dispatch-check：对九岗 dispatch-plan、resolve 结果与拟派名单三方对账；陈旧 ROUTE 或启用集不符即停止派发。
+1. 派发前必跑 dispatch-check：对九岗 dispatch-plan、resolve 结果与拟派名单三方对账；陈旧 ROUTE 或启用集不符即停止派发。无 dispatch-plan 的单岗派发先跑 `node scripts/agent-slots.mjs pick <role>` 取活性槽名再派发。
 2. 快照语义：S1/S2/S3=出厂快照，S4=现役默认权威；出厂滞后=WARN，实际消费=FAIL；S2→S1 共有 default/fallback 子面单向派生，禁止反向写。
 3. 批次任务书 ROUTE 变更须附九岗全量 before/after diff（含未变岗与常设第二审；B8 r8 为先例）。
 

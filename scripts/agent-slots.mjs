@@ -23,6 +23,7 @@
  *   node scripts/agent-slots.mjs doctor [--json]
  *   node scripts/agent-slots.mjs dispatch-check --plan <dispatch-plan.md> --route "<ROUTE>" [--project <dir>]
  *   node scripts/agent-slots.mjs snapshots [--project <dir>] [--json]
+ *   node scripts/agent-slots.mjs pick <role> [--json]
  *   node scripts/agent-slots.mjs --self-test
  *   （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 可 import 纯函数零副作用（isMain guard 惯例；自检向量禁动真实 templates/agents/）。
@@ -674,6 +675,7 @@ function usage() {
     '  node scripts/agent-slots.mjs doctor [--json]',
     '  node scripts/agent-slots.mjs dispatch-check --plan <dispatch-plan.md> --route "<ROUTE>" [--project <dir>]',
     '  node scripts/agent-slots.mjs snapshots [--project <dir>] [--json]',
+    '  node scripts/agent-slots.mjs pick <role> [--json]',
     '  node scripts/agent-slots.mjs --self-test',
   ].join('\n')
 }
@@ -1211,6 +1213,53 @@ function selfTest() {
     rmSync(r0tmp, { recursive: true, force: true })
   }
 
+  // ── W5b0 新增向量（61–67）：pick 只读取值命令（活性槽全名单源=cfg.agent_defaults，
+  // 与 list 星标同源；S4 本机件优先序由既有 loader 承载，不另读矩阵出厂默认）──
+  // 各向量独立断言，不依赖前序向量执行顺序或可变状态。
+  const p61cfg = loadOrgConfig(SKILL_ROOT).merged
+  const p61defaults = isPlainObject(p61cfg.agent_defaults) ? p61cfg.agent_defaults : {}
+  const s61 = runCli(['pick', 'assembler'])
+  const list61 = (() => { try { return JSON.parse(runCli(['list', '--json']).stdout || 'null') } catch { return null } })()
+  const star61 = Array.isArray(list61) ? list61.find((x) => x.role === 'assembler' && x.default) : null
+  t('向量61 pick <已知角色> 普通输出=合并配置活性 slot 全名且与 list 星标同源（exit 0·输出与活性槽名+换行严格相等）',
+    s61.status === 0 && s61.stdout === p61defaults.assembler + '\n' && star61 != null && p61defaults.assembler === star61.slot)
+  const s62 = runCli(['pick', 'not-a-role'])
+  const out62 = `${s62.stdout || ''}${s62.stderr || ''}`.trim()
+  const expected62 = `[FAIL] 角色不存在：not-a-role（合法角色：${ROLE_ORDER.join(', ')}）`
+  t('向量62 pick <未知角色> → exit 1 且诊断与期望模板串整行严格相等（锁死顺序与分隔符·沿 resolve 拒绝形态）',
+    s62.status === 1 && out62 === expected62)
+  const s63 = runCli(['pick', 'assembler', '--json'])
+  let j63 = null
+  try { j63 = JSON.parse(s63.stdout || 'null') } catch { j63 = null }
+  const cfg63 = loadOrgConfig(SKILL_ROOT).merged
+  const defaults63 = isPlainObject(cfg63.agent_defaults) ? cfg63.agent_defaults : {}
+  const list63 = (() => { try { return JSON.parse(runCli(['list', '--json']).stdout || 'null') } catch { return null } })()
+  const star63 = Array.isArray(list63) ? list63.find((x) => x.role === 'assembler' && x.default) : null
+  t('向量63 pick --json 六键齐全且键序恰为 role,slot,route_source,fallback_from,family,level（route_source=pick·fallback_from=null·family/level 与 list 星标活性槽一致·setup 自包含）',
+    s63.status === 0 && j63 != null && star63 != null &&
+    JSON.stringify(Object.keys(j63)) === JSON.stringify(['role', 'slot', 'route_source', 'fallback_from', 'family', 'level']) &&
+    j63.role === 'assembler' && j63.slot === defaults63.assembler && j63.route_source === 'pick' &&
+    j63.fallback_from === null && j63.family === star63.family && j63.level === star63.level)
+  const s64 = runCli(['pick'])
+  const out64 = `${s64.stdout || ''}${s64.stderr || ''}`
+  t('向量64 pick 缺 <role> → 用法错 exit 1（不落装载、不静默代位）',
+    s64.status === 1 && out64.includes('[用法错]') && out64.includes('pick') && out64.includes('<role>') && !out64.includes('未知命令'))
+  const s65 = runCli(['pick', 'assembler', 'extra'])
+  const out65 = `${s65.stdout || ''}${s65.stderr || ''}`
+  t('向量65 pick 额外位置参数 → 用法错 exit 1',
+    s65.status === 1 && out65.includes('[用法错]') && out65.includes('额外参数') && !out65.includes('未知命令'))
+  const s66 = runCli(['pick', 'assembler', '--role', 'research'])
+  const out66 = `${s66.stdout || ''}${s66.stderr || ''}`
+  t('向量66 pick 跨命令 flag（COMMAND_FLAGS 闭集）→ 用法错 exit 1（先 flag 闭集后位置参数、均先于装载）',
+    s66.status === 1 && out66.includes('[用法错]') && out66.includes('命令 pick 的合法 flag') && out66.includes('--role'))
+  const s67a = runCli(['pick', 'assembler', '--json=1'])
+  const out67a = `${s67a.stdout || ''}${s67a.stderr || ''}`
+  const s67b = runCli(['pick', 'assembler', '--bogus'])
+  const out67b = `${s67b.stdout || ''}${s67b.stderr || ''}`
+  t('向量67 pick 等号 flag（--json=1）与完全未知 flag（--bogus）均用法错 exit 1（等号形态拒收点名＋命令闭集点名）',
+    s67a.status === 1 && out67a.includes('[用法错]') && out67a.includes('等号形态') && out67a.includes('--json=1') &&
+    s67b.status === 1 && out67b.includes('[用法错]') && out67b.includes('未识别的 flag「--bogus」') && out67b.includes('命令 pick 的合法 flag'))
+
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
 }
@@ -1224,6 +1273,7 @@ const COMMAND_FLAGS = {
   doctor: new Set(['--json', '--self-test']),
   'dispatch-check': new Set(['--plan', '--route', '--project', '--self-test']),
   snapshots: new Set(['--project', '--json', '--self-test']),
+  pick: new Set(['--json', '--self-test']),
 }
 /** 全局闭集=四命令并集（先拦完全陌生的 flag，再按命令拦跨命令 flag）。 */
 const ALLOWED_FLAGS = new Set(Object.values(COMMAND_FLAGS).flatMap((s) => [...s]))
@@ -1388,6 +1438,42 @@ if (isMain) {
         process.exit(0)
       }
       printTable(['role', 'slot', 'provider', 'model', 'level', 'family', 'route_source'], rows.map((r) => [r.role, r.slot, r.provider, r.model, r.level, r.family, r.route_source]))
+      process.exit(0)
+    }
+    if (cmd === 'pick') {
+      // W5b0：单岗派发只读取值（02 §8.1 SOP 承载面）。活性槽全名=cfg.agent_defaults[role]
+      // （与 list 星标判定同源，S4 本机件优先序由既有 loader 承载）；不读 ROUTE、不切槽、
+      // 不自动走回退链（fallback_from 恒 null）、禁写配置。用法错次序=先 flag 闭集复核
+      //（全局分支）后本分支位置参数/角色校验，两者均先于 loadCfgOrExit 装载。
+      const extra = pos.slice(1)
+      if (!extra.length) throw new UsageError('pick 需要 <role> 参数——用法：node scripts/agent-slots.mjs pick <role> [--json]')
+      if (extra.length > 1) throw new UsageError(`pick 只接受恰一个位置参数 <role>，收到额外参数：${extra.slice(1).join(' ')}`)
+      const role = extra[0]
+      if (!ROLE_ORDER.includes(role)) {
+        console.error(`[FAIL] 角色不存在：${role}（合法角色：${ROLE_ORDER.join(', ')}）`)
+        process.exit(1)
+      }
+      const cfg = loadCfgOrExit()
+      const defaults = isPlainObject(cfg.agent_defaults) ? cfg.agent_defaults : {}
+      const slot = defaults[role]
+      if (typeof slot !== 'string' || !slot) {
+        console.error(`[装载错] cfg.agent_defaults.${role} 缺失或非字符串——活性槽权威=org-config 合并结果，禁出厂默认静默代位`)
+        process.exit(3)
+      }
+      if (json) {
+        const def = isPlainObject(cfg.agent_slots) ? cfg.agent_slots[slot] : null
+        const out = {
+          role,
+          slot,
+          route_source: 'pick',
+          fallback_from: null,
+          family: familyOf(cfg.providers?.[def?.provider]),
+          level: parseSlotKey(slot)?.level || '?',
+        }
+        console.log(JSON.stringify(out, null, 2))
+        process.exit(0)
+      }
+      console.log(slot)
       process.exit(0)
     }
     if (cmd === 'doctor') {
