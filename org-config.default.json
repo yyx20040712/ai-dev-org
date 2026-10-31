@@ -53,40 +53,102 @@
       "venv/**"
     ],
     "active": [
-      { "root": "skill", "include": ["SKILL.md", "DEPLOY.md", "RESIDUALS.md"] },
-      { "root": "skill", "include": ["references/*.md"] },
-      { "root": "skill", "include": ["constraints/*.md"] },
-      { "root": "skill", "include": ["templates/**"] },
-      { "root": "skill", "include": ["scripts/*.mjs"] },
-      { "root": "skill", "include": ["scripts/*.json"] },
-      { "root": "skill", "include": ["scripts/.golden/docgen-fixtures.json"] },
-      { "root": "skill", "include": [".githooks/**"], "lexer": "shell" },
-      { "root": "skill", "include": ["org-config.default.json"] }
+      {
+        "root": "skill",
+        "include": [
+          "SKILL.md",
+          "DEPLOY.md",
+          "RESIDUALS.md"
+        ]
+      },
+      {
+        "root": "skill",
+        "include": [
+          "references/*.md"
+        ]
+      },
+      {
+        "root": "skill",
+        "include": [
+          "constraints/*.md"
+        ]
+      },
+      {
+        "root": "skill",
+        "include": [
+          "templates/**"
+        ]
+      },
+      {
+        "root": "skill",
+        "include": [
+          "scripts/*.mjs"
+        ]
+      },
+      {
+        "root": "skill",
+        "include": [
+          "scripts/*.json"
+        ]
+      },
+      {
+        "root": "skill",
+        "include": [
+          "scripts/.golden/docgen-fixtures.json"
+        ]
+      },
+      {
+        "root": "skill",
+        "include": [
+          ".githooks/**"
+        ],
+        "lexer": "shell"
+      },
+      {
+        "root": "skill",
+        "include": [
+          "org-config.default.json"
+        ]
+      }
     ],
     "historical": [
-      { "root": "skill", "include": ["references/*.md"], "selector": "history-sections" },
-      { "root": "skill", "include": ["references/00-glossary.md"], "selector": "term-scan-off" },
-      { "root": "skill", "include": ["RESIDUALS.md"], "selector": "history-sections" },
-      { "root": "project", "include": ["docs/evidence/**", "history/**"] }
+      {
+        "root": "skill",
+        "include": [
+          "references/*.md"
+        ],
+        "selector": "history-sections"
+      },
+      {
+        "root": "skill",
+        "include": [
+          "references/00-glossary.md"
+        ],
+        "selector": "term-scan-off"
+      },
+      {
+        "root": "skill",
+        "include": [
+          "RESIDUALS.md"
+        ],
+        "selector": "history-sections"
+      },
+      {
+        "root": "project",
+        "include": [
+          "docs/evidence/**",
+          "history/**"
+        ]
+      }
     ],
     "note": "活账本（两仓 .zcode/org-ledger.jsonl）与流水（scripts/model-routing-log.jsonl）已移出历史扫描面（2026-10-29 用户当面二选一 exclude 豁免·b3n-ledger-frozen-gap 处置）：活文件持续合法追加与首冻计数语义冲突；词面纪律改由新增行零禁用词纪律＋verify-docs 既有面执法（授权=账本 b4-ruling-scope/b4b-ledger-exclude 行）。"
   },
   "note": "通用默认件（v2.1.0 三层化批起随包分发，零个人事实）：供应商/项目/视觉通道实值一律住 org-config.local.json（本机件，gitignore 不随包）——深合并序=默认件←本机件←项目覆盖件（语义与规范化哈希=06 §0）。新机首跑=DEPLOY.md（deploy-check --install 脚手架本机件）。",
   "providers": {
-    "kimi-main": {
-      "uuid_prefix": "TODO",
-      "entry_name": "TODO",
-      "note": "模板占位——本机实值（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名/kind/billing/model_family）填 org-config.local.json 同名键"
-    },
-    "kimi-backup": {
-      "uuid_prefix": "TODO",
-      "entry_name": "TODO",
-      "note": "模板占位——同 kimi-main 填法"
-    },
     "deepseek": {
       "uuid_prefix": "TODO",
       "entry_name": "TODO",
-      "note": "模板占位——同 kimi-main 填法"
+      "note": "模板占位——同 yyx 填法"
     },
     "glm": {
       "uuid_prefix": "TODO",
@@ -106,12 +168,12 @@
     "yyx": {
       "uuid_prefix": "TODO",
       "entry_name": "TODO",
-      "note": "模板占位——短名源（P1 slot schema）：实值 uuid_prefix/entry_name/kind/billing/family/multimodal 填 org-config.local.json 同名键（slot 只允许短名键）"
+      "note": "模板占位——本机实值（uuid_prefix=宿主注册表条目 id 前 8 字符/entry_name=条目名/kind/billing/model_family）填 org-config.local.json 同名键"
     },
     "zipoo": {
       "uuid_prefix": "TODO",
       "entry_name": "TODO",
-      "note": "模板占位——短名源（P1 slot schema）：实值 uuid_prefix/entry_name/kind/billing/family/multimodal 填 org-config.local.json 同名键（slot 只允许短名键）"
+      "note": "模板占位——同 yyx 填法"
     },
     "ds": {
       "uuid_prefix": "TODO",
@@ -518,17 +580,17 @@
   "source_health": {
     "dual_groups": [
       [
-        "kimi-main",
-        "kimi-backup"
+        "yyx",
+        "zipoo"
       ]
     ],
     "gate1_subagent_of": {
-      "kimi-main": "ops-implreview-699-max",
-      "kimi-backup": "ops-implreview-zipoo-max",
-      "deepseek": "ops-implreview-ds-max"
+      "deepseek": "ops-implreview-ds-max",
+      "yyx": "ops-implreview-yyx-max",
+      "zipoo": "ops-implreview-zipoo-max"
     },
     "standing_pair": [
-      "kimi-backup",
+      "zipoo",
       "deepseek"
     ],
     "cross_gate_pairs": [

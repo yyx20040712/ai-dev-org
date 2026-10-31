@@ -17,7 +17,7 @@ description: Use when 用户提出开发/实现/修复/重构/批次/开工/简�
 | 岗位 | 通道 |
 |---|---|
 | 主控（+PM 子模式） | 主会话（唯一用户对接岗） |
-| 规划岗 drafter | 会话内绑定子代理 ops-drafter（kimi-third 承载） |
+| 规划岗 drafter | 会话内绑定子代理 ops-drafter（699 短名源承载） |
 | 任务书装配岗 assembler | 会话内绑定子代理 ops-assembler-{699,yyx,zipoo}-max（默认 699·ruling-assembler-role-spec） |
 | 实现岗 | 会话内子代理（诊断取证职责并入——07 §1） |
 | 任务书审核岗 tbreview | 会话内绑定子代理 ops-tbreview-*（默认 ds；派发前任务书审包，D21） |
