@@ -20,7 +20,7 @@
  *   node scripts/agent-slots.mjs list [--role <role>] [--json]
  *   node scripts/agent-slots.mjs show <slot> [--json]
  *   node scripts/agent-slots.mjs resolve --route "<route>" [--json]
- *   node scripts/agent-slots.mjs doctor [--json]
+ *   node scripts/agent-slots.mjs doctor [--project <dir>] [--json] [--degrade <D7|snapshot-lag>]
  *   node scripts/agent-slots.mjs dispatch-check --plan <dispatch-plan.md> --route "<ROUTE>" [--project <dir>]
  *   node scripts/agent-slots.mjs snapshots [--project <dir>] [--json]
  *   node scripts/agent-slots.mjs pick <role> [--json]
@@ -604,7 +604,7 @@ export function dispatchCheck({ plan, routeText, matrix, cfg, s1 }) {
 
 
 // ── CLI 辅助 ──
-const VALUE_FLAGS = new Set(['--role', '--route', '--agent', '--plan', '--project'])
+const VALUE_FLAGS = new Set(['--role', '--route', '--agent', '--plan', '--project', '--degrade'])
 
 function positionals(argv) {
   const out = []
@@ -672,7 +672,7 @@ function usage() {
     '  node scripts/agent-slots.mjs show <slot> [--json]',
     '  node scripts/agent-slots.mjs resolve --route "<route>" [--json]',
     '  node scripts/agent-slots.mjs resolve --agent <旧名> [--json]',
-    '  node scripts/agent-slots.mjs doctor [--json]',
+    '  node scripts/agent-slots.mjs doctor [--project <dir>] [--json] [--degrade <D7|snapshot-lag>]',
     '  node scripts/agent-slots.mjs dispatch-check --plan <dispatch-plan.md> --route "<ROUTE>" [--project <dir>]',
     '  node scripts/agent-slots.mjs snapshots [--project <dir>] [--json]',
     '  node scripts/agent-slots.mjs pick <role> [--json]',
@@ -1260,6 +1260,145 @@ function selfTest() {
     s67a.status === 1 && out67a.includes('[用法错]') && out67a.includes('等号形态') && out67a.includes('--json=1') &&
     s67b.status === 1 && out67b.includes('[用法错]') && out67b.includes('未识别的 flag「--bogus」') && out67b.includes('命令 pick 的合法 flag'))
 
+  // ── W5b R2-T2 新增向量（68–78）：doctor 三面聚合新契约（D-2/D-2a·plan-b8plus §5.3:141）──
+  // 夹具前缀=os.tmpdir()/w5b-t2-dispatch-doctor-dt-*（D-3 纪律），用毕清理；staging 技能根
+  // 副本（一层·不递归自调用本台架）可控注入 S1-S4 与矩阵；既有 67 向量零删零改。
+  const dttmp = mkdtempSync(join(tmpdir(), 'w5b-t2-dispatch-doctor-dt-'))
+  try {
+    const s1Dt = { roles: Object.fromEntries(ROLE_ORDER.map((r) => [r, { default: matrix.roles[r].default, fallback: [...matrix.roles[r].fallback] }])) }
+    const mkProjDt = (name, s1obj) => {
+      const p = join(dttmp, name)
+      mkdirSync(join(p, 'docs'), { recursive: true })
+      writeFileSync(join(p, 'docs', 'agent-matrix.json'), JSON.stringify(s1obj))
+      return p
+    }
+    const dtProj = mkProjDt('proj68', s1Dt)
+    const mkStage = (name) => {
+      const dir = join(dttmp, name)
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      mkdirSync(join(dir, 'templates'), { recursive: true })
+      cpSync(join(SKILL_ROOT, 'scripts'), join(dir, 'scripts'), { recursive: true })
+      copyFileSync(join(SKILL_ROOT, 'templates', 'agents.matrix.json'), join(dir, 'templates', 'agents.matrix.json'))
+      copyFileSync(join(SKILL_ROOT, 'org-config.default.json'), join(dir, 'org-config.default.json'))
+      copyFileSync(join(SKILL_ROOT, 'org-config.local.json'), join(dir, 'org-config.local.json'))
+      return dir
+    }
+    const dtStage = mkStage('stage')
+    const runDt = (stageDir, args) => spawnSync(process.execPath, [join(stageDir, 'scripts', 'agent-slots.mjs'), ...args], { encoding: 'utf8' })
+    const parseDtJson = (r) => { try { return JSON.parse(r.stdout || '') } catch { return null } }
+
+    // 向量68：三面聚合正例（staging 真实四源）——exit 0＋摘要强制回显八字段＋snapshots 计数与纯函数一致
+    const dt68 = runDt(dtStage, ['doctor', '--project', dtProj])
+    const out68 = `${dt68.stdout || ''}${dt68.stderr || ''}`
+    const rep68 = snapshotReport({ s1: s1Dt, s2: matrix, s3: readJson(join(SKILL_ROOT, 'org-config.default.json')), s4: readJson(join(SKILL_ROOT, 'org-config.local.json')) })
+    t('向量68 doctor 三面聚合正例：exit 0＋摘要 red=0/factory_fail=0/degraded=false/clean=true 且 snapshots 计数与 snapshotReport 纯函数一致＋S4 finding 行保留',
+      dt68.status === 0 &&
+      out68.includes(`doctor 汇总：red=0 warn=${rep68.warn_roles} factory_fail=${rep68.factory_fail} warn_roles=${rep68.warn_roles} warn_field_diffs=${rep68.warn_field_diffs} derived_fail=${rep68.derived_fail} degraded=false clean=true`) &&
+      out68.includes('inspected_at') === false && out68.includes('[WARN] snapshot-lag'))
+
+    // 向量69：--json 对象形态（不得只回旧数组）——四键 findings/resolve/snapshots/summary＋八字段布尔
+    const j69 = parseDtJson(runDt(dtStage, ['doctor', '--json', '--project', dtProj]))
+    t('向量69 doctor --json 对象形态：键序恰为 findings,resolve,snapshots,summary＋summary 八字段＋degraded/clean 布尔机读区分＋旧面 findings 数组保留',
+      j69 && JSON.stringify(Object.keys(j69)) === JSON.stringify(['findings', 'resolve', 'snapshots', 'summary']) &&
+      Array.isArray(j69.findings) && Array.isArray(j69.resolve) && isPlainObject(j69.snapshots) && isPlainObject(j69.summary) &&
+      JSON.stringify(Object.keys(j69.summary)) === JSON.stringify(['red', 'warn', 'factory_fail', 'warn_roles', 'warn_field_diffs', 'derived_fail', 'degraded', 'clean']) &&
+      j69.summary.degraded === false && j69.summary.clean === true)
+
+    // 向量70：装载错=3（缺 S1 矩阵／S4 本机件缺席）
+    const dtProjNone = join(dttmp, 'proj-none')
+    mkdirSync(dtProjNone, { recursive: true })
+    const dt70a = runDt(dtStage, ['doctor', '--project', dtProjNone])
+    const dtStageNL = mkStage('stageNL')
+    rmSync(join(dtStageNL, 'org-config.local.json'))
+    const dt70b = runDt(dtStageNL, ['doctor', '--project', dtProj])
+    t('向量70 doctor 装载错=3：--project 缺 docs/agent-matrix.json 与 S4 本机件缺席均 exit 3 且 [装载错]',
+      dt70a.status === 3 && `${dt70a.stdout || ''}${dt70a.stderr || ''}`.includes('[装载错]') &&
+      dt70b.status === 3 && `${dt70b.stdout || ''}${dt70b.stderr || ''}`.includes('[装载错]'))
+
+    // 向量71：S4 RED（D8 指向不存在 slot）→ exit 1＋red≥1＋既有 [FAIL] finding 行保留
+    const dtStageR = mkStage('stageR')
+    const localR = JSON.parse(readFileSync(join(dtStageR, 'org-config.local.json'), 'utf8'))
+    localR.agent_defaults.vision = 'ops-vision-ghost-high'
+    writeFileSync(join(dtStageR, 'org-config.local.json'), JSON.stringify(localR))
+    const dt71 = runDt(dtStageR, ['doctor', '--project', dtProj])
+    const out71 = `${dt71.stdout || ''}${dt71.stderr || ''}`
+    t('向量71 doctor S4 RED（D8 默认指向不存在 slot）→ exit 1＋red≥1＋[FAIL] D8 行保留＋degraded=false/clean=false',
+      dt71.status === 1 && out71.includes('[FAIL] D8') && /doctor 汇总：red=[1-9]/.test(out71) && out71.includes('clean=false'))
+
+    // 向量72：resolve RED（矩阵 research 档位改 max→S4 默认 -high slot 回解失配）→ exit 1＋resolve 面点名
+    const dtStageV = mkStage('stageV')
+    const mV = JSON.parse(readFileSync(join(dtStageV, 'templates', 'agents.matrix.json'), 'utf8'))
+    mV.roles.research.level = 'max'
+    writeFileSync(join(dtStageV, 'templates', 'agents.matrix.json'), JSON.stringify(mV))
+    const dt72 = runDt(dtStageV, ['doctor', '--json', '--project', dtProj])
+    const j72 = parseDtJson(dt72)
+    t('向量72 doctor resolve RED（回解 slot 档位与 S4 默认不符）→ exit 1＋resolve findings≥1（code=resolve）＋factory_fail=0/derived_fail=0',
+      dt72.status === 1 && j72 && j72.resolve.length >= 1 && j72.resolve.every((f) => f.level === 'FAIL' && f.code === 'resolve') &&
+      j72.summary.red >= 1 && j72.snapshots.factory_fail === 0 && j72.snapshots.derived_fail === 0)
+
+    // 向量73：出厂互恰 RED（S1×S2 planner.default 破坏）→ exit 1＋factory_fail≥1＋人类 [FAIL] 行
+    const s1FactoryDt = clone(s1Dt)
+    s1FactoryDt.roles.planner.default = 'yyx'
+    const dt73 = runDt(dtStage, ['doctor', '--json', '--project', mkProjDt('proj73', s1FactoryDt)])
+    const j73 = parseDtJson(dt73)
+    const dt73h = runDt(dtStage, ['doctor', '--project', mkProjDt('proj73h', s1FactoryDt)])
+    const out73h = `${dt73h.stdout || ''}${dt73h.stderr || ''}`
+    t('向量73 doctor 出厂互恰 RED（S1×S2 planner）→ exit 1＋factory_fail≥1＋[FAIL] 出厂互恰行＋derived_fail 面独立可读',
+      dt73.status === 1 && j73 && j73.snapshots.factory_fail >= 1 &&
+      typeof j73.snapshots.derived_fail === 'number' && typeof j73.summary.derived_fail === 'number' &&
+      dt73h.status === 1 && out73h.includes('出厂互恰'))
+
+    // 向量74：仅出厂×现役滞后 WARN → exit 0＋clean=true（WARN 不隐藏）＋岗位/字段/来源回显
+    t('向量74 doctor 仅滞后 WARN → exit 0＋[WARN] snapshot-lag 岗位 fields= 列表＋warn_roles≥1 且 clean=true（未降级）',
+      dt68.status === 0 && rep68.warn_roles >= 1 && /\[WARN\] snapshot-lag \w+ fields=\w+(,\w+)* /.test(out68) &&
+      out68.includes(`warn_roles=${rep68.warn_roles}`) && out68.includes('clean=true'))
+
+    // 向量75：--degrade snapshot-lag 有对应 WARN → exit 0＋degraded=true/clean=false＋WARN 不隐藏
+    const dt75 = runDt(dtStage, ['doctor', '--json', '--project', dtProj, '--degrade', 'snapshot-lag'])
+    const j75 = parseDtJson(dt75)
+    t('向量75 doctor --degrade snapshot-lag 有对应滞后 WARN → exit 0＋degraded=true＋clean=false＋warn_roles≥1（WARN 不隐藏）',
+      dt75.status === 0 && j75 && j75.summary.degraded === true && j75.summary.clean === false && j75.summary.warn_roles >= 1 && j75.snapshots.warns.length >= 1)
+
+    // 向量76：--degrade 落空=用法错（S3=S4=合成合规配置→无滞后 WARN 无 D7 WARN；非法值）
+    const dtStageEq = mkStage('stageEq')
+    for (const f of ['org-config.default.json', 'org-config.local.json'])
+      writeFileSync(join(dtStageEq, f), JSON.stringify(compliantCfg()))
+    const dt76a = runDt(dtStageEq, ['doctor', '--project', dtProj, '--degrade', 'snapshot-lag'])
+    const dt76b = runDt(dtStageEq, ['doctor', '--project', dtProj, '--degrade', 'D7'])
+    const dt76c = runDt(dtStageEq, ['doctor', '--project', dtProj, '--degrade', 'bogus'])
+    t('向量76 doctor --degrade 落空=用法错 exit 1（snapshot-lag 无对应 WARN／D7 无对应 WARN／非法降级目标）',
+      dt76a.status === 1 && `${dt76a.stdout || ''}${dt76a.stderr || ''}`.includes('[用法错]') &&
+      dt76b.status === 1 && `${dt76b.stdout || ''}${dt76b.stderr || ''}`.includes('[用法错]') &&
+      dt76c.status === 1 && `${dt76c.stdout || ''}${dt76c.stderr || ''}`.includes('[用法错]'))
+
+    // 向量77：D7 WARN 注入（删 providers.glm——非 D6 三岗默认且非 vision 候选，不引 RED）
+    const dtStageG = mkStage('stageG')
+    for (const f of ['org-config.default.json', 'org-config.local.json']) {
+      const c = JSON.parse(readFileSync(join(dtStageG, f), 'utf8'))
+      delete c.providers.glm
+      writeFileSync(join(dtStageG, f), JSON.stringify(c))
+    }
+    const dt77a = runDt(dtStageG, ['doctor', '--project', dtProj])
+    const out77a = `${dt77a.stdout || ''}${dt77a.stderr || ''}`
+    const dt77b = runDt(dtStageG, ['doctor', '--json', '--project', dtProj, '--degrade', 'D7'])
+    const j77b = parseDtJson(dt77b)
+    t('向量77 doctor D7 WARN：未降级 exit 0/clean=true 且 [WARN] D7 保留；--degrade D7 → exit 0＋degraded=true/clean=false',
+      dt77a.status === 0 && out77a.includes('[WARN] D7') && out77a.includes('clean=true') &&
+      dt77b.status === 0 && j77b && j77b.summary.degraded === true && j77b.summary.clean === false &&
+      j77b.findings.some((f) => f.level === 'WARN' && f.code === 'D7'))
+
+    // 向量78：RED 配 --degrade 不降级——D8 RED 与 D7 WARN 同场，--degrade D7 仍 exit 1
+    const localG = JSON.parse(readFileSync(join(dtStageG, 'org-config.local.json'), 'utf8'))
+    localG.agent_defaults.vision = 'ops-vision-ghost-high'
+    writeFileSync(join(dtStageG, 'org-config.local.json'), JSON.stringify(localG))
+    const dt78 = runDt(dtStageG, ['doctor', '--json', '--project', dtProj, '--degrade', 'D7'])
+    const j78 = parseDtJson(dt78)
+    t('向量78 doctor RED 配 --degrade 不降级：D8 RED 在场时 --degrade D7 仍 exit 1＋red≥1＋degraded=true/clean=false（声明不豁免 RED）',
+      dt78.status === 1 && j78 && j78.summary.red >= 1 && j78.summary.degraded === true && j78.summary.clean === false)
+  } finally {
+    rmSync(dttmp, { recursive: true, force: true })
+  }
+
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
 }
@@ -1270,7 +1409,7 @@ const COMMAND_FLAGS = {
   list: new Set(['--role', '--json', '--self-test']),
   show: new Set(['--json', '--self-test']),
   resolve: new Set(['--route', '--agent', '--json', '--self-test']),
-  doctor: new Set(['--json', '--self-test']),
+  doctor: new Set(['--project', '--json', '--degrade', '--self-test']),
   'dispatch-check': new Set(['--plan', '--route', '--project', '--self-test']),
   snapshots: new Set(['--project', '--json', '--self-test']),
   pick: new Set(['--json', '--self-test']),
@@ -1477,18 +1616,106 @@ if (isMain) {
       process.exit(0)
     }
     if (cmd === 'doctor') {
+      // W5b R2-T2 D-2/D-2a（plan-b8plus §5.3:141）：doctor 升级为三面聚合——①既有 doctorFindings
+      // S4 内部检查（id/语义保留）；②resolve 面：S4 九岗默认 slot 规范化 provider，按 ROLE_ORDER
+      // 构造九岗 ROUTE，复用 parseRoute/validateRoute/resolveRoute 回解（解析失败/provider 不支持/
+      // 回解 slot 与 S4 默认不符=RED）；③snapshots 面：复用 snapshotReport 与同一 S1-S4 装载路径
+      // （factory_fail/derived_fail=RED，出厂×现役滞后=WARN）。缺省项目发现与 snapshots 一致。
+      // 退出码 0/1/3 唯一真相源=references/06-model-routing.md §5.8；--degrade 仅可对 D7 或
+      // snapshot-lag 的既有 WARN 显式声明（落空=用法错），RED/装载错/其他检查不得降级。
+      const projectDir = resolveProjectDirOrExit(cliFlag(argv, '--project'))
+      const degradeTargets = []
+      for (let i = 0; i < argv.length; i++) {
+        if (argv[i] !== '--degrade') continue
+        const val = argv[i + 1]
+        if (val === undefined) throw new UsageError('flag --degrade 居末位无值（缺值=用法错）')
+        if (val.startsWith('--')) throw new UsageError(`flag --degrade 的值形如 flag（「${val}」——误吃下一 flag=用法错）`)
+        if (val !== 'D7' && val !== 'snapshot-lag') throw new UsageError(`--degrade 非法目标「${val}」——仅可 D7 或 snapshot-lag（RED、装载错与其他检查不得降级）`)
+        if (!degradeTargets.includes(val)) degradeTargets.push(val)
+      }
       const cfg = loadCfgOrExit()
       const matrix = loadMatrixOrExit()
-      const findings = doctorFindings(matrix, cfg)
-      if (json) {
-        console.log(JSON.stringify(findings, null, 2))
-        process.exit(findings.length ? 1 : 0)
+      const paths = {
+        s1: join(projectDir, 'docs', 'agent-matrix.json'),
+        s2: MATRIX_PATH,
+        s3: join(SKILL_ROOT, 'org-config.default.json'),
+        s4: join(SKILL_ROOT, 'org-config.local.json'),
       }
-      for (const f of findings) console.log(`[${f.level}] ${f.code} ${f.line}`)
-      const fail = findings.filter((f) => f.level === 'FAIL').length
-      const warn = findings.filter((f) => f.level === 'WARN').length
-      console.log(`doctor 汇总：FAIL ${fail}/WARN ${warn}/共 ${findings.length}——${findings.length ? '阻断（逐条点名见上）' : '通过'}`)
-      process.exit(findings.length ? 1 : 0)
+      const sources = {}
+      for (const [k, p] of Object.entries(paths)) {
+        try {
+          sources[k] = readJson(p)
+        } catch (e) {
+          console.error(`[装载错] ${k.toUpperCase()} 装载失败（${p}）：${e.message}`)
+          process.exit(3)
+        }
+      }
+      const findings = doctorFindings(matrix, cfg)
+      const resolveFindings = []
+      const defaults = isPlainObject(cfg.agent_defaults) ? cfg.agent_defaults : {}
+      const cfgSlots = isPlainObject(cfg.agent_slots) ? cfg.agent_slots : {}
+      const resolveItems = []
+      let resolveOk = true
+      for (const role of ROLE_ORDER) {
+        const slot = defaults[role]
+        const parsed = typeof slot === 'string' ? parseSlotKey(slot) : null
+        if (!parsed || !own(cfgSlots, slot)) {
+          resolveOk = false
+          resolveFindings.push({ level: 'FAIL', code: 'resolve', line: `agent_defaults.${role} 默认 slot「${String(slot)}」不可规范化或未在 agent_slots 注册——resolve 面无法构造九岗 ROUTE` })
+          continue
+        }
+        resolveItems.push(`${role}-${parsed.provider}`)
+      }
+      if (resolveOk && resolveItems.length === ROLE_ORDER.length) {
+        try {
+          const route = parseRoute(`ROUTE: ${resolveItems.join(';')}`)
+          for (const e of validateRoute(route, matrix))
+            resolveFindings.push({ level: 'FAIL', code: 'resolve', line: `resolve 面 ROUTE 校验失败：${e}` })
+          for (const r of resolveRoute(route, matrix, cfg))
+            if (r.slot !== defaults[r.role])
+              resolveFindings.push({ level: 'FAIL', code: 'resolve', line: `resolve 面回解 slot=${r.slot} ≠ S4 默认=${defaults[r.role]}（${r.role}）` })
+        } catch (e) {
+          resolveFindings.push({ level: 'FAIL', code: 'resolve', line: `resolve 面 ROUTE 解析失败：${e.message}` })
+        }
+      }
+      let report
+      try {
+        report = snapshotReport(sources)
+      } catch (e) {
+        console.error(`[装载错] 快照投影/比较失败：${e.message}`)
+        process.exit(3)
+      }
+      const s4Warn = findings.filter((f) => f.level === 'WARN').length
+      const red = findings.filter((f) => f.level === 'FAIL').length + resolveFindings.length + report.factory_fail + report.derived_fail
+      const warn = s4Warn + report.warn_roles
+      for (const tg of degradeTargets) {
+        const present = tg === 'D7' ? findings.some((f) => f.level === 'WARN' && f.code === 'D7') : report.warn_roles > 0
+        if (!present) throw new UsageError(`--degrade ${tg} 无对应既有 WARN（声明落空=用法错——RED、装载错与其他检查不得降级）`)
+      }
+      const degraded = degradeTargets.length > 0
+      const clean = !degraded && red === 0
+      const fmtW = (v) => `default=${v.default} fallback=${JSON.stringify(v.fallback)}`
+      if (json) {
+        console.log(JSON.stringify({
+          findings,
+          resolve: resolveFindings,
+          snapshots: { ...report, sources: paths },
+          summary: { red, warn, factory_fail: report.factory_fail, warn_roles: report.warn_roles, warn_field_diffs: report.warn_field_diffs, derived_fail: report.derived_fail, degraded, clean },
+        }, null, 2))
+      } else {
+        for (const f of findings) console.log(`[${f.level}] ${f.code} ${f.line}`)
+        for (const f of resolveFindings) console.log(`[${f.level}] ${f.code} ${f.line}`)
+        for (const d of report.factory_diffs) {
+          const [fa, fb] = d.pair.split('×')
+          console.error(`[FAIL] 出厂互恰破坏 ${d.pair} ${d.role}.${d.field}: ${fa}=${JSON.stringify(d[fa])} ≠ ${fb}=${JSON.stringify(d[fb])}`)
+        }
+        if (report.derived_fail)
+          console.error(`[FAIL] S2→S1 单向派生漂移：共有 default/fallback 子面规范化投影逐字节不一致（roles=${report.derived.roles} bytes=${report.derived.bytes}）——禁反向写修复`)
+        for (const w of report.warns) console.log(`[WARN] snapshot-lag ${w.role} fields=${w.fields.join(',')} | S1 ${fmtW(w.values.S1)} | S2 ${fmtW(w.values.S2)} | S3 ${fmtW(w.values.S3)} | S4 ${fmtW(w.values.S4)}`)
+        if (degraded) console.log(`[degraded] ${degradeTargets.join(',')}——仅声明性降级（对应既有 WARN 在场）；RED 未降级，不得充当结项全绿证明`)
+        console.log(`doctor 汇总：red=${red} warn=${warn} factory_fail=${report.factory_fail} warn_roles=${report.warn_roles} warn_field_diffs=${report.warn_field_diffs} derived_fail=${report.derived_fail} degraded=${degraded} clean=${clean}`)
+      }
+      process.exit(red > 0 ? 1 : 0)
     }
     if (cmd === 'dispatch-check') {
       const extra = pos.slice(1)

@@ -608,7 +608,7 @@ const T16_TERMS = ['公共七段', '白名单机制', '任务书事实台账', '
 const T16_GAP_CLS = '[\\s「」『』《》（）()·—，,：:；;-]' // 连字符置于类尾：防「—-，」构成 U+2014–U+FF0C 字符范围误吞 CJK（M8 根因）
 const T16_DEF_VERB_RE = new RegExp(`^(?:${T16_GAP_CLS}*)(是指|系指|定义为)`)
 const T16_JI_RE = new RegExp(`^(?:${T16_GAP_CLS}*)即(?![可将使便时刻之停行用改归])`) // W-3/W-8/W-16：「即可/即停/即行」等非系词用法豁免
-const T17_MODAL_RE = /必须|须|不得|禁/
+const T17_MODAL_RE = /必须|须|不得|(?<!门)禁/ // D-6（W-18）：负向断言仅排除名词「门禁」词形；禁止语义 禁改/禁推/禁止/严禁 保持命中
 const T17_OBJECT_RES = [/D[\/↔]V/i, /F[\/↔]E/i, /fixture/i, /scaffold/i, /lint/i, /evidence/i, /\bCI\b/, /退出码/, /双审/, /实证/, /提交/]
 const D_DECL_RE = /^\s*(?:[-*]\s*)?(?:\*\*)?\|?\s*D-(\d{1,2})\b/
 const V_HEAD_RE = /^V-(\d{1,2})\b/
@@ -1143,6 +1143,14 @@ function selfTest(extraRoots = []) {
     add('D3 T17 ASSERT 行：含对象词不报／缺对象词报',
       checkAssertionObjects(parseTaskbook('ASSERT: 提交前须全绿\n')).length === 0 && checkAssertionObjects(parseTaskbook('ASSERT: 必须全绿\n')).length === 1,
       JSON.stringify(checkAssertionObjects(parseTaskbook('ASSERT: 必须全绿\n'))))
+    // W5b R2-T2 D-6（W-18 裁定）：T17 模态正则「门禁」词形对抗恰 2 条（107→109）。
+    const t17menjin = '| D-1 探针 | 门禁常开 | V-1 |'
+    add('D6 T17 对抗 1：含「门禁」无对象词的 D 行=不触发（名词门禁的禁不作模态·负向断言排除；禁止语义 禁改/禁推/禁止/严禁 保持命中）',
+      checkAssertionObjects(parseTaskbook(t17menjin)).length === 0, JSON.stringify(checkAssertionObjects(parseTaskbook(t17menjin))))
+    const t17jgai = '| D-1 探针 | 禁改落实 | V-1 |'
+    const t17jgaiHits = checkAssertionObjects(parseTaskbook(t17jgai))
+    add('D6 T17 对抗 2：含「禁改」无对象词的 D 行=仍触发（禁止语义保持命中·防排除过宽）',
+      t17jgaiHits.length === 1 && t17jgaiHits[0].check === 'T17', JSON.stringify(t17jgaiHits))
     const T18ROW = '| D-1 探针 | 规范锚=`docs/note.md:2「line two」` | V-1 |'
     const t18ok = checkDualAnchors(parseTaskbook('### V-1 探针（D-1）\n\n' + T18ROW + '\n'))
     add('D3 T18 正例：D 具规范锚＋V 映射、V 具 D 回锚不报', t18ok.length === 0, JSON.stringify(t18ok))
