@@ -10,7 +10,11 @@
  *  不改写审包；token 是规定计量值，不宣称等于任一模型分词器结果。
  *
  *  用法：node scripts/dispatch-pack.mjs --pack <审包文件> [--plan <dispatch-plan.md>] [--project <dir>] [--repo-access]
+ *        [--face <full|repo-access>] [--redact]
  *        node scripts/dispatch-pack.mjs --self-test
+ *  --face 感知预算（W5b D-7）：缺省 full=8192；repo-access=4096 且须同时显式 --repo-access；
+ *  --redact 诊断脱敏（opt-in）：三类可证词法命中逐条只给类别/行号/sha8（禁回显原文），
+ *  命中 exit 1／零命中 exit 0；无 --face 且无 --redact 时摘要逐字节保持现行形态。
  *  --repo-access 是显式 repo_access=true 的唯一来源，只豁免越权扫描，不豁免计量、
  *  ROUTE 对账、输入装载或用法检查；等号旗标、未知旗标、缺值、额外位置参数均为用法错；
  *  --self-test 须独立运行，不得与其他参数混用。
@@ -22,6 +26,7 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { readFileSync, existsSync, mkdirSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { createHash } from 'node:crypto'
 import { SKILL_ROOT, loadOrgConfig, UsageError } from './org-config.mjs'
 import { ROLE_ORDER } from './gen-agents.mjs'
 
@@ -43,6 +48,17 @@ const GIT_RE = /\bgit\s+(?:-{1,2}[A-Za-z][\w.-]*(?:\s+[^\s;、。)「」]+)?\s+)
 /** 引用行形态：`源标签:行号「片段」`——仅该形态所在行可豁免②③词汇命中。 */
 const CITE_RE = /[^\s「」`]+:\d+「[^」]*」/g
 const ROUTE_LINE_RE = /^\s*ROUTE\s*:/i
+/** face 感知预算（W5b D-7）：full=8192（缺省·维持现行形态）；repo-access=4096（须同时显式 --repo-access）。
+ *  repo-access 面真实最大包=456T（W8 证据档 :13 授权面包·同为 --repo-access 旗标面），4096/456≈9.0 倍余量。 */
+const FACE_LIMITS = { full: TOKEN_LIMIT, 'repo-access': 4096 }
+/** 诊断脱敏（W5b D-7·--redact opt-in）三类可证词法：uuid 8-4-4-4-12 十六进制／Bearer＋长度 ≥24 令牌／
+ *  键名含 token|key|secret（大小写不敏感）的赋值（值 ≥8 字符）。哈希输入=命中片段去首尾空白后的
+ *  UTF-8 字节，取 sha256 十六进制前 8 位。输出只含类别/行号/sha8，禁回显原文。 */
+const REDACT_RES = [
+  ['uuid-binding', /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g],
+  ['bearer', /Bearer[ \t]+[A-Za-z0-9._~+/=-]{24,}/g],
+  ['key-assign', /[A-Za-z0-9_.-]*(?:token|key|secret)[A-Za-z0-9_.-]*[ \t]*=[ \t]*[A-Za-z0-9._~+/-]{8,}/gi],
+]
 
 /** 逐行越权扫描：①④对整行判（引用不豁免）；②③先掩蔽引用 span 再判。 */
 export function scanLine(line) {
@@ -56,11 +72,22 @@ export function scanLine(line) {
 }
 
 function parseArgs(argv) {
-  const flags = { pack: null, plan: null, project: null, repoAccess: false, selfTest: false }
+  const flags = { pack: null, plan: null, project: null, repoAccess: false, selfTest: false, face: null, redact: false }
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--repo-access') { flags.repoAccess = true; continue }
     if (a === '--self-test') { flags.selfTest = true; continue }
+    if (a === '--redact') { flags.redact = true; continue }
+    if (a === '--face') {
+      if (flags.face !== null) throw new UsageError('flag --face 重复给值（用法错）')
+      const val = argv[i + 1]
+      if (val === undefined) throw new UsageError('flag --face 居末位无值（缺值=用法错）')
+      if (val.startsWith('--')) throw new UsageError(`flag --face 的值形如 flag（「${val}」——误吃下一 flag=用法错）`)
+      if (val !== 'full' && val !== 'repo-access') throw new UsageError(`flag --face 非法值「${val}」（须 full|repo-access）`)
+      flags.face = val
+      i++
+      continue
+    }
     if (a === '--pack' || a === '--plan' || a === '--project') {
       const val = argv[i + 1]
       if (val === undefined) throw new UsageError(`flag ${a} 居末位无值（缺值=用法错）`)
@@ -71,7 +98,7 @@ function parseArgs(argv) {
     }
     if (a.startsWith('--')) {
       if (a.includes('=')) throw new UsageError(`flag 等号形态「${a}」不支持——flag 一律空格分隔取值`)
-      throw new UsageError(`未识别的 flag「${a}」——合法 flag：--pack, --plan, --project, --repo-access, --self-test`)
+      throw new UsageError(`未识别的 flag「${a}」——合法 flag：--pack, --plan, --project, --repo-access, --face, --redact, --self-test`)
     }
     throw new UsageError(`额外位置参数「${a}」——本命令只接受 flag`)
   }
@@ -87,6 +114,7 @@ function main() {
     return
   }
   if (!flags.pack) throw new UsageError('缺少必需 flag --pack <审包文件>')
+  if (flags.face === 'repo-access' && !flags.repoAccess) throw new UsageError('--face repo-access 须同时显式给 --repo-access（用法错）')
 
   let raw
   try {
@@ -97,7 +125,8 @@ function main() {
   }
   const bytes = Buffer.byteLength(raw, 'utf8')
   const tokens = Math.ceil(bytes / 4)
-  const overLimit = tokens > TOKEN_LIMIT
+  const limit = flags.face !== null ? FACE_LIMITS[flags.face] : TOKEN_LIMIT
+  const overLimit = tokens > limit
   const text = raw.toString('utf8')
   const lines = text.split(/\r?\n/)
 
@@ -106,6 +135,21 @@ function main() {
     lines.forEach((ln, idx) => {
       const cats = scanLine(ln)
       if (cats.length) violations.push({ line: idx + 1, cats, text: ln.trim().slice(0, 80) })
+    })
+  }
+
+  // 诊断脱敏（W5b D-7·--redact opt-in）：逐行三类词法命中，逐条只给类别/行号/sha8，禁回显原文；
+  // 命中→exit 1（fail-closed）；零命中→exit 0；无 --redact 时摘要不含任何 redact 字段。
+  let redactHits = 0
+  if (flags.redact) {
+    lines.forEach((ln, idx) => {
+      for (const [cat, re] of REDACT_RES) {
+        for (const m of String(ln).matchAll(re)) {
+          const sha8 = createHash('sha256').update(String(m[0]).trim(), 'utf8').digest('hex').slice(0, 8)
+          console.error(`[redact] 类别=${cat} 行=${idx + 1} sha8=${sha8}`)
+          redactHits++
+        }
+      }
     })
   }
 
@@ -120,13 +164,13 @@ function main() {
     if (!flags.plan) throw new UsageError('审包含 ROUTE 行而缺 --plan <dispatch-plan.md>——ROUTE 三方对账必需（用法错）')
     if (!flags.project) {
       console.error('[装载错] 审包含 ROUTE 行而缺 --project <dir>——ROUTE 对账必需输入（项目根须含 docs/agent-matrix.json）')
-      printSummary(flags, bytes, tokens, 'FAIL', [])
+      printSummary(flags, bytes, tokens, 'FAIL', redactHits)
       process.exit(3)
     }
     const r = spawnSync(process.execPath, [AGENT_SLOTS, 'dispatch-check', '--plan', resolve(flags.plan), '--route', routeLines[0].text, '--project', resolve(flags.project)], { encoding: 'utf8' })
     if (r.error) {
       console.error(`[装载错] ROUTE 对账子进程启动失败：${r.error.message}`)
-      printSummary(flags, bytes, tokens, 'FAIL', [])
+      printSummary(flags, bytes, tokens, 'FAIL', redactHits)
       process.exit(3)
     }
     if (r.status === 0) {
@@ -138,22 +182,28 @@ function main() {
     } else {
       console.error('[装载错] ROUTE 对账必需输入不可读（dispatch-check 装载错回显如下）：')
       if ((r.stderr || '').trim()) console.error(r.stderr.trim())
-      printSummary(flags, bytes, tokens, 'FAIL', [])
+      printSummary(flags, bytes, tokens, 'FAIL', redactHits)
       process.exit(3)
     }
   }
 
-  const code = (overLimit || violations.length || routeCheck === 'FAIL') ? 1 : 0
-  if (overLimit) console.error(`[FAIL] 计量超限：tokens=${tokens} > limit ${TOKEN_LIMIT}（bytes=${bytes}）——阻断派发，须瘦身重包`)
+  const code = (overLimit || violations.length || routeCheck === 'FAIL' || redactHits > 0) ? 1 : 0
+  if (overLimit) console.error(`[FAIL] 计量超限：tokens=${tokens} > limit ${limit}（bytes=${bytes}）——阻断派发，须瘦身重包`)
   for (const v of violations) console.error(`[越权] 第 ${v.line} 行 类别=${v.cats.join('/')} 片段=${JSON.stringify(v.text)}`)
   for (const msg of routeReasons) console.error(`[FAIL] ${msg}`)
-  printSummary(flags, bytes, tokens, routeCheck, [])
+  printSummary(flags, bytes, tokens, routeCheck, redactHits)
   console.log(`dispatch-pack 判定：${code === 0 ? 'PASS' : 'FAIL'}`)
   process.exit(code)
 }
 
-function printSummary(flags, bytes, tokens, routeCheck) {
-  console.log(`dispatch-pack 摘要：bytes=${bytes} tokens=${tokens} limit=${TOKEN_LIMIT} repo_access=${flags.repoAccess} route_check=${routeCheck}`)
+function printSummary(flags, bytes, tokens, routeCheck, redactHits = 0) {
+  // 摘要形态（W5b D-7）：无 --face 且无 --redact 时逐字节保持现行形态（不含 face/redact 字段）；
+  // --face 时附 face=<f> limit_full=8192 limit_repo_access=4096；--redact 时附 redact=true redact_hits=N。
+  const limit = flags.face !== null ? FACE_LIMITS[flags.face] : TOKEN_LIMIT
+  let line = `dispatch-pack 摘要：bytes=${bytes} tokens=${tokens} limit=${limit} repo_access=${flags.repoAccess} route_check=${routeCheck}`
+  if (flags.face !== null) line += ` face=${flags.face} limit_full=${TOKEN_LIMIT} limit_repo_access=${FACE_LIMITS['repo-access']}`
+  if (flags.redact) line += ` redact=true redact_hits=${redactHits}`
+  console.log(line)
 }
 
 // ── --self-test（≥18 向量；夹具落 os.tmpdir()/w5b-t2-dispatch-doctor-dp-*，用毕清理）──
@@ -332,6 +382,47 @@ function selfTest() {
     t('向量29 越权③补面：git -c k=v <子命令>→exit 1＋git', b29.status === 1 && outOf(b29).includes('git'), `${b29.status}`)
     t('向量30 引用豁免保持：合法引用行内 git -C／Read 路径形（r5 新形态）→exit 0', b30.status === 0, `${b30.status} ${outOf(b30).slice(-80)}`)
     t('向量31 防假阳性：散文词形 Readme/gitea（无空格命令形）→exit 0', b31.status === 0, `${b31.status}`)
+
+    // ── W5b D-7 face 感知预算＋诊断脱敏（恰 6 向量·31→37）──
+    const facePack = write('face-pack.md', okBody)
+    const f1 = runPack(['--pack', facePack, '--face', 'repo-access', '--repo-access'])
+    codes.add(f1.status)
+    t('向量32 --face repo-access 正例：exit 0＋摘要含 face=repo-access limit_full=8192 limit_repo_access=4096',
+      f1.status === 0 && sumOf(f1).includes('face=repo-access limit_full=8192 limit_repo_access=4096'), `${f1.status} ${sumOf(f1)}`)
+    const f2 = runPack(['--pack', facePack, '--face', 'full'])
+    codes.add(f2.status)
+    t('向量33 --face full 正例：exit 0＋摘要含 face=full limit_full=8192 limit_repo_access=4096',
+      f2.status === 0 && sumOf(f2).includes('face=full limit_full=8192 limit_repo_access=4096'), `${f2.status} ${sumOf(f2)}`)
+    const f3a = runPack(['--pack', facePack, '--face', 'repo-access'])
+    const f3b = runPack(['--pack', facePack, '--face', 'bogus'])
+    const f3c = runPack(['--pack', facePack, '--face=repo-access', '--repo-access'])
+    const f3d = runPack(['--pack', facePack, '--face', 'full', '--face', 'repo-access', '--repo-access'])
+    codes.add(f3a.status); codes.add(f3b.status); codes.add(f3c.status); codes.add(f3d.status)
+    t('向量34 --face 用法错四面：缺 --repo-access／非法值／等号形态／重复给值均 exit 1',
+      f3a.status === 1 && f3b.status === 1 && f3c.status === 1 && f3d.status === 1, `${f3a.status}/${f3b.status}/${f3c.status}/${f3d.status}`)
+    const redBody = '# 审包 redact\n\nuuid=deadbeef-cafe-babe-1234-567890abcdef 与 Bearer tok-abcdefghijklmnopqrstuvwxyz 与 secret_key=SuperSecretValue123 结尾。\n'
+    const redPack = write('redact-pack.md', redBody)
+    const redBefore = createHash('sha256').update(readFileSync(redPack)).digest('hex')
+    const rd1 = runPack(['--pack', redPack, '--redact'])
+    codes.add(rd1.status)
+    const redAfter = createHash('sha256').update(readFileSync(redPack)).digest('hex')
+    const rd1Out = outOf(rd1)
+    t('向量35 --redact 三类命中：exit 1＋摘要 redact=true redact_hits=3＋逐条类别/行号/sha8＋不含原文＋审包零改动',
+      rd1.status === 1 && sumOf(rd1).includes('redact=true redact_hits=3')
+        && (rd1Out.match(/sha8=[0-9a-f]{8}/g) || []).length === 3
+        && rd1Out.includes('uuid-binding') && rd1Out.includes('bearer') && rd1Out.includes('key-assign')
+        && !rd1Out.includes('deadbeef-cafe-babe-1234-567890abcdef') && !rd1Out.includes('tok-abcdefghijklmnopqrstuvwxyz') && !rd1Out.includes('SuperSecretValue123')
+        && redBefore === redAfter,
+      `${rd1.status} ${rd1Out.slice(-300)}`)
+    const rd2 = runPack(['--pack', facePack, '--redact'])
+    codes.add(rd2.status)
+    t('向量36 --redact 零命中：exit 0＋摘要 redact=true redact_hits=0',
+      rd2.status === 0 && sumOf(rd2).includes('redact=true redact_hits=0'), `${rd2.status} ${sumOf(rd2)}`)
+    t('向量37 sha8 复算核对（去首尾空白 UTF-8 sha256 前 8 位）＋缺省摘要不含 face/redact 字段', (() => {
+      const sha8 = createHash('sha256').update('secret_key=SuperSecretValue123', 'utf8').digest('hex').slice(0, 8)
+      const rdLine = rd1Out.split('\n').find((l) => l.includes('key-assign')) ?? ''
+      return rdLine.includes('sha8=' + sha8) && !sumOf(r1).includes('face=') && !sumOf(r1).includes('redact')
+    })(), `rdLine=${rd1Out.split('\n').find((l) => l.includes('key-assign')) ?? ''} sha8want=${createHash('sha256').update('secret_key=SuperSecretValue123', 'utf8').digest('hex').slice(0, 8)}`)
 
     // 向量23：退出码域——全部实测退出码 ∈ {0,1,3}（禁复用 2）
     t('向量23 退出码域：全部自检运行退出码恰为 0/1/3 集合（无 2 或其他值）',
