@@ -26,14 +26,26 @@
 //   ② /tmp 直系子路径合法：仅「路径本身＝/tmp」拒绝；最近存在祖先＝/tmp 的不存在路径放行。
 //   ③ 子命令 stdout 丢弃（stdio ignore）＝既定——out JSONL 为唯一数据工件；stderr 继承（递归哨兵
 //      可观测）；摘要 JSON 独占 sampler stdout。
-// 写面对象同一性（返工轮 4 B1·路径侧绑定核验·轮 5 R4-1 措辞收束·轮 6 R5-1/R5-2 硬语义）：--out 以
-//   O_NONBLOCK|O_WRONLY|O_CREAT|O_APPEND|O_NOFOLLOW|O_EXCL 预开 fd 全程追加——O_EXCL 独占创建
-//   （预存在即拒 3）；O_NONBLOCK 使 FIFO 换入形态开不阻塞（开后 fstatSync 非 regular 即拒 3·防御面，
-//   CLI 可达性为零——O_EXCL 先命中·如实登记不可出向量）；Node 标准库无 fcntl 绑定（禁新依赖）——
-//   O_NONBLOCK 留存 fd 对 regular 文件 write(2) 无语义影响（等效清旗标·绝对纯净 owner=修模板批）；
-//   每次写前路径侧核验：lstatSync(outPath) 的 dev/ino 与预开 fd st0 比对、ENOENT、nlink>1——均＝
-//   运行期写失败 1。多层防御·尽力检测·残余 TOCTOU 窗口（lstat→writeSync 间隙）已文档化
-//   （owner=修模板批）。
+// 写面对象同一性（返工轮 4 B1·轮 5 R4-1 措辞收束·轮 6 R5-1/R5-2 硬语义·修模板批 W5b T2 fd 目录
+//   句柄深化）：--out 预开旗标面＝O_NONBLOCK|O_WRONLY|O_CREAT|O_APPEND|O_NOFOLLOW|O_EXCL——
+//   **无 O_TRUNC**（R4-N11 登记处置：O_EXCL 独占新建空文件＋O_APPEND 同 run 追加语义＝完整写面
+//   契约，源码零 O_TRUNC）；O_EXCL 独占创建：任何预存在（含空文件、含硬链接）装载期即拒 3——
+//   **装载期 O_EXCL 已拒一切预存在（含硬链接），nlink>1 只在运行期新建链接时可达＝运行期写失败 1**
+//   （R6-N2 措辞修正：与「每次写前 nlink 复核」分层如实，不混写「写面不可用」）；R6-N4：中止 run
+//   会留空/半写 out，重试须先 rm 同一 out 再跑，否则 O_EXCL 拒＝装载错 3。O_NONBLOCK 使 FIFO 换入
+//   形态开不阻塞（开后 fstatSync 非 regular 即拒 3·防御面）；修模板批 T2③：经 /proc/self/fd/<fd0>
+//   以 O_WRONLY|O_APPEND 重开**清 O_NONBLOCK**，验 dev/ino 一致与 nlink=1 后关旧 fd——常规路径
+//   fd 无 O_NONBLOCK 位（ORG_RESOURCE_SAMPLER_PROBE_FDINFO=1 时 summary 附 out_fd_flags=<八进制>
+//   供 V-2 观测）。
+// fd 目录句柄相对写面（W5b T2·handoff 38:31「TOCTOU fd 目录句柄深化＋O_NONBLOCK 清旗标」）：
+//   ①以 O_RDONLY|O_DIRECTORY 打开 out 父目录 dirfd 并 fstat 验目录；②经 /proc/self/fd/<dirfd>/
+//   <basename> 按既有旗标预开 out；③重开清 O_NONBLOCK；④每次写前双复核——父目录路径侧 lstat
+//   dev/ino 对 dirfd fstat、out 经 procfd 路径 lstat dev/ino/nlink，漂移/缺失＝运行期写失败 1；
+//   ⑤cleanup 对每条登记路径打开最近存在祖先 dirfd，经 procfd lstat/删除/复核，保留装载期
+//   dev/ino 比对；⑥procfd 不可用时显式降级路径模式并在 summary 输出 dirfd_mode=path（残余窗口
+//   ＝既有路径侧 TOCTOU 窗口 lstat→writeSync 间隙，如实登记），正常环境输出 dirfd_mode=procfd；
+//   ⑦R4-N9 同源并项：运行期写失败=1、写面不可用=3，退出域不扩。procfd 相对 open/lstat/unlink/
+//   递归删除语义已在 Node 24.21.0 装配期实测可行（Linux /proc/self/fd）。
 // race 纪律（返工轮 4 B2·轮 5 R4-2 实修）：全部 Promise.race 败方定时器 clearTimeout（interval 循环/
 //   close 5s race）；backup 2s 定时器验后即清；摘要落盘后挂 **unref** 的 1s 硬退出定时器兜底——正常
 //   路径事件循环空即自然退出零延迟；悬挂场景（子进程句柄持活循环）定时器照发·任何情况必有退出码。
@@ -46,7 +58,7 @@
 //   不写技能仓。
 
 import { readFileSync, writeFileSync, existsSync, statSync, lstatSync, mkdirSync, rmSync, readdirSync, chmodSync, realpathSync, mkdtempSync, symlinkSync, linkSync, openSync, closeSync, fstatSync, writeSync, constants as fsConstants } from 'node:fs'
-import { join, dirname, resolve } from 'node:path'
+import { join, dirname, resolve, basename, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { spawn, spawnSync } from 'node:child_process'
@@ -55,6 +67,8 @@ const SELF = fileURLToPath(import.meta.url)
 const DEPTH_ENV = 'ORG_RESOURCE_SAMPLER_DEPTH'
 const SENTINEL = '[sentinel] resource-sampler rejected'
 const DEFAULTS = { intervalMs: 5000, timeoutMs: 300000, maxIterations: 100, maxProcesses: 8, maxDirs: 20 }
+// 内部测试设施（W5b T2·V-2 观测面）：置 1 时 run 摘要附 out_fd_flags=<八进制>（读 /proc/self/fdinfo/<fd>）
+const PROBE_FDINFO_ENV = 'ORG_RESOURCE_SAMPLER_PROBE_FDINFO'
 // 两仓根（登记集危险路径面·D-1c·W-7 前移独立判定）：绝对路径前缀，词面与 realpath 双面命中即装载错 3
 const FORBIDDEN_ROOTS = ['/home/yyx/work/aidevorg', '/home/yyx/.zcode/skills/ai-dev-org']
 
@@ -161,6 +175,17 @@ export function countGroupProcesses(pgid) {
   return { n, unknown: false }
 }
 
+/** 内部测试设施（W5b T2·V-2 观测面）：读 /proc/self/fdinfo/<fd> 的 flags 行（八进制），证明
+ *  O_NONBLOCK 位已清且 O_APPEND 位保留；不可读返回 null（不干扰主流程）。 */
+function probeOutFdFlags(fd) {
+  if (fd === null) return null
+  try {
+    const txt = readFileSync(join('/proc/self/fdinfo', String(fd)), 'utf8')
+    const m = /^flags:\s*(\S+)/m.exec(txt)
+    return m ? m[1] : null
+  } catch { return null }
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 /** B2：可清理 sleep——Promise.race 败方定时器必须 clearTimeout（防悬挂拖长墙钟/拖住退出）。 */
 const sleepT = (ms) => { let t = null; const p = new Promise((res) => { t = setTimeout(res, ms) }); return { p, clear: () => { if (t !== null) { clearTimeout(t); t = null } } } }
@@ -172,30 +197,80 @@ const sleepT = (ms) => { let t = null; const p = new Promise((res) => { t = setT
 export async function runMode(cmd, outPath, limits) {
   const samples = []
   const started = Date.now()
-  const closeFd = () => { try { if (fd !== null) closeSync(fd) } catch { /* 幂等 */ } }
-  let fd = null, st0 = null
+  const procBase = '/proc/self/fd'
+  const procfdAvail = existsSync(procBase) // T2⑥：procfd 不可用＝显式降级路径模式（dirfd_mode=path·残余窗口登记于头注）
+  let outFd = null, st0 = null, dirFd = null, stDir = null
+  let dirfdMode = 'path'
+  const closeFd = () => {
+    try { if (outFd !== null) closeSync(outFd) } catch { /* 幂等 */ }
+    try { if (dirFd !== null) closeSync(dirFd) } catch { /* 幂等 */ }
+    outFd = null; dirFd = null
+  }
   try {
-    // R5-1/R5-2：O_NONBLOCK（FIFO 换入形态开不阻塞·开后 fstat 非 regular 即拒）＋O_EXCL（out 由本 run 独占创建·预存在即拒）
-    fd = openSync(outPath, fsConstants.O_NONBLOCK | fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_APPEND | fsConstants.O_NOFOLLOW | fsConstants.O_EXCL, 0o600)
-    st0 = fstatSync(fd)
-    if (!st0.isFile()) throw new SamplerLoadError(`--out 预开 fd 非 regular 文件（R5-1·FIFO 换入防御面·写面不可用）：${outPath}`)
-    if (st0.nlink > 1) throw new SamplerLoadError(`--out 预置硬链接（nlink=${st0.nlink}>1·fail-closed 拒绝·写面不可用）：${outPath}`)
+    if (procfdAvail) {
+      // T2①：out 父目录 dirfd（O_RDONLY|O_DIRECTORY）＋fstat 验目录
+      dirFd = openSync(dirname(outPath), fsConstants.O_RDONLY | fsConstants.O_DIRECTORY)
+      stDir = fstatSync(dirFd)
+      if (!stDir.isDirectory()) throw new SamplerLoadError(`--out 父目录 dirfd 非目录（写面不可用）：${dirname(outPath)}`)
+      // T2②：经 procfd 路径按既有旗标预开 out（O_NONBLOCK|O_WRONLY|O_CREAT|O_APPEND|O_NOFOLLOW|O_EXCL）
+      const fd0 = openSync(join(procBase, String(dirFd), basename(outPath)),
+        fsConstants.O_NONBLOCK | fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_APPEND | fsConstants.O_NOFOLLOW | fsConstants.O_EXCL, 0o600)
+      const stA = fstatSync(fd0)
+      if (!stA.isFile()) { closeSync(fd0); throw new SamplerLoadError(`--out 预开 fd 非 regular 文件（FIFO 换入防御面·写面不可用）：${outPath}`) }
+      if (stA.nlink > 1) { closeSync(fd0); throw new SamplerLoadError(`--out 预置硬链接（nlink=${stA.nlink}>1·fail-closed 拒绝·写面不可用）：${outPath}`) }
+      // T2③：经 procfd 重开清 O_NONBLOCK，验 dev/ino 一致与 nlink=1 后关旧 fd；失败＝写面不可用 3
+      const fd1 = openSync(join(procBase, String(fd0)), fsConstants.O_WRONLY | fsConstants.O_APPEND)
+      const stB = fstatSync(fd1)
+      if (stB.dev !== stA.dev || stB.ino !== stA.ino || stB.nlink !== 1) {
+        closeSync(fd1)
+        throw new SamplerLoadError(`--out 重开清 O_NONBLOCK 同一性核验失败（dev/ino/nlink·写面不可用）：${outPath}`)
+      }
+      closeSync(fd0)
+      outFd = fd1; st0 = stB
+      dirfdMode = 'procfd'
+    } else {
+      // T2⑥ 显式降级路径模式（既有旗标直开；残余窗口＝路径侧 lstat→writeSync 间隙，头注登记）
+      outFd = openSync(outPath, fsConstants.O_NONBLOCK | fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_APPEND | fsConstants.O_NOFOLLOW | fsConstants.O_EXCL, 0o600)
+      st0 = fstatSync(outFd)
+      if (!st0.isFile()) throw new SamplerLoadError(`--out 预开 fd 非 regular 文件（R5-1·FIFO 换入防御面·写面不可用）：${outPath}`)
+      if (st0.nlink > 1) throw new SamplerLoadError(`--out 预置硬链接（nlink=${st0.nlink}>1·fail-closed 拒绝·写面不可用）：${outPath}`)
+      dirfdMode = 'path'
+    }
   } catch (e) {
     closeFd()
     if (e instanceof SamplerLoadError) throw e
     throw new SamplerLoadError(`--out 写面不可用（O_NONBLOCK|O_WRONLY|O_CREAT|O_APPEND|O_NOFOLLOW|O_EXCL 预开失败·含末级 symlink/ELOOP/预存在〔含空文件〕面）：${outPath}（${e.code ?? e.message}）`)
   }
-  // B1（轮 4·轮 6 R4-N17 归位）：每次写前路径侧绑定核验——被替换/迁出/缺失/多硬链接一律运行期写失败
-  //（SamplerWriteError→1）；lstat 异常保留 e.code（仅 ENOENT 报「原路径缺失」·其余如实报码）
+  // B1（轮 4·轮 6 R4-N17 归位·W5b T2④ 双复核深化）：每次写前绑定核验——被替换/迁出/缺失/
+  //  多硬链接/父目录漂移一律运行期写失败（SamplerWriteError→1）；lstat 异常保留 e.code
+  //（仅 ENOENT 报「原路径缺失/对象缺失」·其余如实报码）
   const writeSample = (rec) => {
-    let stPath = null
-    try { stPath = lstatSync(outPath) } catch (e) {
-      if (e && e.code === 'ENOENT') throw new SamplerWriteError(`采样写出失败：${outPath} 原路径缺失（lstat ENOENT·尽力检测不写孤儿 inode）`)
-      throw new SamplerWriteError(`采样写出失败：${outPath} lstat 异常（${e?.code ?? e?.message}·尽力检测）`)
+    if (dirfdMode === 'procfd' && dirFd !== null) {
+      // T2④ 双复核之一：父目录路径侧 lstat dev/ino 对 dirfd fstat
+      let dstPath = null
+      try { dstPath = lstatSync(dirname(outPath)) } catch (e) {
+        throw new SamplerWriteError(`采样写出失败：${dirname(outPath)} 父目录缺失/异常（${e?.code ?? e?.message}·父目录 dirfd 同一性双复核·尽力检测）`)
+      }
+      if (dstPath.dev !== stDir.dev || dstPath.ino !== stDir.ino) throw new SamplerWriteError(`采样写出失败：${dirname(outPath)} 父目录被替换（路径侧 dev/ino 对 dirfd fstat 比对失败·TOCTOU 尽力检测）`)
+      // T2④ 双复核之二：out 经 procfd 路径 lstat dev/ino/nlink
+      let stp = null
+      try { stp = lstatSync(join(procBase, String(dirFd), basename(outPath))) } catch (e) {
+        if (e && e.code === 'ENOENT') throw new SamplerWriteError(`采样写出失败：${outPath} 原对象缺失（procfd lstat ENOENT·尽力检测不写孤儿 inode）`)
+        throw new SamplerWriteError(`采样写出失败：${outPath} procfd lstat 异常（${e?.code ?? e?.message}·尽力检测）`)
+      }
+      if (stp.dev !== st0.dev || stp.ino !== st0.ino) throw new SamplerWriteError(`采样写出失败：${outPath} 对象被替换（procfd dev/ino 与预开 fd 比对失败·TOCTOU 尽力检测）`)
+      if (stp.nlink > 1) throw new SamplerWriteError(`采样写出失败：${outPath} 出现多硬链接（nlink=${stp.nlink}>1·fail-closed·运行期新建链接面）`)
+    } else {
+      // 路径模式（T2⑥ 降级面）：既有路径侧核验（残余窗口已登记）
+      let stPath = null
+      try { stPath = lstatSync(outPath) } catch (e) {
+        if (e && e.code === 'ENOENT') throw new SamplerWriteError(`采样写出失败：${outPath} 原路径缺失（lstat ENOENT·尽力检测不写孤儿 inode）`)
+        throw new SamplerWriteError(`采样写出失败：${outPath} lstat 异常（${e?.code ?? e?.message}·尽力检测）`)
+      }
+      if (stPath.dev !== st0.dev || stPath.ino !== st0.ino) throw new SamplerWriteError(`采样写出失败：${outPath} 对象被替换（路径侧 dev/ino 与预开 fd 比对失败·TOCTOU 尽力检测）`)
+      if (stPath.nlink > 1) throw new SamplerWriteError(`采样写出失败：${outPath} 出现多硬链接（nlink=${stPath.nlink}>1·fail-closed·运行期新建链接面）`)
     }
-    if (stPath.dev !== st0.dev || stPath.ino !== st0.ino) throw new SamplerWriteError(`采样写出失败：${outPath} 对象被替换（路径侧 dev/ino 与预开 fd 比对失败·TOCTOU 尽力检测）`)
-    if (stPath.nlink > 1) throw new SamplerWriteError(`采样写出失败：${outPath} 出现多硬链接（nlink=${stPath.nlink}>1·fail-closed）`)
-    try { writeSync(fd, JSON.stringify(rec) + '\n') } catch (e) { throw new SamplerWriteError(`采样写出失败：${outPath}（${e.code ?? e.message}）`) }
+    try { writeSync(outFd, JSON.stringify(rec) + '\n') } catch (e) { throw new SamplerWriteError(`采样写出失败：${outPath}（${e.code ?? e.message}）`) }
   }
 
   // detached：子进程为新进程组/会话首（pgid=pid），整组收割用 kill(-pgid, 'SIGKILL')
@@ -207,7 +282,7 @@ export async function runMode(cmd, outPath, limits) {
     })
   } catch (e) {
     closeFd()
-    console.log(JSON.stringify({ mode: 'run', pid: null, samples: 0, child_exit: null, timeout: false, reaped: false, peak_processes: 0, peak_dirs: 0, limit_hit: false, limit_reason: null, residual_processes: 0, unknown_counts: true, process_pattern: cmd.pattern, error: null, spawn_error: String(e.message) }))
+    console.log(JSON.stringify({ mode: 'run', pid: null, samples: 0, child_exit: null, timeout: false, reaped: false, peak_processes: 0, peak_dirs: 0, limit_hit: false, limit_reason: null, residual_processes: 0, unknown_counts: true, process_pattern: cmd.pattern, dirfd_mode: dirfdMode, error: null, spawn_error: String(e.message) }))
     return 1
   }
   const pgid = child.pid
@@ -281,6 +356,8 @@ export async function runMode(cmd, outPath, limits) {
         child_exit: exitCode, child_signal: exitSignal, timeout: limitReason === 'timeout', reaped,
         peak_processes: peakP, peak_dirs: peakD, limit_hit: limitHit, limit_reason: limitReason,
         residual_processes: residual, unknown_counts: unknownCounts, process_pattern: cmd.pattern,
+        dirfd_mode: dirfdMode, // T2⑥：procfd=fd 目录句柄相对写面；path=显式降级（残余窗口登记于头注）
+        ...(process.env[PROBE_FDINFO_ENV] === '1' ? { out_fd_flags: probeOutFdFlags(outFd) } : {}), // 内部测试设施（V-2 观测面）
         error: runErr ? String(runErr.message) : (postWriteErr ? String(postWriteErr.message) : null),
         spawn_error: spawnErr ? String(spawnErr.message) : null,
       }))
@@ -317,33 +394,54 @@ export function loadRegistry(regPath) {
   return { paths: doc.paths, resolved, ids }
 }
 
-/** 清理形态：仅删登记集（逐路径 lstat/删除前 realpath＋dev/ino 同一性比对（B-2·TOCTOU fail-closed）/
- *  删除/复核（W-9：仅 ENOENT=已知零·其余异常=未知非零退出）），输出 registered/existed/deleted/residual。 */
+/** 清理形态：仅删登记集（W5b T2⑤：每条登记路径打开最近存在祖先 dirfd，经 procfd lstat/删除/复核，
+ *  保留装载期 dev/ino 比对；dirfd 打开失败或 procfd 不可用＝该条回退路径模式·操作语义不变；
+ *  删除前 realpath＋dev/ino 同一性比对（B-2·TOCTOU fail-closed）/删除/复核（W-9：仅 ENOENT=已知零·
+ *  其余异常=未知非零退出）），输出 registered/existed/deleted/residual/dirfd_mode。 */
 export function cleanupMode(reg) {
+  const procBase = '/proc/self/fd'
+  const procfdAvail = existsSync(procBase)
   const detail = []
   let existed = 0, deleted = 0, residual = 0, failed = false, residualUnknown = false
   for (let i = 0; i < reg.paths.length; i++) {
     const p = reg.paths[i], rp = reg.resolved[i], id0 = reg.ids[i]
     let isExist = false, isDeleted = false, isResidual = false, error = null
+    // T2⑤ dirfd 面：最近存在祖先（自父目录向上）开 O_RDONLY|O_DIRECTORY，经 procfd 相对路径操作
+    let ancFd = null, tgt = rp
+    if (procfdAvail) {
+      try {
+        let probe = dirname(rp)
+        while (!existsSync(probe)) { const parent = dirname(probe); if (parent === probe) break; probe = parent }
+        if (statSync(probe).isDirectory()) {
+          const fdTry = openSync(probe, fsConstants.O_RDONLY | fsConstants.O_DIRECTORY)
+          if (fstatSync(fdTry).isDirectory()) {
+            const rel = relative(probe, rp)
+            if (!rel.startsWith('..') && rel.length > 0) { ancFd = fdTry; tgt = join(procBase, String(ancFd), rel) }
+            else closeSync(fdTry)
+          } else closeSync(fdTry)
+        }
+      } catch { tgt = rp /* dirfd 打开失败＝该条回退路径模式（语义不变） */ }
+    }
     try {
-      const st = lstatSync(rp); isExist = true
+      const st = lstatSync(tgt); isExist = true
       if (id0 !== null && `${st.dev}:${st.ino}` !== id0) throw new SamplerLoadError(`registry.paths[${i}] 删除前对象同一性漂移（dev/ino 与装载期比对失败·TOCTOU fail-closed）：${p}`)
       checkTmpPath(p, `registry.paths[${i}]（删除前同一性复核·B-2）`)
-      rmSync(rp, { recursive: true, force: false })
+      rmSync(tgt, { recursive: true, force: false })
       isDeleted = true
     } catch (e) {
-      if (e instanceof SamplerLoadError) { console.error(`[装载错] ${e.message}`); return 3 }
+      if (e instanceof SamplerLoadError) { console.error(`[装载错] ${e.message}`); if (ancFd !== null) { try { closeSync(ancFd) } catch { /* 幂等 */ } } return 3 }
       if (e.code === 'ENOENT') { /* 未存在：existed=false 如实登记 */ } else { error = `${e.code ?? ''} ${e.message}`; failed = true }
     }
-    try { lstatSync(rp); isResidual = true } catch (e) {
+    try { lstatSync(tgt); isResidual = true } catch (e) {
       if (!e || e.code !== 'ENOENT') { residualUnknown = true; failed = true; error = error ?? `残留复核异常（W-9 fail-closed）：${e?.code ?? e?.message}` } // 已消失=已知零；其余=未知
     }
+    if (ancFd !== null) { try { closeSync(ancFd) } catch { /* 幂等 */ } }
     if (isExist) existed++
     if (isDeleted) deleted++
     if (isResidual) residual++
     detail.push({ path: p, existed: isExist, deleted: isDeleted, residual: isResidual, error })
   }
-  console.log(JSON.stringify({ mode: 'cleanup', registered: reg.paths.length, existed, deleted, residual, failed, residual_unknown: residualUnknown, paths: detail }))
+  console.log(JSON.stringify({ mode: 'cleanup', registered: reg.paths.length, existed, deleted, residual, failed, residual_unknown: residualUnknown, dirfd_mode: procfdAvail ? 'procfd' : 'path', paths: detail }))
   return failed || residual > 0 || residualUnknown ? 1 : 0
 }
 
@@ -445,10 +543,11 @@ function selfTest() {
   const skip = (name, reason) => cases.push({ name, ok: true, skipped: true, detail: reason }) // W5b T1：skip 助手（不计 pass·逐条带原因）
   const observed = new Set()
   const tmp = mkdtempSync(join(tmpdir(), 'w5b-t3-resource-sampler-selftest-'))
-  const envClean = () => { const e = { ...process.env }; delete e[DEPTH_ENV]; return e }
+  const envClean = () => { const e = { ...process.env }; delete e[DEPTH_ENV]; delete e[PROBE_FDINFO_ENV]; return e }
   const safe = (fn, d = false) => { try { return fn() } catch { return d } } // R3-N15：断言内 IO 一律预取包裹
   const cli = (args, opts = {}) => {
-    const env = opts.depth ? { ...envClean(), [DEPTH_ENV]: '1' } : (opts.pathBroken ? { ...envClean(), PATH: '/nonexistent-w5b-t3-path' } : envClean())
+    const base = opts.depth ? { ...envClean(), [DEPTH_ENV]: '1' } : (opts.pathBroken ? { ...envClean(), PATH: '/nonexistent-w5b-t3-path' } : envClean())
+    const env = { ...base, ...(opts.extraEnv ?? {}) } // W5b T2：extraEnv 承载 ORG_RESOURCE_SAMPLER_PROBE_FDINFO 等内部设施
     const r = spawnSync(process.execPath, [SELF, ...args], { encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL', env })
     observed.add(r.status)
     return r
@@ -877,6 +976,45 @@ function selfTest() {
         `status=${rEa.status} out=${rEa.stdout.slice(0, 220)}`)
     } else {
       skip('RN-2/W-3 unknown 注入：uid=0 环境 chmod 000 不构成 EACCES——按 R3-N2 条件跳过（标注 skipped）', 'uid=0')
+    }
+    // ── W5b T2 fd 目录句柄与 O_NONBLOCK（恰 4 向量·procfd 缺失时按 skip 记入 Y 并打印原因）──
+    const procfdAvailT = existsSync('/proc/self/fd')
+    if (procfdAvailT) {
+      // T2① 正例 procfd 模式（显式放宽 max-dirs：自检沙箱 tmp 直系子目录数超缺省 20，与本向量判据无关）
+      const t2a = runCase('procfd', [process.execPath, '-e', 'process.exit(0)'], ['--max-dirs', '100'])
+      add('T2① fd 目录句柄正例：run exit 0 且 summary dirfd_mode=procfd（父目录 dirfd＋procfd 相对预开＋重开清 O_NONBLOCK 全链）',
+        t2a.r.status === 0 && t2a.s && t2a.s.dirfd_mode === 'procfd', `status=${t2a.r.status} s=${JSON.stringify(t2a.s).slice(0, 200)}`)
+      // T2③ O_NONBLOCK 位已清（out_fd_flags 观测面）
+      const t2b = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', join(tmp, 'samples-fdflags.jsonl')], { extraEnv: { [PROBE_FDINFO_ENV]: '1' } })
+      const t2bS = json(t2b)
+      const fl = t2bS && t2bS.out_fd_flags != null ? parseInt(String(t2bS.out_fd_flags), 8) : null
+      add('T2③ O_NONBLOCK 位已清：ORG_RESOURCE_SAMPLER_PROBE_FDINFO=1 → summary out_fd_flags 八进制不含 O_NONBLOCK（0o4000）且保留 O_APPEND（0o2000）',
+        t2b.status === 0 && fl !== null && (fl & 0o4000) === 0 && (fl & 0o2000) !== 0, `status=${t2b.status} out_fd_flags=${t2bS?.out_fd_flags}`)
+      // T2④ 父目录运行期改名 fail-closed
+      const mvDir = join(tmp, 't2-mv'); mkdirSync(mvDir, { recursive: true })
+      const mvCmd = join(tmp, 'cmd-t2mv.json')
+      wj(mvCmd, { argv: ['sh', '-c', `sleep 0.3; mv '${mvDir}' '${mvDir}.moved'; sleep 1`], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] })
+      const t2c = cli(['--cmdfile', mvCmd, '--out', join(mvDir, 's.jsonl'), '--interval-ms', '100'])
+      const t2cS = json(t2c)
+      const movedOk = safe(() => existsSync(join(`${mvDir}.moved`, 's.jsonl')))
+      add('T2④ 父目录运行期改名：父目录 dirfd 同一性双复核 fail-closed → 运行期写失败 exit 1/零残留/迁出后 out 文件原样',
+        t2c.status === 1 && t2cS && String(t2cS.error ?? '').includes('采样写出失败') && t2cS.residual_processes === 0 && movedOk,
+        `status=${t2c.status} out=${String(t2c.stdout ?? '').slice(0, 200)} moved=${movedOk}`)
+      // T2⑤ cleanup 经最近存在祖先 dirfd
+      const cdDir = join(tmp, 't2-cleanup'); mkdirSync(cdDir, { recursive: true })
+      const cf1 = join(cdDir, 'c1.txt'), cf2 = join(cdDir, 'c2.txt')
+      writeFileSync(cf1, 'C1'); writeFileSync(cf2, 'C2')
+      const cReg = join(tmp, 'registry-t2.json'); wj(cReg, { paths: [cf1, cf2] })
+      const t2d = cli(['--cleanup', '--registry', cReg])
+      const t2dS = json(t2d)
+      add('T2⑤ cleanup 经最近存在祖先 dirfd：exit 0/deleted=2/residual=0/dirfd_mode=procfd（装载期 dev/ino 比对保留）',
+        t2d.status === 0 && t2dS && t2dS.deleted === 2 && t2dS.residual === 0 && t2dS.dirfd_mode === 'procfd',
+        `status=${t2d.status} out=${t2d.stdout.slice(0, 200)}`)
+    } else {
+      skip('T2① fd 目录句柄正例 dirfd_mode=procfd', 'procfd unavailable（/proc/self/fd 缺失）')
+      skip('T2③ O_NONBLOCK 位已清（out_fd_flags 八进制观测）', 'procfd unavailable（/proc/self/fd 缺失）')
+      skip('T2④ 父目录运行期改名 fail-closed（dirfd 同一性双复核）', 'procfd unavailable（/proc/self/fd 缺失）')
+      skip('T2⑤ cleanup 经最近存在祖先 dirfd', 'procfd unavailable（/proc/self/fd 缺失）')
     }
     // 退出域：全部观测退出码 ∈ {0,1,3}（无 2）
     add('D-1 退出域：全部观测退出码 ∈ {0,1,3}（无 2）', [...observed].every((s) => s === 0 || s === 1 || s === 3), JSON.stringify([...observed].sort((a, b) => a - b)))
