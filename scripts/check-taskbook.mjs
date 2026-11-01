@@ -176,7 +176,8 @@ export function makeReader(roots) {
   }
 }
 
-/** 提取 T2（path:N / path 第 N 行）与 T2b（path:NN「片段」）引用。 */
+/** 提取 T2（path:N / path 第 N 行）与 T2b（path:NN「片段」）引用；W-17 D-2a：同物理行内裸 `:NN「frag」` span
+ *  按 span 顺序继承最近显式路径（口径=isPathLikeToken）生成 quote token；跨行不继承、行内无前行显式路径不生成（D-2c）。 */
 export function extractCitationTokens(lines) {
   const out = []
   const seen = new Set()
@@ -186,16 +187,14 @@ export function extractCitationTokens(lines) {
   }
   for (let i = 0; i < lines.length; i++) {
     const ln = String(lines[i] ?? '')
+    let lastPath = null // D-2a：本物理行内最近显式路径（显式路径 span 或显式引用 token 路径部）
     for (const v of inlineSpans(ln)) {
       let m = /^(.+?):(\d+)「(.*)」$/.exec(v)
-      if (m && isPathLikeToken(m[1])) {
-        push({ kind: 'quote', path: m[1], n: Number(m[2]), fragment: m[3], spanLine: i + 1 })
-        continue
-      }
+      if (m && isPathLikeToken(m[1])) { push({ kind: 'quote', path: m[1], n: Number(m[2]), fragment: m[3], spanLine: i + 1 }); lastPath = m[1]; continue }
+      if ((m = /^:(\d+)「(.*)」$/.exec(v))) { if (lastPath !== null && isPathLikeToken(lastPath)) push({ kind: 'quote', path: lastPath, n: Number(m[1]), fragment: m[2], spanLine: i + 1 }); continue } // D-2a 继承·D-2c：lastPath 逐行重置故跨行不继承
       m = /^(.+?):(\d+)$/.exec(v)
-      if (m && isPathLikeToken(m[1])) {
-        push({ kind: 'line', path: m[1], n: Number(m[2]), spanLine: i + 1 })
-      }
+      if (m && isPathLikeToken(m[1])) { push({ kind: 'line', path: m[1], n: Number(m[2]), spanLine: i + 1 }); lastPath = m[1]; continue }
+      if (isPathLikeToken(v)) lastPath = v // 显式路径 span（D-2a 继承源·与 T1 同口径）
     }
     // 行内 prose 形态：`path` 第 N 行 / 第 N–M 行（区间取 M）
     const plain = ln.replace(/`/g, '')
@@ -676,7 +675,8 @@ export function vHeadingRows(parsed) {
 
 /** A1（席二 W-2）：标准任务书形态下同 id 的 D 行同时出现在 §3.1 汇总表与 §3.4 带锚明细——
  *  声明主行=带规范锚的行（无带锚行时取首行），其余同 id 行为镜像行不参与 T18/T19；
- *  仅当同 id 有多行均带规范锚时计重复（dupCount），T19 据此报重复声明。 */
+ *  W-17 D-2b（r5 终稿）：重复计数与选带锚主行解耦——多行均带锚/均无锚均计 dupCount
+ *  （汇总＋带锚明细不重复；无锚镜像行不计入带锚主行的 dup），T19 据此报重复声明。 */
 export function dDeclRows(parsed) {
   const byId = new Map()
   for (const d of dItemRows(parsed)) {
@@ -685,6 +685,7 @@ export function dDeclRows(parsed) {
     if (!cur) { byId.set(d.id, { ...d, cited, dupCount: 0 }); continue }
     if (cited && !cur.cited) byId.set(d.id, { ...d, cited, dupCount: cur.dupCount })
     else if (cited && cur.cited) cur.dupCount++
+    else if (!cited && !cur.cited) cur.dupCount++ // W-17 D-2b：双侧均无锚同样计重复
   }
   return [...byId.values()]
 }
@@ -838,6 +839,39 @@ function selfTest(extraRoots = []) {
     // T2b 不命中
     const t2bMiss = checkCitations(extractCitationTokens(['`SKILL.md:2「no such text」`']), reader)
     add('T2b 不命中：片段不在第 2 行判 FAIL', t2bMiss.some((f) => f.check === 'T2b' && f.message.includes('不含引用的原文片段')), JSON.stringify(t2bMiss))
+    // ── W-17 D-2a 简写锚：同物理行按 span 顺序继承最近显式路径（恰 1 向量·三子断言） ──
+    add('W-17 D-2a 简写锚：同线裸 `:NN「frag」` 继承最近显式路径生成 quote token——同线正确 0 finding＋错误片段 T2b＋双显式路径取最近路径而非恒取首路径',
+      (() => {
+        const okTokens = extractCitationTokens(['`docs/note.md:2「line two」`、`:3「line three」`'])
+        const okRun = checkCitations(okTokens, reader)
+        const badRun = checkCitations(extractCitationTokens(['`docs/note.md:2「line two」`、`:2「no such text」`']), reader)
+        const nearTokens = extractCitationTokens(['`docs/note.md` 与 `scripts/present.mjs` 与 `:1「// present」`'])
+        const okOk = okTokens.length === 2 && okTokens[1].kind === 'quote' && okTokens[1].path === 'docs/note.md' && okTokens[1].n === 3 && okRun.length === 0
+        const badOk = badRun.some((f) => f.check === 'T2b' && f.message.includes('不含引用的原文片段'))
+        const nearOk = nearTokens.length === 1 && nearTokens[0].path === 'scripts/present.mjs' && nearTokens[0].n === 1 && checkCitations(nearTokens, reader).length === 0
+        return okOk && badOk && nearOk
+      })(), '')
+    // ── W-17 D-2b 无锚重复：重复计数与带锚主行解耦（恰 1 向量·两子断言） ──
+    add('W-17 D-2b 无锚重复：双侧均无锚的重复 D 行计 dupCount 且报 T19；多行均带锚分支同样计 dupCount 且汇总明细不重复',
+      (() => {
+        const bare = parseTaskbook('### V-1 探针（D-9）\n\n| D-9 探针 | 无锚 | V-1 |\n| D-9 探针 | 无锚 | V-1 |\n')
+        const bareRows = dDeclRows(bare)
+        const bareRed = checkDVGraph(bare)
+        const anchored = parseTaskbook('### V-1 探针（D-9）\n\n| D-9 探针 | 规范锚=`docs/note.md:1「line one」` | V-1 |\n| D-9 探针 | 规范锚=`docs/note.md:2「line two」` | V-1 |\n')
+        const anchRows = dDeclRows(anchored)
+        const anchRed = checkDVGraph(anchored)
+        const dupMsgs = (f) => f.filter((x) => x.check === 'T19' && x.message.includes('D id 重复声明'))
+        return bareRows.length === 1 && bareRows[0].dupCount === 1 && dupMsgs(bareRed).length === 1
+          && anchRows.length === 1 && anchRows[0].dupCount === 1 && anchRows[0].line === 3 && dupMsgs(anchRed).length === 1
+      })(), '')
+    // ── W-17 D-2c 简写边界：跨行不继承＋无前行显式路径无假锚＋夹具钉死「前行有显式路径＋本行裸 :NN」（恰 1 向量） ──
+    add('W-17 D-2c 简写边界：前行有显式路径＋本行裸 `:NN「frag」` 不跨行继承（无 quote token）；孤行裸 :NN 无前行路径不产生 T2b/T2 假锚',
+      (() => {
+        const cross = extractCitationTokens(['`docs/note.md`', '`:2「line two」`'])
+        const lone = extractCitationTokens(['`:2「line two」`'])
+        const loneCited = checkCitations(lone, reader)
+        return cross.length === 0 && lone.length === 0 && loneCited.length === 0
+      })(), '')
 
     // T3 交集
     const t3yes = parseTaskbook('## 2. 白名单\n\n`scripts/present.mjs`\n\n## 3. 禁止改动\n\n`scripts/present.mjs`\n')

@@ -162,12 +162,9 @@ function selfTest() {
     add('lint-only 正例：生成物 0 findings 且识别型件', zPos.findings.length === 0 && zPos.type === 'impl' && zPos.placeholderLines > 0, JSON.stringify(zPos.findings))
     // 变异 1：删任一七段标题 → 检出
     const mutated = implDoc.split('\n').filter((l) => !/^## 3\. 预裁决/.test(l)).join('\n')
-    const zMut = lintOnly(mutated)
-    add('lint-only 变异 1：删七段标题判检出', zMut.findings.some((f) => f.check === 'S1' && f.message.includes('预裁决')), JSON.stringify(zMut.findings))
+    add('lint-only 变异 1：删七段标题判检出', lintOnly(mutated).findings.some((f) => f.check === 'S1' && f.message.includes('预裁决')), JSON.stringify(lintOnly(mutated).findings))
     // 变异 2：去尽待填位 → 检出
-    const noPh = implDoc.replace(/\{\{[^}]*\}\}/g, 'X')
-    const zPh = lintOnly(noPh)
-    add('lint-only 变异 2：去尽待填位判检出', zPh.findings.some((f) => f.check === 'S4'), JSON.stringify(zPh.findings))
+    add('lint-only 变异 2：去尽待填位判检出', lintOnly(implDoc.replace(/\{\{[^}]*\}\}/g, 'X')).findings.some((f) => f.check === 'S4'), JSON.stringify(lintOnly(implDoc.replace(/\{\{[^}]*\}\}/g, 'X')).findings))
     // 变异 3：第二件型件 → 唯一型件检出
     const dup = implDoc + '\n# 任务书型件：数据型（data）\n'
     add('lint-only 变异 3：双型件判检出', lintOnly(dup).findings.some((f) => f.check === 'S2'), JSON.stringify(lintOnly(dup).findings))
@@ -213,6 +210,9 @@ function selfTest() {
     const rStExtra = cli(['--self-test', 'extra'])
     const rStFlag = cli(['--self-test', '--json'])
     add('N-11 CLI argv 严格化：--self-test 携带多余/未知参数判用法错 exit 1', rStExtra.status === 1 && rStFlag.status === 1, `extra=${rStExtra.status} flag=${rStFlag.status}`)
+    // W-17 D-2d 修入向量（恰 2 条·23→25）：--templates 缺值/跨旗标/lint-only 同现统一 usage 1
+    add('W-17 D-2d --templates 缺值：居末缺值与下一 token 为旗标（跨旗标）均 usage exit 1（不静默回退默认模板、不再 exit 1/3 不一致）', cli(['--type', 'impl', '--out', join(tmp, 'gen-tpl-end.md'), '--templates']).status === 1 && cli(['--type', 'impl', '--templates', '--out', join(tmp, 'gen-tpl-flag.md')]).status === 1 && !existsSync(join(tmp, 'gen-tpl-end.md')) && !existsSync(join(tmp, 'gen-tpl-flag.md')), '')
+    add('W-17 D-2d --templates 与 lint-only 同现：不再被静默忽略（含裸缺值形态），均 usage exit 1', cli(['--lint-only', out1, '--templates', tplCopy]).status === 1 && cli(['--lint-only', out1, '--templates']).status === 1, '')
     let lint5 = true; const lint5Detail = {}
     for (const t of TYPES) {
       const z = lintOnly(generateTaskbook(t))
@@ -250,7 +250,7 @@ function main() {
     else if (a === '--type') { type = argv[++i] ?? null }
     else if (a === '--out') { out = argv[++i] ?? null }
     else if (a === '--lint-only') { lintTarget = argv[++i] ?? null }
-    else if (a === '--templates') { templatesDir = argv[++i] ?? null }
+    else if (a === '--templates') { const v = argv[++i] ?? null; if (v === null || v.startsWith('--')) { usage(); process.exit(1) } templatesDir = v } // W-17 D-2d：缺值（居末）或下一 token 为旗标一律 usage 1——修复居末缺值静默回退默认模板目录与跨旗标缺值 exit 1/3 不一致
     else { usage(); process.exit(1) }
   }
   if (selfTestFlag) {
@@ -262,7 +262,7 @@ function main() {
     process.exit(fail === 0 ? 0 : 1)
   }
   if (lintTarget !== null) {
-    if (type !== null || out !== null) { usage(); process.exit(1) }
+    if (type !== null || out !== null || templatesDir !== null) { usage(); process.exit(1) } // W-17 D-2d：--templates 与 lint-only 同现不再被静默忽略，统一 usage 1
     if (!lintTarget) { usage(); process.exit(1) }
     if (!existsSync(lintTarget)) { console.error(`[装载错] lint 目标不存在：${lintTarget}`); process.exit(3) }
     let text
