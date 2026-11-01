@@ -14,6 +14,10 @@
 //   3 装载错（JSON 不可读、路径/正则非法〔含 pgrep 方言〕、危险路径、**写面不可用**〔含预置硬链接〕）。
 //   判据（N9）：运行期写失败=1、写面不可用=3。无 2（06 §5.8：exit 2 为派发器专用）。
 // 非 shell：只执行显式 argv（execve 直传，无 shell 解释）；不清全局 /tmp；不写仓库/账本/配置。
+// 写面安全口径（R4-1 主控裁定·两席共同裁定锚（终局收束））：**多层防御**（装载校验＋末级 lstat/realpath＋
+//   O_NOFOLLOW 预开＋路径侧 dev/ino 绑定＋nlink 复核）·尽力检测·**残余 TOCTOU 窗口已文档化**
+//   （lstat→writeSync 间隙·cleanup check→rmSync 同族·owner=修模板批〔fd 目录句柄/写域隔离深化〕）；
+//   不宣称「绝不写穿」绝对断言。out 语义：跨 run 不得混装（非空 out 拒收·R4-N4）。
 // 主控契约裁定（返工轮 3）：
 //   ① process_pattern＝spawn 前 pgrep 方言预检（pgrep 自身干跑·失败=3）＋信息字段；max_processes 与
 //      residual/reaped 一律组全域计数（pgrep -g <pgid>，无 -f）——sampler/pgrep 本不在目标 detached
@@ -21,13 +25,13 @@
 //   ② /tmp 直系子路径合法：仅「路径本身＝/tmp」拒绝；最近存在祖先＝/tmp 的不存在路径放行。
 //   ③ 子命令 stdout 丢弃（stdio ignore）＝既定——out JSONL 为唯一数据工件；stderr 继承（递归哨兵
 //      可观测）；摘要 JSON 独占 sampler stdout。
-// 写面对象同一性（返工轮 4 B1·路径侧绑定核验）：--out 以 O_NOFOLLOW|O_CREAT|O_APPEND 预开 fd 全程
-//   追加（预置硬链接 nlink>1 即拒=写面不可用 3）；**每次写前路径侧核验**：lstatSync(outPath) 的
-//   dev/ino 与预开 fd st0 比对（被替换/rename-and-replace→fail-closed）、ENOENT（rename 迁出/删除→
-//   fail-closed）、nlink>1（后续硬链接→fail-closed）——均＝运行期写失败 1，绝不写穿/写孤儿 inode。
-//   TOCTOU 残余窗口＝尽力校验、fail-closed（fd 目录句柄深化 owner=修模板批）。
-// race 纪律（返工轮 4 B2）：全部 Promise.race 败方定时器 clearTimeout（interval 循环/close 5s race）；
-//   backup 2s 定时器验后即清；摘要落盘后挂非 unref 的 1s 硬退出定时器兜底（任何情况必有退出码）。
+// 写面对象同一性（返工轮 4 B1·路径侧绑定核验·轮 5 R4-1 措辞收束）：--out 以 O_NOFOLLOW|O_CREAT|
+//   O_APPEND 预开 fd 全程追加（预置硬链接 nlink>1 即拒=写面不可用 3）；每次写前路径侧核验：
+//   lstatSync(outPath) 的 dev/ino 与预开 fd st0 比对、ENOENT、nlink>1——均＝运行期写失败 1。
+//   多层防御·尽力检测·残余 TOCTOU 窗口（lstat→writeSync 间隙）已文档化（owner=修模板批）。
+// race 纪律（返工轮 4 B2·轮 5 R4-2 实修）：全部 Promise.race 败方定时器 clearTimeout（interval 循环/
+//   close 5s race）；backup 2s 定时器验后即清；摘要落盘后挂 **unref** 的 1s 硬退出定时器兜底——正常
+//   路径事件循环空即自然退出零延迟；悬挂场景（子进程句柄持活循环）定时器照发·任何情况必有退出码。
 // 递归哨兵：env ORG_RESOURCE_SAMPLER_DEPTH 非空即拒绝（exit 1＋[sentinel] resource-sampler rejected），
 //   main 入口最前判定（运行/清理/自检三形态全拒·W-5）；子环境固定注入深度 1（嵌套调用必被拒）。
 // 收割完备性（B-1）：spawn 后全程 try/finally——finally 无条件幂等 SIGKILL 整组＋await close（W-8）＋
@@ -169,19 +173,21 @@ export async function runMode(cmd, outPath, limits) {
     fd = openSync(outPath, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_APPEND | fsConstants.O_NOFOLLOW, 0o600)
     st0 = fstatSync(fd)
     if (st0.nlink > 1) throw new SamplerLoadError(`--out 预置硬链接（nlink=${st0.nlink}>1·fail-closed 拒绝·写面不可用）：${outPath}`)
+    if (st0.size > 0) throw new SamplerLoadError(`--out 非空（size=${st0.size}>0·跨 run 不得混装·R4-N4 fail-closed·写面不可用）：${outPath}`)
   } catch (e) {
     closeFd()
     if (e instanceof SamplerLoadError) throw e
     throw new SamplerLoadError(`--out 写面不可用（O_NOFOLLOW|O_CREAT|O_APPEND 预开失败·含末级 symlink/ELOOP 面）：${outPath}（${e.code ?? e.message}）`)
   }
-  // B1（轮 4）：每次写前路径侧绑定核验（fd 自比较死检查已删）——被替换/迁出/缺失/多硬链接一律
-  // 运行期写失败（SamplerWriteError→1），绝不写穿/写孤儿 inode
+  // B1（轮 4·轮 5 R4-3）：每次写前路径侧绑定核验——被替换/迁出/缺失/多硬链接一律运行期写失败
+  //（SamplerWriteError→1）；lstat 异常保留 e.code（仅 ENOENT 报「原路径缺失」·其余如实报码）
   const writeSample = (rec) => {
     let stPath = null
     try { stPath = lstatSync(outPath) } catch (e) {
-      throw new SamplerWriteError(`采样写出失败：${outPath} 原路径缺失（lstat ENOENT·fail-closed 不写孤儿 inode）`)
+      if (e && e.code === 'ENOENT') throw new SamplerWriteError(`采样写出失败：${outPath} 原路径缺失（lstat ENOENT·尽力检测不写孤儿 inode）`)
+      throw new SamplerWriteError(`采样写出失败：${outPath} lstat 异常（${e?.code ?? e?.message}·尽力检测）`)
     }
-    if (stPath.dev !== st0.dev || stPath.ino !== st0.ino) throw new SamplerWriteError(`采样写出失败：${outPath} 对象被替换（路径侧 dev/ino 与预开 fd 比对失败·TOCTOU fail-closed）`)
+    if (stPath.dev !== st0.dev || stPath.ino !== st0.ino) throw new SamplerWriteError(`采样写出失败：${outPath} 对象被替换（路径侧 dev/ino 与预开 fd 比对失败·TOCTOU 尽力检测）`)
     if (stPath.nlink > 1) throw new SamplerWriteError(`采样写出失败：${outPath} 出现多硬链接（nlink=${stPath.nlink}>1·fail-closed）`)
     try { writeSync(fd, JSON.stringify(rec) + '\n') } catch (e) { throw new SamplerWriteError(`采样写出失败：${outPath}（${e.code ?? e.message}）`) }
   }
@@ -274,11 +280,11 @@ export async function runMode(cmd, outPath, limits) {
       }))
     } catch { /* 摘要打印失败不吞退出码 */ }
     closeFd()
-    // B2：硬退出兜底（非 unref·任何情况必有退出码；自然退出通常先于此发生）
-    setTimeout(() => { try { process.exit(typeof process.exitCode === 'number' ? process.exitCode : 1) } catch { /* 兜底 */ } }, 1000)
+    // B2/R4-2：硬退出兜底（unref——正常路径事件循环空即自然退出零延迟；悬挂场景定时器照发·任何情况必有退出码）
+    setTimeout(() => { try { process.exit(typeof process.exitCode === 'number' ? process.exitCode : 1) } catch { /* 兜底 */ } }, 1000).unref?.()
   }
   if (runErr) throw runErr // 先收割再按 3/1 退出（main catch 映射：装载错 3/运行期写失败 1）
-  checkTmpPath(outPath, '--out（写入后同一性复核·B-2）')
+  checkTmpPath(outPath, '--out（写入后路径域复核·B-2·ds-R4-N18：仅验域不对迁出 ENOENT 构成同一性证据）')
   if (postWriteErr) return 1 // RN-11/B4：后采写失败进返回路径
   if (spawnErr) return 1
   if (limitHit) return 1
@@ -404,7 +410,8 @@ function main() {
   try {
     cmd = loadCommand(args.cmdfile)
     checkTmpPath(args.out, '--out') // B-2：--out 复用同一校验（含 realpath/末级 symlink 复核）
-    if (existsSync(args.out) && statSync(args.out).isDirectory()) throw new SamplerLoadError(`--out 指向目录（写失败面）：${args.out}`)
+    // R4-N3：装载期非 regular 文件拒收（FIFO/设备件防 openSync 永久阻塞·目录同面）
+    if (existsSync(args.out) && !statSync(args.out).isFile()) throw new SamplerLoadError(`--out 非 regular 文件（FIFO/设备件/目录拒收·防 openSync 永久阻塞·写面不可用）：${args.out}`)
   } catch (e) {
     console.error(`[装载错] ${e.message}`); process.exit(3)
   }
@@ -502,7 +509,7 @@ function selfTest() {
     //（逐样本 processes≥2）再断言外部 pgrep 哨兵零残留
     const b1Out = join(tmp, 'samples-orphan.jsonl')
     const b1Cmd = join(tmp, 'cmd-orphan.json')
-    wj(b1Cmd, { argv: ['sh', '-c', 'node -e "/*ORPHANMARK*/setTimeout(()=>{},5000)" & exit 0'], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] })
+    wj(b1Cmd, { argv: ['sh', '-c', 'sleep 0.2; node -e "/*ORPHANMARK*/setTimeout(()=>{},5000)" & exit 0'], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] }) // R4-N8/ds-N1：sh 侧 0.2s 消抖（sh＋孙同窗可观测）
     const b1 = spawnSync(process.execPath, [SELF, '--cmdfile', b1Cmd, '--out', b1Out, '--interval-ms', '100'], { encoding: 'utf8', stdio: 'ignore', timeout: 60000, killSignal: 'SIGKILL', env: envClean() })
     observed.add(b1.status)
     const b1Stray = spawnSync('pgrep', ['-f', 'ORPHANMARK'], { encoding: 'utf8' })
@@ -546,6 +553,11 @@ function selfTest() {
     const hlOk = safe(() => readFileSync(hlVictim, 'utf8') === 'HL-VICTIM')
     add('B1 写面对象同一性·硬链接预置：nlink>1 即拒（写面不可用 exit 3）且目标件原样未被写',
       rHl.status === 3 && rHl.stderr.includes('硬链接') && hlOk, `status=${rHl.status} err=${rHl.stderr.slice(0, 140)} victim=${hlOk}`)
+    // R4-N5 运行期硬链接：子进程 ln 追加硬链接 → 路径侧 nlink>1 fail-closed → 运行期写失败 exit 1
+    const wLn = mkW('ln', (o) => { const lv = join(tmp, 'ln-victim.txt'); writeFileSync(lv, 'LN'); return `sleep 0.05; ln -f '${lv}' '${o}'; sleep 1` })
+    add('R4-N5 运行期硬链接：子进程 ln -f 追加 → 路径侧核验 fail-closed（dev/ino 漂移或 nlink>1 同族两面）→ 运行期写失败 exit 1/零残留',
+      wLn.r.status === 1 && wLn.s && (String(wLn.s.error ?? '').includes('多硬链接') || String(wLn.s.error ?? '').includes('对象被替换')) && wLn.s.residual_processes === 0,
+      `status=${wLn.r.status} out=${wLn.r.stdout.slice(0, 200)}`)
     // B-1 writeSample 失败（目录级）：out 父目录运行中被删 → 先兜底收割（零残留）再运行期写失败 exit 1（N9）
     const wfDir = join(tmp, 'wf-dir'); mkdirSync(wfDir, { recursive: true })
     const wfCmd = join(tmp, 'cmd-wf.json')
@@ -598,6 +610,15 @@ function selfTest() {
     add('契约②/W4 /tmp 直系子路径合法：沙箱唯一名不存在直系路径经登记清理 → exit 0/registered=1/existed=0/deleted=0（最近存在祖先＝/tmp 放行）',
       cDirect.status === 0 && cDirectS && cDirectS.registered === 1 && cDirectS.existed === 0 && cDirectS.deleted === 0,
       `status=${cDirect.status} out=${cDirect.stdout.slice(0, 200)}`)
+    // R4-N6 直系路径两面补齐：--out 直系与 dir_prefixes=[直系] 各一（沙箱唯一名）
+    const directOut = `/tmp/w5b-t3-direct-${process.pid}-${Date.now().toString(36)}-out.jsonl`
+    const rDirectOut = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', directOut])
+    const directPre = `/tmp/w5b-t3-direct-${process.pid}-${Date.now().toString(36)}-dirs`
+    const rDirectPre = runCase('direct-pre', [process.execPath, '-e', 'process.exit(0)'], ['--interval-ms', '100'], directPre)
+    const directOutGone = safe(() => { rmSync(directOut, { force: true }); return true })
+    add('R4-N6 直系路径两面：--out 直系（run exit 0 落盘后清理）与 dir_prefixes=[直系]（readdir ENOENT=已知零·exit 0）均放行',
+      rDirectOut.status === 0 && rDirectPre.r.status === 0 && rDirectPre.s?.limit_hit === false && directOutGone,
+      `out=${rDirectOut.status} pre=${rDirectPre.r.status} clean=${directOutGone}`)
     // V-4/W-9 危险路径四面＋集外哨兵可观测（sentinel 先建后跑·exit 3 且既有集外件原样不删任何件）
     const danger = (label, paths) => {
       const dDir = join(tmp, `danger-${label}`); mkdirSync(dDir, { recursive: true })
@@ -617,18 +638,24 @@ function selfTest() {
     const keepA = join(tmp, 'keep-a.txt'); writeFileSync(keepA, 'KA')
     const keepB = join(tmp, 'keep-b.txt'); writeFileSync(keepB, 'KB')
     const linkA = join(tmp, 'link-into-aidevorg'), linkB = join(tmp, 'link-into-skillrepo')
-    try { symlinkSync('/home/yyx/work/aidevorg', linkA) } catch { /* 已存在 */ }
-    try { symlinkSync('/home/yyx/.zcode/skills/ai-dev-org', linkB) } catch { /* 已存在 */ }
-    const regLinkA = join(tmp, 'registry-link-a.json'); wj(regLinkA, { paths: [join(linkA, 'docs', 'x.md')] })
-    const regLinkB = join(tmp, 'registry-link-b.json'); wj(regLinkB, { paths: [join(linkB, 'x.mjs')] })
-    const rLinkA = cli(['--cleanup', '--registry', regLinkA])
-    const rLinkB = cli(['--cleanup', '--registry', regLinkB])
-    const keepAOk = safe(() => existsSync(keepA) && readFileSync(keepA, 'utf8') === 'KA')
-    const keepBOk = safe(() => existsSync(keepB) && readFileSync(keepB, 'utf8') === 'KB')
-    add('W-10/RW-5 仓根 symlink 面拆分 A：/tmp 内中间 symlink realpath 落 aidevorg → exit 3 且集外件原样',
-      rLinkA.status === 3 && rLinkA.stderr.includes('仓根') && keepAOk, `status=${rLinkA.status} err=${rLinkA.stderr.slice(0, 140)}`)
-    add('W-10/RW-5 仓根 symlink 面拆分 B：/tmp 内中间 symlink realpath 落技能仓 → exit 3 且集外件原样',
-      rLinkB.status === 3 && rLinkB.stderr.includes('仓根') && keepBOk, `status=${rLinkB.status} err=${rLinkB.stderr.slice(0, 140)}`)
+    // R4-N16 两仓根存在性前置断言：不存在则 skip 标注（不空计 pass·symlink 面依赖真实仓根）
+    const rootsOk = ['/home/yyx/work/aidevorg', '/home/yyx/.zcode/skills/ai-dev-org'].every((r) => existsSync(r))
+    if (rootsOk) {
+      try { symlinkSync('/home/yyx/work/aidevorg', linkA) } catch { /* 已存在 */ }
+      try { symlinkSync('/home/yyx/.zcode/skills/ai-dev-org', linkB) } catch { /* 已存在 */ }
+      const regLinkA = join(tmp, 'registry-link-a.json'); wj(regLinkA, { paths: [join(linkA, 'docs', 'x.md')] })
+      const regLinkB = join(tmp, 'registry-link-b.json'); wj(regLinkB, { paths: [join(linkB, 'x.mjs')] })
+      const rLinkA = cli(['--cleanup', '--registry', regLinkA])
+      const rLinkB = cli(['--cleanup', '--registry', regLinkB])
+      const keepAOk = safe(() => existsSync(keepA) && readFileSync(keepA, 'utf8') === 'KA')
+      const keepBOk = safe(() => existsSync(keepB) && readFileSync(keepB, 'utf8') === 'KB')
+      add('W-10/RW-5 仓根 symlink 面拆分 A：/tmp 内中间 symlink realpath 落 aidevorg → exit 3 且集外件原样',
+        rLinkA.status === 3 && rLinkA.stderr.includes('仓根') && keepAOk, `status=${rLinkA.status} err=${rLinkA.stderr.slice(0, 140)}`)
+      add('W-10/RW-5 仓根 symlink 面拆分 B：/tmp 内中间 symlink realpath 落技能仓 → exit 3 且集外件原样',
+        rLinkB.status === 3 && rLinkB.stderr.includes('仓根') && keepBOk, `status=${rLinkB.status} err=${rLinkB.stderr.slice(0, 140)}`)
+    } else {
+      add('W-10/RW-5 仓根 symlink 面拆分：两仓根不存在——前置断言失败按 skip 标注（不空计 pass）', true, 'skipped: repo roots absent')
+    }
     // B-2 末级 dangling symlink 写穿面：登记集末级悬空软链 → fail-closed 拒 3（不写穿目标域）；keepD 先建后跑（R3-N4）
     const keepD = join(tmp, 'keep-d.txt'); writeFileSync(keepD, 'KD')
     const dangling = join(tmp, 'dangling-link')
@@ -669,6 +696,18 @@ function selfTest() {
     const rPn = cli(['--cmdfile', pnCmd, '--out', join(tmp, 'samples-pn.jsonl')], { pathBroken: true })
     add('R3-N12 pgrep 本体不可用：PATH 剥夺 → 装载错 exit 3＋「pgrep 不可用」（与方言非法分开报错）',
       rPn.status === 3 && rPn.stderr.includes('pgrep 不可用'), `status=${rPn.status} err=${rPn.stderr.slice(0, 140)}`)
+    // R4-N7 假 pgrep 退出 2 注入运行期 unknown：方言面放行（-f→0）·计数面退出 2 → unknown_counts=true/reaped=false/exit 1
+    const fakeDir = join(tmp, 'fakebin'); mkdirSync(fakeDir, { recursive: true })
+    writeFileSync(join(fakeDir, 'pgrep'), '#!/bin/sh\nif [ "$1" = "-f" ]; then exit 0; fi\nexit 2\n', 'utf8')
+    chmodSync(join(fakeDir, 'pgrep'), 0o755)
+    const fpCmd = join(tmp, 'cmd-fakepgrep.json')
+    wj(fpCmd, { argv: ['/bin/sh', '-c', 'sleep 0.5'], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] })
+    const envFake = { ...envClean(), PATH: fakeDir + ':' + (process.env.PATH ?? '') }
+    const rFp = spawnSync(process.execPath, [SELF, '--cmdfile', fpCmd, '--out', join(tmp, 'samples-fakepgrep.jsonl'), '--interval-ms', '100'], { encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL', env: envFake })
+    observed.add(rFp.status)
+    add('R4-N7 假 pgrep 退出 2 注入运行期 unknown：方言面放行·计数面退出 2 → exit 1/unknown_counts=true/reaped=false（禁静默归零）',
+      rFp.status === 1 && json(rFp)?.unknown_counts === true && json(rFp)?.reaped === false,
+      `status=${rFp.status} out=${rFp.stdout.slice(0, 220)}`)
     // 退出码矩阵：缺旗标/缺值/等号/未知/额外/混用/旗标形值=1（W-6/RN-15/W8）
     const noArgs = cli([])
     add('D-1 缺旗标（无参）：usage exit 1', noArgs.status === 1, `status=${noArgs.status}`)
@@ -728,6 +767,21 @@ function selfTest() {
     const outIsDir = join(tmp, 'out-is-dir'); mkdirSync(outIsDir, { recursive: true })
     const rOutIsDir = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', outIsDir])
     add('D-1d --out 写失败（指向目录）：exit 3', rOutIsDir.status === 3, `status=${rOutIsDir.status}`)
+    // R4-N3 FIFO/设备件拒收：装载期非 regular 文件 → exit 3（防 openSync 永久阻塞）
+    const fifoP = join(tmp, 'out-fifo')
+    const mkfifoR = spawnSync('mkfifo', [fifoP], { encoding: 'utf8' })
+    if (mkfifoR.status === 0) {
+      const rFifo = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', fifoP])
+      add('R4-N3 FIFO 拒收：装载期非 regular 文件 → exit 3（防 openSync 永久阻塞·不悬挂）',
+        rFifo.status === 3 && rFifo.stderr.includes('非 regular') && spawnSync('pgrep', ['-f', 'w5b-t3-resource-sampler.mjs --cmdfile.*out-fifo']).status === 1, `status=${rFifo.status} err=${rFifo.stderr.slice(0, 140)}`)
+    } else {
+      add('R4-N3 FIFO 拒收：mkfifo 不可用——条件跳过（标注 skipped）', true, `skipped: mkfifo status=${mkfifoR.status}`)
+    }
+    // R4-N4 非空 out 拒收：跨 run 不得混装 → exit 3
+    const nonEmpty = join(tmp, 'out-nonempty.jsonl'); writeFileSync(nonEmpty, 'PRE-EXISTING')
+    const rNe = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', nonEmpty])
+    add('R4-N4 非空 out 拒收：预开时 size>0 → exit 3（跨 run 不得混装·写面不可用）',
+      rNe.status === 3 && rNe.stderr.includes('非空') && safe(() => readFileSync(nonEmpty, 'utf8') === 'PRE-EXISTING'), `status=${rNe.status} err=${rNe.stderr.slice(0, 140)}`)
     // B-2 --out 末级 symlink 两面：悬空（fail-closed）与指向真实文件（O_NOFOLLOW ELOOP）均 exit 3
     const outDang = join(tmp, 'out-dangling-link')
     try { symlinkSync('/tmp/w5b-t3-nonexistent-out-target', outDang) } catch { /* 已存在 */ }
@@ -746,9 +800,13 @@ function selfTest() {
     const rOutLinkA = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', join(outLinkA, 's.jsonl')])
     add('B-2 --out 域外（中间 symlink realpath 落主仓根）：exit 3 且启动前拒绝（不 spawn 不写仓）',
       rOutLinkA.status === 3 && rOutLinkA.stderr.includes('仓根'), `status=${rOutLinkA.status} err=${rOutLinkA.stderr.slice(0, 140)}`)
-    const rOutLinkB = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', join(linkB, 's.jsonl')])
-    add('B-2 --out 域外（中间 symlink realpath 落技能仓根·R3-N8）：exit 3 且启动前拒绝（不 spawn 不写仓）',
-      rOutLinkB.status === 3 && rOutLinkB.stderr.includes('仓根'), `status=${rOutLinkB.status} err=${rOutLinkB.stderr.slice(0, 140)}`)
+    if (rootsOk) {
+      const rOutLinkB = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', join(linkB, 's.jsonl')])
+      add('B-2 --out 域外（中间 symlink realpath 落技能仓根·R3-N8）：exit 3 且启动前拒绝（不 spawn 不写仓）',
+        rOutLinkB.status === 3 && rOutLinkB.stderr.includes('仓根'), `status=${rOutLinkB.status} err=${rOutLinkB.stderr.slice(0, 140)}`)
+    } else {
+      add('B-2 --out 域外（技能仓根面·R3-N8）：两仓根不存在——前置断言失败按 skip 标注（不空计 pass）', true, 'skipped: repo roots absent')
+    }
     // B-2 TOCTOU 运行中替换：子进程删 out 并以 symlink 指向受害者文件 → 路径侧 dev/ino 比对 fail-closed
     //（运行期写失败 exit 1）且受害者原样未被写穿；lstat 预取包裹（R3-N15）
     const tocDir = join(tmp, 'toc-dir'); mkdirSync(tocDir, { recursive: true })
