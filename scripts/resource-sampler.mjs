@@ -96,7 +96,7 @@ export function countDirs(prefixes) {
 
 /** 进程组存活计数（W-1/W-3）：pgrep -g <pgid> -f <process_pattern>——pattern 实接 pgrep 过滤
  *  （B8 :56 该项脚本并集正则形态·cmdfile 契约面，组语义兜界）；剔除采样器自身 pid；
- *  pgrep 异常/退出码≥2=unknown 禁静默归零；status 1=已知空。 */
+ *  pgrep 异常或退出码达 2 判 unknown（禁静默归零）；退出码 1 表示无匹配（已知空形态）。 */
 export function countGroupProcesses(pattern, pgid) {
   let r
   try { r = spawnSync('pgrep', ['-g', String(pgid), '-f', String(pattern)], { encoding: 'utf8' }) } catch { return { n: 0, unknown: true } }
