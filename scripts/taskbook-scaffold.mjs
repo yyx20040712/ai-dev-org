@@ -122,13 +122,18 @@ export function lintOnly(text) {
   // S4 待填位可见
   const ph = lines.filter((l) => l.includes('{{')).length
   if (ph === 0) findings.push({ check: 'S4', line: 0, message: '待填位不可见（无 {{…}} 占位）' })
-  // S5（W5b D-6·W-2 锚片段规约代码化）：①反引号计数奇数=未闭合 span；②路径型或 :NN 简写
-  // 引用候选未完整落在任一 inline span 内；③引用 span 片段为空「」——三类 finding 文案逐字
-  // 含规约字面「锚片段禁含内层反引号；整行含反引号时改取净子段」。合法生成物 0 findings。
+  // S5（W5b D-6·W-2 锚片段规约代码化·r5 围栏跳过）：①反引号计数奇数=未闭合 span；②路径型或
+  // :NN 简写引用候选未完整落在任一 inline span 内；③引用 span 片段为空「」——三类 finding 文案
+  // 逐字含规约字面「锚片段禁含内层反引号；整行含反引号时改取净子段」。只扫围栏外行（r5·ds-W-2：
+  // 围栏代码块内形态不产生 finding）。合法生成物 0 findings。
   const S5_NOTE = '锚片段禁含内层反引号；整行含反引号时改取净子段'
   const S5_PATH_LIKE = (v) => typeof v === 'string' && v.length > 0 && !/\s/.test(v) && !/[<>{}*…]/.test(v) && /\.(md|mjs|js|json|jsonl|txt|py|sh|yml|yaml|snippet)$/i.test(v)
   const S5_CAND_RE = /([^\s「」`]*):\d+「[^」]*」/g
+  let s5Fence = null
   for (let i = 0; i < lines.length; i++) {
+    const fm5 = /^\s*(```|~~~)/.exec(lines[i])
+    if (fm5) { s5Fence = s5Fence ? null : fm5[1]; continue } // r5：围栏界定行本身不扫，块内行全部跳过
+    if (s5Fence) continue
     const ln = lines[i]
     const bt = (ln.match(/`/g) ?? []).length
     if (bt % 2 === 1) findings.push({ check: 'S5', line: i + 1, message: `未闭合 span（反引号计数为奇数；${S5_NOTE}）` })
@@ -257,6 +262,12 @@ function selfTest() {
       const d2 = lintOnly(generateTaskbook('close', tplCopy)).findings.filter((f) => f.check === 'S5')
       return d1.length === 0 && d2.length === 0
     })(), JSON.stringify({ impl: lintOnly(generateTaskbook('impl')).findings.filter((f) => f.check === 'S5').length, close: lintOnly(generateTaskbook('close', tplCopy)).findings.filter((f) => f.check === 'S5').length }))
+    add('W5b D-6 S5 围栏跳过（r5·ds-W-2）：围栏代码块内奇数反引号不产生 S5 finding，围栏外同类形态仍检出', (() => {
+      const inner = '```text\n未闭合 `a 与 `b` 在围栏内\n```\n'
+      const fencedOnly = lintOnly('普通行\n' + inner + '收尾行\n').findings.filter((f) => f.check === 'S5')
+      const outside = lintOnly('普通行\n' + inner + '未闭合 `x 与 `y` 围栏外\n').findings.filter((f) => f.check === 'S5')
+      return fencedOnly.length === 0 && outside.some((f) => f.check === 'S5')
+    })(), JSON.stringify({ fenced: lintOnly('普通行\n```text\n未闭合 `a 与 `b` 在围栏内\n```\n收尾行\n').findings.filter((f) => f.check === 'S5'), outside: lintOnly('未闭合 `x 与 `y` 围栏外\n').findings.filter((f) => f.check === 'S5') }))
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
