@@ -25,29 +25,35 @@ const WRITE_PATTERNS = [
   ['mkdir', /\bmkdir\b/], ['cp', /\bcp\b/],
 ]
 
-/** 写入形态判定（W5b D-4·引号域二分·r5 增补）：先 WRITE_PATTERNS 词面命中；重定向面引号域二分——
- *  ①引号串内整体等长掩蔽（偏移不变），其中 >/>>/>=/->/=>/2>&1 一律不命中；引号外遇反斜杠连带吞
- *  下一字符（r5："／' 不开掩蔽域——bash 中 echo " > f 的 > f 为引号外真重定向；双引号内 " 现行为
- *  不动）；②引号外 >/>> 一律命中（fail-closed），豁免仅二：fd 复制严格形态 [0-9]*>&[0-9]+／
- *  >&[0-9]+ 且数字串后仅空白或行尾（其余任何字符——.／/／=／-／字母——不豁免·命中；2>&1x/2>&1.x
- *  均命中）；2>/dev/null 字面（r5·既有向量零删优先·主控裁保留）——左界＝独立 2> 词（行首/空白后）、
- *  右界＝/dev/null 后仅空白/行尾/命令分隔符（;|&），等长置换保偏移，子串形态（2>/dev/nullx／
- *  2>/dev/null/foo／x2>/dev/null）一律不豁免·命中。
- *  残余登记＝引号外零残余窗口（该域纯 fail-closed）；唯一已知误伤面＝引号外确有比较语义而
- *  无引号包裹的写法（解法＝置于引号串内），登记为使用约束而非检测缺口。 */
+/** 写入形态判定（W5b D-4·引号域二分·r5 增补＋r6 修正）：先 WRITE_PATTERNS 词面命中；重定向面
+ *  引号域二分——①引号串内整体等长掩蔽（偏移不变），其中 >/>>/>=/->/=>/2>&1 一律不命中；转义处理：
+ *  引号外与双引号内遇反斜杠均连带吞下一字符（r5：引号外 "／' 不开掩蔽域；r6：双引号内 " 不闭合
+ *  掩蔽域——python3 -c "print(">\")" 的 > 在引号域内；单引号内 bash 无转义·不动）；转义对与引号段
+ *  填充改非空白符 XX（r6：修复 2>/dev/null" 掩蔽后伪空白右界触发豁免的同类伪边界面）；②引号外
+ *  >/>> 一律命中（fail-closed），豁免仅二：fd 复制严格形态 [0-9]*>&[0-9]+／>&[0-9]+ 且数字串后仅
+ *  空白或行尾（其余任何字符——.／/／=／-／字母——不豁免·命中；2>&1x/2>&1.x 均命中）；2>/dev/null
+ *  字面（r5·既有向量零删优先·主控裁保留）——左界＝独立 2> 词（行首/空白后）、右界＝/dev/null 后
+ *  仅空白/行尾/命令分隔符（;|&），等长置换保偏移，子串形态（2>/dev/nullx／2>/dev/null/foo／
+ *  x2>/dev/null）一律不豁免·命中。
+ *  残余登记＝引号外零残余窗口（该域纯 fail-closed）；已知误伤面＝引号外确有比较语义而无引号包裹的
+ *  写法（解法＝置于引号串内），登记为使用约束而非检测缺口。 */
 export function writeHit(cmd) {
   const s = String(cmd ?? '')
   for (const [name, re] of WRITE_PATTERNS) if (re.test(s)) return name
-  // 引号域等长掩蔽：单/双引号段整体置空白（偏移不变），引号界定符本身亦置空白；引号外反斜杠连带吞下一字符（r5）
+  // 引号域等长掩蔽：界定符与引号内字符逐字符以非空白符 X 填充（偏移不变），转义对（反斜杠＋下一字符）
+  // 以 XX 填充（两字符·r6 伪空白右界修复——2>/dev/null" 类输入掩蔽后右界不再为伪空白）
   let masked = ''
   let inS = false, inD = false
   for (let i = 0; i < s.length; i++) {
     const c = s[i]
-    if (inS) { masked += ' '; if (c === "'") inS = false; continue }
-    if (inD) { masked += ' '; if (c === '"') inD = false; continue }
-    if (c === '\\') { masked += '  '; i++; continue } // r5：引号外转义——"／' 不开掩蔽域（下一字符一并吞掉）
-    if (c === "'") { inS = true; masked += ' '; continue }
-    if (c === '"') { inD = true; masked += ' '; continue }
+    if (inS) { masked += 'X'; if (c === "'") inS = false; continue }
+    if (inD) {
+      if (c === '\\') { masked += 'XX'; i++; continue } // r6：双引号内转义——" 不闭合掩蔽域
+      masked += 'X'; if (c === '"') inD = false; continue
+    }
+    if (c === '\\') { masked += 'XX'; i++; continue } // r5/r6：引号外转义——"／' 不开掩蔽域（下一字符一并吞掉·非空白填充）
+    if (c === "'") { inS = true; masked += 'X'; continue }
+    if (c === '"') { inD = true; masked += 'X'; continue }
     masked += c
   }
   // r5 第二豁免：2>/dev/null 字面——左界独立 2> 词（行首/空白后）、右界 /dev/null 后仅空白/行尾/命令分隔符；等长置换保偏移
@@ -339,6 +345,10 @@ function selfTest() {
       return writeHit('2>/dev/nullx') !== null && writeHit('2>/dev/null/foo') !== null && writeHit('x2>/dev/null') !== null
     })(), JSON.stringify([writeHit('2>/dev/nullx'), writeHit('2>/dev/null/foo'), writeHit('x2>/dev/null')]))
     add('D4⑬ echo x >> /tmp/f 独立命中断言（r5·既有负例单列）', writeHit('echo x >> /tmp/f') !== null, String(writeHit('echo x >> /tmp/f')))
+    add('D4⑭ 双引号内转义不闭合掩蔽域（r6·ds-W-1）：python3 -c "print(\">\")" 的 > 在引号域内 → 返回 null（inD 反斜杠连带吞下一字符）', (() => {
+      const q = String.fromCharCode(92) + '"'
+      return writeHit('python3 -c "print(' + q + '>' + q + ')"') === null
+    })(), String(writeHit('python3 -c "print(' + String.fromCharCode(92) + '">' + String.fromCharCode(92) + '")"')))
   } finally { rmSync(tmp, { recursive: true, force: true }) }
   const pass = cases.filter((c) => c.ok).length
   return { cases, pass, fail: cases.length - pass }

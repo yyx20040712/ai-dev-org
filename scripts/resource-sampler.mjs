@@ -652,13 +652,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const env = { ...process.env }; delete env.ORG_RESOURCE_SAMPLER_DEPTH
 const child = spawn(process.execPath, [selfPath, '--cmdfile', cmdFile, '--out', outFile, '--interval-ms', '100', '--max-dirs', '100'], { stdio: 'ignore', env })
 let positive = false
-const d1 = Date.now() + 20000
-while (Date.now() < d1 && child.exitCode === null && !positive) {
-  await sleep(50)
-  if (spawnSync('pgrep', ['-f', ${JSON.stringify(B1_PATTERN)}], { encoding: 'utf8' }).status === 0) positive = true
+try {
+  const d1 = Date.now() + 20000
+  while (Date.now() < d1 && child.exitCode === null && !positive) {
+    await sleep(50)
+    if (spawnSync('pgrep', ['-f', ${JSON.stringify(B1_PATTERN)}], { encoding: 'utf8' }).status === 0) positive = true
+  }
+  const d2 = Date.now() + 30000
+  while (child.exitCode === null && Date.now() < d2) await sleep(50)
+} finally {
+  // r6（ds-N-3）：兜底收割——helper 任何路径退出前对未退出的 sampler 整组 SIGKILL（幂等·不留后台进程）
+  if (child.exitCode === null && child.pid) {
+    try { process.kill(-child.pid, 'SIGKILL') } catch { /* 组已消亡·幂等 */ }
+    try { child.kill('SIGKILL') } catch { /* 已退出·幂等 */ }
+    await sleep(150)
+  }
 }
-const d2 = Date.now() + 30000
-while (child.exitCode === null && Date.now() < d2) await sleep(50)
 const stray = spawnSync('pgrep', ['-f', ${JSON.stringify(B1_PATTERN)}], { encoding: 'utf8' })
 let seen = false
 try { seen = readFileSync(outFile, 'utf8').split('\\n').filter(Boolean).map((l) => JSON.parse(l)).some((r) => r.processes >= 2) } catch { seen = false }
@@ -952,7 +961,7 @@ console.log(JSON.stringify({ status: child.exitCode, signal: child.signalCode, p
     try { symlinkSync(victim, outToVictim) } catch { /* 已存在 */ }
     const rOutSym = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', outToVictim])
     const victimOk = safe(() => readFileSync(victim, 'utf8') === 'VICTIM-ORIGINAL')
-    add('B-2 --out 末级 symlink 指向真实文件：装载期末级 symlink realpath 复核拒绝（先于预开·[装载错] exit 3·非 EEXIST/ELOOP 预开面）且目标文件原样未被写',
+    add('B-2 --out 末级 symlink 指向真实文件：预开 O_NOFOLLOW|O_EXCL 拒绝（EEXIST/ELOOP 面·tmp 域内目标 realpath 放行·r6 改回预开面表述）→ exit 3 且目标文件原样未被写',
       rOutSym.status === 3 && rOutSym.stderr.includes('[装载错]') && victimOk, `status=${rOutSym.status} err=${rOutSym.stderr.slice(0, 140)} victim=${victimOk}`)
     // B-2 --out 域外（中间 symlink realpath 落仓根）两仓根各一（R3-N8 补技能仓根面）
     const outLinkA = join(tmp, 'out-link-into-repo')

@@ -136,7 +136,7 @@ function main() {
   if (!flags.repoAccess) {
     lines.forEach((ln, idx) => {
       const cats = scanLine(ln)
-      if (cats.length) violations.push({ line: idx + 1, cats, text: ln.trim().slice(0, 80) })
+      if (cats.length) violations.push({ line: idx + 1, cats, text: ln.trim() }) // r6：存全行·掩蔽后再截断（ds-W-2 长行前缀泄漏修复）
     })
   }
 
@@ -195,9 +195,10 @@ function main() {
   const code = (overLimit || violations.length || routeCheck === 'FAIL' || redactHits > 0) ? 1 : 0
   if (overLimit) console.error(`[FAIL] 计量超限：tokens=${tokens} > limit ${limit}（bytes=${bytes}）——阻断派发，须瘦身重包`)
   for (const v of violations) {
-    // r5 组合态闭合：--redact 命中态下越权回显片段中的命中原文一律掩蔽（同输出零原文）
+    // r5 组合态闭合＋r6 次序修正：--redact 命中态下先对全行掩蔽命中原文、再截断回显（同输出零原文零部分前缀）
     let vText = v.text
     if (flags.redact) for (const frag of redactFrags) if (vText.includes(frag)) vText = vText.split(frag).join('[REDACTED]')
+    if (vText.length > 80) vText = vText.slice(0, 80)
     console.error(`[越权] 第 ${v.line} 行 类别=${v.cats.join('/')} 片段=${JSON.stringify(vText)}`)
   }
   for (const msg of routeReasons) console.error(`[FAIL] ${msg}`)
@@ -441,6 +442,15 @@ function selfTest() {
     t('向量38 redact×越权组合掩蔽（r5）：命中态下全输出无任何命中片段原文（[越权] 回显掩蔽/省略）＋exit 1＋redact_hits=1＋越权类别与脱敏类别仍可观测',
       cb1.status === 1 && sumOf(cb1).includes('redact=true redact_hits=1') && !cb1Out.includes('ComboSecretValue77')
         && cb1Out.includes('repo-root') && cb1Out.includes('key-assign'), `${cb1.status} ${cb1Out.slice(-260)}`)
+    // ── W5b r6 增补（长行掩蔽次序·恰 1 向量·38→39）──
+    const longPrefix = 'owner: /home/yyx/work/aidevorg ' + 'p'.repeat(39)
+    const longPack = write('combo-long.md', '# 审包组合长行\n\n' + longPrefix + 'api_key=LongLineSecretValue42 及尾注。\n')
+    const cb2 = runPack(['--pack', longPack, '--redact'])
+    codes.add(cb2.status)
+    const cb2Out = outOf(cb2)
+    t('向量39 长行掩蔽次序（r6·ds-W-2）：命中片段跨越截断界时先掩蔽后截断——全输出无片段原文且无部分前缀（api_key=Lo 跨界部分与 LongLineSecret 族零出现）＋exit 1＋redact_hits=1',
+      cb2.status === 1 && sumOf(cb2).includes('redact=true redact_hits=1') && !cb2Out.includes('api_key=Lo') && !cb2Out.includes('LongLineSecret')
+        && cb2Out.includes('repo-root'), `${cb2.status} ${cb2Out.slice(-260)}`)
 
     // 向量23：退出码域——全部实测退出码 ∈ {0,1,3}（禁复用 2）
     t('向量23 退出码域：全部自检运行退出码恰为 0/1/3 集合（无 2 或其他值）',
