@@ -25,15 +25,47 @@ const WRITE_PATTERNS = [
   ['mkdir', /\bmkdir\b/], ['cp', /\bcp\b/],
 ]
 
-/** 写入形态判定：命中返回片段名，否则 null（仅 2>/dev/null 重定向放行）。 */
+/** 写入形态判定（W5b D-4·引号域二分）：先 WRITE_PATTERNS 词面命中；重定向面改为引号域二分——
+ *  ①引号串内整体等长掩蔽（偏移不变），其中 >/>>/>=/->/=>/2>&1 一律不命中；
+ *  ②引号外 >/>> 一律命中（fail-closed），唯一豁免＝fd 复制严格形态 [0-9]*>&[0-9]+／>&[0-9]+
+ *  且数字串后仅空白或行尾（其余任何字符——.／/／=／-／字母——不豁免·命中；2>&1x/2>&1.x 均命中）。
+ *  既有 2>/dev/null 放行面保留（既有向量零删·掩蔽后在引号外域剥离，引号内形态不受影响）。
+ *  残余登记＝引号外零残余窗口（该域纯 fail-closed）；唯一已知误伤面＝引号外确有比较语义而
+ *  无引号包裹的写法（解法＝置于引号串内），登记为使用约束而非检测缺口。 */
 export function writeHit(cmd) {
   const s = String(cmd ?? '')
   for (const [name, re] of WRITE_PATTERNS) if (re.test(s)) return name
-  if (s.replace(/2>\/dev\/null/g, '').includes('>')) return '>'
+  // 引号域等长掩蔽：单/双引号段整体置空白（偏移不变），引号界定符本身亦置空白
+  let masked = ''
+  let inS = false, inD = false
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (inS) { masked += ' '; if (c === "'") inS = false; continue }
+    if (inD) { masked += ' '; if (c === '"') inD = false; continue }
+    if (c === "'") { inS = true; masked += ' '; continue }
+    if (c === '"') { inD = true; masked += ' '; continue }
+    masked += c
+  }
+  const stripped = masked.replace(/2>\/dev\/null/g, '           ') // 等长置换保偏移（引号外域放行面·既有向量零删）
+  for (let i = 0; i < stripped.length; i++) {
+    if (stripped[i] !== '>') continue
+    // fd 复制豁免：>&[0-9]+ 且数字串后仅空白/行尾，且 > 前数字串（可有可无）落于 token 边界
+    if (stripped[i + 1] === '&') {
+      let k = i + 2
+      while (k < stripped.length && stripped[k] >= '0' && stripped[k] <= '9') k++
+      if (k > i + 2 && (k === stripped.length || /\s/.test(stripped[k]))) {
+        let b = i
+        while (b > 0 && stripped[b - 1] >= '0' && stripped[b - 1] <= '9') b--
+        if (b === 0 || /\s/.test(stripped[b - 1])) { i = k - 1; continue } // 豁免：跳过该 fd 复制段续扫
+      }
+    }
+    return '>'
+  }
   return null
 }
 
-/** §4 F 条目解析（全角竖线分隔五字段；字段不足忽略；围栏块内行跳过）。 */
+/** §4 F 条目解析（全角竖线分隔五字段；字段不足忽略；围栏块内行跳过；W5b D-4：id 正则接受
+ *  F-31b~e 子字母形态 ^F-\d{2}[a-z]?，record/verify 的 facts Map 与交叉核对自动接受子字母 id）。 */
 export function parseFacts(text) {
   const out = []; let fence = null
   const lines = String(text ?? '').split('\n')
@@ -42,7 +74,7 @@ export function parseFacts(text) {
     if (fm) { fence = fence ? null : fm[1]; continue }
     if (fence) continue
     const ln = lines[i].trim()
-    if (!/^F-\d{2}\s*｜/.test(ln)) continue
+    if (!/^F-\d{2}[a-z]?\s*｜/.test(ln)) continue
     const p = ln.split('｜').map((s) => s.trim())
     if (p.length < 5) continue
     out.push({ id: p[0], label: p[1], cmd: p[2].replace(/^`+|`+$/g, '').trim(), declared: p[3], date: p[4], line: i + 1 })
@@ -265,6 +297,34 @@ function selfTest() {
       rmSync(o13 + '.alt2')
       return ok
     })())
+    // ── W5b D-4 引号域二分＋fd 复制豁免＋子字母 id（恰 10 向量·30→40）──
+    add('D4① 引号串内四形态放行（等长掩蔽）：len(a)>=926／\'a -> b\'／"k => v"／"cmd 2>&1" 均返回 null', (() => {
+      return writeHit('node -e "if (len(a)>=926) 1"') === null && writeHit("printf 'a -> b'") === null
+        && writeHit('echo "k => v"') === null && writeHit('run "cmd 2>&1"') === null
+    })(), JSON.stringify([writeHit('node -e "if (len(a)>=926) 1"'), writeHit("printf 'a -> b'"), writeHit('echo "k => v"'), writeHit('run "cmd 2>&1"')]))
+    add('D4② 引号外 fd 复制豁免正向边界（数字串后仅空白/行尾）：cmd 2>&1 与 cmd >&1 均返回 null',
+      writeHit('cmd 2>&1') === null && writeHit('cmd >&1') === null, JSON.stringify([writeHit('cmd 2>&1'), writeHit('cmd >&1')]))
+    add('D4③ 引号外 fn a -> b 命中（无豁免·fail-closed）', writeHit('fn a -> b') !== null, String(writeHit('fn a -> b')))
+    add('D4④ 引号外 printf pwn => c 命中（=> 非豁免形态）', writeHit('printf pwn => c') !== null, String(writeHit('printf pwn => c')))
+    add('D4⑤ 引号外 printf pwn >= 3 命中（>= 非豁免形态）', writeHit('printf pwn >= 3') !== null, String(writeHit('printf pwn >= 3')))
+    add('D4⑥ 引号外 2>&1x 命中（数字后接字母·不豁免）', writeHit('2>&1x') !== null, String(writeHit('2>&1x')))
+    add('D4⑦ 引号外 2>&1.x 命中（数字后接标点·标点后缀不豁免）', writeHit('2>&1.x') !== null, String(writeHit('2>&1.x')))
+    add('D4⑧ 引号外 >&/tmp/x 命中＋六负例全量循环命中数=6（引号外零残余窗口·漏一即红）', (() => {
+      const negs = ['fn a -> b', 'printf pwn => c', 'printf pwn >= 3', '2>&1x', '2>&1.x', '>&/tmp/x']
+      const hits = negs.filter((n) => writeHit(n) !== null)
+      return writeHit('>&/tmp/x') !== null && hits.length === 6
+    })(), JSON.stringify(['fn a -> b', 'printf pwn => c', 'printf pwn >= 3', '2>&1x', '2>&1.x', '>&/tmp/x'].map((n) => writeHit(n))))
+    add('D4⑨ parseFacts 子字母 id 拾取：F-31b 入列且与 F-31 同簿互异', (() => {
+      const two = parseFacts([line('F-31', '主条', "printf 'a\\n' | grep -c a", '1'), line('F-31b', '子条', "printf 'b\\n' | grep -c b", '1')].join('\n'))
+      return two.length === 2 && two[0].id === 'F-31' && two[1].id === 'F-31b'
+    })(), '')
+    add('D4⑩ 子字母 record+verify 往返：F-31b record 落盘 id 一致且 verify 全一致 exit 0', (() => {
+      const tbS = join(tmp, 'tb-sub.md'), evS = join(tmp, 'ev-sub.json')
+      writeFileSync(tbS, line('F-31b', '子字母往返', "printf 'q\\n' | grep -c q", '1'), 'utf8')
+      const rec = recordTaskbook(tbS, evS, tmp)
+      if (rec.code !== 0 || !rec.doc || !rec.doc.entries[0] || rec.doc.entries[0].id !== 'F-31b') return false
+      return verifyTaskbook(tbS, evS).code === 0
+    })(), '')
   } finally { rmSync(tmp, { recursive: true, force: true }) }
   const pass = cases.filter((c) => c.ok).length
   return { cases, pass, fail: cases.length - pass }
