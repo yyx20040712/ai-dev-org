@@ -24,8 +24,11 @@
  *       双闸探针＋hardcode 负例＋b3 影子对照）；
  *   R17'=α/β 门禁自检（W5a 批：spawn <project>/scripts/check-commit-msg.mjs --self-test
  *       与 <project>/scripts/verify-docs.mjs --self-test——α 全过标记＋β 0/1/3/spawn
- *       失败四类具名 PASS；仅在 --project <主仓> 语境成立，缺省 cwd=技能仓必 FAIL）。
- * 现役项=R4/R7/R8/R10/R12/R13/R14/R15/R16/R17 十项（W5a 补 R12/R16/R17 头注随动）。
+ *       失败四类具名 PASS；仅在 --project <主仓> 语境成立，缺省 cwd=技能仓必 FAIL）；
+ *   R18'=resource-sampler 自检接入（W5b 批：spawn resource-sampler.mjs --self-test 断言
+ *       exit 0＋汇总形态 `self-test 汇总：过 X/skip Y/全 Z` 且 X+Y=Z、total>=70——skip
+ *       不计 pass 的报告保真面）。
+ * 现役项=R4/R7/R8/R10/R12/R13/R14/R15/R16/R17/R18 十一项（W5a 补 R12/R16/R17 头注随动；W5b 补 R18）。
  * 用法：node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <账本目录>]
  *       [--ledger <账本路径>] [--keep-tmp]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
@@ -58,7 +61,7 @@ try {
   throw e
 }
 const keepTmp = argv.includes('--keep-tmp')
-const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16', 'R17'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批；R17=W5a α/β 门禁自检）
+const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16', 'R17', 'R18'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批；R17=W5a α/β 门禁自检；R18=W5b sampler 接入）
 if (only && only.some((id) => !KNOWN_ITEMS.includes(id))) {
   console.error(`[用法错] 未知回归项：${only.filter((id) => !KNOWN_ITEMS.includes(id)).join(',')}（现役项=${KNOWN_ITEMS.join('/')}——派发器族项已随 2026-10-03 清理批次删除，详见 git 历史）`)
   process.exit(1)
@@ -458,7 +461,7 @@ if (want('R12')) {
 // ═══ L22 R13：门禁前移回归面（check-taskbook T13 词面扫描＋T14 防漏网——四向量；样式照 R12）：
 //     脚本路径变量单点、统一 spawnSync 60s 超时 SIGKILL、tmp 夹具 finally 清理、四项 detail 一次
 //     record；不依赖账本、不写 golden、不改真实任务书、不调外部服务。四子项 PASS 判据（L22 §5.4）：
-//     ①自检子进程 status 0 且 pass=112/fail=0、T13-04 在场且过、词表提取计数 22（不得只凭 stdout「全过」）；
+//     ①自检子进程 status 0 且 pass=114/fail=0、T13-04 在场且过、词表提取计数 22（不得只凭 stdout「全过」）；
 //     ②通过态 strict 扫描 status 0 且 WARN=0/FAIL=0、T13/T14 finding 均 0、F/T12 证据链有效；
 //     ③漏检红态 strict status 1 且至少一条 check=T14 且 level=WARN（不得用无关 finding 凑红）；
 //     ④词表缺失态 status 3 且 stderr 含 [装载错]（无合成词表回退或 status 0）。 ═══
@@ -470,16 +473,16 @@ if (want('R13')) {
   // 主夹具（①-③共用；finally 清理，--keep-tmp 不适用本块——与 R12 同款直接清理）
   const fx = mkdtempSync(join(tmpdir(), 'r13-'))
   try {
-    // ①自检子进程（隔离态）：status 0、pass=112/fail=0、T13-04 在场且过、词表提取计数 22
+    // ①自检子进程（隔离态）：status 0、pass=114/fail=0、T13-04 在场且过、词表提取计数 22
     // （计数经 T13-04 向量名内 BANNED=22 断言承载——隔离态夹具=22 合成 token，见该向量）
     const rSt = r13Run([tbScript, '--self-test', '--json'])
     // --json 输出逐向量断言（不得只凭 stdout「全过」字样判定）
     let st = null
     try { st = JSON.parse(rSt.stdout || '') } catch { st = null }
     const v1304 = (st?.cases || []).find((c) => String(c.name).includes('T13-04'))
-    const stOk = rSt.status === 0 && st?.pass === 112 && st?.fail === 0 && v1304?.ok === true && String(v1304?.name || '').includes('BANNED=22')
+    const stOk = rSt.status === 0 && st?.pass === 114 && st?.fail === 0 && v1304?.ok === true && String(v1304?.name || '').includes('BANNED=22')
     if (!stOk) ok = false
-    det.push(`①自检子进程:${stOk ? '✓(exit=0/pass=112/fail=0/T13-04 过且装载计数 22)' : `✗(exit=${rSt.status} pass=${st?.pass} fail=${st?.fail})`}`)
+    det.push(`①自检子进程:${stOk ? '✓(exit=0/pass=114/fail=0/T13-04 过且装载计数 22)' : `✗(exit=${rSt.status} pass=${st?.pass} fail=${st?.fail})`}`)
     // ②通过态：tmp 写 22 词源夹具（tk01..tk22 形态）＋最小合法任务书＋一条五字段 F 及匹配证据
     // （期望：strict 扫描 status 0、WARN=0/FAIL=0、T13/T14 finding 均 0——零误报钉）
     mkdirSync(join(fx, 'scripts'), { recursive: true })
@@ -720,6 +723,19 @@ if (want('R17')) {
   console.log(`${bOk ? 'PASS' : 'FAIL'} R17-beta β自检:exit=${bOut.r.status}/四类具名整行=${betaMarks.filter(betaLineHit).length}/4`)
   if (!bOk) ok17 = false
   record('R17', ok17, `α/β 门禁自检——α ${aOk ? '✓' : '✗'} β ${bOk ? '✓' : '✗'}${!ok17 ? `（α输出尾：${aOut.out.slice(-120)}｜β输出尾：${bOut.out.slice(-120)}）` : ''}`)
+}
+
+// ═══ W5b R18：resource-sampler 自检接入（spawn resource-sampler.mjs --self-test 断言 exit 0＋
+//     汇总形态 `self-test 汇总：过 X/skip Y/全 Z` 且 X+Y=Z、total>=70——skip 不计 pass 的报告
+//     保真面；统一超时 SIGKILL 看护与 R17 同款 300s——sampler 自检含大量子进程实跑） ═══
+if (want('R18')) {
+  const samplerScript = join(SCRIPTS, 'resource-sampler.mjs') // 本块脚本字串唯一承载点（R12/R13 同款）
+  const r18Run = (args) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 300_000, killSignal: 'SIGKILL', maxBuffer: 64 * 1024 * 1024 })
+  const r = r18Run([samplerScript, '--self-test'])
+  const out = (r.stdout || '') + (r.stderr || '')
+  const m = /self-test 汇总：过 (\d+)\/skip (\d+)\/全 (\d+)/.exec(out)
+  const ok18 = r.status === 0 && m !== null && Number(m[1]) + Number(m[2]) === Number(m[3]) && Number(m[3]) >= 70
+  record('R18', ok18, `sampler 自检:exit=${r.status}/汇总=${m ? `过${m[1]}/skip${m[2]}/全${m[3]}` : '形态不符'}${!ok18 ? `（输出尾：${out.slice(-200)}）` : ''}`)
 }
 
 // ── 应跑项漏载断言（W5a/D-9）：results 的 id 集与应跑集（考虑 --only 过滤）恰等——
