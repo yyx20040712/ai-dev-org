@@ -28,8 +28,9 @@
 //      可观测）；摘要 JSON 独占 sampler stdout。
 // 写面对象同一性（返工轮 4 B1·轮 5 R4-1 措辞收束·轮 6 R5-1/R5-2 硬语义·修模板批 W5b T2 fd 目录
 //   句柄深化）：--out 预开旗标面＝O_NONBLOCK|O_WRONLY|O_CREAT|O_APPEND|O_NOFOLLOW|O_EXCL——
-//   **无 O_TRUNC**（R4-N11 登记处置：O_EXCL 独占新建空文件＋O_APPEND 同 run 追加语义＝完整写面
-//   契约，源码零 O_TRUNC）；O_EXCL 独占创建：任何预存在（含空文件、含硬链接）装载期即拒 3——
+//   预开旗标面无截断旗标（TRUNC 位零出现·R4-N11 登记处置：O_EXCL 独占新建空文件＋O_APPEND
+//   同 run 追加语义＝完整写面契约，源码零截断旗标）；O_EXCL 独占创建：任何预存在（含空文件、
+//   含硬链接）装载期即拒 3——
 //   **装载期 O_EXCL 已拒一切预存在（含硬链接），nlink>1 只在运行期新建链接时可达＝运行期写失败 1**
 //   （R6-N2 措辞修正：与「每次写前 nlink 复核」分层如实，不混写「写面不可用」）；R6-N4：中止 run
 //   会留空/半写 out，重试须先 rm 同一 out 再跑，否则 O_EXCL 拒＝装载错 3。O_NONBLOCK 使 FIFO 换入
@@ -632,21 +633,46 @@ function selfTest() {
     // V-2 子非零：exit 1
     const v2nz = runCase('nonzero', [process.execPath, '-e', 'process.exit(3)'])
     add('V-2 子非零：child_exit=3 → exit 1 无悬挂', v2nz.r.status === 1 && v2nz.s && v2nz.s.child_exit === 3, `status=${v2nz.r.status}`)
-    // B-1/R6-N5 正常退出留孙进程（marker 强化）：孙进程启动即写 marker 文件——向量断言 marker 内容、
-    // JSONL 孙进程在场（逐样本 processes≥2·RN-4）与外部 pgrep 哨兵零残留三面。CLI 以 stdio ignore 运行
-    //（阻断 grandchild 继承 stderr 管道拖住 spawnSync 的时序吞没）
+    // B-1/R6-N5 正常退出留孙进程（marker 强化·r5 活断言）：孙进程启动即写 marker 文件；pgrep pattern
+    // 实际匹配孙进程 cmdline（含连字符 ORPHAN-MARKER-OK——禁恒不匹配形态）；阳性对照＝sampler 运行中
+    // 同 pattern pgrep 命中≥1（哨兵在位证明）；退出后同 pattern 零命中（真收割证明）；向量另断言
+    // marker 内容与 JSONL 孙进程在场（逐样本 processes≥2·RN-4）。活断言轮询须真让出事件循环——
+    // 自检进程为同步体（spawnSync 轮询无法收到 exit 事件），故承载于临时 helper 子进程（真 async/await，
+    // 结论以 JSON 打印·夹具随 tmp 清理），自检 spawnSync 读其结论断言。
     const b1Out = join(tmp, 'samples-orphan.jsonl')
     const b1Marker = join(tmp, 'orphan-marker.txt')
     const b1Cmd = join(tmp, 'cmd-orphan.json')
-    wj(b1Cmd, { argv: ['sh', '-c', `node -e "require('fs').writeFileSync(process.argv[1],'ORPHAN-MARKER-OK');setTimeout(()=>{},5000)" '${b1Marker}' & sleep 0.2; exit 0`], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] }) // R5-4/ds-N3：先起孤儿再等待（sh 与孙同窗可观测）
-    const b1 = spawnSync(process.execPath, [SELF, '--cmdfile', b1Cmd, '--out', b1Out, '--interval-ms', '100'], { encoding: 'utf8', stdio: 'ignore', timeout: 60000, killSignal: 'SIGKILL', env: envClean() })
-    observed.add(b1.status)
-    const b1Stray = spawnSync('pgrep', ['-f', 'ORPHANMARK'], { encoding: 'utf8' })
-    const b1Seen = safe(() => readFileSync(b1Out, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).some((r) => r.processes >= 2))
-    const b1MarkerOk = safe(() => readFileSync(b1Marker, 'utf8') === 'ORPHAN-MARKER-OK')
-    add('B-1/R6-N5 收割完备性·正常退出留孙（marker 强化）：孙进程启动即写 marker 文件且内容断言＝ORPHAN-MARKER-OK；JSONL 先观测孙进程在场（RN-4·逐样本 processes≥2）→ child exit 0 后孙进程被 finally 幂等 SIGKILL 兜底 → exit 0/samples 落盘且外部 pgrep 哨兵零残留',
-      b1.status === 0 && existsSync(b1Out) && b1MarkerOk && b1Seen && b1Stray.status === 1,
-      `status=${b1.status} marker=${b1MarkerOk} seen=${b1Seen} stray=${b1Stray.status} out=${JSON.stringify(b1Stray.stdout).slice(0, 80)}`)
+    const b1Helper = join(tmp, 'b1-live-helper.mjs')
+    const B1_PATTERN = 'ORPHAN-MARKER-OK'
+    wj(b1Cmd, { argv: ['sh', '-c', `node -e "require('fs').writeFileSync(process.argv[1],'${B1_PATTERN}');setTimeout(()=>{},5000)" '${b1Marker}' & sleep 0.2; exit 0`], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] }) // R5-4/ds-N3：先起孤儿再等待（sh 与孙同窗可观测）
+    writeFileSync(b1Helper, `import { spawn, spawnSync } from 'node:child_process'
+import { readFileSync, existsSync } from 'node:fs'
+const [selfPath, cmdFile, outFile, markerFile] = process.argv.slice(2)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+const env = { ...process.env }; delete env.ORG_RESOURCE_SAMPLER_DEPTH
+const child = spawn(process.execPath, [selfPath, '--cmdfile', cmdFile, '--out', outFile, '--interval-ms', '100', '--max-dirs', '100'], { stdio: 'ignore', env })
+let positive = false
+const d1 = Date.now() + 20000
+while (Date.now() < d1 && child.exitCode === null && !positive) {
+  await sleep(50)
+  if (spawnSync('pgrep', ['-f', ${JSON.stringify(B1_PATTERN)}], { encoding: 'utf8' }).status === 0) positive = true
+}
+const d2 = Date.now() + 30000
+while (child.exitCode === null && Date.now() < d2) await sleep(50)
+const stray = spawnSync('pgrep', ['-f', ${JSON.stringify(B1_PATTERN)}], { encoding: 'utf8' })
+let seen = false
+try { seen = readFileSync(outFile, 'utf8').split('\\n').filter(Boolean).map((l) => JSON.parse(l)).some((r) => r.processes >= 2) } catch { seen = false }
+let markerOk = false
+try { markerOk = readFileSync(markerFile, 'utf8') === ${JSON.stringify(B1_PATTERN)} } catch { markerOk = false }
+console.log(JSON.stringify({ status: child.exitCode, signal: child.signalCode, positive, strayZero: stray.status === 1, seen, markerOk, outExists: existsSync(outFile) }))
+`, 'utf8')
+    const b1 = spawnSync(process.execPath, [b1Helper, SELF, b1Cmd, b1Out, b1Marker], { encoding: 'utf8', timeout: 60000, killSignal: 'SIGKILL', env: envClean() })
+    let b1R = null
+    try { b1R = JSON.parse(b1.stdout) } catch { b1R = null }
+    observed.add(b1R ? b1R.status : null)
+    add('B-1/R6-N5 收割完备性·正常退出留孙（r5 活断言）：孙进程启动即写 marker 文件且内容断言＝ORPHAN-MARKER-OK；pgrep pattern 实匹配孙进程 cmdline（含连字符）＋阳性对照（sampler 运行中同 pattern 命中≥1）＋退出后零残留；JSONL 孙进程在场（RN-4·逐样本 processes≥2）→ child exit 0 后孙进程被 finally 幂等 SIGKILL 兜底 → exit 0/samples 落盘',
+      !!b1R && b1R.status === 0 && b1R.signal === null && b1R.markerOk && b1R.seen && b1R.positive && b1R.strayZero && b1R.outExists,
+      `helper=${JSON.stringify(b1R)} err=${String(b1.stderr ?? '').slice(0, 80)}`)
     // W5/yyx R3-5 组全域判别：pattern 绝不匹配子进程 cmdline＋同组多进程 → peak/触限/收割不受 pattern 影响（旧 -f 实现下必红）
     const gw = runCase('groupwide', ['sh', '-c', 'sleep 2 & sleep 2 & wait'], ['--interval-ms', '100', '--max-processes', '1'], null, 'ZZZ-W5B-T3-NOMATCH')
     add('W5/yyx R3-5 组全域判别：pattern 绝不匹配子进程 cmdline＋同组三进程 → 仍 peak=3/触限 max_processes/零残留（旧 -f 实现下必红）',
@@ -926,8 +952,8 @@ function selfTest() {
     try { symlinkSync(victim, outToVictim) } catch { /* 已存在 */ }
     const rOutSym = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', outToVictim])
     const victimOk = safe(() => readFileSync(victim, 'utf8') === 'VICTIM-ORIGINAL')
-    add('B-2 --out 末级 symlink 指向真实文件：O_NOFOLLOW 预开失败（ELOOP）→ exit 3 且目标文件原样未被写',
-      rOutSym.status === 3 && victimOk, `status=${rOutSym.status} err=${rOutSym.stderr.slice(0, 140)} victim=${victimOk}`)
+    add('B-2 --out 末级 symlink 指向真实文件：装载期末级 symlink realpath 复核拒绝（先于预开·[装载错] exit 3·非 EEXIST/ELOOP 预开面）且目标文件原样未被写',
+      rOutSym.status === 3 && rOutSym.stderr.includes('[装载错]') && victimOk, `status=${rOutSym.status} err=${rOutSym.stderr.slice(0, 140)} victim=${victimOk}`)
     // B-2 --out 域外（中间 symlink realpath 落仓根）两仓根各一（R3-N8 补技能仓根面）
     const outLinkA = join(tmp, 'out-link-into-repo')
     try { symlinkSync('/home/yyx/work/aidevorg', outLinkA) } catch { /* 已存在 */ }
@@ -989,8 +1015,8 @@ function selfTest() {
       const t2a = runCase('procfd', [process.execPath, '-e', 'process.exit(0)'], ['--max-dirs', '100'])
       add('T2① fd 目录句柄正例：run exit 0 且 summary dirfd_mode=procfd（父目录 dirfd＋procfd 相对预开＋重开清 O_NONBLOCK 全链）',
         t2a.r.status === 0 && t2a.s && t2a.s.dirfd_mode === 'procfd', `status=${t2a.r.status} s=${JSON.stringify(t2a.s).slice(0, 200)}`)
-      // T2③ O_NONBLOCK 位已清（out_fd_flags 观测面）
-      const t2b = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', join(tmp, 'samples-fdflags.jsonl')], { extraEnv: { [PROBE_FDINFO_ENV]: '1' } })
+      // T2③ O_NONBLOCK 位已清（out_fd_flags 观测面·显式放宽 max-dirs：自检沙箱 tmp 直系子目录数超缺省 20）
+      const t2b = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', join(tmp, 'samples-fdflags.jsonl'), '--max-dirs', '100'], { extraEnv: { [PROBE_FDINFO_ENV]: '1' } })
       const t2bS = json(t2b)
       const fl = t2bS && t2bS.out_fd_flags != null ? parseInt(String(t2bS.out_fd_flags), 8) : null
       add('T2③ O_NONBLOCK 位已清：ORG_RESOURCE_SAMPLER_PROBE_FDINFO=1 → summary out_fd_flags 八进制不含 O_NONBLOCK（0o4000）且保留 O_APPEND（0o2000）',
@@ -999,12 +1025,16 @@ function selfTest() {
       const mvDir = join(tmp, 't2-mv'); mkdirSync(mvDir, { recursive: true })
       const mvCmd = join(tmp, 'cmd-t2mv.json')
       wj(mvCmd, { argv: ['sh', '-c', `sleep 0.3; mv '${mvDir}' '${mvDir}.moved'; sleep 1`], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] })
-      const t2c = cli(['--cmdfile', mvCmd, '--out', join(mvDir, 's.jsonl'), '--interval-ms', '100'])
+      const t2c = cli(['--cmdfile', mvCmd, '--out', join(mvDir, 's.jsonl'), '--interval-ms', '100', '--max-dirs', '100'])
       const t2cS = json(t2c)
       const movedOk = safe(() => existsSync(join(`${mvDir}.moved`, 's.jsonl')))
-      add('T2④ 父目录运行期改名：父目录 dirfd 同一性双复核 fail-closed → 运行期写失败 exit 1/零残留/迁出后 out 文件原样',
-        t2c.status === 1 && t2cS && String(t2cS.error ?? '').includes('采样写出失败') && t2cS.residual_processes === 0 && movedOk,
-        `status=${t2c.status} out=${String(t2c.stdout ?? '').slice(0, 200)} moved=${movedOk}`)
+      const movedIntact = safe(() => {
+        const txt = readFileSync(join(`${mvDir}.moved`, 's.jsonl'), 'utf8')
+        return txt.length > 0 && txt.endsWith('\n') && txt.split('\n').filter(Boolean).every((l) => { const o = JSON.parse(l); return typeof o.ts === 'string' && typeof o.dirs === 'number' })
+      })
+      add('T2④ 父目录运行期改名：父目录 dirfd 同一性双复核 fail-closed → 运行期写失败 exit 1/零残留/dirfd_mode=procfd 在场/迁出文件内容原样（JSONL 完整可解析·r5）',
+        t2c.status === 1 && t2cS && String(t2cS.error ?? '').includes('采样写出失败') && t2cS.residual_processes === 0 && t2cS.dirfd_mode === 'procfd' && movedOk && movedIntact,
+        `status=${t2c.status} out=${String(t2c.stdout ?? '').slice(0, 200)} moved=${movedOk} intact=${movedIntact}`)
       // T2⑤ cleanup 经最近存在祖先 dirfd
       const cdDir = join(tmp, 't2-cleanup'); mkdirSync(cdDir, { recursive: true })
       const cf1 = join(cdDir, 'c1.txt'), cf2 = join(cdDir, 'c2.txt')
