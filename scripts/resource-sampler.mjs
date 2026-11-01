@@ -46,6 +46,11 @@
 //   ＝既有路径侧 TOCTOU 窗口 lstat→writeSync 间隙，如实登记），正常环境输出 dirfd_mode=procfd；
 //   ⑦R4-N9 同源并项：运行期写失败=1、写面不可用=3，退出域不扩。procfd 相对 open/lstat/unlink/
 //   递归删除语义已在 Node 24.21.0 装配期实测可行（Linux /proc/self/fd）。
+// N 级登记处置（W5b T3·零逻辑改动对号）：R4-N12 后采顺序＝「后采→终采→reaped/residual 定值」
+//   （finally 块源码顺序复核在位）；R4-N13 dir_prefixes 元素类型由 checkTmpPath 承担（非字符串＝
+//   装载错 3·向量化；原文未随档＝登记处置不虚构）；R4-N14 countDirs 为逐样本快照、跨样本不累积、
+//   peak 取最大值（恒值向量化）；R4-N15 同 out 第二次运行由 O_EXCL 拒＝装载错 3（跨 run 独占·
+//   向量化），pgrep 默认 maxBuffer 超限按 unknown 计并退 1（fail-closed·头注登记·不加向量）。
 // race 纪律（返工轮 4 B2·轮 5 R4-2 实修）：全部 Promise.race 败方定时器 clearTimeout（interval 循环/
 //   close 5s race）；backup 2s 定时器验后即清；摘要落盘后挂 **unref** 的 1s 硬退出定时器兜底——正常
 //   路径事件循环空即自然退出零延迟；悬挂场景（子进程句柄持活循环）定时器照发·任何情况必有退出码。
@@ -1016,6 +1021,27 @@ function selfTest() {
       skip('T2④ 父目录运行期改名 fail-closed（dirfd 同一性双复核）', 'procfd unavailable（/proc/self/fd 缺失）')
       skip('T2⑤ cleanup 经最近存在祖先 dirfd', 'procfd unavailable（/proc/self/fd 缺失）')
     }
+    // ── W5b T3 N 级登记全处置（恰 3 向量）──
+    const n13Cmd = join(tmp, 'cmd-n13.json')
+    wj(n13Cmd, { argv: [process.execPath, '-e', 'process.exit(0)'], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp, 123] })
+    const n13 = cli(['--cmdfile', n13Cmd, '--out', join(tmp, 'samples-n13.jsonl')])
+    add('R4-N13 dir_prefixes 元素非字符串：checkTmpPath 承担类型校验 → 装载错 exit 3（原文未随档·登记处置=零逻辑改动·不虚构）',
+      n13.status === 3 && n13.stderr.includes('[装载错]'), `status=${n13.status} err=${n13.stderr.slice(0, 140)}`)
+    const n14a = join(tmp, 'n14-a'), n14b = join(tmp, 'n14-b')
+    mkdirSync(join(n14a, 'sub-a'), { recursive: true }); mkdirSync(join(n14b, 'sub-b'), { recursive: true })
+    const n14Cmd = join(tmp, 'cmd-n14.json')
+    wj(n14Cmd, { argv: [process.execPath, '-e', 'setTimeout(()=>{},400)'], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [n14a, n14b] })
+    const n14Out = join(tmp, 'samples-n14.jsonl')
+    const n14 = cli(['--cmdfile', n14Cmd, '--out', n14Out, '--interval-ms', '100'])
+    const n14Dirs = safe(() => readFileSync(n14Out, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l).dirs), [])
+    const n14Ok = n14.status === 0 && Array.isArray(n14Dirs) && n14Dirs.length >= 2 && n14Dirs.every((d) => d === 2) && json(n14)?.peak_dirs === 2
+    add('R4-N14 countDirs 逐样本快照：两前缀各一子目录 → 每样本恒 dirs=2、跨样本不累积、peak_dirs=2（peak 取最大值）',
+      n14Ok, `status=${n14.status} dirs=${JSON.stringify(n14Dirs)} peak=${json(n14)?.peak_dirs}`)
+    const n15Out = join(tmp, 'samples-n15.jsonl')
+    const n15First = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', n15Out, '--max-dirs', '100'])
+    const n15Second = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', n15Out, '--max-dirs', '100'])
+    add('R4-N15 同 out 第二次运行：首跑 exit 0 落盘后重跑同 out → O_EXCL 跨 run 独占拒＝装载错 exit 3（重试须先 rm 同一 out·R6-N4）',
+      n15First.status === 0 && n15Second.status === 3 && n15Second.stderr.includes('[装载错]'), `first=${n15First.status} second=${n15Second.status} err=${n15Second.stderr.slice(0, 140)}`)
     // 退出域：全部观测退出码 ∈ {0,1,3}（无 2）
     add('D-1 退出域：全部观测退出码 ∈ {0,1,3}（无 2）', [...observed].every((s) => s === 0 || s === 1 || s === 3), JSON.stringify([...observed].sort((a, b) => a - b)))
   } finally {
