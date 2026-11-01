@@ -228,6 +228,43 @@ export function checkCitations(tokens, reader) {
   return findings
 }
 
+/** W5b D-5（T2c·W-21 畸形 span 显式化）：围栏外物理行 span 完整性——①反引号计数为奇数＝未闭合
+ *  span；②路径型或 :NN 简写的引用候选未完整落在任一 inline span 内＝畸形（原 checker 现行实现
+ *  对该形态静默跳过——本检查将其显式化）；③引用 span 片段为空「」＝畸形。纯函数：只判形态不做
+ *  文件读取（内容核对仍归 T2/T2b，checkCitations 纯函数契约零改动）；主入口在 T2/T2b 后汇总。 */
+export function checkSpanIntegrity(lines, fenced) {
+  const findings = []
+  const fset = fenced instanceof Set ? fenced : new Set(fenced ?? [])
+  const CAND_RE = /([^\s「」`]*):\d+「[^」]*」/g
+  for (let i = 0; i < lines.length; i++) {
+    if (fset.has(i + 1)) continue
+    const ln = String(lines[i] ?? '')
+    // ① 未闭合 span：围栏外物理行反引号计数为奇数（含嵌套残段形态）
+    const bt = (ln.match(/`/g) ?? []).length
+    if (bt % 2 === 1) {
+      findings.push({ level: 'FAIL', check: 'T2c', line: i + 1, message: 'span 未闭合（反引号计数为奇数·畸形 span 不再静默跳过）' })
+    }
+    const spans = []
+    for (const m of ln.matchAll(/`[^`\n]*`/g)) spans.push([m.index, m.index + m[0].length])
+    const inSpan = (a, b) => spans.some(([s, e]) => a >= s && b <= e)
+    for (const m of ln.matchAll(CAND_RE)) {
+      const whole = m[0]
+      const prefix = m[1]
+      const a = m.index, b = m.index + whole.length
+      // ③ 空片段「」＝畸形（无论是否在 span 内）
+      if (whole.endsWith('「」')) {
+        findings.push({ level: 'FAIL', check: 'T2c', line: i + 1, message: '引用 span 片段为空（「」·畸形）' })
+        continue
+      }
+      // ② 路径型或 :NN 简写候选未完整落在任一 inline span 内＝畸形
+      if ((prefix === '' || isPathLikeToken(prefix)) && !inSpan(a, b)) {
+        findings.push({ level: 'FAIL', check: 'T2c', line: i + 1, message: '引用候选未完整落在 inline span 内（畸形 span·原静默跳过面已显式化）' })
+      }
+    }
+  }
+  return findings
+}
+
 /** 白名单章节 A ∩（禁止章节 + 正文「禁止改动：/禁止改：」段）B。
  *  r2 修正（§7.1）：按**行**排除被禁改段覆盖的行（bLines），不做 token 差集。
  *  r4 不变式（§9.2，审核 W2 澄清）：同一路径分别出现在白名单表行（未覆盖）与
@@ -839,6 +876,21 @@ function selfTest(extraRoots = []) {
     // T2b 不命中
     const t2bMiss = checkCitations(extractCitationTokens(['`SKILL.md:2「no such text」`']), reader)
     add('T2b 不命中：片段不在第 2 行判 FAIL', t2bMiss.some((f) => f.check === 'T2b' && f.message.includes('不含引用的原文片段')), JSON.stringify(t2bMiss))
+    // ── W5b D-5 T2c 畸形 span 显式化（恰 2 向量·112→114）──
+    add('T2c 未闭合/嵌套反引号行判 FAIL：围栏外物理行反引号计数为奇数→T2c FAIL（畸形 span 不再静默跳过）', (() => {
+      if (typeof checkSpanIntegrity !== 'function') return false
+      const f1 = checkSpanIntegrity(['行 `a` 与 `b 未闭合收尾'], new Set())
+      const f2 = checkSpanIntegrity(['`docs/note.md:2「line two」` 与 `尾残'], new Set())
+      return f1.some((x) => x.check === 'T2c' && x.level === 'FAIL' && x.message.includes('未闭合'))
+        && f2.some((x) => x.check === 'T2c' && x.level === 'FAIL')
+    })(), '')
+    add('T2c 引用候选未完整成 span／空片段判 FAIL：路径型候选裸露 span 外→FAIL；引用 span 片段为空「」→FAIL', (() => {
+      if (typeof checkSpanIntegrity !== 'function') return false
+      const f1 = checkSpanIntegrity(['见 docs/note.md:2「line two」无 span 包裹'], new Set())
+      const f2 = checkSpanIntegrity(['`docs/note.md:2「」` 空片段'], new Set())
+      return f1.some((x) => x.check === 'T2c' && x.level === 'FAIL' && x.message.includes('span'))
+        && f2.some((x) => x.check === 'T2c' && x.level === 'FAIL' && x.message.includes('空'))
+    })(), '')
     // ── W-17 D-2a 简写锚：同物理行按 span 顺序继承最近显式路径（恰 1 向量·三子断言） ──
     add('W-17 D-2a 简写锚：同线裸 `:NN「frag」` 继承最近显式路径生成 quote token——同线正确 0 finding＋错误片段 T2b＋双显式路径取最近路径而非恒取首路径',
       (() => {
@@ -1376,6 +1428,8 @@ function main() {
   }
   // T2 / T2b
   findings.push(...checkCitations(extractCitationTokens(parsed.lines), reader))
+  // T2c（W5b D-5）：畸形 span 显式化——未闭合/候选未成 span/空片段（围栏外），在 T2/T2b 后汇总
+  findings.push(...checkSpanIntegrity(parsed.lines, fenced))
   // T3
   findings.push(...checkWhitelistConflict(parsed))
   // T4
