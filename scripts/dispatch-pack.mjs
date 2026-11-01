@@ -53,7 +53,9 @@ const ROUTE_LINE_RE = /^\s*ROUTE\s*:/i
 const FACE_LIMITS = { full: TOKEN_LIMIT, 'repo-access': 4096 }
 /** 诊断脱敏（W5b D-7·--redact opt-in）三类可证词法：uuid 8-4-4-4-12 十六进制／Bearer＋长度 ≥24 令牌／
  *  键名含 token|key|secret（大小写不敏感）的赋值（值 ≥8 字符）。哈希输入=命中片段去首尾空白后的
- *  UTF-8 字节，取 sha256 十六进制前 8 位。输出只含类别/行号/sha8，禁回显原文。 */
+ *  UTF-8 字节，取 sha256 十六进制前 8 位。输出只含类别/行号/sha8，禁回显原文；命中态下越权片段
+ *  回显同样掩蔽（r5·组合态闭合——同输出内不得出现任何命中片段原文）。词法残余登记（r5·本批不扩）：
+ *  bearer 大小写敏感、引号包裹值、冒号形 token: value 为规格内已知漏检形态。 */
 const REDACT_RES = [
   ['uuid-binding', /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g],
   ['bearer', /Bearer[ \t]+[A-Za-z0-9._~+/=-]{24,}/g],
@@ -141,12 +143,15 @@ function main() {
   // 诊断脱敏（W5b D-7·--redact opt-in）：逐行三类词法命中，逐条只给类别/行号/sha8，禁回显原文；
   // 命中→exit 1（fail-closed）；零命中→exit 0；无 --redact 时摘要不含任何 redact 字段。
   let redactHits = 0
+  const redactFrags = []
   if (flags.redact) {
     lines.forEach((ln, idx) => {
       for (const [cat, re] of REDACT_RES) {
         for (const m of String(ln).matchAll(re)) {
-          const sha8 = createHash('sha256').update(String(m[0]).trim(), 'utf8').digest('hex').slice(0, 8)
+          const frag = String(m[0])
+          const sha8 = createHash('sha256').update(frag.trim(), 'utf8').digest('hex').slice(0, 8)
           console.error(`[redact] 类别=${cat} 行=${idx + 1} sha8=${sha8}`)
+          redactFrags.push(frag)
           redactHits++
         }
       }
@@ -189,7 +194,12 @@ function main() {
 
   const code = (overLimit || violations.length || routeCheck === 'FAIL' || redactHits > 0) ? 1 : 0
   if (overLimit) console.error(`[FAIL] 计量超限：tokens=${tokens} > limit ${limit}（bytes=${bytes}）——阻断派发，须瘦身重包`)
-  for (const v of violations) console.error(`[越权] 第 ${v.line} 行 类别=${v.cats.join('/')} 片段=${JSON.stringify(v.text)}`)
+  for (const v of violations) {
+    // r5 组合态闭合：--redact 命中态下越权回显片段中的命中原文一律掩蔽（同输出零原文）
+    let vText = v.text
+    if (flags.redact) for (const frag of redactFrags) if (vText.includes(frag)) vText = vText.split(frag).join('[REDACTED]')
+    console.error(`[越权] 第 ${v.line} 行 类别=${v.cats.join('/')} 片段=${JSON.stringify(vText)}`)
+  }
   for (const msg of routeReasons) console.error(`[FAIL] ${msg}`)
   printSummary(flags, bytes, tokens, routeCheck, redactHits)
   console.log(`dispatch-pack 判定：${code === 0 ? 'PASS' : 'FAIL'}`)
@@ -423,6 +433,14 @@ function selfTest() {
       const rdLine = rd1Out.split('\n').find((l) => l.includes('key-assign')) ?? ''
       return rdLine.includes('sha8=' + sha8) && !sumOf(r1).includes('face=') && !sumOf(r1).includes('redact')
     })(), `rdLine=${rd1Out.split('\n').find((l) => l.includes('key-assign')) ?? ''} sha8want=${createHash('sha256').update('secret_key=SuperSecretValue123', 'utf8').digest('hex').slice(0, 8)}`)
+    // ── W5b r5 增补（D-7 组合态闭合·恰 1 向量·37→38）──
+    const comboPack = write('combo.md', '# 审包组合\n\nowner: /home/yyx/work/aidevorg 且 secret_key=ComboSecretValue77 在案\n')
+    const cb1 = runPack(['--pack', comboPack, '--redact'])
+    codes.add(cb1.status)
+    const cb1Out = outOf(cb1)
+    t('向量38 redact×越权组合掩蔽（r5）：命中态下全输出无任何命中片段原文（[越权] 回显掩蔽/省略）＋exit 1＋redact_hits=1＋越权类别与脱敏类别仍可观测',
+      cb1.status === 1 && sumOf(cb1).includes('redact=true redact_hits=1') && !cb1Out.includes('ComboSecretValue77')
+        && cb1Out.includes('repo-root') && cb1Out.includes('key-assign'), `${cb1.status} ${cb1Out.slice(-260)}`)
 
     // 向量23：退出码域——全部实测退出码 ∈ {0,1,3}（禁复用 2）
     t('向量23 退出码域：全部自检运行退出码恰为 0/1/3 集合（无 2 或其他值）',
