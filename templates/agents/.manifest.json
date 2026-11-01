@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-10-29",
+  "generatedAt": "2026-11-01",
   "files": {
     "ops-adjudicator-699-max.md": "082055f748efda62d533fc4b14ad50ddee60ed8e59037f7901abe733e0319009",
     "ops-adjudicator-ds-max.md": "bca9c58dfc78ca8d8efaa3f95d10cadba2efdc0145b7e56988af3223d7953776",
@@ -10,6 +10,8 @@
     "ops-adjudicator-yyx-max.md": "54fabb9c7708129d54872fd77384ad8cd5b2c1e2aca8803b2a47cf86fddf7817",
     "ops-adjudicator-zipoo-max.md": "c97e35d879e8738ad150b125e3c896ac4f7830a287745c15d97b9bed17f5be90",
     "ops-assembler-699-max.md": "14faf39b9d8d21b771d44fcda88a49e72f5913169b8b10bd495f114a86fcbaa7",
+    "ops-assembler-ds-max.md": "5b4bde7242433c024bc750be2c04d5b8ff6a9110948992d2798843dafce79b4a",
+    "ops-assembler-glmflash-max.md": "411b9ca30ad80cab55c0de331923c54ef410aa05dc10e742717f197292af2efe",
     "ops-assembler-yyx-max.md": "b42e8565cf85b2cdea6c4afeffd870358b5a426fb8f8f4aa6dee45333893f2c7",
     "ops-assembler-zipoo-max.md": "3126b51a183a4109d986d773d8ccf6b09056c154865abb4a0d94c6a2aa7c2989",
     "ops-executor-699-high.md": "b5841e26fbf45a6908a5e8093b472419096bb8868044be7457519f41fd583317",

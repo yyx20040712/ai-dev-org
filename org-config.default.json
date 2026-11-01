@@ -273,6 +273,16 @@
       "model": "k3.1-pro",
       "level": "max"
     },
+    "ops-assembler-glmflash-max": {
+      "provider": "glmflash",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-assembler-ds-max": {
+      "provider": "ds",
+      "model": "deepseek-flash",
+      "level": "max"
+    },
     "ops-executor-startplan-high": {
       "provider": "startplan",
       "model": "GLM-5.3-Flash",
@@ -503,7 +513,9 @@
     "assembler": [
       "ops-assembler-699-max",
       "ops-assembler-yyx-max",
-      "ops-assembler-zipoo-max"
+      "ops-assembler-zipoo-max",
+      "ops-assembler-glmflash-max",
+      "ops-assembler-ds-max"
     ],
     "executor": [
       "ops-executor-startplan-high",
