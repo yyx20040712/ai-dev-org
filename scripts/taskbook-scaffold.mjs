@@ -122,6 +122,26 @@ export function lintOnly(text) {
   // S4 待填位可见
   const ph = lines.filter((l) => l.includes('{{')).length
   if (ph === 0) findings.push({ check: 'S4', line: 0, message: '待填位不可见（无 {{…}} 占位）' })
+  // S5（W5b D-6·W-2 锚片段规约代码化）：①反引号计数奇数=未闭合 span；②路径型或 :NN 简写
+  // 引用候选未完整落在任一 inline span 内；③引用 span 片段为空「」——三类 finding 文案逐字
+  // 含规约字面「锚片段禁含内层反引号；整行含反引号时改取净子段」。合法生成物 0 findings。
+  const S5_NOTE = '锚片段禁含内层反引号；整行含反引号时改取净子段'
+  const S5_PATH_LIKE = (v) => typeof v === 'string' && v.length > 0 && !/\s/.test(v) && !/[<>{}*…]/.test(v) && /\.(md|mjs|js|json|jsonl|txt|py|sh|yml|yaml|snippet)$/i.test(v)
+  const S5_CAND_RE = /([^\s「」`]*):\d+「[^」]*」/g
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i]
+    const bt = (ln.match(/`/g) ?? []).length
+    if (bt % 2 === 1) findings.push({ check: 'S5', line: i + 1, message: `未闭合 span（反引号计数为奇数；${S5_NOTE}）` })
+    const spans = []
+    for (const m of ln.matchAll(/`[^`\n]*`/g)) spans.push([m.index, m.index + m[0].length])
+    const inSpan = (a, b) => spans.some(([s, e]) => a >= s && b <= e)
+    for (const m of ln.matchAll(S5_CAND_RE)) {
+      const whole = m[0], prefix = m[1]
+      const a = m.index, b = m.index + whole.length
+      if (whole.endsWith('「」')) { findings.push({ check: 'S5', line: i + 1, message: `引用 span 片段为空（${S5_NOTE}）` }); continue }
+      if ((prefix === '' || S5_PATH_LIKE(prefix)) && !inSpan(a, b)) findings.push({ check: 'S5', line: i + 1, message: `引用候选未完整落在 inline span 内（${S5_NOTE}）` })
+    }
+  }
   return { findings, placeholderLines: ph, type: rawTypeHeads.length === 1 ? typeOfHeading(rawTypeHeads[0].title) : null, sevenTotal: SEVEN.length }
 }
 
@@ -226,6 +246,17 @@ function selfTest() {
     add('N-7 占位计数逐型记录（口径=含 {{ 的物理行数）：impl 与其余四型分开且全部 >0',
       phByType.impl > 0 && TYPES.slice(1).every((t) => phByType[t] > 0),
       JSON.stringify({ impl: phByType.impl, others: { docsInst: phByType['docs-inst'], data: phByType.data, routeDesign: phByType['route-design'], close: phByType.close } }))
+    // ── W5b D-6 S5 锚片段规约代码化（恰 2 向量·25→27）──
+    add('W5b D-6 S5 检查：未闭合 span／引用候选外露／空片段夹具各给 S5 finding 且文案含「锚片段禁含内层反引号；整行含反引号时改取净子段」', (() => {
+      const bad = ['普通行', '未闭合 `a 与 `b` 尾', '见 docs/note.md:2「x」外露无 span', '空片段 `docs/note.md:2「」` 尾'].join('\n')
+      const fs5 = lintOnly(bad).findings.filter((f) => f.check === 'S5')
+      return fs5.length >= 3 && fs5.every((f) => f.message.includes('锚片段禁含内层反引号；整行含反引号时改取净子段'))
+    })(), JSON.stringify(lintOnly(['未闭合 `a 与 `b` 尾', '见 docs/note.md:2「x」外露无 span', '空片段 `docs/note.md:2「」` 尾'].join('\n')).findings))
+    add('W5b D-6 S5 不误伤：合法生成物与 --templates 有效副本生成物均 0 条 S5 finding', (() => {
+      const d1 = lintOnly(generateTaskbook('impl')).findings.filter((f) => f.check === 'S5')
+      const d2 = lintOnly(generateTaskbook('close', tplCopy)).findings.filter((f) => f.check === 'S5')
+      return d1.length === 0 && d2.length === 0
+    })(), JSON.stringify({ impl: lintOnly(generateTaskbook('impl')).findings.filter((f) => f.check === 'S5').length, close: lintOnly(generateTaskbook('close', tplCopy)).findings.filter((f) => f.check === 'S5').length }))
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
