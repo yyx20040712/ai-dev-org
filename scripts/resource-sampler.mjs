@@ -377,6 +377,14 @@ function usage() {
   console.error('      node scripts/resource-sampler.mjs --self-test')
 }
 
+/** 自检汇总纯函数（W5b T1·R6-N1 skip 报告保真）：skip 不计 pass——过 X/skip Y/全 Z（Z=总向量数，
+ *  全绿时 X+Y=Z；存在 fail 时 X+Y<Z 且退出码 1）。 */
+export function summarizeSelfTest(cases) {
+  const pass = cases.filter((c) => !c.skipped && c.ok).length
+  const skip = cases.filter((c) => c.skipped).length
+  return { total: cases.length, pass, skip, fail: cases.length - pass - skip }
+}
+
 const LIMIT_KEYS = ['intervalMs', 'timeoutMs', 'maxIterations', 'maxProcesses', 'maxDirs']
 const VALUED_FLAGS = { '--cmdfile': 'cmdfile', '--out': 'out', '--registry': 'registry', '--interval-ms': 'intervalMs', '--timeout-ms': 'timeoutMs', '--max-iterations': 'maxIterations', '--max-processes': 'maxProcesses', '--max-dirs': 'maxDirs' }
 
@@ -391,10 +399,12 @@ function main() {
   if (args.cleanup && args.registry === null) { usage(); process.exit(1) }
   if (!args.cleanup && !args.selfTest && (args.cmdfile === null || args.out === null)) { usage(); process.exit(1) }
   if (args.selfTest) {
-    const { cases, pass, fail } = selfTest()
-    for (const c of cases) if (!c.ok) console.log(`[self-test] FAIL ${c.name}${c.detail ? `（${c.detail}）` : ''}`)
-    if (fail === 0) console.log(`self-test 全过（${cases.length} 向量）`)
-    else console.log(`[self-test] FAIL ×${fail}`)
+    // W5b T1（R6-N1 skip 报告保真）：结果形态 {cases,pass,skip,fail}；skip 逐条打印原因；
+    // 汇总固定为「过 X/skip Y/全 Z」，禁再出现「self-test 全过」（skip 不计 pass·不虚报覆盖）
+    const { cases, pass, skip, fail } = selfTest()
+    for (const c of cases) if (c.skipped) console.log(`[self-test] SKIP ${c.name}（${c.detail}）`)
+    for (const c of cases) if (!c.ok && !c.skipped) console.log(`[self-test] FAIL ${c.name}${c.detail ? `（${c.detail}）` : ''}`)
+    console.log(`self-test 汇总：过 ${pass}/skip ${skip}/全 ${cases.length}`)
     process.exitCode = fail === 0 ? 0 : 1 // RN-12：自然退出防管道截断
     return
   }
@@ -426,11 +436,13 @@ function main() {
     .catch((e) => { console.error(`[${e instanceof SamplerLoadError ? '装载错' : '运行错'}] ${e.message}`); process.exitCode = e instanceof SamplerLoadError ? 3 : 1 })
 }
 
-// ── 自检（≥16 向量·返工轮 6 终修面覆盖 B1 路径侧绑定核验/B2 race 纪律/B3 如实更正/W4/W5/N 项；
+// ── 自检（W5b T1 形态：{cases,pass,skip,fail}·skip 不计 pass；覆盖 B1 路径侧绑定核验/B2 race 纪律/
+//    B3 如实更正/W4/W5/N 项＋W5b T1 报告保真/T2 fd 目录句柄/T3 N 级登记；
 //    夹具落 os.tmpdir() 前缀 w5b-t3-resource-sampler-selftest-*，随验清理） ──
 function selfTest() {
   const cases = []
   const add = (name, ok, detail = '') => cases.push({ name, ok: !!ok, detail })
+  const skip = (name, reason) => cases.push({ name, ok: true, skipped: true, detail: reason }) // W5b T1：skip 助手（不计 pass·逐条带原因）
   const observed = new Set()
   const tmp = mkdtempSync(join(tmpdir(), 'w5b-t3-resource-sampler-selftest-'))
   const envClean = () => { const e = { ...process.env }; delete e[DEPTH_ENV]; return e }
@@ -454,6 +466,12 @@ function selfTest() {
     return { r, outF, cmdF, s: json(r) }
   }
   try {
+    // W5b T1（R6-N1）skip 汇总纯函数向量：skip 不计 pass——合成四例（过/过/skip/败）得 过=2/skip=1/全=4/fail=1
+    const sumMix = summarizeSelfTest([{ name: 'a', ok: true }, { name: 'b', ok: true }, { name: 's', ok: true, skipped: true }, { name: 'f', ok: false }])
+    add('R6-N1 skip 报告保真·汇总纯函数：skip 不计 pass——合成 过=2/skip=1/全=4/fail=1 且 pass+skip≠total（存在失败）；全绿合成集 pass+skip===total',
+      sumMix.pass === 2 && sumMix.skip === 1 && sumMix.total === 4 && sumMix.fail === 1 && sumMix.pass + sumMix.skip !== sumMix.total
+        && (() => { const s2 = summarizeSelfTest([{ name: 'x', ok: true }, { name: 'y', ok: true, skipped: true }]); return s2.pass === 1 && s2.skip === 1 && s2.fail === 0 && s2.pass + s2.skip === s2.total })(),
+      JSON.stringify(sumMix))
     // V-1 正例：exit 0、child_exit 0、limit_hit=false、reaped=true
     const v1 = runCase('ok', [process.execPath, '-e', 'process.exit(0)'])
     add('V-1 正例：exit 0 且 child_exit=0/limit_hit=false/reaped=true/limit_reason=null',
@@ -468,12 +486,12 @@ function selfTest() {
       jsonlDetail = `lines=${lines.length} summary=${v1.s?.samples}`
     } catch (e) { jsonlDetail = e.message }
     add('V-1 JSONL 结构＋N-13 计数口径：≥2 样本逐样本含 ts/pid/iteration/elapsed_ms/processes/dirs/limit_hit 且 summary.samples===成功落盘条数', jsonlOk, jsonlDetail)
-    // B2 墙钟上限：长 interval＋快退子进程 → 总时长 < interval（race 败方定时器悬挂即红）
+    // B2/R6-N3 墙钟上限（[hard-exit] 面观测·阈值 <3000）：长 interval＋快退子进程 → 总时长受硬退出兜底约束
     const wall0 = Date.now()
     const wall = runCase('wall', [process.execPath, '-e', 'process.exit(0)'], ['--interval-ms', '8000'])
     const wallMs = Date.now() - wall0
-    add('B2 墙钟上限：长 interval（8s）＋快退子进程 → 总时长 < interval（race 败方定时器悬挂/硬退出兜底缺失即红）',
-      wall.r.status === 0 && wallMs < 900, `status=${wall.r.status} wall_ms=${wallMs}`)
+    add('B2/R6-N3 [hard-exit] 墙钟上限：长 interval（8s）＋快退子进程 → 总时长 <3000ms（race 败方定时器悬挂/硬退出兜底缺失即红·观测面记录 wall_ms）',
+      wall.r.status === 0 && wallMs < 3000, `status=${wall.r.status} wall_ms=${wallMs}`)
     // 递归哨兵直跑：DEPTH=1 → exit 1＋固定哨兵＋不 spawn（out 未产生）
     const gOut = join(tmp, 'samples-guard.jsonl')
     const gCmd = simpleCmd([process.execPath, '-e', 'process.exit(0)'], 'guard')
@@ -510,19 +528,21 @@ function selfTest() {
     // V-2 子非零：exit 1
     const v2nz = runCase('nonzero', [process.execPath, '-e', 'process.exit(3)'])
     add('V-2 子非零：child_exit=3 → exit 1 无悬挂', v2nz.r.status === 1 && v2nz.s && v2nz.s.child_exit === 3, `status=${v2nz.r.status}`)
-    // B-1 正常退出留孙进程：child exit 0 后同组孙进程由 finally 兜底收割。CLI 以 stdio ignore 运行
-    //（阻断 grandchild 继承 stderr 管道拖住 spawnSync 的时序吞没）；RN-4：先经 JSONL 观测孙进程在场
-    //（逐样本 processes≥2）再断言外部 pgrep 哨兵零残留
+    // B-1/R6-N5 正常退出留孙进程（marker 强化）：孙进程启动即写 marker 文件——向量断言 marker 内容、
+    // JSONL 孙进程在场（逐样本 processes≥2·RN-4）与外部 pgrep 哨兵零残留三面。CLI 以 stdio ignore 运行
+    //（阻断 grandchild 继承 stderr 管道拖住 spawnSync 的时序吞没）
     const b1Out = join(tmp, 'samples-orphan.jsonl')
+    const b1Marker = join(tmp, 'orphan-marker.txt')
     const b1Cmd = join(tmp, 'cmd-orphan.json')
-    wj(b1Cmd, { argv: ['sh', '-c', 'node -e "/*ORPHANMARK*/setTimeout(()=>{},5000)" & sleep 0.2; exit 0'], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] }) // R5-4/ds-N3：先起孤儿再等待（sh 与孙同窗可观测）
+    wj(b1Cmd, { argv: ['sh', '-c', `node -e "require('fs').writeFileSync(process.argv[1],'ORPHAN-MARKER-OK');setTimeout(()=>{},5000)" '${b1Marker}' & sleep 0.2; exit 0`], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] }) // R5-4/ds-N3：先起孤儿再等待（sh 与孙同窗可观测）
     const b1 = spawnSync(process.execPath, [SELF, '--cmdfile', b1Cmd, '--out', b1Out, '--interval-ms', '100'], { encoding: 'utf8', stdio: 'ignore', timeout: 60000, killSignal: 'SIGKILL', env: envClean() })
     observed.add(b1.status)
     const b1Stray = spawnSync('pgrep', ['-f', 'ORPHANMARK'], { encoding: 'utf8' })
     const b1Seen = safe(() => readFileSync(b1Out, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).some((r) => r.processes >= 2))
-    add('B-1 收割完备性·正常退出留孙：JSONL 先观测孙进程在场（RN-4·逐样本 processes≥2）→ child exit 0 后孙进程被 finally 幂等 SIGKILL 兜底 → exit 0/samples 落盘且外部 pgrep 哨兵零残留',
-      b1.status === 0 && existsSync(b1Out) && b1Seen && b1Stray.status === 1,
-      `status=${b1.status} seen=${b1Seen} stray=${b1Stray.status} out=${JSON.stringify(b1Stray.stdout).slice(0, 80)}`)
+    const b1MarkerOk = safe(() => readFileSync(b1Marker, 'utf8') === 'ORPHAN-MARKER-OK')
+    add('B-1/R6-N5 收割完备性·正常退出留孙（marker 强化）：孙进程启动即写 marker 文件且内容断言＝ORPHAN-MARKER-OK；JSONL 先观测孙进程在场（RN-4·逐样本 processes≥2）→ child exit 0 后孙进程被 finally 幂等 SIGKILL 兜底 → exit 0/samples 落盘且外部 pgrep 哨兵零残留',
+      b1.status === 0 && existsSync(b1Out) && b1MarkerOk && b1Seen && b1Stray.status === 1,
+      `status=${b1.status} marker=${b1MarkerOk} seen=${b1Seen} stray=${b1Stray.status} out=${JSON.stringify(b1Stray.stdout).slice(0, 80)}`)
     // W5/yyx R3-5 组全域判别：pattern 绝不匹配子进程 cmdline＋同组多进程 → peak/触限/收割不受 pattern 影响（旧 -f 实现下必红）
     const gw = runCase('groupwide', ['sh', '-c', 'sleep 2 & sleep 2 & wait'], ['--interval-ms', '100', '--max-processes', '1'], null, 'ZZZ-W5B-T3-NOMATCH')
     add('W5/yyx R3-5 组全域判别：pattern 绝不匹配子进程 cmdline＋同组三进程 → 仍 peak=3/触限 max_processes/零残留（旧 -f 实现下必红）',
@@ -660,7 +680,7 @@ function selfTest() {
       add('W-10/RW-5 仓根 symlink 面拆分 B：/tmp 内中间 symlink realpath 落技能仓 → exit 3 且集外件原样',
         rLinkB.status === 3 && rLinkB.stderr.includes('仓根') && keepBOk, `status=${rLinkB.status} err=${rLinkB.stderr.slice(0, 140)}`)
     } else {
-      add('W-10/RW-5 仓根 symlink 面拆分：两仓根不存在——前置断言失败按条件跳过（如实登记·skip 不计 pass）', true, 'skipped: repo roots absent')
+      skip('W-10/RW-5 仓根 symlink 面拆分：两仓根不存在——前置断言失败按条件跳过（如实登记·skip 不计 pass）', 'repo roots absent')
     }
     // B-2 末级 dangling symlink 写穿面：登记集末级悬空软链 → fail-closed 拒 3（不写穿目标域）；keepD 先建后跑（R3-N4）
     const keepD = join(tmp, 'keep-d.txt'); writeFileSync(keepD, 'KD')
@@ -687,7 +707,7 @@ function selfTest() {
         cRo.status === 1 && cRoS && cRoS.deleted === 0 && cRoS.residual === 1 && cRoS.existed === 1 && cRoS.failed === true,
         `status=${cRo.status} out=${cRo.stdout.slice(0, 240)}`)
     } else {
-      add('V-4 删除失败/残留：uid=0 环境 chmod 0555 不构成拒绝面——按 N-1 条件跳过（标注 skipped）', true, 'skipped: uid=0')
+      skip('V-4 删除失败/残留：uid=0 环境 chmod 0555 不构成拒绝面——按 N-1 条件跳过（标注 skipped）', 'uid=0')
     }
     // W7 pgrep 方言预检：JS 合法而 pgrep ERE 非法（前瞻）→ exit 3 且不 spawn
     const lookCmd = join(tmp, 'cmd-lookahead.json')
@@ -781,7 +801,7 @@ function selfTest() {
       add('R4-N3/R5-1 FIFO 预存在：O_EXCL 先命中 → exit 3（装载错·不悬挂不阻塞）',
         rFifo.status === 3 && rFifo.stderr.includes('[装载错]') && spawnSync('pgrep', ['-f', 'w5b-t3-resource-sampler.mjs --cmdfile.*out-fifo']).status === 1, `status=${rFifo.status} err=${rFifo.stderr.slice(0, 140)}`)
     } else {
-      add('R4-N3 FIFO 拒收：mkfifo 不可用——条件跳过（标注 skipped）', true, `skipped: mkfifo status=${mkfifoR.status}`)
+      skip('R4-N3 FIFO 拒收：mkfifo 不可用——条件跳过（标注 skipped）', `mkfifo status=${mkfifoR.status}`)
     }
     // R5-2 预存在 out 拒收（两面）：O_EXCL 先命中——空文件与非空文件均 exit 3
     const emptyOut = join(tmp, 'out-empty.jsonl'); writeFileSync(emptyOut, '', 'utf8')
@@ -812,14 +832,14 @@ function selfTest() {
       add('B-2 --out 域外（中间 symlink realpath 落主仓根）：exit 3 且启动前拒绝（不 spawn 不写仓）',
         rOutLinkA.status === 3 && rOutLinkA.stderr.includes('仓根'), `status=${rOutLinkA.status} err=${rOutLinkA.stderr.slice(0, 140)}`)
     } else {
-      add('B-2 --out 域外（主仓根面）：两仓根不存在——前置断言失败按条件跳过（如实登记·skip 不计 pass）', true, 'skipped: repo roots absent')
+      skip('B-2 --out 域外（主仓根面）：两仓根不存在——前置断言失败按条件跳过（如实登记·skip 不计 pass）', 'repo roots absent')
     }
     if (rootsOk) {
       const rOutLinkB = cli(['--cmdfile', join(tmp, 'cmd-ok.json'), '--out', join(linkB, 's.jsonl')])
       add('B-2 --out 域外（中间 symlink realpath 落技能仓根·R3-N8）：exit 3 且启动前拒绝（不 spawn 不写仓）',
         rOutLinkB.status === 3 && rOutLinkB.stderr.includes('仓根'), `status=${rOutLinkB.status} err=${rOutLinkB.stderr.slice(0, 140)}`)
     } else {
-      add('B-2 --out 域外（技能仓根面·R3-N8）：两仓根不存在——前置断言失败按条件跳过（如实登记·skip 不计 pass）', true, 'skipped: repo roots absent')
+      skip('B-2 --out 域外（技能仓根面·R3-N8）：两仓根不存在——前置断言失败按条件跳过（如实登记·skip 不计 pass）', 'repo roots absent')
     }
     // B-2 TOCTOU 运行中替换：子进程删 out 并以 symlink 指向受害者文件 → 路径侧 dev/ino 比对 fail-closed
     //（运行期写失败 exit 1）且受害者原样未被写穿；lstat 预取包裹（R3-N15）
@@ -856,7 +876,7 @@ function selfTest() {
         rEa.status === 1 && json(rEa)?.unknown_counts === true && json(rEa)?.reaped === false,
         `status=${rEa.status} out=${rEa.stdout.slice(0, 220)}`)
     } else {
-      add('RN-2/W-3 unknown 注入：uid=0 环境 chmod 000 不构成 EACCES——按 R3-N2 条件跳过（标注 skipped）', true, 'skipped: uid=0')
+      skip('RN-2/W-3 unknown 注入：uid=0 环境 chmod 000 不构成 EACCES——按 R3-N2 条件跳过（标注 skipped）', 'uid=0')
     }
     // 退出域：全部观测退出码 ∈ {0,1,3}（无 2）
     add('D-1 退出域：全部观测退出码 ∈ {0,1,3}（无 2）', [...observed].every((s) => s === 0 || s === 1 || s === 3), JSON.stringify([...observed].sort((a, b) => a - b)))
@@ -864,8 +884,9 @@ function selfTest() {
     try { chmodSync(tmp, 0o755) } catch { /* 已不在 */ }
     rmSync(tmp, { recursive: true, force: true })
   }
-  const pass = cases.filter((c) => c.ok).length
-  return { cases, pass, fail: cases.length - pass }
+  const { total, pass, skip: skipN, fail } = summarizeSelfTest(cases)
+  void total
+  return { cases, pass, skip: skipN, fail }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === SELF) main()
