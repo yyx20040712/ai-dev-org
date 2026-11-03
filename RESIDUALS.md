@@ -2,7 +2,7 @@
 
 > 状态：active ｜ 权威：registry ｜ 替代：无
 
-当前 **open=1**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；；2026-10-30 B8 事故新挂 1 行（b8n-test-harness-runaway·授权=账本 b8-incident 行·纯 JSON 登记不触冻结旧表）后余 9；2026-10-30 B8 实现批销账 8 行（b1n 六项 legacy＋b6n-atomicwrite-race＋b8n-test-harness-runaway）后余 0。余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
+当前 **open=2**（由下方权威 JSON 段 status 派生；历史计数叙事：B1 批挂账 8 行·销账 2 行后余 6；B2 返工轮 1 挂账 2 行后余 8；B3 批 b2n-probe-residual 销账 1 后余 7；2026-10-29 B3 收笔新挂 3 行（b3n-flag-on-pending／b3n-ledger-frozen-gap／b3n-pub-gate-legacy·授权=账本 b3-close）后余 10；2026-10-29 B4b 批 b3n-ledger-frozen-gap＋b3n-flag-on-pending 销账 2＋b4n-panel-polish 新挂 1 后余 9；2026-10-30 B5 批 b3n-pub-gate-legacy 销账 1＋b5n-tb-evidence-minor 新挂 1 后余 9；2026-10-31 B6 批 b6n-atomicwrite-race＋b6n-frozen-anchor-external 新挂 2 后余 11（首次经 JSON 权威段登记）；；2026-10-30 B8 事故新挂 1 行（b8n-test-harness-runaway·授权=账本 b8-incident 行·纯 JSON 登记不触冻结旧表）后余 9；2026-10-30 B8 实现批销账 8 行（b1n 六项 legacy＋b6n-atomicwrite-race＋b8n-test-harness-runaway）后余 0。余册终态：closed／won't-fix）。历史登记行全文=开发方工作区
 历史文档区存档与技能仓 git 提交历史，不驻技能加载面。
 
 **权威段唯一**：下方 residuals-json 标记对之间的 JSON 是唯一权威（schema=residuals/v1）；「历史旧表」仅供对账、已冻结非权威；禁止双写——冻结表行不得在冻结块外重现，新登记只走 JSON 八键，不再新增 Markdown 行。
@@ -250,6 +250,18 @@
       "phenomenon": "源面与分发面 check-terms 全脚本及未来词表存在两面偏差",
       "status": "open",
       "trigger": "下次词表变更批须先推分发面或同步两面；技能根基线任何重冻批（棘轮升降）须同步主仓镜像件——本地 verify-docs 同源机检执法"
+    },
+    {
+      "created_at": "2026-11-03",
+      "description": "deploy-check.mjs gitState 以英文消息正则判定非 git 目录（/not a git repository/i）；中文 locale 下非 git 目录抛 SelfLoadError exit 3——隔离取证序列以 LC_ALL=C 规避在案（implreview-split 批证据档 §6）",
+      "evidence": [
+        "docs/evidence/implreview-split-2026-11-03.md §6-1（主仓）"
+      ],
+      "id": "implreview-split-locale-gitstate",
+      "owner": "下一工具批",
+      "phenomenon": "gitState 中文 locale 失配：非 git 目录不被英文正则识别→装载错 exit 3（应为可控降级）",
+      "status": "open",
+      "trigger": "下一工具批（与 routeSecondMismatch 诊断噪声、agent-slots.mjs:311 注释同笔清理）"
     }
   ],
   "schema": "residuals/v1"
