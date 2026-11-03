@@ -1,0 +1,24 @@
+{
+  "schema": "docgroup-fixture/v1",
+  "name": "unknown-minimal-index",
+  "index": {
+    "schema": "docgroup-index/v1",
+    "documents": [],
+    "pending_triage": [
+      {
+        "path": "docs/notes.md",
+        "category": "unknown",
+        "target": "docs/notes.md",
+        "owner": "unassigned",
+        "status": "pending-triage",
+        "authority": "unresolved",
+        "supersedes": null,
+        "index": "/pending_triage/0"
+      }
+    ]
+  },
+  "expected": {
+    "valid": true,
+    "finding": null
+  }
+}

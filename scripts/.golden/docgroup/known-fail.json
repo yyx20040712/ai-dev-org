@@ -1,0 +1,23 @@
+{
+  "schema": "docgroup-fixture/v1",
+  "name": "known-minimal-index",
+  "index": {
+    "schema": "docgroup-index/v1",
+    "documents": [
+      {
+        "path": "docs/doc-index.json",
+        "category": "doc-index",
+        "target": "docs/doc-index.json",
+        "status": "registered",
+        "authority": "doc-index",
+        "supersedes": null,
+        "index": "/documents/0"
+      }
+    ],
+    "pending_triage": []
+  },
+  "expected": {
+    "valid": false,
+    "finding": "missing-owner"
+  }
+}
