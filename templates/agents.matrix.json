@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updated": "2026-11-01",
+  "updated": "2026-11-03",
   "note": "逻辑矩阵：只写角色、provider 短名、档位、工具面、默认与回退序；真实 providerId/modelId/账号名不入库（由 org-config.local.json 的 agent_bindings 提供）。display 名不入库：providers.*.display 已删除，真实显示名以本机件 org-config.local.json 的 entry_name 为准。",
   "levels": [
     "low",
@@ -103,6 +103,7 @@
         "699",
         "yyx",
         "zipoo",
+        "glm",
         "glmflash",
         "ds"
       ],
@@ -111,6 +112,7 @@
         "699",
         "yyx",
         "zipoo",
+        "glm",
         "glmflash",
         "ds"
       ],
@@ -214,8 +216,8 @@
       ],
       "readonly": true
     },
-    "implreview": {
-      "title": "执行者审核",
+    "implreview1": {
+      "title": "执行者审核一号",
       "level": "max",
       "providers": [
         "699",
@@ -230,6 +232,33 @@
       "fallback": [
         "699",
         "ds",
+        "yyx",
+        "zipoo",
+        "glm",
+        "glmflash",
+        "startplan"
+      ],
+      "tools": [
+        "Read"
+      ],
+      "readonly": true
+    },
+    "implreview2": {
+      "title": "执行者审核二号",
+      "level": "max",
+      "providers": [
+        "699",
+        "ds",
+        "yyx",
+        "zipoo",
+        "glm",
+        "glmflash",
+        "startplan"
+      ],
+      "default": "ds",
+      "fallback": [
+        "ds",
+        "699",
         "yyx",
         "zipoo",
         "glm",
@@ -302,7 +331,7 @@
       "provider": null
     },
     "ops-auditor": {
-      "role": "implreview",
+      "role": "implreview2",
       "provider": "ds"
     },
     "ops-adjudicator": {
@@ -310,19 +339,19 @@
       "provider": null
     },
     "ops-gate1-k1": {
-      "role": "implreview",
+      "role": "implreview1",
       "provider": "699"
     },
     "ops-gate1-k2": {
-      "role": "implreview",
+      "role": "implreview1",
       "provider": "zipoo"
     },
     "ops-gate1-k3": {
-      "role": "implreview",
+      "role": "implreview1",
       "provider": "yyx"
     },
     "ops-gate1-d1": {
-      "role": "implreview",
+      "role": "implreview1",
       "provider": "ds"
     }
   }
