@@ -273,6 +273,11 @@
       "model": "k3.1-pro",
       "level": "max"
     },
+    "ops-assembler-glm-max": {
+      "provider": "glm",
+      "model": "GLM-5.3",
+      "level": "max"
+    },
     "ops-assembler-glmflash-max": {
       "provider": "glmflash",
       "model": "GLM-5.3-Flash",
@@ -388,37 +393,72 @@
       "model": "GLM-5.3-Flash",
       "level": "max"
     },
-    "ops-implreview-699-max": {
+    "ops-implreview1-699-max": {
       "provider": "699",
       "model": "k3.1-pro",
       "level": "max"
     },
-    "ops-implreview-ds-max": {
+    "ops-implreview1-ds-max": {
       "provider": "ds",
       "model": "deepseek-flash",
       "level": "max"
     },
-    "ops-implreview-yyx-max": {
+    "ops-implreview1-yyx-max": {
       "provider": "yyx",
       "model": "k3.1-pro",
       "level": "max"
     },
-    "ops-implreview-zipoo-max": {
+    "ops-implreview1-zipoo-max": {
       "provider": "zipoo",
       "model": "k3.1-pro",
       "level": "max"
     },
-    "ops-implreview-glm-max": {
+    "ops-implreview1-glm-max": {
       "provider": "glm",
       "model": "GLM-5.3",
       "level": "max"
     },
-    "ops-implreview-glmflash-max": {
+    "ops-implreview1-glmflash-max": {
       "provider": "glmflash",
       "model": "GLM-5.3-Flash",
       "level": "max"
     },
-    "ops-implreview-startplan-max": {
+    "ops-implreview1-startplan-max": {
+      "provider": "startplan",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-implreview2-ds-max": {
+      "provider": "ds",
+      "model": "deepseek-flash",
+      "level": "max"
+    },
+    "ops-implreview2-699-max": {
+      "provider": "699",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-implreview2-yyx-max": {
+      "provider": "yyx",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-implreview2-zipoo-max": {
+      "provider": "zipoo",
+      "model": "k3.1-pro",
+      "level": "max"
+    },
+    "ops-implreview2-glm-max": {
+      "provider": "glm",
+      "model": "GLM-5.3",
+      "level": "max"
+    },
+    "ops-implreview2-glmflash-max": {
+      "provider": "glmflash",
+      "model": "GLM-5.3-Flash",
+      "level": "max"
+    },
+    "ops-implreview2-startplan-max": {
       "provider": "startplan",
       "model": "GLM-5.3-Flash",
       "level": "max"
@@ -486,7 +526,8 @@
     "executor": "ops-executor-startplan-high",
     "tbreview": "ops-tbreview-ds-max",
     "planreview": "ops-planreview-ds-max",
-    "implreview": "ops-implreview-699-max",
+    "implreview1": "ops-implreview1-699-max",
+    "implreview2": "ops-implreview2-ds-max",
     "adjudicator": "ops-adjudicator-zipoo-max",
     "vision": "ops-vision-glmflash-max"
   },
@@ -514,6 +555,7 @@
       "ops-assembler-699-max",
       "ops-assembler-yyx-max",
       "ops-assembler-zipoo-max",
+      "ops-assembler-glm-max",
       "ops-assembler-glmflash-max",
       "ops-assembler-ds-max"
     ],
@@ -544,14 +586,23 @@
       "ops-planreview-glmflash-max",
       "ops-planreview-startplan-max"
     ],
-    "implreview": [
-      "ops-implreview-699-max",
-      "ops-implreview-ds-max",
-      "ops-implreview-yyx-max",
-      "ops-implreview-zipoo-max",
-      "ops-implreview-glm-max",
-      "ops-implreview-glmflash-max",
-      "ops-implreview-startplan-max"
+    "implreview1": [
+      "ops-implreview1-699-max",
+      "ops-implreview1-ds-max",
+      "ops-implreview1-yyx-max",
+      "ops-implreview1-zipoo-max",
+      "ops-implreview1-glm-max",
+      "ops-implreview1-glmflash-max",
+      "ops-implreview1-startplan-max"
+    ],
+    "implreview2": [
+      "ops-implreview2-ds-max",
+      "ops-implreview2-699-max",
+      "ops-implreview2-yyx-max",
+      "ops-implreview2-zipoo-max",
+      "ops-implreview2-glm-max",
+      "ops-implreview2-glmflash-max",
+      "ops-implreview2-startplan-max"
     ],
     "adjudicator": [
       "ops-adjudicator-zipoo-max",
@@ -597,9 +648,9 @@
       ]
     ],
     "gate1_subagent_of": {
-      "deepseek": "ops-implreview-ds-max",
-      "yyx": "ops-implreview-yyx-max",
-      "zipoo": "ops-implreview-zipoo-max"
+      "deepseek": "ops-implreview2-ds-max",
+      "yyx": "ops-implreview1-yyx-max",
+      "zipoo": "ops-implreview1-zipoo-max"
     },
     "standing_pair": [
       "zipoo",
@@ -607,7 +658,7 @@
     ],
     "cross_gate_pairs": [
       [
-        "ops-implreview-ds-max",
+        "ops-implreview2-ds-max",
         "ops-adjudicator-699-max"
       ]
     ],
