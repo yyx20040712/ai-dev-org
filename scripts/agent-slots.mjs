@@ -308,7 +308,7 @@ export function doctorFindings(matrix, cfg, opts = {}) {
   for (const [provider, affected] of missingFamily)
     add('WARN', 'D7', `provider「${provider}」在 cfg.providers 解析不到 family/model_family（影响 ${affected.length} 个 slot：${names(affected)}）`)
 
-  // D8：agent_defaults / role_fallbacks 覆盖八角色且指向存在的 slot
+  // D8：agent_defaults / role_fallbacks 覆盖 ROLE_ORDER 全部角色（现十角色）且指向存在的 slot
   for (const role of ROLE_ORDER) {
     if (!own(defaults, role)) add('FAIL', 'D8', `agent_defaults 缺角色「${role}」`)
     else {
