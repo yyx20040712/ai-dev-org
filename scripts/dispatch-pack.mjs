@@ -51,15 +51,17 @@ const ROUTE_LINE_RE = /^\s*ROUTE\s*:/i
 /** face 感知预算（W5b D-7）：full=8192（缺省·维持现行形态）；repo-access=4096（须同时显式 --repo-access）。
  *  repo-access 面真实最大包=456T（W8 证据档 :13 授权面包·同为 --repo-access 旗标面），4096/456≈9.0 倍余量。 */
 const FACE_LIMITS = { full: TOKEN_LIMIT, 'repo-access': 4096 }
-/** 诊断脱敏（W5b D-7·--redact opt-in）三类可证词法：uuid 8-4-4-4-12 十六进制／Bearer＋长度 ≥24 令牌／
- *  键名含 token|key|secret（大小写不敏感）的赋值（值 ≥8 字符）。哈希输入=命中片段去首尾空白后的
- *  UTF-8 字节，取 sha256 十六进制前 8 位。输出只含类别/行号/sha8，禁回显原文；命中态下越权片段
- *  回显同样掩蔽（r5·组合态闭合——同输出内不得出现任何命中片段原文）。词法残余登记（r5·本批不扩）：
- *  bearer 大小写敏感、引号包裹值、冒号形 token: value 为规格内已知漏检形态。 */
+/** 诊断脱敏（W5b D-7·--redact opt-in）三类可证词法：uuid 8-4-4-4-12 十六进制／Bearer（关键词大小写
+ *  不敏感·W5c D-6①）＋长度 ≥24 令牌／键名含 token|key|secret（大小写不敏感）的赋值（值 ≥8 字符——
+ *  等号未引号值＋单/双引号包裹值〔W5c D-6②·内部沿用既有值字母表〕＋冒号形 [=:] 分隔〔W5c D-6③〕）。
+ *  哈希输入=命中片段去首尾空白后的 UTF-8 字节，取 sha256 十六进制前 8 位。输出只含类别/行号/sha8，
+ *  禁回显原文；命中态下越权片段回显同样掩蔽（r5·组合态闭合——同输出内不得出现任何命中片段原文）。
+ *  现行边界（W5c D-6 改记）：key 名子串启发式沿用既有——monkey: 等含 key 子串普通词经冒号形命中
+ *  属 D-6③ 新增保守面·如实登记；不扩到其他 secret 语法。 */
 const REDACT_RES = [
   ['uuid-binding', /[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g],
-  ['bearer', /Bearer[ \t]+[A-Za-z0-9._~+/=-]{24,}/g],
-  ['key-assign', /[A-Za-z0-9_.-]*(?:token|key|secret)[A-Za-z0-9_.-]*[ \t]*=[ \t]*[A-Za-z0-9._~+/-]{8,}/gi],
+  ['bearer', /Bearer[ \t]+[A-Za-z0-9._~+/=-]{24,}/gi],
+  ['key-assign', /[A-Za-z0-9_.-]*(?:token|key|secret)[A-Za-z0-9_.-]*[ \t]*[=:][ \t]*(?:(['"])[A-Za-z0-9._~+/-]{8,}\1|[A-Za-z0-9._~+/-]{8,})/gi],
 ]
 
 /** 逐行越权扫描：①④对整行判（引用不豁免）；②③先掩蔽引用 span 再判。 */
@@ -451,6 +453,21 @@ function selfTest() {
     t('向量39 长行掩蔽次序（r6·ds-W-2）：命中片段跨越截断界时先掩蔽后截断——全输出无片段原文且无部分前缀（api_key=Lo 跨界部分与 LongLineSecret 族零出现）＋exit 1＋redact_hits=1',
       cb2.status === 1 && sumOf(cb2).includes('redact=true redact_hits=1') && !cb2Out.includes('api_key=Lo') && !cb2Out.includes('LongLineSecret')
         && cb2Out.includes('repo-root'), `${cb2.status} ${cb2Out.slice(-260)}`)
+    // ── W5c D-6 增补（redact 三类词法残余扩面·恰 1 向量·39→40）──
+    const d6Pos = write('w5c-d6-pos.md', '# 审包 w5c-d6\n\nbearer abcdefghijklmnopqrstuvwxyz1234 与 BeArer zyxwvutsrqponmlkjihgfedcba1234 与 api_key=\'Abcdefg12345678\' 与 my_secret_token="Qrstuvwx98765432" 与 token: Nmlkjihg7654321z 结尾。\n')
+    const d6r = runPack(['--pack', d6Pos, '--redact'])
+    codes.add(d6r.status)
+    const d6Out = outOf(d6r)
+    const d6Neg = write('w5c-d6-neg.md', '# 审包 w5c-d6-neg\n\ntoken: abc12 与 key=\'abc\' 与 api_key=\'abcdefghijklmnop 与 bearer shorttok 结尾。\n')
+    const d6nr = runPack(['--pack', d6Neg, '--redact'])
+    codes.add(d6nr.status)
+    t('向量40 W5c D-6 redact 三残余扩面：小写/混合大小写 bearer＋单双引号值＋冒号值均命中（exit 1＋redact_hits=5＋类别与 sha8 正确＋零原文回显）；短值/未闭合引号/不完整 token 负例零命中（exit 0）',
+      d6r.status === 1 && sumOf(d6r).includes('redact=true redact_hits=5')
+        && (d6Out.match(/sha8=[0-9a-f]{8}/g) || []).length === 5 && d6Out.includes('bearer') && d6Out.includes('key-assign')
+        && d6Out.includes('sha8=' + createHash('sha256').update('bearer abcdefghijklmnopqrstuvwxyz1234', 'utf8').digest('hex').slice(0, 8))
+        && !d6Out.includes('abcdefghijklmnopqrstuvwxyz1234') && !d6Out.includes('Abcdefg12345678') && !d6Out.includes('Qrstuvwx98765432') && !d6Out.includes('Nmlkjihg7654321z')
+        && d6nr.status === 0 && sumOf(d6nr).includes('redact=true redact_hits=0'),
+      `${d6r.status} ${sumOf(d6r)} neg=${d6nr.status} ${sumOf(d6nr)} out=${d6Out.slice(-320)}`)
 
     // 向量23：退出码域——全部实测退出码 ∈ {0,1,3}（禁复用 2）
     t('向量23 退出码域：全部自检运行退出码恰为 0/1/3 集合（无 2 或其他值）',
