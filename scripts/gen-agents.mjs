@@ -584,7 +584,7 @@ function selfTest() {
     } finally { rmSync(fx, { recursive: true, force: true }) }
   }
   t('向量10 非法矩阵（未知角色/未声明 provider/default 不在 providers/vision 非多模态）→ 抛错点名', badOk)
-  // 向量10b（B2 批 D-2）：roles 键序全等断言——合法九岗集但键序颠倒两位的夹具，装载期
+  // 向量10b（B2 批 D-2）：roles 键序全等断言——合法十岗集但键序颠倒两位的夹具，装载期
   // 抛错并点名「键序」（乱序负例；正例=真实矩阵装载在本函数入口已覆盖）。
   {
     const cOrder = JSON.parse(JSON.stringify(matrix))

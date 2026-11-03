@@ -514,7 +514,7 @@ export function validateLocalFacts(cfg) {
  *  ③ level∈low/high/max、model 非空字符串；
  *  ④ agent_defaults 键集=固定十角色集（全覆盖、无多余键），默认档位存在且角色一致；
  *  ⑤ role_fallbacks 键集=固定十角色集、非空、无重复、首元素=默认档位、成员存在且角色一致；
- *  ⑥ 默认 executor 与 implreview/adjudicator 跨族（familyOf；slot/provider/family
+ *  ⑥ 默认 executor 与 implreview1/adjudicator 跨族（familyOf；slot/provider/family
  *     任一不可解析=显式错误，fail-closed）；
  *  ⑦ 默认 vision 的 slot/provider 必须可解析且 provider.multimodal===true，
  *     或 provider 恰为 startplan（B2 批 D-7a 文本应急例外——与 verify-docs/
