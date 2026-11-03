@@ -634,16 +634,18 @@ function selfTest() {
     const v2nz = runCase('nonzero', [process.execPath, '-e', 'process.exit(3)'])
     add('V-2 子非零：child_exit=3 → exit 1 无悬挂', v2nz.r.status === 1 && v2nz.s && v2nz.s.child_exit === 3, `status=${v2nz.r.status}`)
     // B-1/R6-N5 正常退出留孙进程（marker 强化·r5 活断言）：孙进程启动即写 marker 文件；pgrep pattern
-    // 实际匹配孙进程 cmdline（含连字符 ORPHAN-MARKER-OK——禁恒不匹配形态）；阳性对照＝sampler 运行中
+    // 实际匹配孙进程 cmdline（含连字符 ORPHAN-MARKER-OK-<run>——禁恒不匹配形态；W5c D-4：token 带
+    // run 后缀=自检进程 pid·marker 文件名/内容/cmdline 同源·跨运行唯一）；阳性对照＝sampler 运行中
     // 同 pattern pgrep 命中≥1（哨兵在位证明）；退出后同 pattern 零命中（真收割证明）；向量另断言
     // marker 内容与 JSONL 孙进程在场（逐样本 processes≥2·RN-4）。活断言轮询须真让出事件循环——
     // 自检进程为同步体（spawnSync 轮询无法收到 exit 事件），故承载于临时 helper 子进程（真 async/await，
     // 结论以 JSON 打印·夹具随 tmp 清理），自检 spawnSync 读其结论断言。
     const b1Out = join(tmp, 'samples-orphan.jsonl')
-    const b1Marker = join(tmp, 'orphan-marker.txt')
+    const B1_RUN = String(process.pid) // W5c D-4：run 唯一值缺省=自检进程 pid（marker 文件名与 pgrep token 同源）
+    const b1Marker = join(tmp, `orphan-marker-${B1_RUN}.txt`)
     const b1Cmd = join(tmp, 'cmd-orphan.json')
     const b1Helper = join(tmp, 'b1-live-helper.mjs')
-    const B1_PATTERN = 'ORPHAN-MARKER-OK'
+    const B1_PATTERN = `ORPHAN-MARKER-OK-${B1_RUN}`
     wj(b1Cmd, { argv: ['sh', '-c', `node -e "require('fs').writeFileSync(process.argv[1],'${B1_PATTERN}');setTimeout(()=>{},5000)" '${b1Marker}' & sleep 0.2; exit 0`], cwd: tmp, process_pattern: 'node|sh|sleep', dir_prefixes: [tmp] }) // R5-4/ds-N3：先起孤儿再等待（sh 与孙同窗可观测）
     writeFileSync(b1Helper, `import { spawn, spawnSync } from 'node:child_process'
 import { readFileSync, existsSync } from 'node:fs'
@@ -661,9 +663,10 @@ try {
   const d2 = Date.now() + 30000
   while (child.exitCode === null && Date.now() < d2) await sleep(50)
 } finally {
-  // r6（ds-N-3）：兜底收割——helper 任何路径退出前对未退出的 sampler 整组 SIGKILL（幂等·不留后台进程）
+  // r6（ds-N-3）：兜底收割——helper 任何路径退出前对未退出的 sampler 直接 SIGKILL（幂等·不留后台进程）。
+  // W5c D-2：child 未 detached——负 pid 组杀不对应进程组（原组杀行无效冗余已删）；整组收割由
+  // sampler 自身 finally（detached pgid 整组 SIGKILL）承载。
   if (child.exitCode === null && child.pid) {
-    try { process.kill(-child.pid, 'SIGKILL') } catch { /* 组已消亡·幂等 */ }
     try { child.kill('SIGKILL') } catch { /* 已退出·幂等 */ }
     await sleep(150)
   }
@@ -679,9 +682,21 @@ console.log(JSON.stringify({ status: child.exitCode, signal: child.signalCode, p
     let b1R = null
     try { b1R = JSON.parse(b1.stdout) } catch { b1R = null }
     observed.add(b1R ? b1R.status : null)
-    add('B-1/R6-N5 收割完备性·正常退出留孙（r5 活断言）：孙进程启动即写 marker 文件且内容断言＝ORPHAN-MARKER-OK；pgrep pattern 实匹配孙进程 cmdline（含连字符）＋阳性对照（sampler 运行中同 pattern 命中≥1）＋退出后零残留；JSONL 孙进程在场（RN-4·逐样本 processes≥2）→ child exit 0 后孙进程被 finally 幂等 SIGKILL 兜底 → exit 0/samples 落盘',
+    add('B-1/R6-N5 收割完备性·正常退出留孙（r5 活断言）：孙进程启动即写 marker 文件且内容断言＝ORPHAN-MARKER-OK-<run>（W5c D-4·run=自检进程 pid）；pgrep pattern 实匹配孙进程 cmdline（含连字符）＋阳性对照（sampler 运行中同 pattern 命中≥1）＋退出后零残留；JSONL 孙进程在场（RN-4·逐样本 processes≥2）→ child exit 0 后孙进程被 finally 幂等 SIGKILL 兜底 → exit 0/samples 落盘',
       !!b1R && b1R.status === 0 && b1R.signal === null && b1R.markerOk && b1R.seen && b1R.positive && b1R.strayZero && b1R.outExists,
       `helper=${JSON.stringify(b1R)} err=${String(b1.stderr ?? '').slice(0, 80)}`)
+    // ── W5c D-2/D-4 增补（helper 无效组杀行删除＋marker 运行唯一化·恰 2 向量·77→79）──
+    const b1HelperSrc = readFileSync(b1Helper, 'utf8')
+    add('D2① b1 helper 无效组杀行删除（W5c D-2·源码自检）：helper 源不含 process.kill(-child.pid（child 未 detached·负 pid 组杀不对应进程组·无效冗余），仍含 finally／child.kill SIGKILL／150ms 余量（有效兜底保留）',
+      !b1HelperSrc.includes('process.kill(-child.pid') && b1HelperSrc.includes('finally') && b1HelperSrc.includes("child.kill('SIGKILL')") && b1HelperSrc.includes('await sleep(150)'),
+      `hasKill=${b1HelperSrc.includes('process.kill(-child.pid')}`)
+    add('D4① b1 marker 运行唯一化（W5c D-4·同 token 断言）：marker 文件名／文件内容／pgrep token／孙进程 cmdline 同带 run 后缀（run=自检进程 pid·跨运行唯一），跨运行固定 token 不复用',
+      (() => {
+        const run = String(process.pid)
+        const cmdSrc = readFileSync(b1Cmd, 'utf8')
+        return B1_PATTERN === `ORPHAN-MARKER-OK-${run}` && b1Marker.endsWith(`orphan-marker-${run}.txt`)
+          && cmdSrc.includes(B1_PATTERN) && b1HelperSrc.includes(B1_PATTERN) && !b1HelperSrc.includes('"ORPHAN-MARKER-OK"')
+      })(), `pattern=${B1_PATTERN} marker=${basename(b1Marker)}`)
     // W5/yyx R3-5 组全域判别：pattern 绝不匹配子进程 cmdline＋同组多进程 → peak/触限/收割不受 pattern 影响（旧 -f 实现下必红）
     const gw = runCase('groupwide', ['sh', '-c', 'sleep 2 & sleep 2 & wait'], ['--interval-ms', '100', '--max-processes', '1'], null, 'ZZZ-W5B-T3-NOMATCH')
     add('W5/yyx R3-5 组全域判别：pattern 绝不匹配子进程 cmdline＋同组三进程 → 仍 peak=3/触限 max_processes/零残留（旧 -f 实现下必红）',
