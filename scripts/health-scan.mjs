@@ -59,7 +59,7 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
     const fRev1 = famOfDefaultRole('implreview1')
     const fRev2 = famOfDefaultRole('implreview2')
     if (!fRev1 || !fRev2)
-      RED.push(`双审默认族不可解析（implreview1=${fRev1 || '?'} implreview2=${fRev2 || '?'}）——两键默认档或其 provider/family 缺失，fail-closed 不放行（拆席 D-4）`)
+      RED.push(`双审默认族不可解析（implreview1=${fRev1 || '?'} implreview2=${fRev2 || '?'}）——两键默认档位或其 provider/family 缺失，fail-closed 不放行（拆席 D-4）`)
     else if (fRev1 === fRev2)
       RED.push(`双审默认同族（implreview1=${fRev1} implreview2=${fRev2}）——执行者审核两席须不同模型族（拆席 D-4；agent-slots doctor D6 同款推荐项面）`)
   }

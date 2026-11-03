@@ -231,11 +231,12 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
 |---|---|
 | research | glmflash、startplan、glm、699、yyx、zipoo、ds |
 | planner | 699、yyx、zipoo、glm、glmflash、startplan、ds |
-| assembler | 699、yyx、zipoo |
+| assembler | 699、yyx、zipoo、glm、glmflash、ds |
 | executor | startplan、glmflash、glm、699、yyx、zipoo、ds |
 | tbreview | ds、699、yyx、zipoo、glm、glmflash、startplan |
 | planreview | ds、699、yyx、zipoo、glm、glmflash、startplan |
-| implreview | 699、ds、yyx、zipoo、glm、glmflash、startplan |
+| implreview1 | 699、ds、yyx、zipoo、glm、glmflash、startplan |
+| implreview2 | ds、699、yyx、zipoo、glm、glmflash、startplan |
 | adjudicator | zipoo、699、yyx、glm、glmflash、startplan、ds |
 | vision | glmflash、startplan、ds、699 |
 
@@ -244,9 +245,9 @@ vision 的 startplan 仅为文本应急候选（multimodal=false，实测不可�
 示例：
 
 - `ROUTE: research-zipoo;executor-ds`
-- `ROUTE: research-glmflash;planner-699;executor-glmflash;implreview-699;adjudicator-zipoo;vision-glmflash`
-- `ROUTE: executor-glmflash;implreview-699;adjudicator-699;vision-ds`
-- `ROUTE: tbreview-ds;planreview-ds;implreview-699`
+- `ROUTE: research-glmflash;planner-699;executor-glmflash;implreview1-699;implreview2-ds;adjudicator-zipoo;vision-glmflash`
+- `ROUTE: executor-glmflash;implreview1-699;adjudicator-699;vision-ds`
+- `ROUTE: tbreview-ds;planreview-ds;implreview1-699;implreview2-ds`
 - `ROUTE: vision-startplan`
 
 校验与拒绝：未知角色＝停止派发并列出合法角色（reviewer／diagnostics 等退役键同此拒绝）；角色不支持该 provider＝停止派发并列出该角色可用 provider；vision 选了非多模态模型＝停止派发（只允许 glmflash、ds、699；startplan 例外=文本应急候选——multimodal=false，不承载图像判读）；实现与审核/裁决同族＝告警，要求显式追加 `allow_same_family` 才继续（只能由用户在主控提问后确认，主控不得自行添加）；派发对象非矩阵登记的 ops-* 绑定代理（系统默认代理，如 general-purpose——跟随宿主无绑定）＝停止派发、按矩阵默认重派（实证裁决岗实证部例外——随宿主承载属设计形态）；同一角色出现两次＝取最后一次并在汇报中注明；ROUTE 行格式错误＝停止派发并给出正确示例。
@@ -255,9 +256,9 @@ vision 的 startplan 仅为文本应急候选（multimodal=false，实测不可�
 
 记录：每次派发在变更与成本记录里写 JSON 一行——`{"role":"executor","slot":"ops-executor-glmflash-high","route_source":"prompt","fallback_from":null,"family":"glm","level":"high"}`；`log-triage` 用它核对声明与实际路由是否一致，不一致即告警。
 
-1. 派发前必跑 dispatch-check：对九岗 dispatch-plan、resolve 结果与拟派名单三方对账；陈旧 ROUTE 或启用集不符即停止派发。无 dispatch-plan 的单岗派发先跑 `node scripts/agent-slots.mjs pick <role>` 取活性槽名再派发。
+1. 派发前必跑 dispatch-check：对十岗 dispatch-plan、resolve 结果与拟派名单三方对账；陈旧 ROUTE 或启用集不符即停止派发。无 dispatch-plan 的单岗派发先跑 `node scripts/agent-slots.mjs pick <role>` 取活性槽名再派发。
 2. 快照语义：S1/S2/S3=出厂快照，S4=现役默认权威；出厂滞后=WARN，实际消费=FAIL；S2→S1 共有 default/fallback 子面单向派生，禁止反向写。
-3. 批次任务书 ROUTE 变更须附九岗全量 before/after diff（含未变岗与常设第二审；B8 r8 为先例）。
+3. 批次任务书 ROUTE 变更须附十岗全量 before/after diff（含未变岗与常设第二审；B8 r8 为先例）。
 
 ### 8.2 切换语义与命令契约
 

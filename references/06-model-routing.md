@@ -131,7 +131,7 @@ references/07 §1 岗位终表＋双承载注记为准、冲突按 07 §1 执行
 - **payg 显式告警**：链首源或承载切换目标为
   `billing:"payg"`（套餐外按量）时，派发器 stderr 显式 `[payg]` 告警
   ——承载切换不放宽任务书与 DoD（本节铁律），但费用面必须留痕不静默。
-  〔现役承载=主控派发前核对绑定岗源 billing，payg 源承载岗（如 ops-implreview-ds-max，
+  〔现役承载=主控派发前核对绑定岗源 billing，payg 源承载岗（如 ops-implreview2-ds-max，
   即旧 ops-auditor 别名的固定解析档——deepseek 承载语义不变）
   派发即账本行标注+成本按「模型×供应商×套餐」分列（本件 §3；
   账本行 schema=02 §9），费用留痕义务不失效〕

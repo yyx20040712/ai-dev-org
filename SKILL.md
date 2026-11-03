@@ -20,13 +20,14 @@ description: Use when 用户提出开发/实现/修复/重构/批次/开工/简�
 |---|---|
 | 主控（+PM 子模式） | 主会话（唯一用户对接岗） |
 | 规划岗 drafter | 会话内绑定子代理 ops-drafter（699 短名源承载） |
-| 任务书装配岗 assembler | 会话内绑定子代理 ops-assembler-{699,yyx,zipoo}-max |
+| 任务书装配岗 assembler | 会话内绑定子代理 ops-assembler-{699,yyx,zipoo,glm,glmflash,ds}-max |
 | 实现岗 | 会话内子代理（诊断取证职责并入——07 §1） |
 | 任务书审核岗 tbreview | 会话内绑定子代理 ops-tbreview-*（派发前任务书审包，D21） |
 | 规划审核岗 planreview | 会话内绑定子代理 ops-planreview-*（路线/重批设计件按需对抗审核） |
-| 执行者审核岗 implreview | 会话内绑定子代理 ops-implreview-* |
+| 执行者审核一号岗 implreview1 | 会话内绑定子代理 ops-implreview1-* |
+| 执行者审核二号岗 implreview2 | 会话内绑定子代理 ops-implreview2-* |
 | 实证裁决岗（双部制） | 会话内子代理：实证部＋裁决部（07 §1） |
-| 审核岗 auditor-readonly | 会话内绑定子代理 ops-implreview-ds-max（deepseek 承载） |
+| 审核岗 auditor-readonly | 会话内绑定子代理 ops-implreview2-ds-max（deepseek 承载·D-7 迁二号） |
 | 设计岗 design-reviewer | 会话内图像通道（外呼位=glm-look，细则=07 §4 设计岗卡） |
 
 （表注/tier 记法/禁令/职责/交接物一律看 07 §1，本表不复制。）供应商事实（源序、端点、套餐、配给）
@@ -57,7 +58,7 @@ node scripts/package-skill.mjs --out <空目录> [--self-test]   # 分享打包�
 ```
 
 **单批路由 ROUTE（写法单源=references/02 §8.1）**：任务书/工单开头写一行
-`ROUTE: executor-glmflash;implreview-699`——每项 `<role>-<provider>`、分号分隔，
+`ROUTE: executor-glmflash;implreview1-699;implreview2-ds`——每项 `<role>-<provider>`、分号分隔，
 未列岗位走矩阵默认；解析与静态校验=`agent-slots.mjs resolve`；单批生效、不改矩阵。
 **子代理绑定通道（06 §6 补遗＋07 §4 补遗；宿主语义细则单源=references/10 §2）**：绑定件=矩阵单源
 （templates/agents.matrix.json→gen-agents 生成 `~/.zcode/agents/ops-*.md`，指针=07 §4 补遗）。frontmatter model=`<provider>/<model-key>$<档位>`
@@ -159,7 +160,7 @@ health-scan.mjs（RED=0 方可结项，告警分类细则=02 §10）。**主控�
 
 ## 团队化边界与扩展位（显式化——不假装解决）
 
-- 岗位清单=单人开发者＋AI 组织（10 岗＋人类用户裁决位；2026-10-29 B2 批三审拆岗与诊断退役随动）：主控单写账本、单一 git 历史、
+- 岗位清单=单人开发者＋AI 组织（11 岗＋人类用户裁决位；2026-11-03 拆席批执行者审核一号/二号两注册随动）：主控单写账本、单一 git 历史、
   单裁决通道——未覆盖多人团队场景（并行 PR 流、代码所有权分区、多主控协调、多人互审）。
 - 两个已知扩展位（均为用户未来裁决位，现不实现）：①裁决代表制——多人时谁握「用户
   裁决位」；②分支模型——共享 main 还是短命 feature 分支＋门审前置。触发条件=真实

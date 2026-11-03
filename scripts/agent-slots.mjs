@@ -500,7 +500,7 @@ function parseRoleCell(text) {
     throw new Error(`§1 岗位列「${t}」不是十岗角色或形态不符`)
   }
   const qual = m[2] ?? m[3] ?? ''
-  if (qual) throw new Error(`§1 岗位「${t}」带限定词「${qual}」——席位限定词已随拆席退役，须裸角色行`)
+  if (qual) throw new Error(`§1 岗位「${t}」带限定词「${qual}」——限定词已随拆席退役，须裸角色行`)
   return { role, seat: 0 }
 }
 
@@ -559,7 +559,7 @@ export function parseDispatchPlan(text) {
  *  agent_defaults 补全并标 defaults——本批即 S4 现役值，禁读出厂替代）；implreview-split
  *  批 D-3/D-5：十岗各一行统一对账，第二审键=implreview2——S1 series_process.reviewer_second
  *  只做派生一致性复核（=merged role_fallbacks.implreview2[0]=agent_defaults.implreview2=plan 行），
- *  不再凭席位限定词排除该行、不另设第二套人工排序。返回 diffs/route_errors/计数。 */
+ *  不再凭限定词排除该行、不另设第二套人工排序。返回 diffs/route_errors/计数。 */
 export function dispatchCheck({ plan, routeText, matrix, cfg, s1 }) {
   const route = parseRoute(routeText) // 语法错→UsageError（exit 1 面）
   const routeErrors = validateRoute(route, matrix)
