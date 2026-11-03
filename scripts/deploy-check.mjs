@@ -111,7 +111,7 @@ export function parseBindingValue(v) {
 }
 
 /** B4 面板批（D-3）：绑定名按现役 SLOT_NAME_RE 同契约解析角色（解析不出=null=按无覆盖处理）。 */
-const b4BindingRoleOf = (bindingName) => { const m = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)$/.exec(String(bindingName || '')); return m ? m[1] : null }
+const b4BindingRoleOf = (bindingName) => { const m = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview1|implreview2|adjudicator|vision)-([a-z0-9]+)-(low|high|max)$/.exec(String(bindingName || '')); return m ? m[1] : null }
 
 /** ④渲染（v2.1.0 批4；返工 k1 W-2 强化石；P2 批两字段化）：模板占位
  *  `{{binding:<岗>}}` → 本机件 agent_bindings 实值。正文替换保留完整声明
@@ -206,7 +206,7 @@ export function checkThoughtLevel(level) {
  *  provider 与文件名中段一致、slot.model/level 与渲染值一致；legacy 名=skip
  *  （调用方汇总 legacy 件数，不计 warn）。 */
 export function checkAgentName(name, slotDef, rendered = {}, levelOverride = null) {
-  const m = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
+  const m = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview1|implreview2|adjudicator|vision)-([a-z0-9]+)-(low|high|max)\.md$/.exec(String(name))
   if (!m) return { level: 'skip', skipped: true, line: '' }
   const [, role, provider, level] = m
   const base = String(name).replace(/\.md$/, '')
@@ -287,6 +287,17 @@ export function checkRequiredFiles(root, files = REQUIRED_FILES) {
 /** ④ 代理清单单源派生：templates/agents/ops-*.md 枚举（显式排序，evolve-l3 同律）。 */
 export function listAgentTemplates(dir = TEMPLATES_AGENTS) {
   return readdirSync(dir).filter((f) => /^ops-.*\.md$/.test(f)).sort()
+}
+
+/** implreview-split 批 D-11：旧合并键审核部署残影枚举（单源）——仅
+ *  ops-implreview-<provider>-<level>.md 形态（implreview1/implreview2 新键不含该前缀、
+ *  天然不在命中面）；runChecks FAIL 面与 --sync-agents 定向删除共用本枚举。 */
+export function listLegacyImplreviewResiduals(agentsDir) {
+  try {
+    return readdirSync(agentsDir).filter((f) => /^ops-implreview-([a-z0-9]+)-(low|high|max)\.md$/.test(f)).sort()
+  } catch {
+    return [] // 目录缺失=无残影面（空清单非错误）
+  }
 }
 
 /** ④ 漂移分类（哈希相等性由调用方注入=自检位）：缺失→FAIL/不等→warn/相等→ok。 */
@@ -424,6 +435,13 @@ export function runChecks(agentsDir, cfg, projectDir = null) {
   }
   console.log(`thoughtLevel 检查——未绑定模板 ${unboundThoughtSkipped} 个跳过（无 model: 行，随宿主模型）`)
   console.log(`name-check——新式命名核对跳过 legacy 件 ${legacyNameSkipped} 个（P5 生成 34 档后启用）`)
+  // implreview-split 批 D-11：旧键审核部署残影检查——agentsDir 中旧合并键形态文件（模板侧已
+  // 由 gen-agents 定向 prune，部署侧清理面=--sync-agents）＝改绑后残留，FAIL 点名；旧件禁手工改内容。
+  const legacyImplreviewResidual = listLegacyImplreviewResiduals(agentsDir)
+  if (legacyImplreviewResidual.length)
+    push({ level: 'FAIL', line: `agents——旧审核部署残影 ${legacyImplreviewResidual.length} 件（${legacyImplreviewResidual.join('、')}，${agentsDir}）——implreview 已拆 implreview1/implreview2 两注册；清理面=deploy-check --sync-agents 定向删除（旧部署件禁手工改内容）` })
+  else
+    push({ level: 'ok', line: 'agents——旧审核部署残影 0 件（ops-implreview-<provider>-<level> 形态零命中）' })
   push(checkHostVersion(process.env.ZCODE_APP_VERSION))
 
   const git = gitState()
@@ -505,8 +523,17 @@ export function syncAgents(agentsDir, bindings = {}, levelOverrides = null) {
     console.log(`[FAIL] sync-agents——回读 sha256 不等：${mismatched.join('、')}`)
     return { level: 'FAIL', wrote }
   }
-  console.log(`[sync] 完成：写入 ${wrote} 件，回读 sha256 全部相等`)
-  return { level: 'ok', wrote }
+  // implreview-split 批 D-11：定向删除旧合并键审核部署残影——仅 ops-implreview-<p>-<lv>.md
+  // 形态（implreview1/implreview2 新键不含该前缀）；其余 legacy 部署件不覆盖、不删除；
+  // 旧部署件不手工改内容=整件删除后由新键部署件承接。
+  const prunedLegacy = listLegacyImplreviewResiduals(agentsDir)
+  for (const name of prunedLegacy) {
+    unlinkSync(join(agentsDir, name))
+    console.log(`[sync] 定向删除旧审核部署件：${name}`)
+  }
+  if (prunedLegacy.length) console.log(`[sync] 旧审核残影清理汇总：${prunedLegacy.length} 件（仅旧键形态，其余 legacy 零触碰）`)
+  console.log(`[sync] 完成：写入 ${wrote} 件，回读 sha256 全部相等${prunedLegacy.length ? `；定向删除旧审核残影 ${prunedLegacy.length} 件` : ''}`)
+  return { level: 'ok', wrote, pruned: prunedLegacy.length }
 }
 
 /** --install 动作二：hooksPath 未设时补设（已设含自定义=不动）。 */
@@ -915,6 +942,37 @@ function selfTest() {
       const rs = syncAgents(dirS, b56, ov)
       t('B4 D-3 sync 覆盖传递：全或无完成且 research 件=max', rs.level === 'ok' && rs.wrote === need.size && readFrontmatterFields(readFileSync(join(dirS, fStem('ops-research-')), 'utf8')).thoughtLevel === 'max')
     } finally { rmSync(dirS, { recursive: true, force: true }) }
+    // ── implreview-split 批 D-11 向量：旧键部署残影枚举单源＋--sync-agents 定向 prune ──
+    {
+      const fxRes = mkdtempSync(join(tmpdir(), 'deploy-check-ir-'))
+      try {
+        for (const p of ['699', 'ds', 'yyx', 'zipoo', 'glm', 'glmflash', 'startplan'])
+          writeFileSync(join(fxRes, `ops-implreview-${p}-max.md`), 'OLD-RESIDUAL\n')
+        writeFileSync(join(fxRes, 'ops-implreview1-699-max.md'), 'NEW-KEY\n')
+        writeFileSync(join(fxRes, 'ops-legacy-x.md'), 'LEGACY-KEPT\n')
+        const listed = listLegacyImplreviewResiduals(fxRes)
+        const listedOk = listed.length === 7 && listed.every((n) => /^ops-implreview-[a-z0-9]+-(low|high|max)\.md$/.test(n)) && !listed.includes('ops-implreview1-699-max.md')
+        const rs2 = syncAgents(fxRes, b56, ov)
+        const after2 = readdirSync(fxRes).sort()
+        // 模板面尚存旧键件时（T9 生成前），sync 会先写后删同形态件——期望值按模板面旧键件数派生：
+        const oldTplCount = listAgentTemplates().filter((n) => /^ops-implreview-[a-z0-9]+-(low|high|max)\.md$/.test(n)).length
+        t('implreview-split D-11 sync 定向 prune：残影枚举恰七旧件（新键/legacy 不在命中面）＋sync 后旧形态零残留＋legacy 零触碰＋件数=模板面−旧键模板＋2',
+          listedOk &&
+          rs2.level === 'ok' && rs2.pruned === 7 &&
+          !after2.some((n) => /^ops-implreview-[a-z0-9]+-(low|high|max)\.md$/.test(n)) &&
+          readFileSync(join(fxRes, 'ops-legacy-x.md'), 'utf8') === 'LEGACY-KEPT\n' &&
+          after2.length === need.size + 2 - oldTplCount)
+      } finally { rmSync(fxRes, { recursive: true, force: true }) }
+      t('implreview-split D-11 残影枚举：缺失目录→空清单（非错误）', listLegacyImplreviewResiduals(join(tmpdir(), 'deploy-check-ir-none-' + process.pid)).length === 0)
+      // D-1 两正则随动直证：新键名过 checkAgentName 结构核对、旧键名回落 legacy skip、
+      // 绑定名角色解析覆盖两新键（正则删任一新键=本向量红）。
+      t('implreview-split D-1 双正则：checkAgentName 认 implreview1/2 新键·旧键名=skip·b4BindingRoleOf 双键可解析',
+        checkAgentName('ops-implreview2-ds-max.md', { provider: 'ds', model: 'm-ds', level: 'max' }, { model: 'prov-ds/m-ds', level: 'max' }).level === 'ok' &&
+        checkAgentName('ops-implreview1-699-max.md', { provider: '699', model: 'm-699', level: 'max' }, { model: 'prov-699/m-699', level: 'max' }).level === 'ok' &&
+        checkAgentName('ops-implreview-699-max.md', { provider: '699', model: 'm', level: 'max' }).level === 'skip' &&
+        b4BindingRoleOf('ops-implreview1-yyx-max') === 'implreview1' && b4BindingRoleOf('ops-implreview2-ds-max') === 'implreview2' &&
+        b4BindingRoleOf('ops-implreview-yyx-max') === null)
+    }
   }
 
   // ── B1 批（D-4/D-8）向量：⑧ project-gate 判定三态＋⑦ 项目账本目录试写（tmp 夹具） ──

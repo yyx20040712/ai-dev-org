@@ -1,7 +1,7 @@
 /**
  * gen-agents —— 按逻辑矩阵生成待位代理模板（P4）。
  * 职责：
- *   ① templates/agents.matrix.json 装载与契约校验（九岗/七源/键序全等/默认与回退序/工具面/
+ *   ① templates/agents.matrix.json 装载与契约校验（十岗/七源/键序全等/默认与回退序/工具面/
  *      vision 多模态约束——startplan 文本应急例外见 B2 批 D-7a）；
  *   ② 由 role × provider 派生 slot（ops-<role>-<provider>-<level>；总数=矩阵派生，
  *      L19 起自检期望以独立算式 Σ roles[role].providers.length 复算，不写死）；
@@ -29,11 +29,12 @@ export const DEFAULT_OUT_DIR = join(SKILL_ROOT, 'templates', 'agents')
 export const MANIFEST_NAME = '.manifest.json'
 export const STAGING_PREFIX = '.staging-'
 
-/** 固定九岗（顺序=矩阵声明序=slot 派生序；D1/自检共用；三审拆岗与键序重排=B2 批 D-1/D-2，
- *  键序与 loadMatrix 全等断言共用本常量——乱序矩阵在装载期即拒）。 */
-export const ROLE_ORDER = ['research', 'planner', 'assembler', 'executor', 'tbreview', 'planreview', 'implreview', 'adjudicator', 'vision']
+/** 固定十岗（顺序=矩阵声明序=slot 派生序；D1/自检共用；implreview-split 批 D-1：执行者审核
+ *  拆 implreview1/implreview2 两独立注册键，一号紧邻二号前；键序与 loadMatrix 全等断言共用
+ *  本常量——乱序矩阵在装载期即拒）。 */
+export const ROLE_ORDER = ['research', 'planner', 'assembler', 'executor', 'tbreview', 'planreview', 'implreview1', 'implreview2', 'adjudicator', 'vision']
 export const REQUIRED_LEVELS = ['low', 'high', 'max']
-export const SLOT_NAME_RE = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview|adjudicator|vision)-([a-z0-9]+)-(low|high|max)$/
+export const SLOT_NAME_RE = /^ops-(research|planner|assembler|executor|tbreview|planreview|implreview1|implreview2|adjudicator|vision)-([a-z0-9]+)-(low|high|max)$/
 
 /** 角色→color 固定映射（§4.2：不得随机；与宿主子智能体列表配色一致）。 */
 export const ROLE_COLORS = {
@@ -43,7 +44,8 @@ export const ROLE_COLORS = {
   executor: 'green',
   tbreview: 'purple',
   planreview: 'yellow',
-  implreview: 'purple',
+  implreview1: 'purple',
+  implreview2: 'purple',
   adjudicator: 'red',
   vision: 'magenta',
 }
@@ -56,7 +58,8 @@ export const ROLE_PURPOSES = {
   executor: '按任务书实现、自验与诊断取证',
   tbreview: '派发前任务书审包只读审核',
   planreview: '只读规划审包对抗审核',
-  implreview: '只读按包隔离一审与分级',
+  implreview1: '只读按包隔离一审与分级',
+  implreview2: '只读按包隔离二审与分级',
   adjudicator: '只读独立裁决与复算',
   vision: '只读视觉判据核对',
 }
@@ -87,7 +90,7 @@ export function loadMatrix(path = MATRIX_PATH) {
   // B2 批 D-2 键序全等断言：roles 键声明序须与 ROLE_ORDER 逐键全等（乱序=装载期拒，
   // slot 派生序/面板卡序/constraint 面共用本序——防两序并存回潮；缺角色/未知角色先行点名）。
   if (JSON.stringify(Object.keys(roles)) !== JSON.stringify(ROLE_ORDER))
-    throw new Error(`矩阵 ${path} roles 键序须与固定九岗序全等（期望 ${ROLE_ORDER.join('→')}，实际 ${Object.keys(roles).join('→')}）`)
+    throw new Error(`矩阵 ${path} roles 键序须与固定十岗序全等（期望 ${ROLE_ORDER.join('→')}，实际 ${Object.keys(roles).join('→')}）`)
   for (const [role, def] of Object.entries(roles)) {
     if (!isPlainObject(def)) throw new Error(`矩阵 roles.${role} 须为对象`)
     if (typeof def.title !== 'string' || !def.title.trim()) throw new Error(`矩阵 roles.${role}.title 须为非空字符串`)
@@ -274,6 +277,26 @@ export function safeTargetPath(base, name) {
   }
 }
 
+/** 旧审核模板定向 prune（implreview-split 批 D-2）：仅匹配旧合并键形态
+ *  `ops-implreview-<provider>-<level>.md`（正则锚定旧键连字符——implreview1/implreview2
+ *  新键不含该前缀、天然不在命中面）；其余 legacy 模板零触碰。apply=false 只枚举不删除
+ *  （dry-run 观察面）。返回命中文件名清单（排序）。 */
+export function pruneLegacyImplreviewTemplates(outDir, { apply = true } = {}) {
+  const base = resolve(String(outDir))
+  const victims = []
+  try {
+    for (const name of readdirSync(base)) {
+      if (/^ops-implreview-([a-z0-9]+)-(low|high|max)\.md$/.test(name)) {
+        if (apply) unlinkSync(join(base, name))
+        victims.push(name)
+      }
+    }
+  } catch {
+    // 目录缺失=无 prune 面（空清单非错误——干净面重跑属常态）
+  }
+  return victims.sort()
+}
+
 /** 生成全量模板（可注入目录；dryRun 不落盘）。三段式（W1）：
  *   ① 构建+校验：任一失败 → 0 件写入（phase=validate）；
  *   ② 暂存：全部写入 outDir 下的 `.staging-*` 子目录并回读核对 sha256——任一不符
@@ -323,7 +346,14 @@ export function generateAgents({ matrix, roleDir = ROLES_DIR, outDir = DEFAULT_O
   if (errors.length) return { slots, written: 0, errors, files: [], dryRun, phase: 'validate', staged: false, rolledBack: false, warnings: [] }
   const manifest = buildManifest(built.map((b) => ({ slot: b.slot, sha256: b.sha256 })), stamp)
   const manifestText = JSON.stringify(manifest, null, 2) + '\n'
-  if (dryRun) return { slots, written: 0, errors: [], files: built.map((b) => `${b.slot}.md`), manifest, dryRun: true, phase: 'dry-run', staged: false, rolledBack: false, warnings: [] }
+  if (dryRun) {
+    // D-2 prune 观察面：dry-run 只枚举旧键模板候选、零删除（写盘面=实跑专属）
+    const pruneCandidates = safeTargetPath(outDir, '.').path
+    return {
+      slots, written: 0, errors: [], files: built.map((b) => `${b.slot}.md`), manifest, dryRun: true, phase: 'dry-run', staged: false, rolledBack: false, warnings: [],
+      prune_candidates: pruneLegacyImplreviewTemplates(pruneCandidates, { apply: false }),
+    }
+  }
 
   // 写盘前包含性判定（W4/W-new4）：目标路径必须在 outDir 之内
   const base = resolve(outDir)
@@ -443,6 +473,8 @@ export function generateAgents({ matrix, roleDir = ROLES_DIR, outDir = DEFAULT_O
       }, dropStaging())
     }
     const cleanup = dropStaging()
+    // D-2 定向 prune：提交成功后才删旧键模板（全或无语义保留——校验/暂存/回读失败时零删除）
+    const pruned = pruneLegacyImplreviewTemplates(base)
     return withCleanup({
       slots,
       written: targets.length,
@@ -454,6 +486,7 @@ export function generateAgents({ matrix, roleDir = ROLES_DIR, outDir = DEFAULT_O
       staged: true,
       rolledBack: false,
       warnings: [],
+      pruned,
     }, cleanup)
   } catch (e) {
     return withCleanup({ slots, written: 0, errors: [`写盘暂存失败（最终目录未动）：${e.message}`], files: [], manifest, dryRun: false, phase: 'stage', staged: false, rolledBack: false, warnings: [] }, dropStaging())
@@ -756,17 +789,21 @@ function selfTest() {
       && readFileSync(join(fxCommit, '.manifest.json'), 'utf8') === '{"pre":1}\n')
   } finally { rmSync(fxCommit, { recursive: true, force: true }) }
   // 向量29（W-new1a）：回滚失败注入（faultBeforeRollback 把恢复目标改成 0444——真实
-  //  EACCES，非布尔假动作）→ rolledBack=false 且 errors 逐路径点名恢复失败项
+  //  EACCES，非布尔假动作）→ rolledBack=false 且 errors 逐路径点名恢复失败项。
+  //  implreview-split 批修正：faultCommitAt 由写死 20 改为按矩阵派生序定位 victim
+  //  （ops-executor-glm-high 提交后一发）——池序演进后写死索引与 victim 错位=注入落空、
+  //  向量静默红（批前既发失败，非本批引入；V-1 要求本自检 ec=0）。
   const fxRbFail = mkdtempSync(join(tmpdir(), 'gen-agents-rb-fail-'))
   try {
     const victimPath = join(fxRbFail, 'ops-executor-glm-high.md')
     writeFileSync(victimPath, 'PRE-EXISTING-RO\n')
+    const faultAt29 = slots.findIndex((s) => s.slot === 'ops-executor-glm-high') + 1
     const r29 = generateAgents({
       matrix,
       roleDir: ROLES_DIR,
       outDir: fxRbFail,
       generatedAt: '2026-10-22',
-      faultCommitAt: 20,
+      faultCommitAt: faultAt29,
       faultBeforeRollback: (committed) => {
         const victim = committed.find((p) => p === victimPath)
         if (victim) chmodSync(victim, 0o444) // 恢复路径不可写=回滚必失败（真实权限错误）
@@ -847,6 +884,42 @@ function selfTest() {
   }
   const eAsmPresent = loadFail(cAsmPresent)
   t('向量33 夹具矩阵含 assembler（Kimi 三源合成条目）→ loadMatrix 通过', eAsmPresent === null)
+
+  // 向量34（implreview-split 批 D-1/D-2）：拆席注册链——十岗/一号紧邻二号/两键槽名合法/
+  // 颜色职责双键齐全/旧键不在任何注册常量/矩阵派生两键各七源。
+  t('向量34 拆席注册链：十岗·一号紧邻二号·两键槽名合法·旧键槽名不合法·颜色职责齐全·两键各七源',
+    ROLE_ORDER.length === 10 &&
+    ROLE_ORDER.indexOf('implreview1') + 1 === ROLE_ORDER.indexOf('implreview2') &&
+    !ROLE_ORDER.includes('implreview') &&
+    SLOT_NAME_RE.test('ops-implreview1-699-max') && SLOT_NAME_RE.test('ops-implreview2-ds-max') &&
+    !SLOT_NAME_RE.test('ops-implreview-699-max') &&
+    !!ROLE_COLORS.implreview1 && !!ROLE_COLORS.implreview2 && !!ROLE_PURPOSES.implreview1 && !!ROLE_PURPOSES.implreview2 &&
+    slotsFromMatrix(matrix).filter((s) => s.role === 'implreview1' || s.role === 'implreview2').length === 14)
+
+  // 向量35（implreview-split 批 D-2）：旧键模板定向 prune——fixture 预置七旧件＋legacy
+  // ops-executor.md；dry-run 只枚举零删除，实跑后恰七旧件删除、legacy 与新键模板零触碰、
+  // manifest 键集=生成文件集。
+  {
+    const fxPrune = mkdtempSync(join(tmpdir(), 'gen-agents-prune-'))
+    try {
+      const PS35 = ['699', 'ds', 'yyx', 'zipoo', 'glm', 'glmflash', 'startplan']
+      for (const p of PS35) writeFileSync(join(fxPrune, `ops-implreview-${p}-max.md`), 'OLD\n')
+      writeFileSync(join(fxPrune, 'ops-executor.md'), 'LEGACY-CONTENT\n')
+      const dry35 = generateAgents({ matrix, roleDir: ROLES_DIR, outDir: fxPrune, dryRun: true, generatedAt: '2026-11-03' })
+      const dryOk = dry35.prune_candidates.length === 7 && existsSync(join(fxPrune, 'ops-implreview-699-max.md'))
+      const r35 = generateAgents({ matrix, roleDir: ROLES_DIR, outDir: fxPrune, generatedAt: '2026-11-03' })
+      const after35 = readdirSync(fxPrune).sort()
+      t('向量35 旧审核模板定向 prune：dry 只枚举；实跑恰七旧件删除＋新键模板在场＋legacy 零触碰＋manifest=生成集',
+        dryOk && r35.errors.length === 0 &&
+        JSON.stringify(r35.pruned) === JSON.stringify(PS35.map((p) => `ops-implreview-${p}-max.md`).sort()) &&
+        !after35.some((n) => /^ops-implreview-[a-z0-9]+-(low|high|max)\.md$/.test(n)) &&
+        after35.includes('ops-implreview1-699-max.md') && after35.includes('ops-implreview2-ds-max.md') &&
+        readFileSync(join(fxPrune, 'ops-executor.md'), 'utf8') === 'LEGACY-CONTENT\n' &&
+        after35.length === expectedSlots + 2 &&
+        JSON.stringify(Object.keys(JSON.parse(readFileSync(join(fxPrune, '.manifest.json'), 'utf8')).files).sort()) ===
+          JSON.stringify(after35.filter((n) => n.endsWith('.md') && n !== 'ops-executor.md').sort()))
+    } finally { rmSync(fxPrune, { recursive: true, force: true }) }
+  }
 
   console.log(fails === 0 ? `self-test 全过（${n} 向量）` : `self-test ${fails} 项失败`)
   process.exit(fails === 0 ? 0 : 1)
@@ -937,6 +1010,11 @@ if (isMain) {
       process.exit(1)
     }
     console.log(`[gen-agents] 已写入 ${result.written}/${result.slots.length} 个模板与 .manifest.json → ${outDir}`)
+    // D-2 定向 prune 披露：旧合并键审核模板删除清单逐件回显（空清单=干净面重跑）
+    if (result.pruned && result.pruned.length) {
+      for (const name of result.pruned) console.log(`[gen-agents] 定向清理旧审核模板：${name}`)
+      console.log(`[gen-agents] 定向清理汇总：${result.pruned.length} 件（仅旧键 ops-implreview-<provider>-<level> 形态，其余 legacy 零触碰）`)
+    }
     // W-new1b：成功提交但暂存清理失败必须披露（禁报成成功无提示）
     for (const w of result.warnings || []) console.error(w)
     process.exit(0)
