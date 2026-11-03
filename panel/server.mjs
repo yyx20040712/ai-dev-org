@@ -34,7 +34,7 @@ const SLOT_RE = new RegExp(`^ops-(${ROLE_ORDER.join('|')})-([a-z0-9]+)-(low|high
 // 组内 roles 由矩阵键序 filter 而来（不另写组内排序——此后调键序只改矩阵，不改面板码）。
 const ROLE_GROUPS = [
   { id: 'production', label: '生产', roles: ['research', 'planner', 'assembler', 'executor'] },
-  { id: 'review', label: '审核', roles: ['tbreview', 'planreview', 'implreview'] },
+  { id: 'review', label: '审核', roles: ['tbreview', 'planreview', 'implreview1', 'implreview2'] },
   { id: 'adjudication', label: '裁决', roles: ['adjudicator'] },
   { id: 'vision', label: '视觉', roles: ['vision'] },
 ];
