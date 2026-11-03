@@ -461,13 +461,20 @@ function selfTest() {
     const d6Neg = write('w5c-d6-neg.md', '# 审包 w5c-d6-neg\n\ntoken: abc12 与 key=\'abc\' 与 api_key=\'abcdefghijklmnop 与 bearer shorttok 结尾。\n')
     const d6nr = runPack(['--pack', d6Neg, '--redact'])
     codes.add(d6nr.status)
-    t('向量40 W5c D-6 redact 三残余扩面：小写/混合大小写 bearer＋单双引号值＋冒号值均命中（exit 1＋redact_hits=5＋类别与 sha8 正确＋零原文回显）；短值/未闭合引号/不完整 token 负例零命中（exit 0）',
+    const d6plain = runPack(['--pack', d6Pos])
+    codes.add(d6plain.status)
+    const d6PlainSum = sumOf(d6plain)
+    const d6Frags = ['bearer abcdefghijklmnopqrstuvwxyz1234', 'BeArer zyxwvutsrqponmlkjihgfedcba1234', "api_key='Abcdefg12345678'", 'my_secret_token="Qrstuvwx98765432"', 'token: Nmlkjihg7654321z']
+    const d6Sha8 = (f) => 'sha8=' + createHash('sha256').update(f, 'utf8').digest('hex').slice(0, 8)
+    t('向量40 W5c D-6 redact 三残余扩面：小写/混合大小写 bearer＋单双引号值＋冒号值均命中（exit 1＋redact_hits=5＋五片段逐类 sha8 精确复算＋类别可观测）；命中原文与部分前缀零回显（含混合大小写 token 原文）；短值/未闭合引号/不完整 token 负例零命中（exit 0）；无 --redact 摘要逐字节不变（去 redact 后缀＝无旗标摘要·无 face/redact 字段）',
       d6r.status === 1 && sumOf(d6r).includes('redact=true redact_hits=5')
         && (d6Out.match(/sha8=[0-9a-f]{8}/g) || []).length === 5 && d6Out.includes('bearer') && d6Out.includes('key-assign')
-        && d6Out.includes('sha8=' + createHash('sha256').update('bearer abcdefghijklmnopqrstuvwxyz1234', 'utf8').digest('hex').slice(0, 8))
-        && !d6Out.includes('abcdefghijklmnopqrstuvwxyz1234') && !d6Out.includes('Abcdefg12345678') && !d6Out.includes('Qrstuvwx98765432') && !d6Out.includes('Nmlkjihg7654321z')
-        && d6nr.status === 0 && sumOf(d6nr).includes('redact=true redact_hits=0'),
-      `${d6r.status} ${sumOf(d6r)} neg=${d6nr.status} ${sumOf(d6nr)} out=${d6Out.slice(-320)}`)
+        && d6Frags.every((f) => d6Out.includes(d6Sha8(f)))
+        && !d6Out.includes('abcdefghijklmnopqrstuvwxyz1234') && !d6Out.includes('zyxwvutsrqponmlkjihgfedcba1234') && !d6Out.includes('Abcdefg12345678') && !d6Out.includes('Qrstuvwx98765432') && !d6Out.includes('Nmlkjihg7654321z')
+        && !d6Out.includes('abcdefghijklmnop') && !d6Out.includes('zyxwvutsrqponmlk') && !d6Out.includes('Abcdefg123456') && !d6Out.includes('Qrstuvwx98765') && !d6Out.includes('Nmlkjihg76543')
+        && d6nr.status === 0 && sumOf(d6nr).includes('redact=true redact_hits=0')
+        && d6plain.status === 0 && d6PlainSum !== '' && d6PlainSum === sumOf(d6r).replace(' redact=true redact_hits=5', '') && !d6PlainSum.includes('redact') && !d6PlainSum.includes('face='),
+      `${d6r.status} ${sumOf(d6r)} plain=${d6plain.status} ${d6PlainSum} neg=${d6nr.status} ${sumOf(d6nr)} out=${d6Out.slice(-320)}`)
 
     // 向量23：退出码域——全部实测退出码 ∈ {0,1,3}（禁复用 2）
     t('向量23 退出码域：全部自检运行退出码恰为 0/1/3 集合（无 2 或其他值）',
