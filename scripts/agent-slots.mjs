@@ -230,7 +230,7 @@ export function doctorFindings(matrix, cfg, opts = {}) {
   const defaults = isPlainObject(cfg?.agent_defaults) ? cfg.agent_defaults : {}
   const fallbacks = isPlainObject(cfg?.role_fallbacks) ? cfg.role_fallbacks : {}
 
-  // D1：矩阵八岗齐全、slot 数=独立算式期望、命名合法。
+  // D1：矩阵十岗齐全、slot 数=独立算式期望、命名合法。
   // 期望值=Σ roles[role].providers.length（verify-docs 矩阵计数检查既有口径，L19 派生化
   // ——禁用 slotsFromMatrix 输出长度作期望值：自指恒真=计数检查静默失效，r1-W1）。
   const expectedSlots = ROLE_ORDER.reduce((n, r) => n + (Array.isArray(roles[r]?.providers) ? roles[r].providers.length : 0), 0)
@@ -1149,10 +1149,33 @@ function selfTest() {
     const plan55s1 = parseDispatchPlan(planText(routeNow, { second: 'ops-implreview2-699-max' }))
     const dc55s1 = dispatchCheck({ plan: plan55s1, routeText: routeNow, matrix, cfg: cfgR0, s1: s1R0 })
     const d55s1 = dc55s1.diffs.join('\n')
+    // 返工轮 1 修入②：V-3/V-4 负例 CLI 级实跑（staging 技能根真进程）——S4 单改
+    // role_fallbacks.implreview2[0]／agent_defaults.implreview2／S1 reviewer_second 漂移三类
+    // 各 exit 1＋具名诊断；还原后复跑 exit 0（并入本向量，总数保持 78）。
+    const localStage55 = JSON.parse(readFileSync(join(stage, 'org-config.local.json'), 'utf8'))
+    const writeStage55 = (c) => writeFileSync(join(stage, 'org-config.local.json'), JSON.stringify(c))
+    const runDcStage55 = (projDir) => runStage(['dispatch-check', '--plan', planPath53, '--route', routeNow, '--project', projDir])
+    const outOf55 = (r) => `${r.stdout || ''}${r.stderr || ''}`
+    const c55n1 = JSON.parse(JSON.stringify(localStage55))
+    c55n1.role_fallbacks.implreview2 = ['ops-implreview2-699-max', ...c55n1.role_fallbacks.implreview2.slice(1)]
+    writeStage55(c55n1)
+    const s55n1 = runDcStage55(proj53)
+    const o55n1 = outOf55(s55n1)
+    const c55n2 = JSON.parse(JSON.stringify(localStage55))
+    c55n2.agent_defaults.implreview2 = 'ops-implreview2-699-max'
+    writeStage55(c55n2)
+    const s55n2 = runDcStage55(proj53)
+    const o55n2 = outOf55(s55n2)
+    writeStage55(localStage55) // 还原（后续向量共用 stage）
+    const proj55s1 = mkProj('proj55s1', { roles: {}, series_process: { reviewer_second: 'ops-implreview2-699-max' } })
+    const s55n3 = runDcStage55(proj55s1)
+    const o55n3 = outOf55(s55n3)
+    const s55ok = runDcStage55(proj53)
+    const o55ok = outOf55(s55ok)
     const cfgUnreg = clone(cfgR0)
     delete cfgUnreg.agent_slots[defaultsNow.planner]
     const e55reg = (() => { try { dispatchCheck({ plan: planObj53, routeText: routeNow, matrix, cfg: cfgUnreg, s1: s1R0 }); return null } catch (e) { return e } })()
-    t('向量55 缺/畸形 plan（缺行/重复/旧限定词/旧 role）→装载错拒收＋S1 第二审漂移→FAIL 点名＋CLI 三态实跑（畸形 exit 3/禁用岗 exit 1/启用岗未列 exit 1）＋缺件 exit 3＋S4 本机件缺席 exit 3＋补全 slot 未注册报错',
+    t('向量55 缺/畸形 plan（缺行/重复/旧限定词/旧 role）→装载错拒收＋S1 第二审漂移→FAIL 点名＋S4 单改值/S1 漂移三类 CLI 级实跑（各 exit 1 具名·还原复跑 exit 0）＋CLI 三态实跑（畸形 exit 3/禁用岗 exit 1/启用岗未列 exit 1）＋缺件 exit 3＋S4 本机件缺席 exit 3＋补全 slot 未注册报错',
       malformedOk &&
       dc55a.ok === false && dc55a.diffs.join('\n').includes('禁用岗') &&
       dc55b.ok === false && dc55b.diffs.join('\n').includes('未列入 ROUTE') && dc55b.diffs.join('\n').includes('vision') &&
@@ -1162,7 +1185,11 @@ function selfTest() {
       s55u.status === 1 && out55u.includes('未列入 ROUTE') && out55u.includes('dispatch_check=FAIL') &&
       s55nl.status === 3 && out55nl.includes('[装载错]') && out55nl.includes('S4 本机件') && out55nl.includes('静默代位') &&
       e55reg !== null && e55reg.message.includes('未在 cfg.agent_slots 注册') && e55reg.message.includes('planner') &&
-      dc55s1.ok === false && d55s1.includes('implreview2: plan=') && d55s1.includes('S1 series_process.reviewer_second'))
+      dc55s1.ok === false && d55s1.includes('implreview2: plan=') && d55s1.includes('S1 series_process.reviewer_second') &&
+      s55n1.status === 1 && o55n1.includes('dispatch_check=FAIL') && o55n1.includes('role_fallbacks.implreview2[0]') && o55n1.includes('reviewer_second') &&
+      s55n2.status === 1 && o55n2.includes('dispatch_check=FAIL') && o55n2.includes('agent_defaults.implreview2=ops-implreview2-699-max') &&
+      s55n3.status === 1 && o55n3.includes('dispatch_check=FAIL') && o55n3.includes('implreview2: plan=') && o55n3.includes('S1 series_process.reviewer_second=ops-implreview2-699-max') &&
+      s55ok.status === 0 && o55ok.includes('dispatch_check=PASS roles=10'))
 
     // 向量56：S4 滞后＝WARN 不阻断（exit 0）＋岗位去重计数＋ISO inspected_at（纯函数＋staging CLI）
     const lagCfg = { s3: { agent_defaults: {}, role_fallbacks: {} }, s4: { agent_defaults: {}, role_fallbacks: {} } }
