@@ -233,23 +233,23 @@ function selfTest() {
     const noRoute = write('no-route.md', okBody)
     const sum1 = (r, want) => sumOf(r) === `bytes=${Buffer.byteLength(okBody)} tokens=${Math.ceil(Buffer.byteLength(okBody) / 4)} limit=8192 repo_access=false route_check=${want}`
 
-    // 对账夹具：真实技能配置派生九岗 plan＋合成项目根（同 agent-slots 向量 53 形态）
+    // 对账夹具：真实技能配置派生十岗 plan＋合成项目根（同 agent-slots 向量 53 形态；
+    // implreview-split 批 D-5：两新审核键各裸角色一行，第二审=S1 reviewer_second 派生对账）
     const mergedNow = loadOrgConfig(SKILL_ROOT).merged
     const defaultsNow = mergedNow.agent_defaults
-    const providerOf = (slot) => { const m = /^ops-([a-z]+)-(.+)-([a-z]+)$/.exec(String(slot)); return m ? m[2] : '?' }
-    const R0_ENABLED = ['assembler', 'executor', 'tbreview', 'implreview', 'adjudicator', 'vision']
+    const providerOf = (slot) => { const m = /^ops-([a-z0-9]+)-(.+)-([a-z]+)$/.exec(String(slot)); return m ? m[2] : '?' }
+    const R0_ENABLED = ['assembler', 'executor', 'tbreview', 'implreview1', 'implreview2', 'adjudicator', 'vision']
     const routeNow = `ROUTE: ${R0_ENABLED.map((r) => `${r}-${providerOf(defaultsNow[r])}`).join(';')}`
-    const secondSlot = 'ops-implreview-ds-max'
+    const secondSlot = defaultsNow.implreview2
     const planText = (routeLine) => {
       const enOf = (r) => (R0_ENABLED.includes(r) ? '是' : '否')
-      const rowOf = (label, r) => `| ${label} | ${defaultsNow[r]} | 本机件 agent_defaults（S4） | ${enOf(r)} | 理由-${r} |`
-      return ['# 合成 dispatch-plan（dispatch-pack 自检夹具）', '', '## 1. 九岗实选表', '',
+      const rowOf = (r) => `| ${r} | ${r === 'implreview2' ? secondSlot : defaultsNow[r]} | ${r === 'implreview2' ? 'S1 series_process.reviewer_second（常设第二审）' : '本机件 agent_defaults（S4）'} | ${enOf(r)} | 理由-${r} |`
+      return ['# 合成 dispatch-plan（dispatch-pack 自检夹具）', '', '## 1. 十岗实选表', '',
         '| 岗位 | 实际 slot | route_source | 启用 | 理由 |', '|---|---|---|---|---|',
-        rowOf('research', 'research'), rowOf('planner', 'planner'), rowOf('assembler', 'assembler'),
-        rowOf('executor', 'executor'), rowOf('tbreview', 'tbreview'), rowOf('planreview', 'planreview'),
-        rowOf('implreview（第一席）', 'implreview'),
-        `| implreview（第二席·常设） | ${secondSlot} | S1 series_process.reviewer_second（常设第二审） | 是 | 理由-第二席 |`,
-        rowOf('adjudicator', 'adjudicator'), rowOf('vision', 'vision'), '',
+        rowOf('research'), rowOf('planner'), rowOf('assembler'),
+        rowOf('executor'), rowOf('tbreview'), rowOf('planreview'),
+        rowOf('implreview1'), rowOf('implreview2'),
+        rowOf('adjudicator'), rowOf('vision'), '',
         '## 2. 批 ROUTE', '', '```', routeLine, '```', ''].join('\n')
     }
     const planPath = write('plan.md', planText(routeNow))
@@ -336,7 +336,7 @@ function selfTest() {
     t('向量14 多 ROUTE 行：exit 1＋route_check=FAIL＋行号点名', m1.status === 1 && sumOf(m1).endsWith('route_check=FAIL') && outOf(m1).includes('2 条 ROUTE 行'), `${m1.status} ${outOf(m1).slice(-160)}`)
 
     // 向量15：stale ROUTE（R0 反例 fixture）→ exit 1＋route_check=FAIL＋逐岗 diff 来自 dispatch-check
-    const stale = write('stale.md', `# 审包\n\nROUTE: executor-startplan;implreview-699;adjudicator-zipoo\n`)
+    const stale = write('stale.md', `# 审包\n\nROUTE: executor-startplan;implreview1-699;adjudicator-zipoo\n`)
     const s1 = runPack(['--pack', stale, '--plan', planPath, '--project', proj])
     codes.add(s1.status)
     t('向量15 stale ROUTE：exit 1＋route_check=FAIL＋dispatch-check 逐岗 diff 回显（陈旧/未列入）',
