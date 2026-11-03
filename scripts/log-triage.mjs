@@ -30,7 +30,7 @@ import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync, writeFileSy
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir, tmpdir } from 'node:os'
-import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile, UsageError, familyOf } from './org-config.mjs'
+import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile, UsageError, familyOf, parseHistoricalImplreviewSlot } from './org-config.mjs'
 import { ROLE_ORDER as SLOT_ROLE_ORDER, SLOT_NAME_RE } from './gen-agents.mjs' // 装配岗批 D-2：slot 维度两常量单源=gen-agents（单向 import 无环；与 agent-slots.mjs 同款复用）
 
 const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -721,12 +721,14 @@ function run() {
     t('l9-W1 目录在场→零留痕', typeof missingInputNotes === 'function' && missingInputNotes({ cliDir: '/x/clilog', routingLog: '/x/r.jsonl', agentsDir: '/x/ag', exists: () => true }).length === 0)
     // ── P2 批（2026-10-22）：slot 解析/未识别清单/双维度回退归因/声明读取 ──
     const psn = typeof parseSlotName === 'function' ? parseSlotName : null
-    t('P2 parseSlotName：ops-implreview-699-max 命中（role/provider/level 三段）', (() => {
+    t('P2 parseSlotName：ops-implreview-699-max active 解析=null＋历史审核席识别（provider/level 保留）——D-6 读侧反转', (() => {
       const r = psn && psn('ops-implreview-699-max')
-      return !!r && r.role === 'implreview' && r.provider === '699' && r.level === 'max'
+      const h = parseHistoricalImplreviewSlot('ops-implreview-699-max')
+      return r === null && !!h && h.seat === '历史审核席' && h.provider === '699' && h.level === 'max'
     })())
-    t('P2 parseSlotName：未知 role/档位→null（legacy ops-gate1-k1 亦 null）', (() => {
-      return !!psn && psn('ops-gate1-k1') === null && psn('ops-implreview-699-ultra') === null && psn('ops-unknown-699-max') === null && psn('') === null
+    t('P2 parseSlotName：未知 role/档位→null（legacy ops-gate1-k1 亦 null）；新键不误判历史席', (() => {
+      return !!psn && psn('ops-gate1-k1') === null && psn('ops-implreview-699-ultra') === null && psn('ops-unknown-699-max') === null && psn('') === null &&
+        parseHistoricalImplreviewSlot('ops-implreview1-699-max') === null && parseHistoricalImplreviewSlot('ops-implreview2-ds-max') === null && parseHistoricalImplreviewSlot('ops-implreview-699-ultra') === null
     })())
     // 装配岗批（D-3）：assembler 槽归位正例——岗×源分列可归位 ops-assembler-699-max
     // （role/provider/level 三段解析，常量单源=gen-agents ROLE_ORDER/SLOT_NAME_RE 复用面）。
@@ -739,11 +741,13 @@ function run() {
       'ops-implreview-699-max': { provider: '699', model: 'k3', level: 'max' },
       'ops-executor-ds-high': { provider: 'ds', model: 'deepseek-flash', level: 'high' },
     }
-    t('P2 resolveProfileSlot：名与 agent_slots 一致→命中', (() => {
-      const r = rps && rps('ops-implreview-699-max', slotsP2)
-      return !!r && r.slot === 'ops-implreview-699-max' && r.role === 'implreview' && r.provider === '699' && r.level === 'max'
+    t('P2 resolveProfileSlot：新键名与 agent_slots 一致→命中；旧键名 active 解析=null（历史席由读侧单源识别）', (() => {
+      const rNew = rps && rps('ops-executor-ds-high', slotsP2)
+      const rOld = rps && rps('ops-implreview-699-max', slotsP2)
+      return !!rNew && rNew.slot === 'ops-executor-ds-high' && rNew.role === 'executor' && rNew.provider === 'ds' &&
+        rOld === null && parseHistoricalImplreviewSlot('ops-implreview-699-max')?.provider === '699'
     })())
-    t('P2 resolveProfileSlot：provider/level 与名不符或缺 slot→null', (() => {
+    t('P2 resolveProfileSlot：provider/level 与名不符或缺 slot→null（旧键形态一律 null——不进入现役池）', (() => {
       return !!rps && rps('ops-implreview-699-high', slotsP2) === null && rps('ops-implreview-ds-max', slotsP2) === null && rps('ops-implreview-699-max', {}) === null
     })())
     const provP2 = {
@@ -758,8 +762,8 @@ function run() {
       providers: provP2,
       agentSlots: slotP2,
     })
-    t('P2 回退归因：同族切换承载源→dimension=slot（declaredSlot 命中+kind 末尾片段）', (() => {
-      return fbSlot.length === 1 && fbSlot[0].dimension === 'slot' && fbSlot[0].declaredSlot === 'ops-implreview-699-max' && fbSlot[0].declaredFamily === 'kimi' && fbSlot[0].actualFamily === 'kimi' && fbSlot[0].kind.includes('静默回退') && fbSlot[0].kind.includes('（同族切换承载源/换档 slot=ops-implreview-699-max alias=third-syn→other-syn）')
+    t('P2 回退归因：同族切换承载源→dimension=slot（旧键 declaredSlot=null·D-6 反转；kind 末尾片段经 profileId 回显保留可追溯）', (() => {
+      return fbSlot.length === 1 && fbSlot[0].dimension === 'slot' && fbSlot[0].declaredSlot === null && fbSlot[0].declaredFamily === 'kimi' && fbSlot[0].actualFamily === 'kimi' && fbSlot[0].kind.includes('静默回退') && fbSlot[0].kind.includes('（同族切换承载源/换档 slot=ops-implreview-699-max alias=third-syn→other-syn）') && parseHistoricalImplreviewSlot('ops-implreview-699-max')?.seat === '历史审核席'
     })())
     const fbFam = detectSilentFallback({
       metas: [{ profileId: 'ops-implreview-699-max', childSessionId: 's21', profileSnapshot: { model: 'syn-provider/k3s$max' } }],
@@ -801,9 +805,10 @@ function run() {
         && rows[2].name === 'ops-research-kimia-max' && rows[3].name === 'ops-implreview-kimia-max'
         && rows[0].family === 'glm' && rows[1].family === 'kimi'
     })())
-    t('P2 --slots 未识别清单：resolve 失败者去重排序（命中 slot 排除）', (() => {
+    t('P2 --slots 未识别清单：resolve 失败者去重排序（命中 slot 排除）；旧键形态落入未识别清单且读侧识别为历史审核席（D-6 反转）', (() => {
       const u = usp && usp(['ops-implreview-kimia-max', 'ops-probe', 'ops-auditor', 'ops-probe', 'Explore'], slotsSortFx)
-      return !!u && JSON.stringify(u) === JSON.stringify(['Explore', 'ops-auditor', 'ops-probe'])
+      return !!u && JSON.stringify(u) === JSON.stringify(['Explore', 'ops-auditor', 'ops-implreview-kimia-max', 'ops-probe']) &&
+        parseHistoricalImplreviewSlot('ops-implreview-kimia-max')?.seat === '历史审核席' && parseHistoricalImplreviewSlot('ops-implreview-kimia-max')?.provider === 'kimia'
     })())
     console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
     process.exitCode = stFails === 0 ? 0 : 1
@@ -941,7 +946,9 @@ function run() {
       W(`== slot 表（agent_slots ${rows.length} 条，cfg:${cfgHash(merged)}）==\n`)
       for (const r of rows) W(`[${r.role}] ${r.name} provider=${r.provider} model=${r.model} level=${r.level} family=${r.family}\n`)
       const unknown = unknownSlotProfiles(metasAll.map((m) => m.profileId), merged.agent_slots || {})
-      W(`-- 观察到的 profileId 未识别清单（${unknown.length} 个）：${unknown.length ? unknown.join('、') : '无'}\n`)
+      const histSeat = (id) => { const h = parseHistoricalImplreviewSlot(id); return h ? `${id}（${h.seat}·provider=${h.provider}·level=${h.level}）` : id }
+      const histCount = unknown.filter((id) => parseHistoricalImplreviewSlot(id)).length
+      W(`-- 观察到的 profileId 未识别清单（${unknown.length} 个${histCount ? `，其中历史审核席 ${histCount} 个` : ''}）：${unknown.length ? unknown.map(histSeat).join('、') : '无'}\n`)
     } else {
       // ── B-0 全量分诊 ──
       W(`== log-triage 分诊（内链路 ${logFiles.join(',')} ×${cliLines.length} 行 + 外链路流水；窗口=${dateStr || `近 ${hours}h`}）==\n`)

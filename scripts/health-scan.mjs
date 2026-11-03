@@ -21,7 +21,7 @@ import { readFileSync, existsSync, realpathSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
-import { SKILL_ROOT, loadOrgConfig, cfgHash, readJsonlFile, cliFlag, UsageError, ledgerPathFor } from './org-config.mjs'
+import { SKILL_ROOT, loadOrgConfig, cfgHash, readJsonlFile, cliFlag, UsageError, ledgerPathFor, familyOf, parseHistoricalImplreviewSlot } from './org-config.mjs'
 
 const normPath = (p) => {
   let s = String(p || '').replace(/[\\/]+/g, '/').replace(/\/+$/, '')
@@ -47,6 +47,29 @@ export function scan({ ledger, merged, windowN = 20, budgetSpec = null, liveCfg 
   const findingsRoles = new Set(Object.entries(merged.roles || {}).filter(([, c]) => c.findings_surface).map(([id]) => id))
   const thresholds = merged.thresholds || {}
   const RED = [], WARN = [], INFO = []
+  // ── implreview-split 批 D-4：双审默认族 tripwire（推荐项执法面——validate 结构校验不拦同族）──
+  // 一号默认族 × 二号默认族同族＝RED；任一侧 slot/provider/family 不可解析＝fail-closed RED。
+  {
+    const famOfDefaultRole = (role) => {
+      const name = merged?.agent_defaults?.[role]
+      const def = typeof name === 'string' ? merged?.agent_slots?.[name] : null
+      const prov = def && typeof def.provider === 'string' ? merged?.providers?.[def.provider] : null
+      return prov ? (familyOf(prov) || '') : ''
+    }
+    const fRev1 = famOfDefaultRole('implreview1')
+    const fRev2 = famOfDefaultRole('implreview2')
+    if (!fRev1 || !fRev2)
+      RED.push(`双审默认族不可解析（implreview1=${fRev1 || '?'} implreview2=${fRev2 || '?'}）——两键默认档或其 provider/family 缺失，fail-closed 不放行（拆席 D-4）`)
+    else if (fRev1 === fRev2)
+      RED.push(`双审默认同族（implreview1=${fRev1} implreview2=${fRev2}）——执行者审核两席须不同模型族（拆席 D-4；agent-slots doctor D6 同款推荐项面）`)
+  }
+  // ── implreview-split 批 D-6：历史 role 读侧归一——旧合并键 implreview 行只作历史审核域
+  //    计数披露（INFO），不参与现役岗计数/执法；旧槽名识别单源=parseHistoricalImplreviewSlot。 ──
+  {
+    const histReviewRows = ledger.filter((e) => e.role === 'implreview').length
+    if (histReviewRows)
+      INFO.push(`历史审核域行 ×${histReviewRows}（role=implreview 旧合并键——读侧归一为历史审核域，不参与现役岗计数；旧槽名 ops-implreview-<provider>-<level> 由 log-triage/--slots 识别为历史审核席并保留 provider/level）`)
+  }
   const fmt = (n) => (n == null ? '?' : n.toLocaleString('en-US'))
 
   // ── ① 未清事项（跳过 mocked 行与临时演练项目——W-2 / P0-1）──
@@ -255,6 +278,36 @@ function selfTest(merged) {
     { ...base, ts: '2026-05-02T00:00:00Z', project: 'raw-b', project_id: 'pid-1' },
   ], merged })
   t('B4 project_id 归一化：跨 raw 名同 id 并账=已补还（无未清事项 RED）', !f6.RED.some((r) => r.includes('未清事项')))
+    // ── implreview-split 批 D-4/D-6 向量：双审默认族 RED＋历史读侧归一（合成 merged 夹具：
+    //    roles 分区注入 audit_surface/findings_surface 覆盖两新审核键；不改既有 20 向量） ──
+    const irMerged = (rev2Prov) => ({
+      roles: { 'gate1-reviewer': { audit_surface: true }, 'auditor-readonly': { findings_surface: true }, implreview1: { audit_surface: true }, implreview2: { findings_surface: true } },
+      providers: { kimisyn: { model_family: 'kimi' }, kimi2syn: { model_family: 'kimi' }, deepsyn: { model_family: 'deepseek' } },
+      agent_slots: {
+        'ops-executor-kimisyn-high': { provider: 'kimisyn', model: 'm', level: 'high' },
+        'ops-implreview1-kimi2syn-max': { provider: 'kimi2syn', model: 'm', level: 'max' },
+        'ops-implreview2-deepsyn-max': { provider: 'deepsyn', model: 'm', level: 'max' },
+        'ops-implreview2-kimi2syn-max': { provider: 'kimi2syn', model: 'm', level: 'max' },
+        'ops-adjudicator-deepsyn-max': { provider: 'deepsyn', model: 'm', level: 'max' },
+      },
+      agent_defaults: {
+        executor: 'ops-executor-kimisyn-high',
+        implreview1: 'ops-implreview1-kimi2syn-max',
+        implreview2: rev2Prov === 'deep' ? 'ops-implreview2-deepsyn-max' : 'ops-implreview2-kimi2syn-max',
+        adjudicator: 'ops-adjudicator-deepsyn-max',
+      },
+    })
+    const hDsame = scan({ ledger: [], merged: irMerged('kimi') })
+    const hDdiff = scan({ ledger: [], merged: irMerged('deep') })
+    t('D-4 双审默认族：合成 roles 覆盖两新键＋二号默认与一号同族→恰一条 RED 点名两键', hDsame.RED.length === 1 && hDsame.RED[0].includes('双审默认同族') && hDsame.RED[0].includes('implreview1') && hDsame.RED[0].includes('implreview2'))
+    t('D-4 双审默认族：两键异族（kimi vs deepseek）→零 RED（推荐项面不误报）', hDdiff.RED.length === 0)
+    const hDfc = irMerged('deep')
+    delete hDfc.agent_defaults.implreview2
+    const hDfcOut = scan({ ledger: [], merged: hDfc })
+    t('D-4 双审默认族：二号默认缺失→fail-closed RED（不静默通过）', hDfcOut.RED.length === 1 && hDfcOut.RED[0].includes('双审默认族不可解析') && hDfcOut.RED[0].includes('implreview2'))
+    const hHist = scan({ ledger: [{ ...base, ts: '2026-10-01T00:00:00Z', project: '/real/p', role: 'implreview' }, { ...base, ts: '2026-10-02T00:00:00Z', project: '/real/p', role: 'implreview' }], merged })
+    t('D-6 历史读侧归一：旧合并键 role=implreview 行→INFO 历史审核域（不参与现役岗计数）', hHist.INFO.some((i) => i.includes('历史审核域') && i.includes('×2')) && hHist.RED.length === 0)
+    t('D-6 历史审核席识别：旧槽名单源识别 provider/level 保留、新键不误判', parseHistoricalImplreviewSlot('ops-implreview-ds-max')?.seat === '历史审核席' && parseHistoricalImplreviewSlot('ops-implreview-ds-max')?.provider === 'ds' && parseHistoricalImplreviewSlot('ops-implreview-ds-max')?.level === 'max' && parseHistoricalImplreviewSlot('ops-implreview1-ds-max') === null && parseHistoricalImplreviewSlot('ops-implreview2-ds-max') === null)
   const fail = cases.filter((c) => !c.pass)
   for (const c of cases) console.log(`${c.pass ? 'PASS' : 'FAIL'} ${c.name}${c.detail ? ' — ' + c.detail : ''}`)
   console.log(`health-scan 自检：${cases.length - fail.length}/${cases.length} 过`)
