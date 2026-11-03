@@ -601,11 +601,24 @@ function selfTest() {
         !!eOrd && String(eOrd.message).includes('键序') && String(eOrd.message).includes('research'))
     } finally { rmSync(fxOrder, { recursive: true, force: true }) }
   }
-  // 向量11：dry-run 不产生文件
+  // 向量11：dry-run 不产生文件＋prune 契约（微修轮 r3-②：命中面仅旧键形态——新键/legacy
+  // 零删除；prune 面越界扩到其他角色时本向量先于任何下游回读崩溃给出具名红）。
   const fxDry = mkdtempSync(join(tmpdir(), 'gen-agents-dry-'))
   try {
     const r = generateAgents({ matrix, roleDir: ROLES_DIR, outDir: fxDry, dryRun: true, generatedAt: '2026-10-22' })
-    t('向量11 --dry-run 在临时目录不产生任何文件', r.written === 0 && r.errors.length === 0 && readdirSync(fxDry).length === 0)
+    const fxPrune11 = mkdtempSync(join(tmpdir(), 'gen-agents-prune11-'))
+    try {
+      writeFileSync(join(fxPrune11, 'ops-implreview-699-max.md'), 'OLD\n')
+      writeFileSync(join(fxPrune11, 'ops-implreview1-699-max.md'), 'NEW-KEY\n')
+      writeFileSync(join(fxPrune11, 'ops-executor-699-high.md'), 'OTHER-ROLE-FULL\n')
+      writeFileSync(join(fxPrune11, 'ops-executor.md'), 'LEGACY\n')
+      const pruned11 = pruneLegacyImplreviewTemplates(fxPrune11)
+      const after11 = readdirSync(fxPrune11).sort()
+      const pruneOk = JSON.stringify(pruned11) === JSON.stringify(['ops-implreview-699-max.md'])
+        && JSON.stringify(after11) === JSON.stringify(['ops-executor-699-high.md', 'ops-executor.md', 'ops-implreview1-699-max.md'])
+      t('向量11 --dry-run 不产生任何文件＋prune 契约：仅删旧键形态（新键/legacy 零删除）',
+        r.written === 0 && r.errors.length === 0 && readdirSync(fxDry).length === 0 && pruneOk)
+    } finally { rmSync(fxPrune11, { recursive: true, force: true }) }
   } finally { rmSync(fxDry, { recursive: true, force: true }) }
   // 向量12：写入 N=期望+1 件（含 manifest）并回读 hash
   const fxWrite = mkdtempSync(join(tmpdir(), 'gen-agents-write-'))
