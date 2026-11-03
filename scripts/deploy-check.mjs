@@ -40,7 +40,7 @@
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
  * 可 import 纯函数零副作用（isMain guard 惯例；自检向量禁动真实状态）。
  */
-import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, mkdirSync, writeFileSync, unlinkSync, mkdtempSync, rmSync, statSync, chmodSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
@@ -344,7 +344,11 @@ export function gitState(cwd = SKILL_ROOT, probeFn = null) {
     if (process.env.GIT_DIR !== undefined)
       throw new SelfLoadError('git 仓判定异常（rev-parse 非零且 GIT_DIR 已设——结构化降级前不猜测·交主控复核）')
     for (let d = resolve(cwd); ; d = dirname(d)) {
-      if (existsSync(join(d, '.git'))) break // 有 .git 标记（文件或目录）仍非零 → 维持 SelfLoadError
+      // 返工 Item2：marker 探测改 statSync＋错误码感知——existsSync 会把不可读（EACCES 等）吞成 false→误降级；
+      // 不可读按标记存在处理（fail-closed 维持 SelfLoadError），仅 ENOENT/ENOTDIR 为真无标记
+      let marker = false
+      try { statSync(join(d, '.git')); marker = true } catch (e) { marker = !(e.code === 'ENOENT' || e.code === 'ENOTDIR') }
+      if (marker) break // 有 .git 标记（文件或目录）仍非零 → 维持 SelfLoadError
       if (d === dirname(d)) return { repo: false, reason: '非 git 仓' } // 全链无标记 → 可控降级
     }
     throw new SelfLoadError(`git 仓判定异常（exit ${probe.status}：${`${probe.stderr || ''}`.trim()}）`)
@@ -1020,10 +1024,15 @@ function selfTest() {
       if (saveGd === undefined) delete process.env.GIT_DIR; else process.env.GIT_DIR = saveGd
       const pOk = tryCall(() => gitState(fxg, () => ({ status: 0, stdout: 'true\n' })))
       const pErr = tryCall(() => gitState(fxg, () => ({ error: new Error('spawn git ENOENT') })))
-      t('W5c D-9 gitState locale 可控降级（注入探针）：中文 stderr＋无 .git → {repo:false,reason:非 git 仓}；中文 stderr＋有 .git → SelfLoadError；GIT_DIR 已设（含无效路径）→ SelfLoadError 不猜测降级；status=0 → repo:true 与 probe.error → git 不可用旧语义不变',
+      const eaccesDir = join(fxg, 'eacces-parent') // 返工 Item2：祖先 .git 探测不可读（EACCES）fail-closed 负例
+      mkdirSync(join(eaccesDir, '.git'), { recursive: true })
+      chmodSync(eaccesDir, 0o000) // 父目录去执行/读位——statSync 解析 <dir>/.git 得 EACCES（existsSync 形态会吞成 false→误降级）
+      const eac = tryCall(() => gitState(eaccesDir, zhProbe)) // 不可读按标记存在 → 维持 SelfLoadError
+      chmodSync(eaccesDir, 0o700) // 复原权限（finally rmSync 可清理）
+      t('W5c D-9 gitState locale 可控降级（注入探针）：中文 stderr＋无 .git → {repo:false,reason:非 git 仓}；中文 stderr＋有 .git → SelfLoadError；GIT_DIR 已设（含无效路径）→ SelfLoadError 不猜测降级；祖先 .git 探测不可读（EACCES）→ 按标记存在维持 SelfLoadError（不误降级）；status=0 → repo:true 与 probe.error → git 不可用旧语义不变',
         !pos.e && pos.v?.repo === false && pos.v?.reason === '非 git 仓' && neg.e instanceof SelfLoadError
-          && gd.e instanceof SelfLoadError && !pOk.e && pOk.v?.repo === true && !pErr.e && pErr.v?.repo === false && pErr.v?.reason === 'git 不可用',
-        JSON.stringify({ pos: pos.e ? String(pos.e.message).slice(0, 60) : pos.v, neg: neg.e ? 'SelfLoadError' : String(neg.v), gd: gd.e ? 'SelfLoadError' : String(gd.v) }))
+          && gd.e instanceof SelfLoadError && eac.e instanceof SelfLoadError && !pOk.e && pOk.v?.repo === true && !pErr.e && pErr.v?.repo === false && pErr.v?.reason === 'git 不可用',
+        JSON.stringify({ pos: pos.e ? String(pos.e.message).slice(0, 60) : pos.v, neg: neg.e ? 'SelfLoadError' : String(neg.v), gd: gd.e ? 'SelfLoadError' : String(gd.v), eacces: eac.e ? 'SelfLoadError' : String(eac.v) }))
     } finally {
       rmSync(fxg, { recursive: true, force: true })
     }
