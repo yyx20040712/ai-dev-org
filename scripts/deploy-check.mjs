@@ -954,14 +954,15 @@ function selfTest() {
         const listedOk = listed.length === 7 && listed.every((n) => /^ops-implreview-[a-z0-9]+-(low|high|max)\.md$/.test(n)) && !listed.includes('ops-implreview1-699-max.md')
         const rs2 = syncAgents(fxRes, b56, ov)
         const after2 = readdirSync(fxRes).sort()
-        // 模板面尚存旧键件时（T9 生成前），sync 会先写后删同形态件——期望值按模板面旧键件数派生：
-        const oldTplCount = listAgentTemplates().filter((n) => /^ops-implreview-[a-z0-9]+-(low|high|max)\.md$/.test(n)).length
-        t('implreview-split D-11 sync 定向 prune：残影枚举恰七旧件（新键/legacy 不在命中面）＋sync 后旧形态零残留＋legacy 零触碰＋件数=模板面−旧键模板＋2',
+        // T9 生成后模板面 66 件（含两新键与 assembler-glm）；预置新键件被 sync 覆写合并入模板面
+        //（枚举断言仍先于 sync 证明新键不在残影命中面），终态=模板全量＋legacy 恰一件。
+        t('implreview-split D-11 sync 定向 prune：残影枚举恰七旧件（新键/legacy 不在命中面）＋sync 后旧形态零残留＋legacy 零触碰＋件数=模板面＋1',
           listedOk &&
           rs2.level === 'ok' && rs2.pruned === 7 &&
           !after2.some((n) => /^ops-implreview-[a-z0-9]+-(low|high|max)\.md$/.test(n)) &&
           readFileSync(join(fxRes, 'ops-legacy-x.md'), 'utf8') === 'LEGACY-KEPT\n' &&
-          after2.length === need.size + 2 - oldTplCount)
+          after2.length === need.size + 1 &&
+          after2.includes('ops-implreview1-699-max.md') && after2.includes('ops-implreview2-ds-max.md') && after2.includes('ops-assembler-glm-max.md'))
       } finally { rmSync(fxRes, { recursive: true, force: true }) }
       t('implreview-split D-11 残影枚举：缺失目录→空清单（非错误）', listLegacyImplreviewResiduals(join(tmpdir(), 'deploy-check-ir-none-' + process.pid)).length === 0)
       // D-1 两正则随动直证：新键名过 checkAgentName 结构核对、旧键名回落 legacy skip、
