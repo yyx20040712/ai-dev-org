@@ -331,14 +331,23 @@ export function exitCodeFrom({ failCount = 0, selfTestFailed = false } = {}) {
 
 // ── 运行态探针（仅 isMain 路径触达；纯函数禁调）──
 
-/** git 仓判定：不可用/非仓→跳过语义；异常→SelfLoadError（exit 3 族）。 */
-export function gitState(cwd = SKILL_ROOT) {
-  const probe = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd, encoding: 'utf8' })
+/** git 仓判定：不可用/非仓→跳过语义；异常→SelfLoadError（exit 3 族）。
+ *  W5c D-9：非仓识别取消英文 stderr 正则，改结构化判据——rev-parse 非零时从 cwd 向文件系统根逐层
+ *  查 .git 文件/目录，全链无标记才 {repo:false,reason:'非 git 仓'}（不依赖 locale／LC_ALL／语言正则
+ *  枚举）；任一标记存在仍非零则维持 SelfLoadError。fail-closed 边：结构化降级前若 GIT_DIR 已设
+ *  （含指向无效路径）——不猜测降级，直接抛 SelfLoadError 交主控复核。probeFn=纯函数自检注入位
+ *  （探针路径自然规避真实 git 环境）。 */
+export function gitState(cwd = SKILL_ROOT, probeFn = null) {
+  const probe = probeFn ? probeFn(cwd) : spawnSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd, encoding: 'utf8' })
   if (probe.error) return { repo: false, reason: 'git 不可用' }
   if (probe.status !== 0) {
-    const err = `${probe.stderr || ''}`
-    if (/not a git repository/i.test(err)) return { repo: false, reason: '非 git 仓' }
-    throw new SelfLoadError(`git 仓判定异常（exit ${probe.status}：${err.trim()}）`)
+    if (process.env.GIT_DIR !== undefined)
+      throw new SelfLoadError('git 仓判定异常（rev-parse 非零且 GIT_DIR 已设——结构化降级前不猜测·交主控复核）')
+    for (let d = resolve(cwd); ; d = dirname(d)) {
+      if (existsSync(join(d, '.git'))) break // 有 .git 标记（文件或目录）仍非零 → 维持 SelfLoadError
+      if (d === dirname(d)) return { repo: false, reason: '非 git 仓' } // 全链无标记 → 可控降级
+    }
+    throw new SelfLoadError(`git 仓判定异常（exit ${probe.status}：${`${probe.stderr || ''}`.trim()}）`)
   }
   return { repo: true }
 }
@@ -992,6 +1001,31 @@ function selfTest() {
       t('B1 ledger-dir：父级是文件→FAIL（不裸抛）', r2.level === 'FAIL' && r2.line.includes('不可写'))
     } finally {
       rmSync(fx, { recursive: true, force: true })
+    }
+  }
+
+  // 向量（W5c D-9）：gitState 结构化非仓降级（注入探针·always-active；子例触真实 env——GIT_DIR 显式保存/清除/复原）
+  {
+    const fxg = mkdtempSync(join(tmpdir(), 'deploy-check-git-'))
+    try {
+      mkdirSync(join(fxg, 'has-git', '.git'), { recursive: true }) // 有 .git 标记目录（cwd 本层即标记）
+      const zhProbe = () => ({ status: 1, stderr: '致命错误：不是 git 仓库（或任何上级目录）：.git' }) // 中文 stderr＋status≠0
+      const tryCall = (fn) => { try { return { v: fn() } } catch (e) { return { e } } }
+      const saveGd = process.env.GIT_DIR
+      delete process.env.GIT_DIR // 清除后跑降级正/负例（防 hook/CI 继承把正例打成 SelfLoadError）
+      const pos = tryCall(() => gitState(fxg, zhProbe)) // /tmp 链无 .git 标记 → 可控降级
+      const neg = tryCall(() => gitState(join(fxg, 'has-git'), zhProbe)) // 有 .git 标记仍非零 → SelfLoadError
+      process.env.GIT_DIR = join(fxg, 'invalid-git-dir') // 已设（含无效路径）→ 不猜测降级
+      const gd = tryCall(() => gitState(fxg, zhProbe))
+      if (saveGd === undefined) delete process.env.GIT_DIR; else process.env.GIT_DIR = saveGd
+      const pOk = tryCall(() => gitState(fxg, () => ({ status: 0, stdout: 'true\n' })))
+      const pErr = tryCall(() => gitState(fxg, () => ({ error: new Error('spawn git ENOENT') })))
+      t('W5c D-9 gitState locale 可控降级（注入探针）：中文 stderr＋无 .git → {repo:false,reason:非 git 仓}；中文 stderr＋有 .git → SelfLoadError；GIT_DIR 已设（含无效路径）→ SelfLoadError 不猜测降级；status=0 → repo:true 与 probe.error → git 不可用旧语义不变',
+        !pos.e && pos.v?.repo === false && pos.v?.reason === '非 git 仓' && neg.e instanceof SelfLoadError
+          && gd.e instanceof SelfLoadError && !pOk.e && pOk.v?.repo === true && !pErr.e && pErr.v?.repo === false && pErr.v?.reason === 'git 不可用',
+        JSON.stringify({ pos: pos.e ? String(pos.e.message).slice(0, 60) : pos.v, neg: neg.e ? 'SelfLoadError' : String(neg.v), gd: gd.e ? 'SelfLoadError' : String(gd.v) }))
+    } finally {
+      rmSync(fxg, { recursive: true, force: true })
     }
   }
 
