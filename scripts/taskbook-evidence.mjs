@@ -32,32 +32,36 @@ const WRITE_PATTERNS = [
  *  填充改非空白符 XX（r6：修复 2>/dev/null" 掩蔽后伪空白右界触发豁免的同类伪边界面）；②引号外
  *  >/>> 一律命中（fail-closed），豁免仅二：fd 复制严格形态 [0-9]*>&[0-9]+／>&[0-9]+ 且数字串后仅
  *  空白或行尾（其余任何字符——.／/／=／-／字母——不豁免·命中；2>&1x/2>&1.x 均命中）；2>/dev/null
- *  字面（r5·既有向量零删优先·主控裁保留）——左界＝独立 2> 词（行首/空白后）、右界＝/dev/null 后
- *  仅空白/行尾/命令分隔符（;|&），等长置换保偏移，子串形态（2>/dev/nullx／2>/dev/null/foo／
- *  x2>/dev/null）一律不豁免·命中。
+ *  字面（r5·既有向量零删优先·主控裁保留）——左界＝独立 2> 词（行首/空白后；W5c D-1 扩真实闭引号
+ *  紧邻——shell 词法上该形态非 fd 2 重定向·豁免结果安全·按字面形态处理；W5c D-3 扩命令分隔符
+ *  ;|&——单字符前看覆盖 ;;/||/&& 组合界）、右界＝/dev/null 后仅空白/行尾/命令分隔符（;|&·不变），
+ *  等长置换保偏移，子串形态（2>/dev/nullx／2>/dev/null/foo／x2>/dev/null）一律不豁免·命中。
  *  残余登记＝引号外零残余窗口（该域纯 fail-closed）；已知误伤面＝引号外确有比较语义而无引号包裹的
  *  写法（解法＝置于引号串内），登记为使用约束而非检测缺口。 */
 export function writeHit(cmd) {
   const s = String(cmd ?? '')
   for (const [name, re] of WRITE_PATTERNS) if (re.test(s)) return name
-  // 引号域等长掩蔽：界定符与引号内字符逐字符以非空白符 X 填充（偏移不变），转义对（反斜杠＋下一字符）
+  // 引号域等长掩蔽：引号内字符逐字符以非空白符 X 填充（偏移不变）；闭引号界定符按原字符保留（W5c D-1·
+  // 等长 1:1——闭引号紧邻 2>/dev/null 的左界可见）；开界定符仍 X 填充；转义对（反斜杠＋下一字符）
   // 以 XX 填充（两字符·r6 伪空白右界修复——2>/dev/null" 类输入掩蔽后右界不再为伪空白）
   let masked = ''
   let inS = false, inD = false
   for (let i = 0; i < s.length; i++) {
     const c = s[i]
-    if (inS) { masked += 'X'; if (c === "'") inS = false; continue }
+    if (inS) { if (c === "'") { inS = false; masked += "'" } else masked += 'X'; continue } // W5c D-1：闭引号界定符保留（等长 1:1）——左界可见
     if (inD) {
       if (c === '\\') { masked += 'XX'; i++; continue } // r6：双引号内转义——" 不闭合掩蔽域
-      masked += 'X'; if (c === '"') inD = false; continue
+      if (c === '"') { inD = false; masked += '"' } else masked += 'X' // W5c D-1：闭引号界定符保留（等长 1:1）
+      continue
     }
     if (c === '\\') { masked += 'XX'; i++; continue } // r5/r6：引号外转义——"／' 不开掩蔽域（下一字符一并吞掉·非空白填充）
     if (c === "'") { inS = true; masked += 'X'; continue }
     if (c === '"') { inD = true; masked += 'X'; continue }
     masked += c
   }
-  // r5 第二豁免：2>/dev/null 字面——左界独立 2> 词（行首/空白后）、右界 /dev/null 后仅空白/行尾/命令分隔符；等长置换保偏移
-  const stripped = masked.replace(/(^|[\s])2>\/dev\/null(?=$|[\s;|&])/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length))
+  // r5 第二豁免：2>/dev/null 字面——左界独立 2> 词（行首/空白后；W5c D-1 扩真实闭引号紧邻·掩蔽保留闭引号界定符；
+  // W5c D-3 扩命令分隔符 ;|&——单字符前看即覆盖 ;;/||/&& 组合界）、右界 /dev/null 后仅空白/行尾/命令分隔符（不变）；等长置换保偏移
+  const stripped = masked.replace(/(^|[\s;|&"'])2>\/dev\/null(?=$|[\s;|&])/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length))
   for (let i = 0; i < stripped.length; i++) {
     if (stripped[i] !== '>') continue
     // fd 复制豁免：>&[0-9]+ 且数字串后仅空白/行尾，且 > 前数字串（可有可无）落于 token 边界
@@ -349,6 +353,16 @@ function selfTest() {
       const q = String.fromCharCode(92) + '"'
       return writeHit('python3 -c "print(' + q + '>' + q + ')"') === null
     })(), String(writeHit('python3 -c "print(' + String.fromCharCode(92) + '">' + String.fromCharCode(92) + '")"')))
+    // ── W5c D-1/D-3 增补（闭引号紧邻豁免＋命令分隔符左界·恰 2 向量·44→46）──
+    add('D1① 闭引号紧邻 2>/dev/null 豁免（W5c D-1·掩蔽保留闭引号边界）：printf "x"2>/dev/null 与 printf \'x\'2>/dev/null 均返回 null；负例 x2>/dev/null／2>/dev/nullx／2>/dev/null"foo" 均命中', (() => {
+      return writeHit('printf "x"2>/dev/null') === null && writeHit("printf 'x'2>/dev/null") === null
+        && writeHit('x2>/dev/null') !== null && writeHit('2>/dev/nullx') !== null && writeHit('2>/dev/null"foo"') !== null
+    })(), JSON.stringify([writeHit('printf "x"2>/dev/null'), writeHit("printf 'x'2>/dev/null"), writeHit('x2>/dev/null'), writeHit('2>/dev/nullx'), writeHit('2>/dev/null"foo"')]))
+    add('D3① 命令分隔符左界豁免（W5c D-3）：cmd;2>/dev/null／cmd|2>/dev/null／cmd||2>/dev/null／cmd&2>/dev/null／cmd&&2>/dev/null 均返回 null；负例 x2>/dev/null 与右界接字母/路径仍命中', (() => {
+      return writeHit('cmd;2>/dev/null') === null && writeHit('cmd|2>/dev/null') === null && writeHit('cmd||2>/dev/null') === null
+        && writeHit('cmd&2>/dev/null') === null && writeHit('cmd&&2>/dev/null') === null
+        && writeHit('x2>/dev/null') !== null && writeHit('2>/dev/nullx') !== null && writeHit('2>/dev/null/foo') !== null
+    })(), JSON.stringify([writeHit('cmd;2>/dev/null'), writeHit('cmd|2>/dev/null'), writeHit('cmd||2>/dev/null'), writeHit('cmd&2>/dev/null'), writeHit('cmd&&2>/dev/null'), writeHit('x2>/dev/null'), writeHit('2>/dev/null/foo')]))
   } finally { rmSync(tmp, { recursive: true, force: true }) }
   const pass = cases.filter((c) => c.ok).length
   return { cases, pass, fail: cases.length - pass }
