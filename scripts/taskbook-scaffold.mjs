@@ -132,7 +132,9 @@ export function lintOnly(text) {
   let s5Fence = null
   for (let i = 0; i < lines.length; i++) {
     const fm5 = /^\s*(```|~~~)/.exec(lines[i])
-    if (fm5) { s5Fence = s5Fence ? null : fm5[1]; continue } // r5：围栏界定行本身不扫，块内行全部跳过
+    // W5c D-5：s5Fence 保存实际 marker——空态遇 ```／~~~ 开启；非空态仅同 marker 关闭，异 marker 为块内行
+    // 继续跳过（不在两种标记间交替闭合）；marker 比较沿用 fm5[1] 三字符形态（更长围栏非本 D 范围）
+    if (fm5) { if (s5Fence === null) s5Fence = fm5[1]; else if (s5Fence === fm5[1]) s5Fence = null; continue }
     if (s5Fence) continue
     const ln = lines[i]
     const bt = (ln.match(/`/g) ?? []).length
@@ -268,6 +270,13 @@ function selfTest() {
       const outside = lintOnly('普通行\n' + inner + '未闭合 `x 与 `y` 围栏外\n').findings.filter((f) => f.check === 'S5')
       return fencedOnly.length === 0 && outside.some((f) => f.check === 'S5')
     })(), JSON.stringify({ fenced: lintOnly('普通行\n```text\n未闭合 `a 与 `b` 在围栏内\n```\n收尾行\n').findings.filter((f) => f.check === 'S5'), outside: lintOnly('未闭合 `x 与 `y` 围栏外\n').findings.filter((f) => f.check === 'S5') }))
+    // ── W5c D-5 增补（S5 围栏标记配对·恰 1 向量·28→29）──
+    add('W5c D-5 S5 围栏标记配对：``` 内出现 ~~~ 不闭合当前围栏（异 marker 仅作块内行·继续跳过），块内奇数反引号不报 S5，真正同 marker 关闭后围栏外异常仍报；~~~ 同款配对', (() => {
+      const mk = (open, other, close) => `普通行\n${open}\n${other}\n未闭合 \`a 在块内\n${close}\n未闭合 \`x 围栏外\n`
+      const a = lintOnly(mk('```', '~~~', '```')).findings.filter((f) => f.check === 'S5')
+      const b = lintOnly(mk('~~~', '```', '~~~')).findings.filter((f) => f.check === 'S5')
+      return a.length === 1 && a[0].line === 6 && b.length === 1 && b[0].line === 6
+    })(), JSON.stringify({ backtickOpen: lintOnly('普通行\n```\n~~~\n未闭合 `a 在块内\n```\n未闭合 `x 围栏外\n').findings.filter((f) => f.check === 'S5'), tildeOpen: lintOnly('普通行\n~~~\n```\n未闭合 `a 在块内\n~~~\n未闭合 `x 围栏外\n').findings.filter((f) => f.check === 'S5') }))
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }
