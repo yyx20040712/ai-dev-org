@@ -240,18 +240,6 @@
       "trigger": "已裁决闭合：startplan 槽保留（供应商将更新·届时用户经面板自动调整）；本次用户已把 glmflash 调为 executor 首位（面板=顺序日常唯一写者·startplan 居回退序第 2）；再触发=startplan 供应商恢复或再变时由用户面板调整，无需机检面动作"
     },
     {
-      "created_at": "2026-10-31",
-      "description": "本地源面与 CI 分发面词表及项目基线可能漂移；技能根基线任何重冻批须同步主仓镜像件，由本地 verify-docs 同源机检执法",
-      "evidence": [
-        "docs/evidence/W5a-gates-2026-10-31.md"
-      ],
-      "id": "vocab-two-face-skew",
-      "owner": "W5a",
-      "phenomenon": "源面与分发面 check-terms 全脚本及未来词表存在两面偏差",
-      "status": "open",
-      "trigger": "下次词表变更批须先推分发面或同步两面；技能根基线任何重冻批（棘轮升降）须同步主仓镜像件——本地 verify-docs 同源机检执法"
-    },
-    {
       "created_at": "2026-11-03",
       "description": "deploy-check.mjs gitState 以英文消息正则判定非 git 目录（/not a git repository/i）；中文 locale 下非 git 目录抛 SelfLoadError exit 3——隔离取证序列以 LC_ALL=C 规避在案（implreview-split 批证据档 §6）",
       "evidence": [
@@ -262,6 +250,18 @@
       "phenomenon": "gitState 中文 locale 失配：非 git 目录不被英文正则识别→装载错 exit 3（应为可控降级）",
       "status": "open",
       "trigger": "下一工具批（与 routeSecondMismatch 诊断噪声、agent-slots.mjs:311 注释同笔清理）"
+    },
+    {
+      "created_at": "2026-10-31",
+      "description": "本地源面与 CI 分发面词表及项目基线可能漂移；技能根基线任何重冻批须同步主仓镜像件，由本地 verify-docs 同源机检执法",
+      "evidence": [
+        "docs/evidence/W5a-gates-2026-10-31.md"
+      ],
+      "id": "vocab-two-face-skew",
+      "owner": "W5a",
+      "phenomenon": "源面与分发面 check-terms 全脚本及未来词表存在两面偏差",
+      "status": "open",
+      "trigger": "下次词表变更批须先推分发面或同步两面；技能根基线任何重冻批（棘轮升降）须同步主仓镜像件——本地 verify-docs 同源机检执法"
     }
   ],
   "schema": "residuals/v1"
