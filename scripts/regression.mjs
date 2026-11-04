@@ -582,9 +582,9 @@ if (want('R12')) {
     const T_KAO = '\u70e4\u9a8c' // 负例词运行时合成（D-9：断言仍按原词运行时比较）
     const T_HUI = '\u56de\u7089' // 同上（第二负例词）
     const rSt = r12Run([termsCmd, '--self-test'])
-    const stOk = rSt.status === 0 && (rSt.stdout || '').trimEnd().split('\n').pop().includes('27 向量')
+    const stOk = rSt.status === 0 && (rSt.stdout || '').trimEnd().split('\n').pop().includes('32 向量')
     if (!stOk) ok = false
-    det.push(`①self-test 24向量(off 隔离):${stOk ? '✓' : `✗(exit=${rSt.status} 尾=${((rSt.stdout || '') + (rSt.stderr || '')).slice(-100).replace(/\n/g, ' ')})`}`)
+    det.push(`①self-test 32向量(off 隔离):${stOk ? '✓' : `✗(exit=${rSt.status} 尾=${((rSt.stdout || '') + (rSt.stderr || '')).slice(-100).replace(/\n/g, ' ')})`}`)
     mkdirSync(join(fx, 'scripts', '.golden'), { recursive: true })
     const baseFile = join(fx, 'scripts', '.golden', 'terms-baseline.json')
     writeFileSync(baseFile, JSON.stringify({ schemaVersion: 1, files: { 'SKILL.md': { [T_KAO]: 1 } } }), 'utf8') // 基线 1 组 1 次

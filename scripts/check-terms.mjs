@@ -1022,6 +1022,70 @@ function selfTest() {
       && outside.every((ln) => !TERMS.some((x) => (x.kind === 'plain' ? ln.includes(x.term) : [...ln.matchAll(x.re)].length > 0)))
     return eq && eq2 && noMig && clean
   }))
+  // ── v25–v29（TG-1 独立单文件快检 --file 五向量；always-active，runEnv 显式控 flag）──
+  t('v25 快检命中：exit 1 且 stdout 含 D-1 固定形态整行（term/replace 逐字）', withRoot((d) => {
+    writeFileSync(join(d, 'hit.md'), '这是烤验现场\n', 'utf8')
+    const p = join(d, 'hit.md')
+    const r = runEnv(['--file', p], onSt(d))
+    const esc = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const re = new RegExp(`^\\[terms\\] ${esc}:1 「烤验」→ 建议「强制检查」$`, 'm')
+    return r.status === 1 && re.test(r.stdout)
+  }))
+  t('v26 快检干净：exit 0＋汇总计数 0＋无明细行；--strict 同用同绿；命中夹具带/不带 --strict 两次完整 stdout 全等且 exit 均 1', withRoot((d) => {
+    writeFileSync(join(d, 'clean.md'), '干净正文样例。\n', 'utf8')
+    const detailForm = /^\[terms\] \S+:\d+ 「/m // 明细形态级：行首 [terms]＋路径:行号＋空格＋「（汇总行不含该形态）
+    const rc = runEnv(['--file', join(d, 'clean.md')], onSt(d))
+    const rs = runEnv(['--strict', '--file', join(d, 'clean.md')], offSt(d))
+    const cleanOk = rc.status === 0 && rs.status === 0 && rc.stdout.includes('命中 0 处') && !detailForm.test(rc.stdout)
+      && rs.stdout.includes('命中 0 处') && !detailForm.test(rs.stdout)
+    writeFileSync(join(d, 'hit.md'), '这是烤验现场\n', 'utf8')
+    const hp = join(d, 'hit.md')
+    const hpEsc = hp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const hitLine = new RegExp(`^\\[terms\\] ${hpEsc}:1 「烤验」→ 建议「强制检查」$`, 'm') // D-1 固定形态完整命中行（整行正则）
+    const a = runEnv(['--file', hp], onSt(d))
+    const b = runEnv(['--strict', '--file', hp], onSt(d))
+    return cleanOk && a.status === 1 && b.status === 1 && a.stdout === b.stdout && hitLine.test(a.stdout)
+  }))
+  t('v27 快检文件错误族：不存在/目录/不可读（chmod 000·非 root）/UTF-8 无效字节均 exit 3＋stderr 非空＋stdout 无明细（通道分离）', withRoot((d) => {
+    writeFileSync(join(d, 'bin.md'), Buffer.from([0xff, 0xfe, 0x0a]))
+    writeFileSync(join(d, 'lock.md'), '占位\n', 'utf8')
+    chmodSync(join(d, 'lock.md'), 0o000)
+    try {
+      const probes = [
+        runEnv(['--file', join(d, 'nope.md')], onSt(d)),
+        runEnv(['--file', d], onSt(d)),
+        runEnv(['--file', join(d, 'lock.md')], onSt(d)),
+        runEnv(['--file', join(d, 'bin.md')], onSt(d)),
+      ]
+      const detailPrefix = /^\[terms\] \S+:\d+ /m // 明细形态级：行首 [terms]＋路径:行号＋空格（stdout 不得含任何明细形态行）
+      return probes.every((r) => r.status === 3 && (r.stderr || '').length > 0 && !detailPrefix.test(r.stdout || ''))
+    } finally { try { chmodSync(join(d, 'lock.md'), 0o644) } catch { /* 夹具清理兜底 */ } }
+  }))
+  t('v28 --file 互斥与取值校验：与 --update/--surface/--project/--root/--self-test 逐个组合＋缺值＋重复＋值形如 flag 均 exit 1，互斥语义在 stderr', withRoot((d) => {
+    const p = join(d, 'x.md')
+    const st = offSt(d)
+    const mut = runEnv(['--file', p, '--update'], st)
+    const mutexOk = mut.status === 1 && (mut.stderr || '').includes('互斥')
+    const rest = [
+      ['--file', p, '--surface', 'active'],
+      ['--file', p, '--project', d],
+      ['--file', p, '--root', d],
+      ['--file', p, '--self-test'],
+      ['--file'],
+      ['--file', p, '--file', p],
+      ['--file', '--json'],
+    ].map((args) => runEnv(args, st))
+    return mutexOk && rest.every((r) => r.status === 1)
+  }))
+  t('v29 快检围栏豁免：围栏外词计入、围栏内同词不计（整行前缀断言·汇总计数=1）；on/off 两态 stdout 逐字节一致', withRoot((d) => {
+    const p = join(d, 'fence.md')
+    writeFileSync(p, ['围栏外烤验现场', '```', '围栏内烤验藏词', '```'].join('\n') + '\n', 'utf8')
+    const a = runEnv(['--file', p], onSt(d))
+    const b = runEnv(['--file', p], offSt(d))
+    const outside = a.stdout.includes(`[terms] ${p}:1 「烤验」→ 建议「强制检查」`)
+    const inside = a.stdout.split('\n').some((ln) => ln.startsWith(`[terms] ${p}:3 `))
+    return a.status === 1 && b.status === 1 && a.stdout === b.stdout && outside && !inside && a.stdout.includes('命中 1 处')
+  }))
   const fail = cases.filter((x) => !x.c)
   for (const x of cases) console.log(`${x.c ? 'PASS' : 'FAIL'} ${x.n}`)
   console.log(fail.length ? `self-test 未全过：FAIL ×${fail.length}` : `self-test 全过（${cases.length} 向量）`) // 动态计数——回审补例后 27（v14b/v23b/v23c 随回审处置入列·R12 断言随动）
@@ -1031,13 +1095,41 @@ function selfTest() {
 
 // ── 主流程 ──
 const argv = process.argv.slice(2)
-const KNOWN_FLAGS = ['--strict', '--json', '--update', '--self-test', '--root', '--surface', '--project']
+const KNOWN_FLAGS = ['--strict', '--json', '--update', '--self-test', '--root', '--surface', '--project', '--file']
 const bad = []
 for (let i = 0; i < argv.length; i++) {
-  if (argv[i] === '--root' || argv[i] === '--surface' || argv[i] === '--project') { i++; continue }
+  if (argv[i] === '--root' || argv[i] === '--surface' || argv[i] === '--project' || argv[i] === '--file') { i++; continue }
   if (!KNOWN_FLAGS.includes(argv[i])) bad.push(argv[i])
 }
 if (bad.length) { console.error(`[用法错] 未知参数：${bad.join(' ')}（合法：${KNOWN_FLAGS.join(' ')}）`); process.exit(1) }
+// ── TG-1 独立单文件快检（--file <path>）：入口层分流——先于 off/on 两路径与任何 baseline/配置装载（D-1；
+//    词表与豁免机关复用 scanFile 单源，不读不写 baseline，不改不带 --file 的两条主路径）。──
+import { normalize as pNormalize, isAbsolute as pIsAbsolute } from 'node:path'
+if (argv.includes('--file')) {
+  let fp = null
+  try { fp = cliFlag(argv, '--file') } catch (e) {
+    if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); process.exit(1) }
+    throw e
+  }
+  for (const m of ['--update', '--surface', '--project', '--root', '--self-test']) {
+    if (argv.includes(m)) { console.error(`[用法错] --file 与 ${m} 互斥（单文件快检独立于 ${m}，不共用出口）`); process.exit(1) }
+  }
+  if (!existsSync(fp)) { console.error(`[配置/装载错] 快检文件不存在：${fp}`); process.exit(3) }
+  if (statSync(fp).isDirectory()) { console.error(`[配置/装载错] 快检目标是目录而非文件：${fp}`); process.exit(3) }
+  let text = null
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(readFileSync(fp)) } catch (e) {
+    console.error(`[配置/装载错] 快检文件装载失败：${fp}（${e.message}）`); process.exit(3)
+  }
+  const shown = pIsAbsolute(fp) ? fp : pNormalize(fp) // 归一化（§3.4.1）：绝对输入三处原样；相对输入三处=path.normalize 相对串
+  const hits = scanFile(shown, text)
+  if (argv.includes('--json')) {
+    console.log(JSON.stringify({ file: shown, count: hits.length, hits }))
+  } else {
+    for (const h of hits) console.log(`[terms] ${h.file}:${h.line} 「${h.term}」→ 建议「${h.replace}」`)
+    console.log(`[terms] 单文件快检汇总：文件 ${shown} 命中 ${hits.length} 处`)
+  }
+  process.exit(hits.length ? 1 : 0)
+}
 let root = null
 try { root = cliFlag(argv, '--root') } catch (e) {
   if (e instanceof UsageError) { console.error(`[用法错] ${e.message}`); process.exit(1) }
