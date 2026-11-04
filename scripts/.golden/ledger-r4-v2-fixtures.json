@@ -1,0 +1,1722 @@
+{
+  "schema": "ledger-r4-v2-fixtures/v1",
+  "conventions": {
+    "ledger_lines": "数组元素=对象（按 JSON.stringify 序列化为一物理行，键序=本件书写序）或字符串（原文一行——坏 JSON/BOM 首行/BOM-only 首行/CRLF 行均以字符串承载）；行尾换行 LF（CRLF 行的 \r 属行内容），BOM 仅可能出现在首字符串元素开头（BOM-only 首行=独立空物理行，解码后按空行滤除、不参与 hash）",
+    "exceptions": "null=例外文件不存在；数组=以两空格缩进 JSON 序列化写盘；字符串=原文写盘（承载 JSON 损坏与顶层非数组形态）",
+    "line_hash": "物理行原始字节的 sha256：按原始文件 Buffer 以 LF(0x0A) 切行取整行字节、不含行尾换行——首行含 BOM 时 hash 含 BOM、CRLF 行保留 CR，不做任何归一；匹配面=全小写 64 位十六进制（大小写混写/短/长均=hash_format_error）",
+    "expiry": "ISO 8601 日期时间且必须带时区（Z 或 ±HH:MM）且为严格日历日（Y/M/D 经 Date.UTC 回环比对——02-29 非闰日、02-30 等拒收，防解析器静默滚动）；操作定义=以 JS Date.parse 可解析且严格日历回环等值为准（闰秒 23:59:60 拒收）；无时区/不可解析/非法日历日=exception_invalid_entry；当前时刻逾越=exception_expired",
+    "window": "例外匹配范围=R4 账本尾 50 行窗口（与 R4 现行 tailN=50 同窗）；窗口外行不参与匹配也无豁免计数",
+    "pass_criterion": "台架与生产同口径：pass=行核对通过 且 例外文件有效（exc.ok）；字段齐全行＋非法例外文件→FAIL（bad=0）",
+    "exempt_counting": "豁免计数仅在该行 JSON 可解析、event 已知、hash 命中、且确有缺必填字段时自增；字段齐全行命中 hash 不计数不计坏",
+    "fail_kind_priority": "例外文件侧失效＞hash_mismatch 覆盖＞行因（bad_json/unknown_event/missing_outcome）。hash_mismatch 仅当=坏行首因 missing_<field>＋存在孤儿注册（登记 hash 未命中任一尾窗行）＋该坏行物理行 hash 未命中注册，三者合取；bad_json/unknown_event 不参与覆盖（行因如实）；坏行仍按行因计数。预期 PASS 向量 fail_kind=null"
+  },
+  "vectors": [
+    {
+      "id": "v01-hist2-missing-outcome-noexc",
+      "description": "①两条历史形态缺 outcome 行、无例外文件→FAIL（现行为基线向量）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": null
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "missing_outcome"
+      }
+    },
+    {
+      "id": "v02-new-missing-outcome-noexc",
+      "description": "②新行缺 outcome 且不在例外表（无例外文件）→FAIL（现行为基线向量）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T20:00:00+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-new-1",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa03",
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": null
+      },
+      "expected": {
+        "pass": false,
+        "bad": 1,
+        "exempt": 0,
+        "fail_kind": "missing_outcome"
+      }
+    },
+    {
+      "id": "v03-legal-exc-covers-hist2",
+      "description": "③合法例外覆盖两历史行→PASS、坏0、豁免2（fail_kind=null，例外逻辑依赖向量）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": true,
+        "bad": 0,
+        "exempt": 2,
+        "fail_kind": null
+      }
+    },
+    {
+      "id": "v04a-exc-expired",
+      "description": "④variant a：例外已过期→FAIL（fail_kind=exception_expired）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2020-01-01T00:00:00+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_expired"
+      }
+    },
+    {
+      "id": "v04b-expiry-unparseable",
+      "description": "④variant b：expiry 不可解析→FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "not-a-datetime",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v05a-owner-empty",
+      "description": "⑤variant a：owner 空值→FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v05b-reason-missing",
+      "description": "⑤variant b：reason 键缺失→FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v06a-hash-not-hex64",
+      "description": "⑥a：line_hash 非 64 位十六进制→例外文件无效 FAIL（fail_kind=hash_format_error）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "hash_format_error"
+      }
+    },
+    {
+      "id": "v06b-hash-mismatch",
+      "description": "⑥b：注册 hash（格式合法）与缺 outcome 历史行字节不符→该行不获豁免计坏 FAIL（fail_kind=hash_mismatch，坏行按行因 missing_outcome 计数）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127a0",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 1,
+        "exempt": 0,
+        "fail_kind": "hash_mismatch"
+      }
+    },
+    {
+      "id": "v07-new-ruling-recorded-noexc",
+      "description": "⑦带 outcome=recorded 的新 Ruling 行、无例外→PASS、坏0、豁免0（现行为基线向量）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T20:05:00+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-rec-1",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa04",
+            "truncated": false,
+            "mocked": false,
+            "outcome": "recorded"
+          }
+        ],
+        "exceptions": null
+      },
+      "expected": {
+        "pass": true,
+        "bad": 0,
+        "exempt": 0,
+        "fail_kind": null
+      }
+    },
+    {
+      "id": "v08a-exc-unparseable",
+      "description": "⑧variant a：例外文件 JSON 损坏→FAIL（fail_kind=exception_unparseable）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": "{\"line_hash\": \"broken"
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_unparseable"
+      }
+    },
+    {
+      "id": "v08b-exc-not-array",
+      "description": "⑧variant b：例外文件顶层非数组→FAIL（fail_kind=exception_invalid_structure）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": "{\"note\": \"not-an-array\"}"
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_structure"
+      }
+    },
+    {
+      "id": "v09a-extra-key",
+      "description": "⑨variant a：闭集外字段→FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json",
+            "note": "extra"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v09b-duplicate-hash",
+      "description": "⑨variant b：重复 line_hash→FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v09c-key-order-wrong",
+      "description": "⑨variant c：键序错（expiry/source_ref 互换）→文件无效 FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json",
+            "expiry": "2030-12-31T23:59:59+08:00"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v10a-unknown-event-registered",
+      "description": "守护向：未知事件行即使 hash 注册也仍计坏（fail_kind=unknown_event）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T20:10:00+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-unk-1",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "mystery-event",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa05",
+            "truncated": false,
+            "mocked": false,
+            "outcome": "recorded"
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "c1cbb818b461abe294a587151f3c008067cff5942ece37e0cdf0078ffe9d70b1",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 1,
+        "exempt": 0,
+        "fail_kind": "unknown_event"
+      }
+    },
+    {
+      "id": "v10b-bad-json-registered",
+      "description": "守护向：坏 JSON 账本行即使 hash 注册也仍计坏（fail_kind=bad_json）",
+      "input": {
+        "ledger_lines": [
+          "{\"ts\": \"2026-11-04T20:15:00+08:00\", \"runId\": \"r4v2-fx-bad-1\", \"event\": \"broken"
+        ],
+        "exceptions": [
+          {
+            "line_hash": "b9eca68c510b5d3abd63ceda39eba8ce4384113d97aaec15566f01c87ed150a5",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 1,
+        "exempt": 0,
+        "fail_kind": "bad_json"
+      }
+    },
+    {
+      "id": "v11-bom-firstline-registered",
+      "description": "返工 B1/W1：首物理行含 BOM，按含 BOM 原始字节登记 hash→豁免（hash 不做 BOM 归一；BOM 剥离仅影响解析）",
+      "input": {
+        "ledger_lines": [
+          "﻿{\"ts\":\"2026-11-04T08:31:35+08:00\",\"schema_version\":\"v3\",\"runId\":\"r4v2-fx-bom-1\",\"project\":\"fx-proj\",\"project_id\":\"fx-proj\",\"event\":\"ruling\",\"role\":\"master\",\"tier\":\"session:host-prime\",\"source\":\"host\",\"cfg_hash\":\"cfg:fxaaaaaaaa0b\",\"truncated\":false,\"mocked\":false}"
+        ],
+        "exceptions": [
+          {
+            "line_hash": "a0c4c01db629e22fdd76464a4bd77777165bc4cb77ab55dafefb6f972172bf1a",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": true,
+        "bad": 0,
+        "exempt": 1,
+        "fail_kind": null
+      }
+    },
+    {
+      "id": "v12-complete-rows-invalid-exc",
+      "description": "返工 W1/W3：字段齐全账本行＋非法例外文件（顶层非数组）→FAIL（pass 含例外文件有效性；bad=0）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T20:05:00+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-rec-1",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa04",
+            "truncated": false,
+            "mocked": false,
+            "outcome": "recorded"
+          }
+        ],
+        "exceptions": "{\"note\": \"not-an-array\"}"
+      },
+      "expected": {
+        "pass": false,
+        "bad": 0,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_structure"
+      }
+    },
+    {
+      "id": "v13-hash-mixedcase",
+      "description": "返工 N2：line_hash 大小写混写（非全小写十六进制）→hash 格式错 FAIL（fail_kind=hash_format_error）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976bE3Ca3569Ca9a1600Ef0b5f3511339a0aDe042eA0B59bE0F544D626E127Ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "hash_format_error"
+      }
+    },
+    {
+      "id": "v14-hash-short63",
+      "description": "返工 N6：line_hash 短（63 位）→FAIL（fail_kind=hash_format_error）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127a",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "hash_format_error"
+      }
+    },
+    {
+      "id": "v15-hash-long65",
+      "description": "返工 N6：line_hash 长（65 位）→FAIL（fail_kind=hash_format_error）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127aba",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "hash_format_error"
+      }
+    },
+    {
+      "id": "v16-expiry-no-tz",
+      "description": "返工 N3：expiry 无时区（ISO 8601 须带 Z|±HH:MM）→FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v17-expiry-missing",
+      "description": "返工 N6：expiry 键缺失→FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v18-sourceref-missing",
+      "description": "返工 N6：source_ref 键缺失→FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v19-sourceref-empty",
+      "description": "返工 N6：source_ref 空值→FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": ""
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    },
+    {
+      "id": "v20-crlf-line-registered",
+      "description": "返工 B1/N6：CRLF 行按含 CR 的原始物理行字节登记 hash→豁免（不做 CRLF 归一）",
+      "input": {
+        "ledger_lines": [
+          "{\"ts\":\"2026-11-04T08:31:35+08:00\",\"schema_version\":\"v3\",\"runId\":\"r4v2-fx-crlf-1\",\"project\":\"fx-proj\",\"project_id\":\"fx-proj\",\"event\":\"ruling\",\"role\":\"master\",\"tier\":\"session:host-prime\",\"source\":\"host\",\"cfg_hash\":\"cfg:fxaaaaaaaa0c\",\"truncated\":false,\"mocked\":false}\r"
+        ],
+        "exceptions": [
+          {
+            "line_hash": "3fd8d2fa24796dca50aa72f91dd6cdf05465b24c07226e4f756c067aacf97cb5",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": true,
+        "bad": 0,
+        "exempt": 1,
+        "fail_kind": null
+      }
+    },
+    {
+      "id": "v21-utf8-multibyte-registered",
+      "description": "返工 N6：UTF-8 多字节行按原始字节登记 hash→正确豁免",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-u8-1",
+            "project": "夹具项目-合成多字节",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:夹具aa0d",
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "3e7597e3ff8224dbd77bfdaf97b7fb1e42f826a545674ef45424fe2f5bf894f4",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": true,
+        "bad": 0,
+        "exempt": 1,
+        "fail_kind": null
+      }
+    },
+    {
+      "id": "v22-complete-row-registered",
+      "description": "返工 N5：字段齐全行命中注册 hash→不计数不计坏（豁免计数仅在该行确有缺必填字段时自增）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T20:05:00+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-rec-1",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa04",
+            "truncated": false,
+            "mocked": false,
+            "outcome": "recorded"
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "0bc831b6fb56011c5e023c885b2a130a7a66d3566867fbc61c148325c4a9aa5c",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": true,
+        "bad": 0,
+        "exempt": 0,
+        "fail_kind": null
+      }
+    },
+    {
+      "id": "v23-bomonly-firstline-misalign",
+      "description": "返工2 B1/W1：BOM-only 首物理行＋完整行＋缺 outcome 行、例外登记完整行 hash→期望 FAIL/坏1/豁免0/missing_outcome（探针钉错位 fail-open：错位实现会把完整行 hash 错配到缺字段行而假豁免）",
+      "input": {
+        "ledger_lines": [
+          "﻿",
+          {
+            "ts": "2026-11-04T20:05:00+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-rec-1",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa04",
+            "truncated": false,
+            "mocked": false,
+            "outcome": "recorded"
+          },
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "0bc831b6fb56011c5e023c885b2a130a7a66d3566867fbc61c148325c4a9aa5c",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 1,
+        "exempt": 0,
+        "fail_kind": "missing_outcome"
+      }
+    },
+    {
+      "id": "v24-badjson-orphan-exc",
+      "description": "返工2 W1/W2：坏 JSON 行＋孤儿例外（注册 hash 未命中任何尾窗行）→fail_kind=bad_json（bad_json 行不参与 hash_mismatch 覆盖）",
+      "input": {
+        "ledger_lines": [
+          "{\"ts\": \"2026-11-04T20:15:00+08:00\", \"runId\": \"r4v2-fx-bad-1\", \"event\": \"broken"
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127a0",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 1,
+        "exempt": 0,
+        "fail_kind": "bad_json"
+      }
+    },
+    {
+      "id": "v25-unknown-orphan-exc",
+      "description": "返工2 W1/W2：未知事件行＋孤儿例外→fail_kind=unknown_event（unknown_event 行不参与 hash_mismatch 覆盖）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T20:10:00+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-unk-1",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "mystery-event",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa05",
+            "truncated": false,
+            "mocked": false,
+            "outcome": "recorded"
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127a0",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 1,
+        "exempt": 0,
+        "fail_kind": "unknown_event"
+      }
+    },
+    {
+      "id": "v26-expiry-invalid-calendar-day",
+      "description": "返工2 N5：expiry=2027-02-29（形状合法带时区但非法日历日——V8 解析会静默滚动为有限值）→严格日历日回环比对拒收 FAIL（fail_kind=exception_invalid_entry）",
+      "input": {
+        "ledger_lines": [
+          {
+            "ts": "2026-11-04T08:31:35+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-a",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa01",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          },
+          {
+            "ts": "2026-11-04T08:31:36+08:00",
+            "schema_version": "v3",
+            "runId": "r4v2-fx-hist-b",
+            "project": "fx-proj",
+            "project_id": "fx-proj",
+            "event": "ruling",
+            "role": "master",
+            "tier": "session:host-prime",
+            "source": "host",
+            "cfg_hash": "cfg:fxaaaaaaaa02",
+            "usage": {
+              "in": 1,
+              "out": 1
+            },
+            "truncated": false,
+            "mocked": false
+          }
+        ],
+        "exceptions": [
+          {
+            "line_hash": "976be3ca3569ca9a1600ef0b5f3511339a0ade042ea0b59be0f544d626e127ab",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2027-02-29T00:00:00+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          },
+          {
+            "line_hash": "203a80d7902f75908907d41e297c9656aec5560c899dd3e136fb7b7cf7a96501",
+            "owner": "master",
+            "reason": "R4-v2 夹具合成登记（历史形态行缺 outcome）",
+            "expiry": "2030-12-31T23:59:59+08:00",
+            "source_ref": "scripts/.golden/ledger-r4-v2-fixtures.json"
+          }
+        ]
+      },
+      "expected": {
+        "pass": false,
+        "bad": 2,
+        "exempt": 0,
+        "fail_kind": "exception_invalid_entry"
+      }
+    }
+  ]
+}

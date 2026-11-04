@@ -89,17 +89,76 @@ if (want('R4')) {
   const LEDGER_V2 = { ok: ['schema_version', 'runId', 'truncated'], switch: ['schema_version', 'runId'], exhaust: ['schema_version', 'runId'] }
   // 主控人工补记事件（ORG-11）：人工事件恒用基字段（无 usage，非派发产出）。
   // 词表单源=health-scan MANUAL_EVENTS 导出。
+  // ── R4-v2（RT0B·Task 0B）：按物理行 sha256 的有界历史例外——例外装载与校验 ──
+  // 契约单源=references/02 §9 R4-v2 条款；例外文件=join(dirname(ledgerPath),
+  // 'ledger-exceptions.json')（与 ledgerPathFor 三层解析同源）；文件不存在=零例外
+  // （现行为不变）。全部失效面 fail-closed：不可解析/顶层非数组/条目键闭集或键序
+  // 错/owner·reason·source_ref 空值/line_hash 非 64 位十六进制/重复/expiry 缺失、
+  // 不可解析或已过期——任一命中即整文件无效（R4 FAIL 不静默），不采用部分条目。
+  const { createHash } = await import('node:crypto') // 块内动态引（锚点稳定约束：禁新增顶层 import）
+  const sha256hex = (buf) => createHash('sha256').update(buf).digest('hex')
+  const R4V2_EXC_KEYS = ['line_hash', 'owner', 'reason', 'expiry', 'source_ref']
+  const R4V2_ISO_DT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/
+  const loadLedgerExceptions = (excPath, nowMs) => {
+    if (!excPath || !existsSync(excPath)) return { ok: true, absent: true, entries: [] }
+    let parsed
+    try { parsed = JSON.parse(readFileSync(excPath, 'utf8')) } catch { return { ok: false, failKind: 'exception_unparseable', detail: '例外文件 JSON 不可解析' } }
+    if (!Array.isArray(parsed)) return { ok: false, failKind: 'exception_invalid_structure', detail: '例外文件顶层非数组' }
+    const seen = new Set()
+    for (const ent of parsed) {
+      if (typeof ent !== 'object' || ent === null || Array.isArray(ent)) return { ok: false, failKind: 'exception_invalid_entry', detail: '条目非对象' }
+      const keys = Object.keys(ent)
+      if (keys.length !== R4V2_EXC_KEYS.length || keys.some((k, i) => k !== R4V2_EXC_KEYS[i])) return { ok: false, failKind: 'exception_invalid_entry', detail: '条目五键闭集或键序不符（键序错=文件无效）' }
+      if (typeof ent.line_hash !== 'string' || !/^[0-9a-f]{64}$/.test(ent.line_hash)) return { ok: false, failKind: 'hash_format_error', detail: 'line_hash 非 64 位十六进制' }
+      for (const k of ['owner', 'reason', 'source_ref']) if (typeof ent[k] !== 'string' || ent[k] === '') return { ok: false, failKind: 'exception_invalid_entry', detail: `${k} 缺失或空值` }
+      if (typeof ent.expiry !== 'string' || !R4V2_ISO_DT.test(ent.expiry) || !Number.isFinite(Date.parse(ent.expiry))) return { ok: false, failKind: 'exception_invalid_entry', detail: 'expiry 非 ISO 8601 日期时间' }
+      // 返工2 N5：严格日历日回环比对——Y/M/D 经 Date.UTC 回读等值（2027-02-29 等
+      // 非法日历日 V8 解析会静默滚动为有限值，形状与 parse 双过也须拒收）
+      const cY = Number(ent.expiry.slice(0, 4)), cM = Number(ent.expiry.slice(5, 7)), cD = Number(ent.expiry.slice(8, 10))
+      const calDate = new Date(Date.UTC(cY, cM - 1, cD))
+      if (calDate.getUTCFullYear() !== cY || calDate.getUTCMonth() !== cM - 1 || calDate.getUTCDate() !== cD) return { ok: false, failKind: 'exception_invalid_entry', detail: 'expiry 非法日历日（严格回环比对拒收——如 02-29 非闰日/02-30）' }
+      if (seen.has(ent.line_hash)) return { ok: false, failKind: 'exception_invalid_entry', detail: '文件内 line_hash 重复' }
+      seen.add(ent.line_hash)
+      if (nowMs > Date.parse(ent.expiry)) return { ok: false, failKind: 'exception_expired', detail: '例外已过期（到期重审=强制重审信号——主控复核后重登例外并重估期限，非永久豁免）' }
+    }
+    return { ok: true, absent: false, entries: parsed }
+  }
   const checkLines = (label, path, required, tailN, opts = {}) => {
     if (!existsSync(path)) return { pass: false, detail: `${label}:文件不存在 ${path}` }
-    const ls = readFileSync(path, 'utf8').replace(/^\uFEFF/, '').split('\n').filter(Boolean).slice(-tailN)
+    // R4-v2 原始字节口径（返工2 B1/W1 单源化）：单次 Buffer 读取→按 LF(0x0A) 切物理行
+    // →逐物理行 utf8 解码——文本行与 hash 行同源同滤（解码后空行滤除＋尾窗切片逐位
+    // 对齐），禁二次 readFileSync（消读间漂移）。BOM 仅在首物理行解码后剥离——只影响
+    // 解析与空行判定（BOM-only 首行解码为空按空行滤除、不参与 hash），hash 恒用原始
+    // 行字节：首行含 BOM 时 hash 含 BOM、CRLF 行保留 CR，不做任何归一。
+    const r4buf = readFileSync(path)
+    const r4chunks = []
+    let r4cs = 0
+    for (let r4ci = 0; r4ci < r4buf.length; r4ci++) { if (r4buf[r4ci] === 0x0a) { r4chunks.push(r4buf.subarray(r4cs, r4ci)); r4cs = r4ci + 1 } }
+    if (r4cs < r4buf.length) r4chunks.push(r4buf.subarray(r4cs))
+    const r4entries = r4chunks
+      .map((c, i) => ({ raw: c, text: i === 0 ? c.toString('utf8').replace(/^\uFEFF/, '') : c.toString('utf8') }))
+      .filter((en) => en.text !== '')
+      .slice(-tailN)
+    const ls = r4entries.map((en) => en.text)
     let bad = 0, skipped = 0, foreign = 0, unknown = 0, kinds = {}
-    for (const l of ls) {
-      let e; try { e = JSON.parse(l) } catch { bad++; continue }
+    const causes = [] // R4-v2（RT0B）台架取证：坏行行因序列（bad_json/unknown_event/missing_<field>）——只取证不改判定
+    const badRowHashes = [] // 返工2 W1/W2：坏行物理行 hash 序列（与 causes 同序——hash_mismatch 覆盖判「目标行 hash 未命中注册」）
+    // R4-v2 有界例外消费：仅显式传入 opts.exceptions 的调用面（账本）激活；流水与
+    // 其他调用面零影响。例外文件无效（ok=false）＝不采用任何条目（fail-closed）。
+    const excOn = !!(opts.exceptions && opts.exceptions.ok && opts.exceptions.entries.length)
+    const excSet = excOn ? new Set(opts.exceptions.entries.map((x) => x.line_hash)) : null
+    let exempt = 0
+    const seenHashes = new Set() // 尾窗全部物理行 hash（含未豁免行——供台架判「注册 hash 未命中」）
+    for (let li = 0; li < ls.length; li++) {
+      const l = ls[li]
+      const lh = excOn ? sha256hex(r4entries[li].raw) : null
+      if (lh !== null) seenHashes.add(lh)
+      let e; try { e = JSON.parse(l) } catch { bad++; causes.push('bad_json'); badRowHashes.push(lh); continue }
       if (opts.skipIf && opts.skipIf(e)) { skipped++; continue }
       // glm-look 对齐行=channel+dispatcher_version 双标记（selfiter glm-look-schema）
       if (e.channel !== undefined && e.dispatcher_version !== undefined) {
         const gr = GLM_REQUIRED[e.event]
-        if (!gr) { unknown++; bad++; continue }
+        if (!gr) { unknown++; bad++; causes.push('unknown_event'); badRowHashes.push(lh); continue }
         for (const k of gr) if (e[k] === undefined) { bad++; break }
         kinds[e.event] = (kinds[e.event] || 0) + 1
         continue
@@ -111,10 +170,23 @@ if (want('R4')) {
       if (e.dispatcher_version !== undefined) { skipped++; continue }
       // 极早期 legacy 行：最小字段校验
       const req = typeof required === 'function' ? required(e) : required
-      for (const k of req) if (e[k] === undefined) { bad++; break }
+      // R4-v2 豁免（返工 N5 计数口径）：行在尾窗内、物理行 hash 命中已生效例外、
+      // event 属已知词表、且该行确有缺必填字段时，仅跳过必填字段核对并计入豁免
+      // 计数——字段齐全行命中 hash 不计数不计坏（照常走字段核对）；豁免≠整行跳过：
+      // JSON 解析失败与未知事件不豁免、行分类与事件分布照常；LEDGER_REQUIRED 数组
+      // 与未知事件计坏规则不因例外放宽。
+      if (excOn && excSet.has(lh) && !req.includes('__unknown_event__') && req.some((k) => e[k] === undefined)) {
+        exempt++
+        if (e.event) kinds[e.event] = (kinds[e.event] || 0) + 1
+        continue
+      }
+      // 返工 N1：账本侧未知事件计数自增（基线既有计数缺口随批消解——原仅流水侧
+      // GLM 分支计数，账本词表外事件行 detail「含未知事件N」恒 0）；判定语义不变。
+      for (const k of req) if (e[k] === undefined) { bad++; if (req.includes('__unknown_event__')) { unknown++; causes.push('unknown_event') } else causes.push('missing_' + k); badRowHashes.push(lh); break }
       if (e.event) kinds[e.event] = (kinds[e.event] || 0) + 1
     }
-    return { pass: bad === 0, kinds, detail: `${label}:尾${ls.length}行坏${bad}行（含未知事件${unknown}）跳${skipped}行(历史/旧版本)外来${foreign}行(他源channel标记) 事件分布=${JSON.stringify(kinds)}` }
+    const excTag = opts.exceptions ? ` 豁免${exempt}行(有界例外)` : '' // 显式豁免计数——绿不得静默
+    return { pass: bad === 0, kinds, bad, exempt, causes, badRowHashes, seenHashes: [...seenHashes], detail: `${label}:尾${ls.length}行坏${bad}行（含未知事件${unknown}）跳${skipped}行(历史/旧版本)外来${foreign}行(他源channel标记)${excTag} 事件分布=${JSON.stringify(kinds)}` }
   }
   const a = checkLines('流水', LOG_PATH, ['ts', 'runId', 'event'], 100)
   // 校验域真空显式呈现（k1-W1/d1-W3 返工：原「全跳过=FAIL」守卫按清理批次申报软化
@@ -150,16 +222,94 @@ if (want('R4')) {
     // selfiter B4 分代：schema_version 3 的派发行增 project_id 必填（v2 存量行按 v2 契约——历史行禁改写，08 §3）
     return e.schema_version === 3 ? [...v2, 'project_id'] : v2
   }
-  const b = checkLines('账本', ledgerPath, ledgerReq, 50, {
+  const ledgerSkipIf = (e) => {
     // 无 schema_version 且早于纪律生效时点（2026-09-16T12:00Z）的存量行=旧版本
     // 形态——跳过计数（不追认不改写，08 §3）；时点后新增行漏带不再跳过=计坏。
-    skipIf: (e) => {
-      if (e.schema_version !== undefined) return false
-      const t = Date.parse(e.ts || '')
-      return Number.isNaN(t) ? true : t < Date.parse('2026-09-16T12:00:00Z')
-    },
-  })
-  record('R4', passA && b.pass && layerOk, `${a.detail}；${b.detail}；${layerDet}`)
+    // R4-v2（RT0B）：由内联字面量提为共享常量（生产面与 fixtures 台架同一单源，语义逐字不变）。
+    if (e.schema_version !== undefined) return false
+    const t = Date.parse(e.ts || '')
+    return Number.isNaN(t) ? true : t < Date.parse('2026-09-16T12:00:00Z')
+  }
+  // R4-v2：例外文件路径与解析后 ledgerPath 同目录派生（与 ledgerPathFor 三层解析
+  // 同源；缺省配置下=项目根 .zcode/ledger-exceptions.json）；不存在=零例外。
+  const excPath = join(dirname(ledgerPath), 'ledger-exceptions.json')
+  const exc = loadLedgerExceptions(excPath, Date.now())
+  const b = checkLines('账本', ledgerPath, ledgerReq, 50, { skipIf: ledgerSkipIf, exceptions: exc })
+  // ── R4-v2 fixtures 数据驱动消费面（RT0B·Task 0B·D-1——常驻向量，always-active）──
+  // 台架逐向量断言四元组（pass/坏行数/豁免计数/fail_kind）；向量与期望单源=
+  // scripts/.golden/ledger-r4-v2-fixtures.json（只读消费不改写）。每例独立 tmp
+  // 目录、结束即清；零写两仓、不读生产账本与生产例外文件。fail_kind 归因优先级：
+  // 例外文件侧失效＞hash_mismatch 覆盖＞行因（bad_json/unknown_event/missing_outcome）。
+  // hash_mismatch 仅当=坏行首因 missing_<field>＋存在孤儿注册（登记 hash 未命中任一
+  // 尾窗行）＋该坏行物理行 hash 未命中注册，三者合取；bad_json/unknown_event 不参与
+  // 覆盖（行因如实）；坏行仍按行因计数。预期 PASS 向量 fail_kind=null。预期 FAIL 的
+  // 夹具被台架识别为「符合预期的失败」（断言通过）。
+  const R4V2_FIXTURES = join(SCRIPTS, '.golden', 'ledger-r4-v2-fixtures.json')
+  let r4v2Ok = true, r4v2PassN = 0, r4v2Total = 0
+  const r4v2Red = []
+  if (!existsSync(R4V2_FIXTURES)) {
+    r4v2Ok = false
+    console.log(`FAIL R4v2-fixtures 缺件 ${R4V2_FIXTURES}（常驻向量面——缺件即绊线，不静默跳过）`)
+  } else {
+    const fxv = JSON.parse(readFileSync(R4V2_FIXTURES, 'utf8')).vectors
+    // 返工 W2：向量集守卫——ID 全集失配（空/缩水/多余/重复）即红，防夹具静默绿。
+    const R4V2_IDS = [
+      'v01-hist2-missing-outcome-noexc', 'v02-new-missing-outcome-noexc', 'v03-legal-exc-covers-hist2',
+      'v04a-exc-expired', 'v04b-expiry-unparseable', 'v05a-owner-empty', 'v05b-reason-missing',
+      'v06a-hash-not-hex64', 'v06b-hash-mismatch', 'v07-new-ruling-recorded-noexc',
+      'v08a-exc-unparseable', 'v08b-exc-not-array', 'v09a-extra-key', 'v09b-duplicate-hash', 'v09c-key-order-wrong',
+      'v10a-unknown-event-registered', 'v10b-bad-json-registered',
+      'v11-bom-firstline-registered', 'v12-complete-rows-invalid-exc', 'v13-hash-mixedcase',
+      'v14-hash-short63', 'v15-hash-long65', 'v16-expiry-no-tz', 'v17-expiry-missing',
+      'v18-sourceref-missing', 'v19-sourceref-empty', 'v20-crlf-line-registered',
+      'v21-utf8-multibyte-registered', 'v22-complete-row-registered',
+      'v23-bomonly-firstline-misalign', 'v24-badjson-orphan-exc', 'v25-unknown-orphan-exc',
+      'v26-expiry-invalid-calendar-day',
+    ]
+    const gotIds = fxv.map((v) => v && v.id)
+    const missIds = R4V2_IDS.filter((i) => !gotIds.includes(i))
+    const extraIds = gotIds.filter((i) => !R4V2_IDS.includes(i))
+    const dupIds = [...new Set(gotIds.filter((i, ix) => gotIds.indexOf(i) !== ix))]
+    if (missIds.length || extraIds.length || dupIds.length) {
+      r4v2Ok = false
+      console.log(`FAIL R4v2-fixtures 向量集失配：缺=${missIds.join(',') || '无'} 多=${extraIds.join(',') || '无'} 重=${dupIds.join(',') || '无'}（防夹具空/缩水静默绿——期望全集=${R4V2_IDS.length}）`)
+    }
+    r4v2Total = fxv.length
+    for (const v of fxv) {
+      const d = mkdtempSync(join(tmpdir(), 'r4v2-'))
+      try {
+        const lg = join(d, 'org-ledger.jsonl')
+        writeFileSync(lg, v.input.ledger_lines.map((l) => (typeof l === 'string' ? l : JSON.stringify(l))).join('\n') + '\n', 'utf8')
+        const ef = join(d, 'ledger-exceptions.json')
+        if (v.input.exceptions !== null) writeFileSync(ef, typeof v.input.exceptions === 'string' ? v.input.exceptions : JSON.stringify(v.input.exceptions, null, 2) + '\n', 'utf8')
+        // 与生产同源核对：同一装载器＋同一 checkLines 消费面（含同一 ledgerReq/ledgerSkipIf）
+        const excF = loadLedgerExceptions(existsSync(ef) ? ef : null, Date.now())
+        const r = checkLines('账本', lg, ledgerReq, 50, { skipIf: ledgerSkipIf, exceptions: excF })
+        let fk = null
+        if (!excF.ok) fk = excF.failKind
+        else if (r.bad > 0) {
+          // 返工2 W1/W2 归因口径（合取三条件）：坏行首因=missing_<field>，且存在孤儿
+          // 注册（注册 hash 未命中任一尾窗行——例外侧确有未生效登记），且该坏行物理行
+          // hash 未命中注册——三者齐备才覆盖为 hash_mismatch；bad_json/unknown_event 行
+          // 不参与覆盖（行因如实）；注册已命中他行的完整行不构成孤儿（v23 探针口径）。
+          const c0 = r.causes[0]
+          const h0 = r.badRowHashes[0]
+          const orphan = excF.entries.some((x) => !r.seenHashes.includes(x.line_hash))
+          const rowUnreg = h0 != null && !excF.entries.some((x) => x.line_hash === h0)
+          fk = typeof c0 === 'string' && c0.startsWith('missing_') && excF.entries.length > 0 && orphan && rowUnreg ? 'hash_mismatch' : c0
+        }
+        // 返工 W1/W3：台架 pass 与生产 record 同口径——含例外文件有效性
+        const actual = { pass: r.pass && excF.ok, bad: r.bad, exempt: r.exempt, fail_kind: fk }
+        const x = v.expected
+        const ok = actual.pass === x.pass && actual.bad === x.bad && actual.exempt === x.exempt && actual.fail_kind === x.fail_kind
+        if (ok) r4v2PassN++
+        else { r4v2Ok = false; r4v2Red.push(v.id) }
+        console.log(`${ok ? 'PASS' : 'FAIL'} R4v2/${v.id} 期(过=${x.pass},坏=${x.bad},豁=${x.exempt},kind=${x.fail_kind}) 实(过=${actual.pass},坏=${actual.bad},豁=${actual.exempt},kind=${actual.fail_kind})`)
+      } finally { rmSync(d, { recursive: true, force: true }) }
+    }
+  }
+  const excDet = exc.absent ? '例外:文件不存在=零例外(现行为)' : exc.ok ? `例外:生效${exc.entries.length}条` : `例外:无效(${exc.failKind}·${exc.detail})`
+  record('R4', passA && b.pass && layerOk && exc.ok && r4v2Ok, `${a.detail}；${b.detail}；${layerDet}；${excDet}；R4v2向量:${r4v2PassN}/${r4v2Total}过${r4v2Red.length ? '，红集=' + r4v2Red.join(',') : ''}`)
 }
 
 // ═══ R7：账本 schema 指针正向校验（A3——SKILL.md/snippet 禁内联字段清单；v1.6 批 kimi-W1） ═══
