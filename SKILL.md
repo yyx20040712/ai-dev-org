@@ -65,7 +65,7 @@ node scripts/package-skill.mjs --out <空目录> [--self-test]   # 分享打包�
 ——模板面存 `{{binding:岗}}` 占位、部署面=org-config 本机件 `agent_bindings` 渲染实值；`$` 后缀=显式思考
 档位声明，缺省即派发拒启 reasoning-level-missing（实证=references/10 §2）。
 
-现役绑定件一律 `$max`；上游枚举值=假绑定禁用；空 tools=泄漏全工具面禁用；代理档案会话启动快照无热加载——改档须新会话验证＋`log-triage.mjs` 日志核对零回退。
+档位单源＝面板（`/api/level` 写序·持久面=org-config.local.json `agent_bindings` 的 `$tier`·写审计=技能仓 `.zcode/panel-write-audit.jsonl`·2026-11-05 用户裁决）；矩阵 `roles.<role>.level` 仅供岗位实例命名派生，不构成档位声明；岗位实例名尾部档位字样为历史命名；上游枚举值=假绑定禁用；空 tools=泄漏全工具面禁用；代理档案会话启动快照无热加载——改档须新会话验证＋`log-triage.mjs` 日志核对零回退。
 
 矩阵各岗绑定面全绑（绑定件=矩阵单源，指针=07 §4 补遗）：派发对象=矩阵登记的 ops-* 绑定代理——
 系统默认代理（general-purpose 等跟随宿主、无绑定）禁承载矩阵岗，误派即停、按矩阵默认重派并
