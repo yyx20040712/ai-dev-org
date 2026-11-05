@@ -708,5 +708,40 @@
       "migration_note": "终态注记（2026-10-03 派发器退役批·用户裁决）：承载=会话内绑定子代理 ops-auditor（deepseek 座，绑定实值单源=本机件 agent_bindings）；外部派发器通道彻底退役并同日清理批次物理删除（2026-10-03——详见 git 历史）。roles.* 不删（意图档位与历史单源）"
     }
   },
-  "exhaustion_fallback_note": "2026-10-03 清理批次：exhaustion_fallback（链尽回退语义标记）已随派发器删除——语义承载=06 §4 退役承载注记（全源尽=主控改派/代位审+未清事项申报）"
+  "exhaustion_fallback_note": "2026-10-03 清理批次：exhaustion_fallback（链尽回退语义标记）已随派发器删除——语义承载=06 §4 退役承载注记（全源尽=主控改派/代位审+未清事项申报）",
+  "authorization_policy": {
+    "schema_version": "authorization-policy/v1",
+    "scope": {
+      "project_ids": ["aidevorg"],
+      "queues": ["batch", "interactive"],
+      "path_prefixes": ["/tmp/rt1b-executor-"],
+      "effect_kinds": ["DETERMINISTIC_LOCAL", "HOST_AGENT", "EXTERNAL"]
+    },
+    "risk_tags": {
+      "vocabulary": ["effect.deterministic_local", "effect.host_agent", "effect.external", "argv.typed", "argv.untyped", "fs.contained", "fs.outside", "net.none", "net.unknown", "risk.low", "risk.elevated"],
+      "unknown": "deny"
+    },
+    "capability_requirements": {
+      "deterministic_local": {
+        "program_hash_and_argv_schema": true,
+        "forbid_shell": true,
+        "forbid_package_manager": true,
+        "forbid_network": true,
+        "env_allowlist": true,
+        "realpath_containment": true,
+        "symlink_checks": true,
+        "resource_limits": true,
+        "readonly_preflight": true,
+        "undo_recipe_and_verify": true,
+        "independent_dod": true
+      },
+      "manual_only_kinds": ["HOST_AGENT", "EXTERNAL"]
+    },
+    "validity": {
+      "require_timezone": true,
+      "clock_rollback": "deny",
+      "revoked": "deny"
+    },
+    "note": "RT1B 批新增唯一授权策略分区：policy_hash=sha256(canonicalJSON(本分区完整快照))，与 cfg_hash（完整合并组织配置）分源分输入分输出（docs/14 §4.1）；已签发 mandate 创建时定格 policy_snapshot，不热加载"
+  }
 }

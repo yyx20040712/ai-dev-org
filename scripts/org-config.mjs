@@ -661,6 +661,79 @@ export function validateAgentSlots(cfg) {
   return errors
 }
 
+// ── RT1B 批（D-3/D-6）：authorization_policy 分区闭集校验——唯一授权策略单源面 ──
+//   只做分区装载校验，不改既有 cfgHash 输入/分层合并/validate 职责（RT1B §3.11-C 边界）。
+//   policy_hash=sha256(canonicalJSON(本分区完整快照)) 由消费侧（run-authz）计算，
+//   与 cfg_hash（完整合并组织配置）分源分输入分输出（docs/14 §4.1「cfg_hash 继续表示完整组织配置」）。
+const AUTHZ_POLICY_KEYS = ['schema_version', 'scope', 'risk_tags', 'capability_requirements', 'validity', 'note']
+const AUTHZ_SCOPE_KEYS = ['project_ids', 'queues', 'path_prefixes', 'effect_kinds']
+const AUTHZ_DETERMINISTIC_FLAGS = ['program_hash_and_argv_schema', 'forbid_shell', 'forbid_package_manager', 'forbid_network', 'env_allowlist', 'realpath_containment', 'symlink_checks', 'resource_limits', 'readonly_preflight', 'undo_recipe_and_verify', 'independent_dod']
+export function validateAuthorizationPolicy(cfg) {
+  const errors = []
+  const p = cfg?.authorization_policy
+  if (!isPlainObject(p)) {
+    errors.push('authorization_policy 分区缺失/非对象——RT1B 唯一授权策略单源（scope/risk_tags/capability_requirements/validity 闭集）')
+    return errors
+  }
+  for (const k of Object.keys(p))
+    if (!AUTHZ_POLICY_KEYS.includes(k)) errors.push(`authorization_policy 多余键「${k}」——闭集=${AUTHZ_POLICY_KEYS.join('/')}`)
+  if (p.schema_version !== 'authorization-policy/v1')
+    errors.push(`authorization_policy.schema_version 须为 authorization-policy/v1（收到 ${JSON.stringify(p.schema_version)}）`)
+  const scope = p.scope
+  if (!isPlainObject(scope)) {
+    errors.push('authorization_policy.scope 缺失/非对象')
+  } else {
+    for (const k of Object.keys(scope))
+      if (!AUTHZ_SCOPE_KEYS.includes(k)) errors.push(`authorization_policy.scope 多余键「${k}」——闭集=${AUTHZ_SCOPE_KEYS.join('/')}`)
+    for (const k of AUTHZ_SCOPE_KEYS) {
+      const v = scope[k]
+      if (!Array.isArray(v) || v.length === 0 || v.some((x) => typeof x !== 'string' || !x.trim()))
+        errors.push(`authorization_policy.scope.${k} 须为非空字符串数组（收到 ${JSON.stringify(v)}）`)
+    }
+  }
+  const rt = p.risk_tags
+  if (!isPlainObject(rt)) {
+    errors.push('authorization_policy.risk_tags 缺失/非对象')
+  } else {
+    for (const k of Object.keys(rt))
+      if (!['vocabulary', 'unknown'].includes(k)) errors.push(`authorization_policy.risk_tags 多余键「${k}」`)
+    if (!Array.isArray(rt.vocabulary) || rt.vocabulary.length === 0 || new Set(rt.vocabulary).size !== rt.vocabulary.length || rt.vocabulary.some((x) => typeof x !== 'string' || !x.trim()))
+      errors.push('authorization_policy.risk_tags.vocabulary 须为非空无重复字符串数组（风险标签词表单源——未知标签 deny）')
+    if (rt.unknown !== 'deny') errors.push(`authorization_policy.risk_tags.unknown 须为 deny（收到 ${JSON.stringify(rt.unknown)}）`)
+  }
+  const cr = p.capability_requirements
+  if (!isPlainObject(cr)) {
+    errors.push('authorization_policy.capability_requirements 缺失/非对象')
+  } else {
+    for (const k of Object.keys(cr))
+      if (!['deterministic_local', 'manual_only_kinds'].includes(k)) errors.push(`authorization_policy.capability_requirements 多余键「${k}」`)
+    const dl = cr.deterministic_local
+    if (!isPlainObject(dl)) {
+      errors.push('authorization_policy.capability_requirements.deterministic_local 缺失/非对象')
+    } else {
+      for (const k of Object.keys(dl))
+        if (!AUTHZ_DETERMINISTIC_FLAGS.includes(k)) errors.push(`deterministic_local 多余键「${k}」——闭集=${AUTHZ_DETERMINISTIC_FLAGS.join('/')}`)
+      for (const k of AUTHZ_DETERMINISTIC_FLAGS)
+        if (typeof dl[k] !== 'boolean') errors.push(`deterministic_local.${k} 须为 boolean（收到 ${JSON.stringify(dl[k])}）`)
+    }
+    const mo = cr.manual_only_kinds
+    if (!Array.isArray(mo) || !(mo.includes('HOST_AGENT') && mo.includes('EXTERNAL')))
+      errors.push('capability_requirements.manual_only_kinds 须为数组且包含 HOST_AGENT 与 EXTERNAL（HOST_AGENT/EXTERNAL 不入自动队列——docs/14 §4.2）')
+  }
+  const val = p.validity
+  if (!isPlainObject(val)) {
+    errors.push('authorization_policy.validity 缺失/非对象')
+  } else {
+    for (const k of Object.keys(val))
+      if (!['require_timezone', 'clock_rollback', 'revoked'].includes(k)) errors.push(`authorization_policy.validity 多余键「${k}」`)
+    if (val.require_timezone !== true) errors.push('validity.require_timezone 须为 true（无时区时间 deny——冻结安全不变量）')
+    if (val.clock_rollback !== 'deny') errors.push('validity.clock_rollback 须为 deny（时钟回拨 deny——冻结安全不变量）')
+    if (val.revoked !== 'deny') errors.push('validity.revoked 须为 deny（mandate 撤销后使用 deny——冻结安全不变量）')
+  }
+  if ('note' in p && (typeof p.note !== 'string' || !p.note.trim())) errors.push('authorization_policy.note 须为非空字符串')
+  return errors
+}
+
 // ── CLI（B8 D-5 预检闭集→B8 r4 哨兵→B8 D-4 notice→self-test→装载→分派）──
 const isMain =
   process.argv[1] && resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
@@ -1077,6 +1150,10 @@ if (isMain) {
         t('B8 D-4/D-5 合法回归：flags list/get（临时根零写）＋flags set 仅写临时状态件＋default/override notice 各一（stderr·stdout 机器格式不变）', rList.status === 0 && noticeDefault && rGet.status === 0 && (rGet.stdout || '').includes('b1_gates_v2=false') && rSet.status === 0 && setState && noticeOverride && !existsSync(join(isoOk, '.zcode', 'org-flags.json')) && !(rList.stdout || '').includes('[notice]'))
       } finally { rmSync(isoOk, { recursive: true, force: true }) }
     }
+    // RT1B 批向量：authorization_policy 分区闭集校验（正例=默认件在位；负例=缺分区/越权键）
+    t('RT1B authz：默认件 authorization_policy 分区闭集校验零错误', validateAuthorizationPolicy(readJson(DEFAULT_CFG)).length === 0)
+    t('RT1B authz：分区缺失→错误行', validateAuthorizationPolicy({}).length === 1)
+    t('RT1B authz：多余键/弱化安全不变量→错误行点名', (() => { const c = readJson(DEFAULT_CFG); const p = structuredClone(c.authorization_policy); p.bogus = 1; p.validity.revoked = 'allow'; const e = validateAuthorizationPolicy({ authorization_policy: p }); return e.some((m) => m.includes('bogus')) && e.some((m) => m.includes('validity.revoked')) })())
     // localDateStr 通用向量（临时窗机制退役后仅存通用日期助手）
     t('localDateStr：本地日期补零（2026-01-05）', localDateStr(new Date(2026, 0, 5)) === '2026-01-05')
     t('localDateStr：月/日双位补零（2026-12-09）', localDateStr(new Date(2026, 11, 9)) === '2026-12-09')
@@ -1139,7 +1216,7 @@ if (isMain) {
   } else if (cmd === 'validate') {
     let errors
     try {
-      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged), ...validateAgentSlots(merged), ...validateFlagsPartition(merged)]
+      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged), ...validateAgentSlots(merged), ...validateFlagsPartition(merged), ...validateAuthorizationPolicy(merged)]
     } catch (e) {
       console.error(`[fatal] validate 途中宿主配置装载失败: ${e.message}（06 §5.8 行 3=配置/装载错）`)
       process.exit(3)
@@ -1153,7 +1230,7 @@ if (isMain) {
     const planN = provEntries.filter(([, d]) => d != null && typeof d === 'object' && String(d.uuid_prefix ?? '').trim().toLowerCase().startsWith('account:')).length
     const regN = provEntries.length - planN
     const srcSummary = planN > 0 ? `${regN} 源注册表双校验＋${planN} 源计划清单校验通过` : `${provEntries.length} 源双校验通过`
-    console.log(`validate PASS（${srcSummary}+跨门对/本机事实/slot schema/flags 分区校验通过，cfg:${cfgHash(merged)}）`)
+    console.log(`validate PASS（${srcSummary}+跨门对/本机事实/slot schema/flags/authorization_policy 分区校验通过，cfg:${cfgHash(merged)}）`)
   } else {
     console.error('用法: node org-config.mjs [--project <dir>] resolve|hash|validate|flags [get|set]|--self-test')
     process.exit(1)
