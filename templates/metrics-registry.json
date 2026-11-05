@@ -1,0 +1,178 @@
+{
+  "schema_version": "metrics-registry/v1",
+  "metrics": [
+    {
+      "name": "confirmed_defects",
+      "formula": "按 defect_key 统计裁决确认缺陷：同一 defect_key 的多轮多席 finding 归并为一项确认缺陷，取裁决确认的去重计数",
+      "analysis_unit": "defect",
+      "source_fields": [
+        "defect_key",
+        "defect.adjudication",
+        "defect.first_seen",
+        "defect.last_seen",
+        "defect.seats"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "false_positive_findings",
+      "formula": "统计裁决为误报的 finding_id：finding 经裁决为误报的计数，以 finding_id 去重",
+      "analysis_unit": "finding",
+      "source_fields": [
+        "finding_id",
+        "finding.severity",
+        "finding.evidence_ref",
+        "defect.adjudication"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "escaped_defects",
+      "formula": "统计相关审核完成后首次发现的 defect_key：defect 首见时点晚于其覆盖审核轮完成时点的确认缺陷计数",
+      "analysis_unit": "defect",
+      "source_fields": [
+        "defect_key",
+        "defect.adjudication",
+        "defect.first_seen",
+        "defect.rounds",
+        "finding.review_round"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "token_usage",
+      "formula": "按 session_uuid/run_uuid/seat 分列 usage.in/out：对账本与会话结构化投影中的用量记录按边界分列求和",
+      "analysis_unit": "token",
+      "source_fields": [
+        "usage.in",
+        "usage.out",
+        "session_uuid",
+        "run_uuid",
+        "seat"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "elapsed_duration",
+      "formula": "同一边界结束减开始时间：以 session_uuid 为边界取 ended_at 与 started_at 之差",
+      "analysis_unit": "duration",
+      "source_fields": [
+        "session_uuid",
+        "started_at",
+        "ended_at",
+        "end_reason"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "first_pass_rate",
+      "formula": "首轮实现审核 PASS 的合格批次数/合格批次数：首轮实现审核即 PASS 的批次除以同窗口合格批次总数",
+      "analysis_unit": "batch",
+      "source_fields": [
+        "batch_id",
+        "review_round",
+        "ledger.outcome",
+        "finding.review_round"
+      ],
+      "denominator": "eligible_batches",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "rework_rounds",
+      "formula": "同一批次首轮后返工轮数：batch 维度首轮实现审核后的返工轮计数",
+      "analysis_unit": "round",
+      "source_fields": [
+        "batch_id",
+        "review_round",
+        "defect.rounds",
+        "ledger.outcome"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "eligible_idle_duration",
+      "formula": "eligible 且无执行动作的时长：批次 eligible 时点至首个执行动作时点之间无执行动作的时长累计",
+      "analysis_unit": "duration",
+      "source_fields": [
+        "batch_id",
+        "eligible_since",
+        "first_action_at",
+        "session_uuid"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "false_blocker_count",
+      "formula": "后被裁决不成立的 blocker 数：raise 为 blocked 但终裁推翻的计数",
+      "analysis_unit": "blocker",
+      "source_fields": [
+        "finding_id",
+        "finding.severity",
+        "defect.adjudication",
+        "defect.disposition"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "unknown_count",
+      "formula": "源数据缺失而标 unknown 的指标值数：对下列底层源字段缺失导致指标值标 unknown 的次数计数；缺任一必要源字段该指标值 unknown，不填 0",
+      "analysis_unit": "metric_value",
+      "source_fields": [
+        "finding.severity",
+        "finding.evidence_ref",
+        "defect.adjudication",
+        "defect.disposition",
+        "ledger.outcome",
+        "projection.integrity",
+        "projection.coverage",
+        "recovery.started_at",
+        "recovery.recovered_at"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    },
+    {
+      "name": "recovery_duration",
+      "formula": "恢复开始至 recovered/可用证据点时长：recovery.started_at 至 recovery.recovered_at（或可用证据点）之差",
+      "analysis_unit": "recovery",
+      "source_fields": [
+        "recovery.started_at",
+        "recovery.recovered_at",
+        "session_uuid",
+        "run_uuid"
+      ],
+      "denominator": "not_applicable",
+      "missing_policy": "unknown",
+      "version": "1.0.0",
+      "owner": "runtime-metrics"
+    }
+  ]
+}
