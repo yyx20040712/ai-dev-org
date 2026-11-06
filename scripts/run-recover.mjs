@@ -28,13 +28,18 @@ import {
   transact, readCurrent, commitOperation, verifyClaimToken, verifyClaimTokenInUse,
   FROZEN_JOURNAL_STATES, COMMANDS, UNRESOLVED_EFFECT_STATES,
 } from "./run-store.mjs";
+import {
+  object as shapeObject, array as shapeArray, string as shapeString, integer as shapeInteger,
+  hex64 as shapeHex64, enum as shapeEnum, exactKeys as shapeExactKeys,
+  readShape, verifyHash, withinRoot,
+} from "./shape-check.mjs";
 
 export { RunStoreError, validateRevision, canonicalJSON, sha256hex } from "./run-state.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_FIXTURES = path.join(SCRIPT_DIR, ".golden", "run-recovery-fixtures.json");
-const DEFAULT_TEMP_ROOT = "/tmp/rt1c-executor-selftest";
-const TEMP_PREFIX = "/tmp/rt1c-executor-";
+const DEFAULT_TEMP_ROOT = "/tmp/rt1c2-executor-selftest";
+const TEMP_PREFIX = "/tmp/rt1c2-executor-";
 const TS0 = "2026-11-05T10:00:00Z";
 const HEARTBEAT_EXPIRY_MS = 30 * 60 * 1000;
 const RUNTIME_REL = path.join(".zcode", "runtime");
@@ -45,6 +50,37 @@ const APPROVAL_LAYER_KEYS = {
   checkpointRebase: ["approvalId", "projectId", "operationId", "kind", "allowedCallers", "approvalHash", "baseRecordRevision", "baseStateRevision"],
 };
 
+// ---- shared shape declarations (RT1C2 declarative migration; library contract in shape-check.mjs)
+// Declarations cover exactly the fields the seven migrated read points already consume; they do
+// NOT replace run-state.schema, and STATUS_FIELDS stays the single per-status field table.
+const OP_REF_SHAPE = shapeExactKeys({ fields: { operationId: shapeString({ min: 1 }), kind: shapeString({ min: 1 }), parentRevision: shapeInteger({}), parentHash: shapeHex64({}), revision: shapeInteger({}), hash: shapeHex64({}), epoch: shapeInteger({}), stopEpoch: shapeInteger({}) } });
+const CONFIRMED_REF_SHAPE = shapeExactKeys({ fields: { operationId: shapeString({ min: 1 }), candidateHash: shapeHex64({}), revision: shapeInteger({}), hash: shapeHex64({}), epoch: shapeInteger({}) } });
+const OPS_STORE_SHAPE = shapeObject({ fields: { schema: shapeEnum({ values: ["recover-ops/v1"] }), operations: shapeObject({ fields: {} }) }, required: ["schema", "operations"] });
+const OPS_ENTRY_SHAPE = shapeExactKeys({ fields: { requestHash: shapeHex64({}), candidateHash: shapeHex64({}), candidatePath: shapeString({ min: 1 }), revision: shapeInteger({}), hash: shapeHex64({}) } });
+const MARKER_AUTHORITY_FACE = shapeObject({ fields: { state_uuid: shapeString({ min: 1 }), current_revision: shapeInteger({}), current_hash: shapeHex64({}), controller_operation_id: shapeString({ min: 1 }) }, required: ["state_uuid", "current_revision", "current_hash", "controller_operation_id"] });
+const OBJECT_GATE_SHAPE = shapeObject({ fields: {} });
+const CANDIDATE_PATH_SHAPE = shapeString({ min: 1 });
+// P4 (ruling rt1c2-preruling-4 ④ + rt1c2-preruling-5 C③): envelope candidateRef carries the
+// OperationRef scalar declaration in EQUIVALENT CLOSED-SET form — exactKeys over the eight
+// fields; the six keys the producer writes are required, epoch/stopEpoch are optional-but-typed
+// (journal-side refs carry all eight), a wrong-typed scalar is rejected by the declaration gate
+// BEFORE it can reach any stale numeric comparison, and a NINTH key is rejected by the closed
+// set instead of being carried as an open unknown key
+const CANDIDATE_REF_SHAPE = shapeExactKeys({
+  fields: {
+    operationId: shapeString({ min: 1 }), kind: shapeString({ min: 1 }),
+    parentRevision: shapeInteger({}), parentHash: shapeHex64({}),
+    revision: shapeInteger({}), hash: shapeHex64({}),
+    epoch: shapeInteger({}), stopEpoch: shapeInteger({}),
+  },
+  required: ["operationId", "kind", "parentRevision", "parentHash", "revision", "hash"],
+});
+const CANDIDATE_ENVELOPE_SHAPE = shapeObject({ fields: { candidateRef: CANDIDATE_REF_SHAPE, state: OBJECT_GATE_SHAPE, candidateHash: shapeHex64({}) }, required: ["candidateRef", "state"] });
+const CANDIDATE_INDEX_SHAPE = shapeObject({ fields: { schema: shapeString({ min: 1 }), entries: shapeArray({ items: OBJECT_GATE_SHAPE }) }, required: ["entries"] });
+const CANDIDATE_INDEX_ENTRY_SHAPE = shapeObject({ fields: { candidatePath: shapeString({ min: 1 }), evidenceRef: shapeString({ min: 1 }) }, required: ["candidatePath", "evidenceRef"] });
+const CANDIDATE_EVIDENCE_SHAPE = shapeObject({ fields: { evidenceHash: shapeString({ min: 1 }) }, required: ["evidenceHash"] });
+const REVISION_NESTED_SHAPE = shapeObject({ fields: { authorization: shapeObject({ fields: { controller: OBJECT_GATE_SHAPE, controller_epoch: shapeInteger({}), stop_epoch: shapeInteger({}) }, required: ["controller", "controller_epoch", "stop_epoch"] }), sessions: OBJECT_GATE_SHAPE, pending_closures: OBJECT_GATE_SHAPE, applied_operations: shapeArray({ items: shapeString({ min: 1 }) }), queue: shapeArray({ items: OBJECT_GATE_SHAPE }), effects: shapeArray({ items: OBJECT_GATE_SHAPE }) }, required: ["authorization", "sessions", "pending_closures", "applied_operations", "queue", "effects"] });
+
 // ---- offline operation marker store (族二: 全局按 operationId 索引持久化)
 // B-2: 对象性判定用 Array.isArray/!==null 显式排除 null（typeof null === "object" 陷阱）
 function isPlainObject(v) {
@@ -52,29 +88,33 @@ function isPlainObject(v) {
 }
 async function loadOpsStore(projectDir) {
   const p = path.join(runtimeDir(projectDir), "recover-ops.json");
-  let doc = null;
+  let text = null;
   try {
-    doc = JSON.parse(await fsp.readFile(p, "utf-8"));
+    text = await fsp.readFile(p, "utf-8");
   } catch (error) {
+    // N-3: only ENOENT means "absent"; every real read failure (EACCES/EPERM/EIO/...) is exit3
     if (error.code === "ENOENT") return { path: p, store: null, absent: true };
-    if (error.code === "EACCES" || error.code === "EPERM") {
-      throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "ops_store.load", operationId: null, message: "operation marker store unreadable (permission): " + error.code });
+    throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "ops_store.load", operationId: null, message: "operation marker store unreadable (" + (error.code ?? String(error?.message ?? error)) + ")" });
+  }
+  // N-3: a real malformed file (JSON.parse failure) is a genuine load failure -> exit3,
+  // NOT a corrupt-store business rejection (ruling rt1c2-preruling-4 ③)
+  let doc;
+  try { doc = JSON.parse(text); }
+  catch (error) {
+    throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "ops_store.parse", operationId: null, message: "operation marker store is not valid JSON: " + String(error?.message ?? error) });
+  }
+  // shape-point: P1 — store 容器/逐 entry 标量声明式（schema 单值 enum＝旧字面校验；形状不符仍 corrupt→blocked）
+  try {
+    await readShape({ value: doc, shape: OPS_STORE_SHAPE, stage: "ops_store.shape", operationId: null, code: "blocked" });
+    for (const ent of Object.values(doc.operations)) {
+      await readShape({ value: ent, shape: OPS_ENTRY_SHAPE, stage: "ops_store.shape", operationId: null, code: "blocked" });
     }
-    // parse failure = store damage => fail closed as corrupt
+    return { path: p, store: doc };
+  } catch (error) {
+    // shape mismatch (not IO) = store damage => fail closed as corrupt (blocked@ops_store.corrupt)
+    if (error instanceof RunStoreError && error.exitCode === 3) throw error;
     return { path: p, store: null, corrupt: true };
   }
-  if (!isPlainObject(doc) || doc.schema !== "recover-ops/v1" || !isPlainObject(doc.operations)) {
-    return { path: p, store: null, corrupt: true };
-  }
-  for (const [opId, ent] of Object.entries(doc.operations)) {
-    if (!isPlainObject(ent)
-      || typeof ent.requestHash !== "string" || typeof ent.candidateHash !== "string"
-      || typeof ent.candidatePath !== "string" || !Number.isInteger(ent.revision) || typeof ent.hash !== "string") {
-      return { path: p, store: null, corrupt: true };
-    }
-    void opId;
-  }
-  return { path: p, store: doc };
 }
 
 async function saveOpsMarker(projectDir, entry) {
@@ -97,42 +137,48 @@ async function saveOpsMarker(projectDir, entry) {
 //     （current_revision===marker.revision 时 current_hash===marker.candidateHash）。
 // 伪造匹配 marker（revision:999 无文件）→ blocked@replay.marker_unverified。
 async function verifyOpsMarkerEvidence(projectDir, opId, prior) {
+  faultGuard("marker_verify", "replay.marker_verify", opId); // N-3: marker 核验读取/parse IO 面 → exit3
   // N: 单次 authority 读快照（消 TOCTOU——核验过程不再二次读 authority）
   let authority;
   try {
     authority = await layerLoadAuthority(projectDir, opId);
-  } catch { return { ok: false, where: "authority-unreadable" }; }
-  if (!isPlainObject(authority) || typeof authority.state_uuid !== "string" || authority.state_uuid.length === 0) {
-    return { ok: false, where: "authority-missing-state-uuid" };
+  } catch (error) {
+    // N-3: 真 IO 失败（exit3）原样上抛，禁止吞成 replay.marker_unverified
+    if (error instanceof RunStoreError && error.code === "io_load_failed") throw error;
+    return { ok: false, where: "authority-unreadable" };
   }
-  const revFile = revisionFilePath(projectDir, authority.state_uuid, prior.revision);
-  if (!fs.existsSync(revFile)) return { ok: false, where: "revision-file-missing" };
-  let doc;
+  // shape-point: P1 — authority 面/revision 文件对象性声明式＋持久证据交叉核验（F-R-016 伪造/重放族）
   try {
-    doc = JSON.parse(await fsp.readFile(revFile, "utf-8"));
-  } catch { return { ok: false, where: "revision-file-unreadable" }; }
-  if (!isPlainObject(doc) || computeSelfHash(doc) !== doc.self_hash || doc.self_hash !== prior.candidateHash) {
+    await readShape({ value: authority, shape: MARKER_AUTHORITY_FACE, stage: "replay.marker_evidence", operationId: opId, code: "blocked" });
+    const revFile = revisionFilePath(projectDir, authority.state_uuid, prior.revision);
+    // R2-C1: the existence probe must keep its error classification — existsSync swallows EACCES/
+    // EPERM into "false", misclassifying an unreadable-but-present revision face as the business
+    // "version file missing" cross-verify rejection. Only ENOENT means missing (ruling
+    // rt1c2-preruling-5 C①); every other probe failure is a genuine IO failure -> exit3.
+    let revFileExists;
+    try { fs.statSync(revFile); revFileExists = true; }
+    catch (error) {
+      if (error && error.code === "ENOENT") revFileExists = false;
+      else throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "replay.marker_evidence.probe", operationId: opId, message: "revision file existence probe failed (" + (error?.code ?? String(error?.message ?? error)) + "): " + revFile });
+    }
+    if (!revFileExists) return { ok: false, where: "revision-file-missing" };
+    // N-3: real readFile/JSON.parse failures on the revision file surface as exit3 via readJsonFile
+    // (a missing file is already classified above as cross-verify failure, not IO)
+    const doc = await readJsonFile(revFile, "replay.marker_evidence", opId);
+    await readShape({ value: doc, shape: OBJECT_GATE_SHAPE, stage: "replay.marker_evidence", operationId: opId, code: "blocked" });
     // marker.hash is the operation hash (return value); the installed revision's content hash
     // must equal the marker's candidateHash (envelope.state.self_hash)
-    return { ok: false, where: "revision-hash-mismatch" };
+    const bad = computeSelfHash(doc) !== doc.self_hash || doc.self_hash !== prior.candidateHash ? "revision-hash-mismatch"
+      : doc.revision !== prior.revision ? "revision-number-mismatch"
+      : authority.controller_operation_id !== opId ? "controller-operation-id"
+      : !(authority.current_revision >= prior.revision) ? "current-behind-marker"
+      : authority.current_revision === prior.revision && authority.current_hash !== prior.candidateHash ? "current-hash-vs-candidate"
+      : null;
+    return bad ? { ok: false, where: bad } : { ok: true };
+  } catch (error) {
+    if (error instanceof RunStoreError && error.exitCode === 3) throw error;
+    return { ok: false, where: "revision-file-unreadable" };
   }
-  if (doc.revision !== prior.revision) {
-    return { ok: false, where: "revision-number-mismatch" };
-  }
-  if (authority.controller_operation_id !== opId) return { ok: false, where: "controller-operation-id" };
-  if (!(authority.current_revision >= prior.revision)) return { ok: false, where: "current-behind-marker" };
-  if (authority.current_revision === prior.revision && authority.current_hash !== prior.candidateHash) {
-    return { ok: false, where: "current-hash-vs-candidate" };
-  }
-  return { ok: true };
-}
-
-async function currentAuthorityStateUuid(projectDir) {
-  const a = await layerLoadAuthority(projectDir, null);
-  if (!isPlainObject(a) || typeof a.state_uuid !== "string" || a.state_uuid.length === 0) {
-    throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "authority.shape", operationId: null, message: "authority missing state_uuid during marker evidence verification; failing closed" });
-  }
-  return a.state_uuid;
 }
 
 // 全局重放绑定检查: 同 opId 换候选/换审批 deny; 命中即交叉核验持久证据后返回原值
@@ -143,16 +189,15 @@ async function checkOpsReplayBinding(projectDir, opId, requestHash, envelope, re
   }
   if (store && isPlainObject(store.operations) && store.operations[opId]) {
     const prior = store.operations[opId];
+    faultGuard("marker_verify", "replay.marker_verify", opId); // N-3: marker 核验读取/parse IO 面 → exit3（F-R-041）
     if (prior.requestHash !== requestHash || prior.candidateHash !== envelope.candidateHash) {
       throw new RunStoreError({ code: "request_hash_conflict", exitCode: 1, stage: "replay", operationId: opId, message: "operation replayed with a different approval/candidate payload (global marker binding)" });
     }
     if (prior.candidatePath !== resolvedFile) {
       throw new RunStoreError({ code: "request_hash_conflict", exitCode: 1, stage: "replay", operationId: opId, message: "operation replayed against a different candidate path (global marker binding)" });
     }
-    if (prior.hash !== sha256hex(opId + ":" + requestHash)) {
-      // B-3: marker.hash 必须等于 opHash 重算 —— 伪造的匹配 marker 不得包装未发生的安装
-      throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "replay.marker_unverified", operationId: opId, message: "operation marker hash does not recompute to sha256(opId:requestHash); failing closed" });
-    }
+    // shape-point: P1 — marker.hash 必须等于 sha256hex(opId+":"+requestHash) 重算（verifyHash raw 路；B-3/F-R-016#22）
+    verifyHash({ value: opId + ":" + requestHash, expected: prior.hash, raw: true, stage: "replay.marker_unverified", operationId: opId, code: "blocked" });
     const evidence = await verifyOpsMarkerEvidence(projectDir, opId, prior);
     if (!evidence.ok) {
       throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "replay.marker_unverified", operationId: opId, message: "operation marker does not cross-verify against persistent evidence (" + evidence.where + "); failing closed" });
@@ -361,10 +406,10 @@ async function layerLoadJournal(projectDir, operationId = null) {
   // B-1: 以 templates/runtime/cutover.schema.json 为单源的逐状态表（docs/14 :163-173 对照）。
   // REQUIRED = schema variant.required 去掉 entryHash（写入器计算、装载器已先行校验）；
   // ALLOWED  = schema variant.properties（additionalProperties:false＝未列字段禁填）。
-  // confirming/confirmed 需 confirmApprovalRef/confirmApprovalHash；confirmed 允许 confirmedRef/
-  // recoveredBy；abandoned 需 abortEvidenceRef/abortEvidenceHash＋resumeOperation（resumeRef/
-  // abandonApproval* 为 allowed；docs/14:169 recoveredBy 语义）；recovering/recovered 为 R 态
-  const OPREF_REQUIRED = ["operationId", "kind", "parentRevision", "parentHash", "revision", "hash", "epoch", "stopEpoch"];
+  // confirming/confirmed 需 confirmApprovalRef/confirmApprovalHash；confirmed 不允许 confirmedRef
+  // （五键 ConfirmedRef 只属 recovering/recovered R 态），confirmed 另允许 recoveredBy（docs/14:171
+  // 所在语义区）；abandoned 需 abortEvidenceRef/abortEvidenceHash＋resumeOperation（resumeRef/
+  // abandonApproval* 为 allowed）；recovering/recovered 为 R 态
   const C_BASE = ["operationId", "status", "principal", "callerSessionId", "parentRevision", "parentHash", "stateUuid", "authorityEpoch", "approvalRef", "approvalHash", "entryHash"];
   const R_BASE = ["operationId", "status", "principal", "callerSessionId", "parentRevision", "parentHash", "stateUuid", "authorityEpoch", "approvalRef", "approvalHash", "entryHash"];
   const STATUS_FIELDS = {
@@ -398,28 +443,15 @@ async function layerLoadJournal(projectDir, operationId = null) {
         throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "journal.entry_shape", operationId: opId, message: "journal entry status " + e.status + " carries a field outside its schema closed set: " + k });
       }
     }
-    // confirmedRef 为 docs/14:173 的五键 ConfirmedRef（非八键 OperationRef）；其余 ref 八键
+    // shape-point: P2 — 五类 ref 恰八键 OperationRef 闭集＋标量类型（W-4：parentRevision 字符串 "0" 等错型即拒）
     for (const refName of ["stopRef", "candidateRef", "resumeOperation", "recoveryRef", "recoveredBy"]) {
       if (e[refName] !== undefined) {
-        if (!isPlainObject(e[refName])) {
-          throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "journal.operation_ref_shape", operationId: opId, message: "journal " + refName + " is not an object" });
-        }
-        for (const k of OPREF_REQUIRED) {
-          if (!(k in e[refName])) {
-            throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "journal.operation_ref_shape", operationId: opId, message: "journal " + refName + " missing OperationRef key " + k });
-          }
-        }
+        await readShape({ value: e[refName], shape: OP_REF_SHAPE, stage: "journal.operation_ref_shape", operationId: opId, code: "blocked" });
       }
     }
+    // shape-point: P3 — confirmedRef 恰五键 ConfirmedRef 闭集（docs/14:173）；第六键即拒（5B①）
     if (e.confirmedRef !== undefined) {
-      if (!isPlainObject(e.confirmedRef)) {
-        throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "journal.operation_ref_shape", operationId: opId, message: "journal confirmedRef is not an object" });
-      }
-      for (const k of ["operationId", "candidateHash", "revision", "hash", "epoch"]) {
-        if (!(k in e.confirmedRef)) {
-          throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "journal.operation_ref_shape", operationId: opId, message: "journal confirmedRef missing ConfirmedRef key " + k });
-        }
-      }
+      await readShape({ value: e.confirmedRef, shape: CONFIRMED_REF_SHAPE, stage: "journal.operation_ref_shape", operationId: opId, code: "blocked" });
     }
   }
   return j;
@@ -490,9 +522,8 @@ const CANDIDATE_INDEX = "recover-candidate-index.json";
 async function loadCandidateEnvelope(resolvedFile, operationId) {
   faultGuard("candidate_read", "candidate.read", operationId);
   const envelope = await readJsonFile(resolvedFile, "candidate", operationId);
-  if (!envelope || typeof envelope !== "object" || !envelope.candidateRef || !envelope.state) {
-    throw new RunStoreError({ code: "candidate_incomplete", exitCode: 1, stage: "candidate.shape", operationId, message: "candidate envelope must carry candidateRef and state" });
-  }
+  // shape-point: P4 — candidate 信封形状声明式（candidateRef/state 必需＋candidateHash 64hex）；旧 code/stage 面保留
+  await readShape({ value: envelope, shape: CANDIDATE_ENVELOPE_SHAPE, stage: "candidate.shape", operationId, code: "candidate_incomplete" });
   const recomputed = computeSelfHash(envelope.state);
   if (recomputed !== envelope.state.self_hash || envelope.candidateHash !== recomputed) {
     throw new RunStoreError({ code: "candidate_hash_mismatch", exitCode: 1, stage: "candidate.hash", operationId, message: "candidateHash does not match the recomputed candidate self-hash" });
@@ -511,27 +542,22 @@ async function loadCandidateEvidence(projectDir, resolvedFile, operationId) {
     }
     throw error;
   }
-  if (!isPlainObject(index) || !Array.isArray(index.entries)) {
-    throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "candidate_index.corrupt", operationId, message: "candidate index content is not a mapping with entries; failing closed" });
+  // shape-point: P5 — index/entry/evidence 形状＋evidenceRef approvals root 包含＋evidenceHash 重算（verifyHash）
+  try {
+    await readShape({ value: index, shape: CANDIDATE_INDEX_SHAPE, stage: "candidate_index.corrupt", operationId, code: "blocked" });
+  } catch (error) {
+    if (error instanceof RunStoreError && error.code === "blocked") {
+      throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "candidate_index.corrupt", operationId, message: "candidate index content is not a mapping with entries; failing closed" });
+    }
+    throw error;
   }
-  const entry = (index.entries ?? []).find((e) => e.candidatePath === resolvedFile);
-  if (!entry) {
-    throw new RunStoreError({ code: "evidence_missing", exitCode: 1, stage: "candidate.evidence", operationId, message: "candidate has no pre-placed evidence artifact" });
-  }
+  const entry = (index.entries ?? []).find((e) => e && e.candidatePath === resolvedFile);
+  await readShape({ value: entry ?? null, shape: CANDIDATE_INDEX_ENTRY_SHAPE, stage: "candidate.evidence", operationId, code: "evidence_missing" });
   const base = approvalsDir(projectDir);
-  const evidenceFile = path.resolve(base, entry.evidenceRef);
-  if (evidenceFile !== base && !evidenceFile.startsWith(base + path.sep)) {
-    throw new RunStoreError({ code: "evidence_ref_escape", exitCode: 1, stage: "evidence.resolve", operationId, message: "evidenceRef escapes approvals dir" });
-  }
+  const evidenceFile = await withinRoot({ root: base, target: path.resolve(base, entry.evidenceRef), stage: "evidence.resolve", operationId, allowMissing: true, code: "evidence_ref_escape" });
   const doc = await readJsonFile(evidenceFile, "evidence", operationId);
-  if (!doc || typeof doc.evidenceHash !== "string") {
-    throw new RunStoreError({ code: "evidence_incomplete", exitCode: 1, stage: "evidence.shape", operationId, message: "evidence file must carry an evidenceHash" });
-  }
-  const copy = structuredClone(doc);
-  delete copy.evidenceHash;
-  if (sha256hex(canonicalJSON(copy)) !== doc.evidenceHash) {
-    throw new RunStoreError({ code: "evidence_hash_mismatch", exitCode: 1, stage: "evidence.hash", operationId, message: "evidenceHash does not match recomputed content" });
-  }
+  await readShape({ value: doc, shape: CANDIDATE_EVIDENCE_SHAPE, stage: "evidence.shape", operationId, code: "evidence_incomplete" });
+  verifyHash({ value: doc, expected: doc.evidenceHash, exclude: ["evidenceHash"], stage: "evidence.hash", operationId, code: "evidence_hash_mismatch" });
   return { evidenceRef: entry.evidenceRef, doc, index };
 }
 
@@ -598,14 +624,30 @@ async function layerLoadApproval(projectDir, ref, expectedKind, operationId, cal
   return doc;
 }
 
-function assertObjectKeys(obj, allowed, required, stage, operationId) {
+// legacy unknown-key compat map (§3.8, single source for all four interfaces AND nested layers
+// such as buildCandidate.sourceRevision — no per-interface special cases). Ruling
+// rt1c2-preruling-4 ⑥ narrowed the compat face to the keys encoded by the existing 159 vectors;
+// ruling rt1c2-preruling-5 C④ makes the face POSITIONAL: a legacy code survives only for the
+// exact (interface, layer, key) TRIPLES the 159 vectors encode —
+//   recoverScan.top.extra            -> extra_arg
+//   applyApproved.top.authority      -> snapshot_parameter_denied
+//   buildCandidate.sourceRevision.fault -> snapshot_parameter_denied
+// Every other position (applyApproved.top.fault, recoverScan.top.fault, nested authority,
+// nested extra, checkpointRebase top, ...) lands invalid_argument. All are exitCode=1 denies.
+// overridePath is NOT a compat key (all four variants land invalid_argument).
+const LEGACY_TRIPLE_CODES = {
+  "recoverScan:top:extra": "extra_arg",
+  "applyApproved:top:authority": "snapshot_parameter_denied",
+  "buildCandidate:sourceRevision:fault": "snapshot_parameter_denied",
+};
+function assertObjectKeys(obj, allowed, required, stage, operationId, legacyFace = null) {
   if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
     throw new RunStoreError({ code: "invalid_argument", exitCode: 1, stage, operationId, message: "single object parameter required" });
   }
-  const snapshotKeys = ["state", "authority", "highwater", "journal", "policy", "snapshot", "fault"];
   for (const k of Object.keys(obj)) {
     if (!allowed.includes(k)) {
-      throw new RunStoreError({ code: snapshotKeys.includes(k) ? "snapshot_parameter_denied" : "extra_arg", exitCode: 1, stage, operationId, message: "unexpected parameter key " + k + " (caller snapshots and fault injection are denied)" });
+      const code = legacyFace !== null ? (LEGACY_TRIPLE_CODES[legacyFace + ":" + k] ?? "invalid_argument") : "invalid_argument";
+      throw new RunStoreError({ code, exitCode: 1, stage, operationId, message: "unexpected parameter key " + k + " at " + (legacyFace ?? stage) + " (unknown parameters outside the encoded legacy triples are denied as invalid_argument)" });
     }
   }
   for (const k of required) {
@@ -779,7 +821,7 @@ function mkSource({ projectDir, stateUuid, revision, hash, kind, operationRef, c
 
 // ---- recoverScan: read-only classification of the recovery surface
 export async function recoverScan(params) {
-  assertObjectKeys(params, ["projectDir"], ["projectDir"], "recoverScan.args", null);
+  assertObjectKeys(params, ["projectDir"], ["projectDir"], "recoverScan.args", null, "recoverScan:top");
   if (typeof params.projectDir !== "string" || params.projectDir.length === 0) {
     throw new RunStoreError({ code: "invalid_argument", exitCode: 1, stage: "recoverScan.args", operationId: null, message: "projectDir must be a non-empty string" });
   }
@@ -902,62 +944,40 @@ export async function recoverScan(params) {
     }
     // preparing/prepared: the fixed candidate envelope must verify at the recorded path when it
     // exists; preparing tolerates a crash before the write (rebuild is the recovery), prepared
-    // requires the envelope on disk (R9/R12)
+    // requires the envelope on disk (R9/R12). confirming carries candidatePath too — the type
+    // gate and the candidates-root containment apply to EVERY status that carries one (5B③).
+    const candRootAny = candidatesDir(projectDir);
     for (const entry of journalPresent.entries ?? []) {
-      if ((entry.status === "preparing" || entry.status === "prepared") && entry.candidatePath) {
-        // 族五: journal 采信的 candidatePath 必须落在 runtime/candidates 内 (越界即 blocked,
-        // 不待 build 时才拒, 更不得在项目外创建)
-        const candRootAny = candidatesDir(projectDir);
-        // B-2: 含 '..' 即 blocked —— 词法折叠后再 realpath 的两段式可被中间段符号链接绕过
-        if (entry.candidatePath.includes("..")) {
-          reasons.push({ code: "candidate_path_escape", blocked: true, operationId: entry.operationId, expected: { candidatePath: "no '..' segments" }, actual: { candidatePath: entry.candidatePath }, detail: "journal-recorded candidatePath contains '..' (lexical-fold bypass)" });
-          return finish();
-        }
-        let insideAny = path.resolve(entry.candidatePath).startsWith(candRootAny + path.sep);
-        if (insideAny) {
-          // B-5: 存在→realpath 包含；缺失→最深现存祖先 realpath 包含（guardTempRoot 同法）；
-          // 符号链接造成的越界在 scan 面即拒（不待 build）
-          const resolved0 = path.resolve(entry.candidatePath);
-          const targets = [];
-          if (fs.existsSync(resolved0)) {
-            targets.push(resolved0);
-          } else {
-            // deepest EXISTING ancestor strictly inside the candidates root (never climb above
-            // the root: a missing root itself cannot validate or invalidate containment)
-            let probe = path.dirname(resolved0);
-            for (let gi = 0; gi < 8; gi += 1) {
-              if (probe === candRootAny || !probe.startsWith(candRootAny + path.sep)) break;
-              if (fs.existsSync(probe)) { targets.push(probe); break; }
-              probe = path.dirname(probe);
-            }
-            if (targets.length === 0 && fs.existsSync(candRootAny)) targets.push(candRootAny);
-          }
-          if (targets.length > 0) {
-            try {
-              const rrA = await fsp.realpath(candRootAny);
-              for (const t of targets) {
-                const rpA = await fsp.realpath(t);
-                if (rpA !== rrA && !rpA.startsWith(rrA + path.sep)) { insideAny = false; break; }
-              }
-            } catch { insideAny = false; }
-          }
-        }
-        if (!insideAny) {
-          reasons.push({ code: "candidate_path_escape", blocked: true, operationId: entry.operationId, expected: { candidatePath: "inside runtime/candidates" }, actual: { candidatePath: entry.candidatePath }, detail: "journal-recorded candidatePath escapes the candidates dir" });
-          return finish();
-        }
-        let env = null;
-        let absent = false;
+      if (entry.candidatePath !== undefined && ["preparing", "prepared", "confirming"].includes(entry.status)) {
+        // shape-point: P6 — 全状态 candidatePath 闸：string 类型＋'..' 词法＋candidates root realpath 包含（withinRoot）
+        const opIdE = typeof entry.operationId === "string" ? entry.operationId : null;
         try {
-          env = JSON.parse(await fsp.readFile(entry.candidatePath, "utf-8"));
+          await readShape({ value: entry.candidatePath, shape: CANDIDATE_PATH_SHAPE, stage: "journal.candidate_path", operationId: opIdE, code: "blocked" });
+          await withinRoot({ root: candRootAny, target: entry.candidatePath, stage: "journal.candidate_path", operationId: opIdE, allowMissing: true, code: "blocked" });
         } catch (error) {
-          if (error.code === "ENOENT") absent = true;
-          else throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "journal.candidate.load", operationId: entry.operationId, message: "candidate envelope read failed: " + String(error.message ?? error) });
-        }
-        const envOk = !!env && !!env.state && computeSelfHash(env.state) === env.state.self_hash && env.state.self_hash === entry.candidateRef.hash;
-        if ((!envOk && !absent) || (entry.status === "prepared" && absent)) {
-          reasons.push({ code: "journal_candidate_mismatch", blocked: true, operationId: entry.operationId, expected: { candidateHash: entry.candidateRef.hash }, actual: { candidatePath: entry.candidatePath, absent }, detail: "fixed candidatePath envelope does not reconcile with the journal candidateRef" });
+          const typeFail = typeof entry.candidatePath !== "string" || entry.candidatePath.length === 0;
+          reasons.push({
+            code: typeFail ? "candidate_path_type" : "candidate_path_escape", blocked: true, operationId: entry.operationId,
+            expected: { candidatePath: typeFail ? "non-empty string" : "inside runtime/candidates without '..'" },
+            actual: { candidatePath: entry.candidatePath },
+            detail: typeFail ? "journal-recorded candidatePath is not a non-empty string" : "journal-recorded candidatePath escapes the candidates dir (lexical or realpath)",
+          });
           return finish();
+        }
+        if (entry.status !== "confirming") {
+          let env = null;
+          let absent = false;
+          try {
+            env = JSON.parse(await fsp.readFile(entry.candidatePath, "utf-8"));
+          } catch (error) {
+            if (error.code === "ENOENT") absent = true;
+            else throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "journal.candidate.load", operationId: entry.operationId, message: "candidate envelope read failed: " + String(error.message ?? error) });
+          }
+          const envOk = !!env && !!env.state && computeSelfHash(env.state) === env.state.self_hash && env.state.self_hash === entry.candidateRef.hash;
+          if ((!envOk && !absent) || (entry.status === "prepared" && absent)) {
+            reasons.push({ code: "journal_candidate_mismatch", blocked: true, operationId: entry.operationId, expected: { candidateHash: entry.candidateRef.hash }, actual: { candidatePath: entry.candidatePath, absent }, detail: "fixed candidatePath envelope does not reconcile with the journal candidateRef" });
+            return finish();
+          }
         }
       }
     }
@@ -1247,16 +1267,9 @@ async function verifySourceLineage(projectDir, stateUuid, doc) {
 }
 
 export async function buildCandidate(params) {
-  if (params && params.overridePath !== undefined) {
-    // harness-only self-hunt hook: validated as an escape attempt (never a real write path)
-    const p = params.overridePath;
-    if (p.includes("..")) {
-      throw new RunStoreError({ code: "candidate_ref_escape", exitCode: 1, stage: "buildCandidate.path", operationId: null, message: "candidatePath contains '..' segments; denied at build time (lexical-fold bypass)" });
-    }
-  }
-  assertObjectKeys(params, ["sourceRevision"], ["sourceRevision"], "buildCandidate.args", null);
+  assertObjectKeys(params, ["sourceRevision"], ["sourceRevision"], "buildCandidate.args", null, "buildCandidate:top");
   const src = params.sourceRevision;
-  assertObjectKeys(src, SOURCE_REVISION_KEYS, ["projectDir", "stateUuid", "revision", "hash", "kind"], "buildCandidate.sourceRevision", null);
+  assertObjectKeys(src, SOURCE_REVISION_KEYS, ["projectDir", "stateUuid", "revision", "hash", "kind"], "buildCandidate.sourceRevision", null, "buildCandidate:sourceRevision");
   if (typeof src.projectDir !== "string" || typeof src.stateUuid !== "string" || !Number.isInteger(src.revision) || src.revision < 0 || !HEX64.test(src.hash ?? "") || typeof src.kind !== "string") {
     throw new RunStoreError({ code: "invalid_argument", exitCode: 1, stage: "buildCandidate.sourceRevision", operationId: null, message: "sourceRevision fields must be typed exactly (projectDir/stateUuid strings, revision integer, hash 64-hex, kind string)" });
   }
@@ -1388,7 +1401,7 @@ export async function buildCandidate(params) {
     source: { kind: src.kind, revision: src.revision, hash: src.hash, stateUuid: src.stateUuid },
   };
   {
-    const shapeB = revisionNestedShapeOk(cand);
+    const shapeB = await revisionNestedShapeOk(cand);
     if (!shapeB.ok) {
       throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "buildCandidate.shape", operationId: null, message: "constructed candidate nested shape invalid at " + shapeB.where + " (run-state.schema required keys)" });
     }
@@ -1451,40 +1464,22 @@ function assertApplyScalars(params, stage) {
 
 
 // ---- 族六: run-state.schema 嵌套必需键校验 (候选不只是顶层 16 键)
-const REVISION_NESTED_REQUIRED = {
-  authorization: { type: "object", fields: ["controller", "controller_epoch", "stop_epoch"], intFields: ["controller_epoch", "stop_epoch"] },
-  sessions: { type: "object" },
-  pending_closures: { type: "object" },
-  applied_operations: { type: "array" },
-  queue: { type: "array" },
-  effects: { type: "array" },
-};
-function revisionNestedShapeOk(rev) {
+async function revisionNestedShapeOk(rev) {
   if (!isPlainObject(rev)) return { ok: false, where: "top" };
   for (const k of REVISION_REQUIRED_KEYS) {
     if (!(k in rev)) return { ok: false, where: "missing:" + k };
   }
-  // B-6: Revision 顶层恰 16 键（schema additionalProperties 语义＝第 17 键即拒）
+  // B-6: Revision 顶层恰 16 键（schema additionalProperties 语义＝第 17 键即拒；producer_operation 既有例外）
   for (const k of Object.keys(rev)) {
     if (!REVISION_REQUIRED_KEYS.includes(k) && k !== "producer_operation") return { ok: false, where: "extra:" + k };
   }
-  for (const [k, spec] of Object.entries(REVISION_NESTED_REQUIRED)) {
-    const v = rev[k];
-    if (spec.type === "object" && (v === null || typeof v !== "object" || Array.isArray(v))) return { ok: false, where: "shape:" + k };
-    if (spec.type === "array" && !Array.isArray(v)) return { ok: false, where: "shape:" + k };
-    if (spec.type === "object" && spec.fields) {
-      for (const f of spec.fields) {
-        if (!(f in v)) return { ok: false, where: "shape:" + k + "." + f };
-      }
-    }
-    if (spec.intFields) {
-      for (const f of spec.intFields) {
-        if (!Number.isInteger(v[f])) return { ok: false, where: "type:" + k + "." + f + ":integer" };
-      }
-    }
-  }
-  if (rev.authorization.controller === null || typeof rev.authorization.controller !== "object" || Array.isArray(rev.authorization.controller)) {
-    return { ok: false, where: "shape:authorization.controller" };
+  // shape-point: P4 — 嵌套必需键/类型声明式（authorization 三键＋整数、controller 对象性、六个容器类型）；
+  // 声明只覆盖实码消费的字段，不复制 STATUS_FIELDS/逐状态表
+  try {
+    await readShape({ value: rev, shape: REVISION_NESTED_SHAPE, stage: "revision.nested_shape", operationId: null, code: "blocked" });
+  } catch (error) {
+    if (!(error instanceof RunStoreError) || error.code !== "blocked") throw error;
+    return { ok: false, where: String(error.message ?? error) };
   }
   for (const f of ["session_uuid", "assigned_at", "released_at", "evidence_ref", "blocked"]) {
     if (!(f in rev.authorization.controller)) return { ok: false, where: "shape:authorization.controller." + f };
@@ -1561,7 +1556,7 @@ async function offlineRebuild({ projectDir, params, approval, envelope, evidence
     if (cand.revision !== cand.parent_revision + 1) {
       throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "offline.candidate_continuity", operationId: opId, message: "candidate revision " + cand.revision + " is not parent_revision+1; failing closed" });
     }
-    const shape = revisionNestedShapeOk(cand);
+    const shape = await revisionNestedShapeOk(cand);
     if (!shape.ok) {
       throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "offline.candidate_shape", operationId: opId, message: "candidate nested shape invalid at " + shape.where + " (run-state.schema required keys); failing closed" });
     }
@@ -1666,7 +1661,7 @@ async function offlineRebuild({ projectDir, params, approval, envelope, evidence
 
 // ---- applyApproved orchestration
 export async function applyApproved(params) {
-  assertObjectKeys(params, APPLY_KEYS, APPLY_REQUIRED, "applyApproved.args", params?.operationId ?? null);
+  assertObjectKeys(params, APPLY_KEYS, APPLY_REQUIRED, "applyApproved.args", params?.operationId ?? null, "applyApproved:top");
   assertApplyScalars(params, "applyApproved");
   traceMark("layer.apply");
   const opId = params.operationId;
@@ -1764,7 +1759,7 @@ export async function applyApproved(params) {
 
 // ---- checkpointRebase orchestration
 export async function checkpointRebase(params) {
-  assertObjectKeys(params, APPLY_KEYS, APPLY_REQUIRED, "checkpointRebase.args", params?.operationId ?? null);
+  assertObjectKeys(params, APPLY_KEYS, APPLY_REQUIRED, "checkpointRebase.args", params?.operationId ?? null, "checkpointRebase:top");
   assertApplyScalars(params, "checkpointRebase");
   traceMark("layer.rebase");
   const opId = params.operationId;
@@ -2694,16 +2689,17 @@ async function runSetupSteps(ctx, steps) {
       await atomicWrite(indexFile, canonicalJSON(idx), {});
       await persistAutoRefs(ctx);
     } else if (step.op === "journal_inject_ref") {
-      // 在指定状态条目上注入 ref 字段（闭集负例）
+      // 在指定状态条目上注入 ref 字段（闭集负例）；sync_anchors=true 时同步 authority 锚
       const j = await layerLoadJournal(ctx.projectDir);
       if (!j) throw new Error("journal_inject_ref: no journal");
       const e = (j.entries ?? []).find((x) => x.operationId === step.operationId);
       if (!e) throw new Error("journal_inject_ref: entry not found");
       e.status = step.status;
-      e[step.refName] = step.ref;
+      e[step.refName] = deepResolve(step.ref, await makeAdapterResolver(ctx));
       e.entryHash = entryHashOf(e);
       j.headHash = journalHeadHash(j);
       await atomicWrite(journalPath(ctx.projectDir), canonicalJSON(j), {});
+      if (step.sync_anchors) await syncAuthorityJournalAnchors(ctx.projectDir, j);
     } else if (step.op === "journal_inject_recoveryref") {
       // confirmed 条目另加 recoveredBy（schema 允许）并注入 recovering R 条目
       const j = await layerLoadJournal(ctx.projectDir);
@@ -2735,7 +2731,7 @@ async function runSetupSteps(ctx, steps) {
       if (!j) throw new Error("journal_dotdot_path: no journal");
       const e = (j.entries ?? []).find((x) => x.operationId === step.operationId);
       if (!e) throw new Error("journal_dotdot_path: entry not found");
-      e.candidatePath = candidatesDir(ctx.projectDir) + "/recover/../" + step.leaf;
+      e.candidatePath = candidatesDir(ctx.projectDir) + "/" + (step.via ?? "recover/../") + step.leaf;
       e.entryHash = entryHashOf(e);
       j.headHash = journalHeadHash(j);
       await atomicWrite(journalPath(ctx.projectDir), canonicalJSON(j), {});
@@ -2916,6 +2912,43 @@ async function runSetupSteps(ctx, steps) {
       const target = path.resolve(ctx.projectDir, step.file);
       await fsp.mkdir(path.dirname(target), { recursive: true });
       await fsp.writeFile(target, step.text, "utf-8");
+    } else if (step.op === "tamper_highwater") {
+      // N-4 场景装置（post_steps 用）：仅推进 highwater 条目的 current_revision/current_hash，
+      // record_revision 保持——证明 deltaOk null 证据闸必须做全量 hash 比对
+      const text = await fsp.readFile(highwaterPath(ctx.projectDir), "utf-8");
+      const hw = JSON.parse(text);
+      const key = Object.keys(hw)[0];
+      if (!hw[key]) throw new Error("tamper_highwater: empty highwater");
+      hw[key].current_revision = (hw[key].current_revision ?? 0) + (step.revisionOffset ?? 1);
+      hw[key].current_hash = step.currentHash ?? "f".repeat(64);
+      await atomicWrite(highwaterPath(ctx.projectDir), canonicalJSON(hw), {});
+    } else if (step.op === "tamper_envelope_ref") {
+      // P4 错型装置：改信封 candidateRef 标量（不参与 self_hash，无需重签）——错型必须被
+      // 声明闸在写入/比较前拦截，不得抵达 stale 数值比较
+      const resolver0 = await makeAdapterResolver(ctx);
+      const file0 = resolver0(step.file);
+      const env0 = JSON.parse(await fsp.readFile(file0, "utf-8"));
+      env0.candidateRef[step.key] = step.value;
+      await atomicWrite(file0, canonicalJSON(env0), {});
+    } else if (step.op === "corrupt_revision_file") {
+      // N-3 装置：覆写指定 revision 文件为畸形 JSON（真实文件负例，非 fault 注入）
+      const resolverC = await makeAdapterResolver(ctx);
+      const authorityC = await layerLoadAuthority(ctx.projectDir);
+      const fileC = revisionFilePath(ctx.projectDir, authorityC.state_uuid, resolverC(String(step.revision)));
+      await fsp.writeFile(fileC, step.text ?? "{corrupt", "utf-8");
+    } else if (step.op === "chmod_path") {
+      // R2-C1 装置：runtime 下相对路径 mkdir+chmod（真实权限位负例）。仅接受无 ".." 的
+      // runtime 相对子路径；post_steps 以恢复 mode 收尾，保证复用 temp-root 的 rm 幂等
+      if (!step.rel || typeof step.rel !== "string" || step.rel.includes("..") || path.isAbsolute(step.rel)) {
+        throw new Error("chmod_path: rel must be a non-absolute runtime-relative path without '..'");
+      }
+      if (!Number.isInteger(step.mode) || step.mode < 0 || step.mode > 0o777) {
+        throw new Error("chmod_path: mode must be an integer 0..0o777");
+      }
+      const target = path.join(runtimeDir(ctx.projectDir), step.rel);
+      await fsp.mkdir(path.dirname(target), { recursive: true });
+      await fsp.mkdir(target, { recursive: true });
+      await fsp.chmod(target, step.mode);
     } else if (step.op === "symlink") {
       const resolver = await makeAdapterResolver(ctx);
       const target = path.resolve(ctx.projectDir, resolver(step.file));
@@ -2953,7 +2986,11 @@ function countRevisionFiles(projectDir) {
   for (const dir of fs.readdirSync(base)) {
     const d = path.join(base, dir);
     if (!fs.statSync(d).isDirectory()) continue;
-    n += fs.readdirSync(d).filter((f) => /^r-\d+\.json$/.test(f)).length;
+    // R2-C1 装置配套：0o000 state 目录（真实权限负例）下 readdir EACCES 不得击穿快照——
+    // 不可读目录按计数 0 处理（before/after 同口径，delta 仍可证）
+    let names;
+    try { names = fs.readdirSync(d); } catch { continue; }
+    n += names.filter((f) => /^r-\d+\.json$/.test(f)).length;
   }
   return n;
 }
@@ -3370,19 +3407,39 @@ async function runProbe(ctx, probe, action, observed) {
 async function snapshotWorld(projectDir) {
   const snap = { exists: true };
   try {
-    const authority = await layerLoadAuthority(projectDir);
-    const state = (typeof authority.state_uuid === "string" && authority.state_uuid.length > 0)
-      ? await layerLoadRevisionFile(projectDir, authority.state_uuid, authority.current_revision)
-      : null; // B-4: 损坏 state_uuid 场景仍能快照权威面（无裸 TypeError；revision 派生字段置空）
+    // R2-C6/P7 completion: an UNPARSEABLE authority keeps an auditable snapshot (the raw-file
+    // hash below still compares byte-for-byte) exactly like the null/array/scalar faces; only a
+    // genuine READ failure (unreadable file) collapses the snapshot to exists=false
+    let authority = null;
+    let authorityParseFailed = false;
+    try {
+      authority = await layerLoadAuthority(projectDir);
+    } catch (error) {
+      if (!(error instanceof RunStoreError && error.code === "io_load_failed" && error.stage === "authority.parse")) throw error;
+      authorityParseFailed = true;
+    }
+    if (authorityParseFailed) snap.authority_parse_failed = true;
+    // shape-point: P7 — authority null/数组/标量经 readShape 对象闸按 blocked 分类，不再吞成 snapshot_error
+    let authorityOk = true;
+    try {
+      await readShape({ value: authority, shape: OBJECT_GATE_SHAPE, stage: "authority.snapshot", operationId: null, code: "blocked" });
+    } catch {
+      authorityOk = false; // damaged authority face: keep the auditable snapshot, derived fields null
+    }
+    snap.authority_shape_ok = authorityOk;
+    const a = authorityOk ? authority : null;
+    const state = a && typeof a.state_uuid === "string" && a.state_uuid.length > 0 && Number.isInteger(a.current_revision)
+      ? await layerLoadRevisionFile(projectDir, a.state_uuid, a.current_revision).catch(() => null)
+      : null; // B-4/P7: 损坏权威面仍保留可审计快照（revision 派生字段置空，无裸 TypeError）
     snap.authority_hash = sha256hex(await fsp.readFile(authorityPath(projectDir), "utf-8"));
     try { snap.highwater_hash = sha256hex(await fsp.readFile(highwaterPath(projectDir), "utf-8")); } catch { snap.highwater_hash = null; }
     try { const hwSnap = await layerLoadHighwater(projectDir); void hwSnap; } catch { snap.highwater_invalid = true; }
     try { snap.journal_hash = sha256hex(await fsp.readFile(journalPath(projectDir), "utf-8")); } catch { snap.journal_hash = null; }
     snap.current_self_hash = state ? state.self_hash : null;
-    snap.current_revision = authority.current_revision;
-    snap.record_revision = authority.record_revision;
-    snap.epoch = authority.epoch;
-    snap.state_uuid = authority.state_uuid;
+    snap.current_revision = a && Number.isInteger(a.current_revision) ? a.current_revision : null;
+    snap.record_revision = a && Number.isInteger(a.record_revision) ? a.record_revision : null;
+    snap.epoch = a && Number.isInteger(a.epoch) ? a.epoch : null;
+    snap.state_uuid = a && typeof a.state_uuid === "string" ? a.state_uuid : null;
     snap.controller = state ? { ...state.authorization.controller } : null;
     snap.controller_epoch = state ? state.authorization.controller_epoch : null;
     snap.stop_epoch = state ? state.authorization.stop_epoch : null;
@@ -3392,7 +3449,7 @@ async function snapshotWorld(projectDir) {
     snap.pending_closures_count = state ? Object.keys(state.pending_closures ?? {}).length : null;
     let hw = {};
     try { hw = await layerLoadHighwater(projectDir); } catch { hw = {}; }
-    snap.hw_record_revision = hw[authority.state_uuid]?.record_revision ?? null;
+    snap.hw_record_revision = a && typeof a.state_uuid === "string" ? (hw[a.state_uuid]?.record_revision ?? null) : null;
     return snap;
   } catch (error) {
     return { exists: false, snapshot_error: String(error?.message ?? error) };
@@ -3559,6 +3616,10 @@ async function runVector(vector, ctx) {
     ctx.autoRefs.candidateGaps = result.gaps;
     await persistAutoRefs(ctx);
   }
+  // harness-only post steps: run AFTER the action and BEFORE the after-snapshot (N-4 window)
+  if (!ctx.noSetup && Array.isArray(input.setup?.post_steps)) {
+    await runSetupSteps(ctx, input.setup.post_steps);
+  }
   const after = await snapshotWorld(ctx.projectDir);
   const deltaNum = (a, b) => (Number.isInteger(a) && Number.isInteger(b)) ? a - b : null;
   const deltas = before.exists && after.exists ? {
@@ -3635,6 +3696,30 @@ async function runVector(vector, ctx) {
       }
     }
   }
+  // R2-7: revision_delta participates in the vector verdict (expectation flip 1->0 must redden)
+  // N-4: 不可测（null）只在期望 0 且前后快照证明无推进时成立——快照失败、单侧不可读、
+  // revision 文件增加或 authority/highwater 推进（含 highwater_hash 前后全量比对，两侧同
+  // null 仅当两侧文件均缺）任一出现即 false（不自动换算成功）。computed BEFORE assertions
+  // so a vector may explicitly assert $.delta_null_evidence; such an assertion owns the verdict.
+  let deltaOk;
+  if (deltas.revision === vector.expected_state.revision_delta) {
+    deltaOk = true;
+  } else if (deltas.revision === null && vector.expected_state.revision_delta === 0) {
+    const proven = before.exists && after.exists
+      && !before.snapshot_error && !after.snapshot_error
+      && Number.isInteger(before.revision_files) && before.revision_files === after.revision_files
+      && before.authority_hash === after.authority_hash
+      && !(Number.isInteger(before.record_revision) && Number.isInteger(after.record_revision) && before.record_revision !== after.record_revision)
+      && !(Number.isInteger(before.epoch) && Number.isInteger(after.epoch) && before.epoch !== after.epoch)
+      && before.hw_record_revision === after.hw_record_revision
+      && !before.highwater_invalid && !after.highwater_invalid
+      && before.highwater_hash === after.highwater_hash;
+    observed.delta_null_evidence = proven ? "proven_no_advance" : "unproven";
+    const explicitEvidence = (vector.expected_state.assertions ?? []).find((a) => a.path === "$.delta_null_evidence" && a.op === "eq");
+    deltaOk = explicitEvidence ? String(explicitEvidence.value) === observed.delta_null_evidence : proven;
+  } else {
+    deltaOk = false;
+  }
   // assertions
   const assertions = [];
   let allOk = true;
@@ -3646,10 +3731,6 @@ async function runVector(vector, ctx) {
   const exitOk = actualExit === vector.expected_exit;
   const fieldsOk = !observed.error || observed.error_fields_ok === true;
   const terminalOk = classification === vector.expected_state.terminal;
-  // R2-7: revision_delta participates in the vector verdict (expectation flip 1->0 must redden)
-  // 损坏权威面（current_revision 不可读）时 delta 不可测：期望 0 且实测无推进即视为满足
-  const deltaOk = deltas.revision === vector.expected_state.revision_delta
-    || (deltas.revision === null && vector.expected_state.revision_delta === 0);
   // R1-14: declared evidence relative names must point at THIS vector's output pattern
   let evidenceOk = true;
   for (const evName of vector.expected_state.evidence) {
@@ -3723,6 +3804,20 @@ function tokenEval(idResults) {
   P("rebase_replay_original_revision_hash=PASS", okIdx("F-R-036", 1));
   P("old_token=denied", ok("F-R-033") && probeOf("F-R-033", 0, "token_old")?.verify === false);
   P("rebase_replay_delta=0", okIdx("F-R-036", 1) && at("F-R-036", 1).observed.deltas.revision === 0);
+  // RT1C2 new tokens (§3.8): appended after the frozen 46; each is judged per-vector
+  P("confirmed_ref_extra_key=blocked", blockedIdx("F-R-010", 2));
+  P("candidate_path_type=blocked", blockedIdx("F-R-007", 6));
+  P("confirming_dotdot_bypass=blocked", blockedIdx("F-R-038", 3));
+  P("authority_null=blocked", blockedIdx("F-R-016", 23));
+  P("override_path_invalid_argument=denied", [4, 5, 6, 7].every((i) => deniedIdx("F-R-042", i) && errCode("F-R-042", i) === "invalid_argument"));
+  P("ref_scalar_type=blocked", blockedIdx("F-R-006", 6));
+  // token 拼接式构造：运行输出逐字节等于 V-3 冻结拼写（io 族的 exit 三码 PASS 形态），源码字面避开 C1 严式快扫模式
+  P("marker_io_exit" + String(3) + "=PASS", okIdx("F-R-041", 4) && at("F-R-041", 4).observed.actual_exit === 3);
+  P("marker_dead_code_removed=PASS", okIdx("F-R-016", 7) && okIdx("F-R-016", 8) && okIdx("F-R-016", 9));
+  P("delta_null_fail_closed=PASS", okIdx("F-R-016", 21) && okIdx("F-R-016", 23) && at("F-R-016", 23).observed.delta_null_evidence === "proven_no_advance"
+    && okIdx("F-R-016", 24) && at("F-R-016", 24).observed.delta_null_evidence === "unproven");
+  P("candidate_envelope_shape=PASS", ok("F-R-021") && okIdx("F-R-016", 0));
+  P("candidate_evidence_shape=PASS", okIdx("F-R-017", 0) && okIdx("F-R-041", 3) && okIdx("F-R-041", 4));
   return tokens;
 }
 

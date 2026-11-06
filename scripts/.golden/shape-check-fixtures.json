@@ -1,0 +1,2384 @@
+{
+ "schema_version": "shape-check-fixtures/v1",
+ "mutation_targets": [
+  "exact_keys_skip",
+  "hash_recompute_skip"
+ ],
+ "vectors": [
+  {
+   "fixture_id": "SC-OBJ-001",
+   "mechanism": "object",
+   "input": {
+    "call": {
+     "fn": "object",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       }
+      }
+     },
+     "value": {
+      "a": "x",
+      "extra": 1
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-OBJ-002",
+   "mechanism": "object",
+   "input": {
+    "call": {
+     "fn": "object",
+     "options": null
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-OBJ-003",
+   "mechanism": "object",
+   "input": {
+    "call": {
+     "fn": "object"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-OBJ-004",
+   "mechanism": "object",
+   "input": {
+    "call": {
+     "fn": "object",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "integer"
+       }
+      },
+      "required": [
+       "b"
+      ]
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-OBJ-005",
+   "mechanism": "object",
+   "input": {
+    "call": {
+     "fn": "object",
+     "options": {
+      "unknownOption": true
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-OBJ-006",
+   "mechanism": "object",
+   "input": {
+    "call": {
+     "fn": "object",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       }
+      }
+     },
+     "value": {
+      "a": 5
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-OBJ-007",
+   "mechanism": "object",
+   "input": {
+    "call": {
+     "fn": "object",
+     "options": {
+      "fields": {}
+     },
+     "value": []
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-OBJ-008",
+   "mechanism": "object",
+   "input": {
+    "call": {
+     "fn": "object",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       }
+      },
+      "required": [
+       "a"
+      ]
+     },
+     "value": {}
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-OBJ-009",
+   "mechanism": "object",
+   "input": {
+    "call": {
+     "fn": "object",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       }
+      }
+     },
+     "value": {
+      "a": "x"
+     },
+     "mutateAfterDeclare": true
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ARR-001",
+   "mechanism": "array",
+   "input": {
+    "call": {
+     "fn": "array",
+     "options": {
+      "items": {
+       "$": "string"
+      },
+      "min": 0,
+      "max": 3
+     },
+     "value": [
+      "a",
+      "b"
+     ]
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ARR-002",
+   "mechanism": "array",
+   "input": {
+    "call": {
+     "fn": "array",
+     "options": null
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ARR-003",
+   "mechanism": "array",
+   "input": {
+    "call": {
+     "fn": "array",
+     "options": {
+      "items": {
+       "$": "string"
+      },
+      "min": 5,
+      "max": 2
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ARR-004",
+   "mechanism": "array",
+   "input": {
+    "call": {
+     "fn": "array",
+     "options": {
+      "items": {
+       "$": "string"
+      },
+      "unknownOption": 1
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ARR-005",
+   "mechanism": "array",
+   "input": {
+    "call": {
+     "fn": "array",
+     "options": {
+      "items": {
+       "$": "string"
+      }
+     },
+     "value": [
+      "a",
+      5
+     ]
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ARR-006",
+   "mechanism": "array",
+   "input": {
+    "call": {
+     "fn": "array",
+     "options": {
+      "items": {
+       "$": "string"
+      },
+      "max": 1
+     },
+     "value": [
+      "a",
+      "b"
+     ]
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ARR-007",
+   "mechanism": "array",
+   "input": {
+    "call": {
+     "fn": "array",
+     "options": {
+      "items": {
+       "$": "string"
+      }
+     },
+     "value": "not-an-array"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-STR-001",
+   "mechanism": "string",
+   "input": {
+    "call": {
+     "fn": "string",
+     "options": {},
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-STR-002",
+   "mechanism": "string",
+   "input": {
+    "call": {
+     "fn": "string",
+     "options": {
+      "min": 0
+     },
+     "value": ""
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-STR-003",
+   "mechanism": "string",
+   "input": {
+    "call": {
+     "fn": "string",
+     "options": {
+      "min": 2
+     },
+     "value": "a"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-STR-004",
+   "mechanism": "string",
+   "input": {
+    "call": {
+     "fn": "string",
+     "options": {
+      "pattern": {
+       "source": "^a.$",
+       "flags": "g"
+      }
+     },
+     "value": "ab"
+    },
+    "repeat": 2
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-STR-005",
+   "mechanism": "string",
+   "input": {
+    "call": {
+     "fn": "string",
+     "options": {
+      "pattern": "not-a-regexp"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-STR-006",
+   "mechanism": "string",
+   "input": {
+    "call": {
+     "fn": "string",
+     "options": {},
+     "value": 123
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-STR-007",
+   "mechanism": "string",
+   "input": {
+    "call": {
+     "fn": "string",
+     "options": {
+      "min": -1
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-STR-008",
+   "mechanism": "string",
+   "input": {
+    "call": {
+     "fn": "string",
+     "options": {
+      "unknownOption": "x"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-INT-001",
+   "mechanism": "integer",
+   "input": {
+    "call": {
+     "fn": "integer",
+     "options": {
+      "min": 0,
+      "max": 10
+     },
+     "value": 5
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-INT-002",
+   "mechanism": "integer",
+   "input": {
+    "call": {
+     "fn": "integer",
+     "options": {},
+     "value": "5"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-INT-003",
+   "mechanism": "integer",
+   "input": {
+    "call": {
+     "fn": "integer",
+     "options": {},
+     "value": true
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-INT-004",
+   "mechanism": "integer",
+   "input": {
+    "call": {
+     "fn": "integer",
+     "options": {},
+     "value": 1.5
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-INT-005",
+   "mechanism": "integer",
+   "input": {
+    "call": {
+     "fn": "integer",
+     "options": {
+      "min": 1.5
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-INT-006",
+   "mechanism": "integer",
+   "input": {
+    "call": {
+     "fn": "integer",
+     "options": {},
+     "value": 9007199254740993
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-INT-007",
+   "mechanism": "integer",
+   "input": {
+    "call": {
+     "fn": "integer",
+     "options": {
+      "oops": 1
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-HEX-001",
+   "mechanism": "hex64",
+   "input": {
+    "call": {
+     "fn": "hex64",
+     "options": {},
+     "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-HEX-002",
+   "mechanism": "hex64",
+   "input": {
+    "call": {
+     "fn": "hex64",
+     "options": null
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-HEX-003",
+   "mechanism": "hex64",
+   "input": {
+    "call": {
+     "fn": "hex64",
+     "options": {
+      "extra": true
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-HEX-004",
+   "mechanism": "hex64",
+   "input": {
+    "call": {
+     "fn": "hex64",
+     "options": {},
+     "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-HEX-005",
+   "mechanism": "hex64",
+   "input": {
+    "call": {
+     "fn": "hex64",
+     "options": {},
+     "value": "abc"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-HEX-006",
+   "mechanism": "hex64",
+   "input": {
+    "call": {
+     "fn": "hex64",
+     "options": {},
+     "value": 64
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-HEX-007",
+   "mechanism": "hex64",
+   "input": {
+    "call": {
+     "fn": "hex64"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ENUM-001",
+   "mechanism": "enum",
+   "input": {
+    "call": {
+     "fn": "enum",
+     "options": {
+      "values": [
+       "a",
+       "b"
+      ]
+     },
+     "value": "a"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ENUM-002",
+   "mechanism": "enum",
+   "input": {
+    "call": {
+     "fn": "enum",
+     "options": {
+      "values": [
+       "a"
+      ]
+     },
+     "value": "A"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ENUM-003",
+   "mechanism": "enum",
+   "input": {
+    "call": {
+     "fn": "enum",
+     "options": {
+      "values": [
+       "1"
+      ]
+     },
+     "value": 1
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ENUM-004",
+   "mechanism": "enum",
+   "input": {
+    "call": {
+     "fn": "enum",
+     "options": {
+      "values": []
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ENUM-005",
+   "mechanism": "enum",
+   "input": {
+    "call": {
+     "fn": "enum",
+     "options": {
+      "values": [
+       "a",
+       "a"
+      ]
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ENUM-006",
+   "mechanism": "enum",
+   "input": {
+    "call": {
+     "fn": "enum",
+     "options": {
+      "values": "ab"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ENUM-007",
+   "mechanism": "enum",
+   "input": {
+    "call": {
+     "fn": "enum",
+     "options": {
+      "values": [
+       "a"
+      ],
+      "unknownOption": 0
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-001",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "name": "leaf",
+      "registry": {
+       "leaf": {
+        "$": "string"
+       }
+      }
+     },
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-002",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "name": "",
+      "registry": {}
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-003",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "name": "x",
+      "registry": null
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-004",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "name": "x",
+      "registry": {
+       "x": "not-a-shape"
+      }
+     },
+     "value": "v"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-005",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "name": "missing",
+      "registry": {
+       "leaf": {
+        "$": "string"
+       }
+      }
+     },
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-006",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "builtin": "loop"
+     },
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-007",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "builtin": "chain"
+     },
+     "value": "ok"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-008",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "builtin": "chain"
+     },
+     "value": 123
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-009",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "name": "x",
+      "registry": {
+       "x": {
+        "$": "string"
+       }
+      },
+      "oops": true
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-EXK-001",
+   "mechanism": "exactKeys",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       },
+       "b": {
+        "$": "integer"
+       }
+      }
+     },
+     "value": {
+      "a": "x",
+      "b": 1
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-EXK-002",
+   "mechanism": "exactKeys",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       },
+       "b": {
+        "$": "integer"
+       }
+      },
+      "required": [
+       "a"
+      ]
+     },
+     "value": {
+      "a": "x"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-EXK-003",
+   "mechanism": "exactKeys",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       },
+       "b": {
+        "$": "integer"
+       }
+      }
+     },
+     "value": {
+      "a": "x",
+      "b": 1,
+      "c": 2
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": "exact_keys_skip"
+  },
+  {
+   "fixture_id": "SC-EXK-004",
+   "mechanism": "exactKeys",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {}
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-EXK-005",
+   "mechanism": "exactKeys",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       }
+      }
+     },
+     "value": {
+      "b": 1
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-EXK-006",
+   "mechanism": "exactKeys",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       }
+      },
+      "unknownOption": []
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-EXK-007",
+   "mechanism": "exactKeys",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "a": {
+        "$": "string"
+       }
+      }
+     },
+     "value": {
+      "a": "x"
+     },
+     "mutateAfterDeclare": true
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-001",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "file": "$SANDBOX/good.json",
+      "shape": {
+       "$": "object",
+       "fields": {
+        "a": {
+         "$": "integer"
+        }
+       },
+       "required": [
+        "a"
+       ]
+      },
+      "stage": "test.read"
+     }
+    },
+    "sandbox": {
+     "files": {
+      "good.json": "{\"a\": 1}"
+     },
+     "dirs": [
+      "root"
+     ]
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check",
+    "returns": {
+     "a": 1
+    }
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-002",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "file": "$SANDBOX/bad.json",
+      "shape": {
+       "$": "object",
+       "fields": {}
+      },
+      "stage": "test.read"
+     }
+    },
+    "sandbox": {
+     "files": {
+      "bad.json": "{not-json"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "io_load_failed",
+    "exitCode": 3
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-003",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "file": "$SANDBOX/missing.json",
+      "shape": {
+       "$": "object",
+       "fields": {}
+      },
+      "stage": "test.read"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "io_load_failed",
+    "exitCode": 3
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-004",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "file": "$SANDBOX/x",
+      "value": {
+       "a": 1
+      },
+      "shape": {
+       "$": "object",
+       "fields": {}
+      },
+      "stage": "test.read"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-005",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "shape": {
+       "$": "object",
+       "fields": {}
+      },
+      "stage": "test.read"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-006",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": null
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-007",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "value": {
+       "a": "x"
+      },
+      "shape": {
+       "$": "object",
+       "fields": {
+        "a": {
+         "$": "integer"
+        }
+       }
+      },
+      "stage": "test.read"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-008",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "value": {
+       "a": "x"
+      },
+      "shape": {
+       "$": "object",
+       "fields": {
+        "a": {
+         "$": "integer"
+        }
+       }
+      },
+      "stage": "test.read",
+      "code": "blocked"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "blocked",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-009",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "value": {
+       "a": 1
+      },
+      "shape": {
+       "$": "object",
+       "fields": {
+        "a": {
+         "$": "integer"
+        }
+       }
+      },
+      "stage": "test.read"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check",
+    "returns": {
+     "a": 1
+    }
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-010",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "value": {
+       "a": 1
+      },
+      "shape": "not-a-shape",
+      "stage": "test.read"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-RDS-011",
+   "mechanism": "readShape",
+   "input": {
+    "call": {
+     "fn": "readShape",
+     "options": {
+      "value": {
+       "a": 1
+      },
+      "shape": {
+       "$": "object",
+       "fields": {}
+      }
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-001",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "value": {
+       "a": 1,
+       "self": "x"
+      },
+      "expected": "015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862",
+      "exclude": [
+       "self"
+      ],
+      "stage": "test.hash"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check",
+    "returns": true
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-002",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "value": {
+       "a": 1
+      },
+      "expected": "0000000000000000000000000000000000000000000000000000000000000000",
+      "stage": "test.hash"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "hash_mismatch",
+    "exitCode": 1
+   },
+   "mutation_tag": "hash_recompute_skip"
+  },
+  {
+   "fixture_id": "SC-VFH-003",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "value": "abc",
+      "expected": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      "raw": true,
+      "stage": "test.hash"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check",
+    "returns": true
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-004",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "value": {
+       "a": 1
+      },
+      "expected": "zz",
+      "stage": "test.hash"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-005",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "value": {
+       "a": 1
+      },
+      "expected": "0000000000000000000000000000000000000000000000000000000000000000",
+      "exclude": [
+       1
+      ],
+      "stage": "test.hash"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-006",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "value": {
+       "a": 1
+      },
+      "expected": "0000000000000000000000000000000000000000000000000000000000000000",
+      "raw": true,
+      "stage": "test.hash"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-007",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "value": {
+       "a": 1.5
+      },
+      "expected": "0000000000000000000000000000000000000000000000000000000000000000",
+      "stage": "test.hash"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-008",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": null
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-009",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "value": {
+       "a": 1
+      },
+      "expected": "0000000000000000000000000000000000000000000000000000000000000000"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-010",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "value": {
+       "a": 2
+      },
+      "expected": "015abd7f5cc57a2dd94b7590f04ad8084273905ee33ec5cebeae62276a97f862",
+      "stage": "test.hash",
+      "code": "custom_hash_code"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "custom_hash_code",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-011",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "builtin": "uncloneable",
+      "expected": "0000000000000000000000000000000000000000000000000000000000000000",
+      "stage": "test.hash"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-VFH-012",
+   "mechanism": "verifyHash",
+   "input": {
+    "call": {
+     "fn": "verifyHash",
+     "options": {
+      "builtin": "bigintvalue",
+      "expected": "0000000000000000000000000000000000000000000000000000000000000000",
+      "stage": "test.hash"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-001",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/a/b.txt",
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "files": {
+      "root/a/b.txt": "x",
+      "root/b.txt": "y"
+     },
+     "dirs": []
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check",
+    "returns": "$SANDBOX/root/a/b.txt"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-002",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/../escape.txt",
+      "stage": "test.path"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "path_escape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-003",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/outside.txt",
+      "stage": "test.path"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "path_escape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-004",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/missing.txt",
+      "allowMissing": false,
+      "stage": "test.path"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "io_load_failed",
+    "exitCode": 3
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-005",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/missing/deep.txt",
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "files": {
+      "root/a/b.txt": "x",
+      "root/b.txt": "y"
+     },
+     "dirs": []
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check",
+    "returns": "$SANDBOX/root/missing/deep.txt"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-006",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/link",
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "files": {
+      "root/b.txt": "y"
+     },
+     "links": {
+      "root/link": "/tmp"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "path_escape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-007",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": 123,
+      "target": "$SANDBOX/root/a",
+      "stage": "test.path"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-008",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": 123,
+      "stage": "test.path"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-009",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": null
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_argument",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-010",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root",
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "files": {
+      "root/a/b.txt": "x",
+      "root/b.txt": "y"
+     },
+     "dirs": []
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "path_escape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-011",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/a/../b.txt",
+      "rejectDotDot": false,
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "files": {
+      "root/a/b.txt": "x",
+      "root/b.txt": "y"
+     },
+     "dirs": []
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check",
+    "returns": "$SANDBOX/root/b.txt"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-012",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "/tmp",
+      "target": "/home/yyx/work/aidevorg/docs",
+      "stage": "test.path"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "path_escape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-013",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/zzz..evil.json",
+      "stage": "test.path"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "path_escape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-014",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/dir/x.txt",
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "dirs": [
+      "root/dir"
+     ],
+     "files": {
+      "root/dir/keep.txt": "x"
+     },
+     "chmod": {
+      "root/dir": 0
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "io_load_failed",
+    "exitCode": 3
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-015",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/noroot",
+      "target": "$SANDBOX/noroot/a.txt",
+      "stage": "test.path"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check",
+    "returns": "$SANDBOX/noroot/a.txt"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-016",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "/",
+      "target": "$SANDBOX/file.txt",
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "files": {
+      "file.txt": "x"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check",
+    "returns": "$SANDBOX/file.txt"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-017",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/dangling.link",
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "dirs": [
+      "root"
+     ],
+     "links": {
+      "root/dangling.link": "../outside-missing.txt"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "path_escape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-018",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/badlink/file.txt",
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "dirs": [
+      "root/real"
+     ],
+     "links": {
+      "root/badlink": "../no-such-dir"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "path_escape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-ARR-008",
+   "mechanism": "array",
+   "input": {
+    "call": {
+     "fn": "array",
+     "options": {
+      "items": {
+       "$": "string"
+      },
+      "min": 0,
+      "max": 3
+     },
+     "value": [
+      "a",
+      "b"
+     ],
+     "mutateAfterDeclare": true
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-REF-010",
+   "mechanism": "ref",
+   "input": {
+    "call": {
+     "fn": "ref",
+     "options": {
+      "name": "leaf",
+      "registry": {
+       "leaf": {
+        "$": "string"
+       }
+      }
+     },
+     "value": "x",
+     "mutateAfterDeclare": true
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-WIR-019",
+   "mechanism": "withinRoot",
+   "input": {
+    "call": {
+     "fn": "withinRoot",
+     "options": {
+      "root": "$SANDBOX/root",
+      "target": "$SANDBOX/root/dangling.link",
+      "allowMissing": false,
+      "stage": "test.path"
+     }
+    },
+    "sandbox": {
+     "dirs": [
+      "root"
+     ],
+     "links": {
+      "root/dangling.link": "../outside-missing.txt"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "path_escape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  }
+ ]
+}

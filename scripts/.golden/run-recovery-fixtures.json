@@ -6816,6 +6816,442 @@
    }
   },
   {
+   "fixture_id": "F-R-021",
+   "invariant_id": "INV-02-007",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 P4 信封补全：candidateRef.parentRevision 为字符串 \"0\"（八键标量错型）——声明闸在写入前拒绝（code=candidate_incomplete），不得抵达 stale 数值比较",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "build_candidate",
+       "revision": 0
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "tamper_envelope_ref",
+       "file": "@cand:path",
+       "key": "parentRevision",
+       "value": "0"
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@scan:baseStateRevision",
+      "operationId": "op-apply-1"
+     }
+    }
+   },
+   "input_hash": "bedbaa9fa6032a469da63f0291200e631112b7a92d679edf3800368e956497cc",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "candidate_incomplete",
+      "message": "candidateRef 错型＝信封形状拒绝"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "candidate.shape",
+      "message": "stage=candidate.shape（P4 声明闸）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-021-4/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-021",
+   "invariant_id": "INV-02-007",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 R2-C3：信封 candidateRef 携第九键（extraNinth）——CANDIDATE_REF_SHAPE 闭集化后 exactKeys 拒绝，不得当开放键集错误放行（旧码错误接受 exit=0）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "build_candidate",
+       "revision": 0
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "tamper_envelope_ref",
+       "file": "@cand:path",
+       "key": "extraNinth",
+       "value": true
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@scan:baseStateRevision",
+      "operationId": "op-apply-1"
+     }
+    }
+   },
+   "input_hash": "54aa32eacf6445fdfec03c4c9b9507a1fb7ebd2d389ac48e173f91193579e593",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "candidate_incomplete",
+      "message": "第九键＝信封闭集形状拒绝"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "candidate.shape",
+      "message": "stage=candidate.shape（P4 声明闸 exactKeys）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-021-5/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-021",
+   "invariant_id": "INV-02-007",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 R2-C3 对照：可选键 epoch 错型（字符串 \"x\"）——可选受型仍拒绝（缺席对照=既有信封正例恰六键全绿）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "build_candidate",
+       "revision": 0
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "tamper_envelope_ref",
+       "file": "@cand:path",
+       "key": "epoch",
+       "value": "x"
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@scan:baseStateRevision",
+      "operationId": "op-apply-1"
+     }
+    }
+   },
+   "input_hash": "1a7290f5e4a85f75c52579bdc350aa89282e6be7fe2ffbc07423d71d2545ce23",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "candidate_incomplete",
+      "message": "可选键错型＝typed 拒绝"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "candidate.shape",
+      "message": "stage=candidate.shape（P4 声明闸）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-021-6/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-021",
+   "invariant_id": "INV-02-007",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 R3：candidateRef 八键正例（六键基底＋epoch=0/stopEpoch=0）——CANDIDATE_REF_SHAPE 八键闭集可选键零值受型通过，安装成功且返回恰接口键集",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {
+        "sessions_add": [
+         {
+          "session_uuid": "sess-run",
+          "role": "worker",
+          "started_at": "@now-iso"
+         }
+        ],
+        "active_run": {
+         "session_uuid": "sess-run",
+         "run_uuid": "run-1"
+        },
+        "pending_audit": 2
+       }
+      },
+      {
+       "op": "build_candidate",
+       "kind": "current_source"
+      },
+      {
+       "op": "tamper_envelope_ref",
+       "file": "@cand:path",
+       "key": "epoch",
+       "value": 0
+      },
+      {
+       "op": "tamper_envelope_ref",
+       "file": "@cand:path",
+       "key": "stopEpoch",
+       "value": 0
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "session",
+          "callerSessionId": "sess-ctrl"
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "session",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@scan:baseStateRevision",
+      "operationId": "op-apply-1",
+      "callerSessionId": "sess-ctrl"
+     }
+    }
+   },
+   "input_hash": "cc7981065b9fe71faabf3f43dee983e021bb1899edece033e2c8e6203e0b0b3b",
+   "expected_exit": 0,
+   "expected_state": {
+    "polarity": "positive",
+    "revision_delta": 1,
+    "terminal": "passed",
+    "assertions": [
+     {
+      "path": "$.result.keys",
+      "op": "eq",
+      "value": [
+       "hash",
+       "revision"
+      ],
+      "message": "返回键恰接口键集（八键信封正例）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 1,
+      "message": "新 revision=base+1（八键 candidateRef 不阻滞安装）"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-021-7/observed.json"
+    ]
+   }
+  },
+  {
    "fixture_id": "F-R-022",
    "invariant_id": "INV-02-003",
    "mode": "runtime",
@@ -13352,11 +13788,11 @@
        "paths": [
         "/home/yyx/work/aidevorg",
         "/home/yyx/.zcode/skills/ai-dev-org",
-        "/tmp/rt1c-executor-../evil",
-        "/tmp/rt1c-executor-a/../../home"
+        "/tmp/rt1c2-executor-../evil",
+        "/tmp/rt1c2-executor-a/../../home"
        ],
        "symlink_case": {
-        "link": "/tmp/rt1c-executor-guard-link",
+        "link": "/tmp/rt1c2-executor-guard-link",
         "target": "/etc"
        }
       },
@@ -13373,7 +13809,7 @@
      ]
     }
    },
-   "input_hash": "2c2abd775b272ebba56224ec9e98d3442db87d57a3c29acc326b7457dbbc7e93",
+   "input_hash": "cb9d8c8e55930b17c42f1664fbfafdbdf30158ef3d0ec896a0731c668ea5697c",
    "expected_exit": 0,
    "expected_state": {
     "polarity": "positive",
@@ -13843,23 +14279,42 @@
     }
    },
    "input_hash": "7ad2010033f2b2672b14059de4db355dbe456b19aad8d17e8aca5e15699ea069",
-   "expected_exit": "blocked",
+   "expected_exit": 3,
    "expected_state": {
     "polarity": "negative",
     "revision_delta": 0,
-    "terminal": "blocked",
+    "terminal": "denied",
     "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
      {
       "path": "$.error.code",
       "op": "eq",
-      "value": "blocked",
-      "message": "marker 存储损坏 blocked"
+      "value": "io_load_failed",
+      "message": "非法 JSON＝真实 parse 失败＝exit3（预裁四③）"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 3,
+      "message": "exitCode=3"
      },
      {
       "path": "$.error.stage",
       "op": "eq",
-      "value": "ops_store.corrupt",
-      "message": "stage=ops_store.corrupt"
+      "value": "ops_store.parse",
+      "message": "stage=ops_store.parse"
      },
      {
       "path": "$.deltas.revision",
@@ -17035,8 +17490,8 @@
      {
       "path": "$.error.code",
       "op": "eq",
-      "value": "candidate_ref_escape",
-      "message": "build 面 .. 即拒"
+      "value": "invalid_argument",
+      "message": "RT1C2 §3.8：overridePath 自猎钩删除后未知参数统一 invalid_argument（同向拒绝 code 漂移·枚举于 code-stage-drifts）"
      },
      {
       "path": "$.deltas.revision",
@@ -17768,6 +18223,2035 @@
     ],
     "evidence": [
      "runs/F-R-016-22/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-006",
+   "invariant_id": "INV-01-001",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 W-4：stopping 的 stopRef.parentRevision 为字符串 \"0\"——八键俱在但标量类型错，blocked",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "journal_raw",
+       "entries": [
+        {
+         "operationId": "op-c1",
+         "status": "stopping",
+         "principal": "host",
+         "callerSessionId": "host-initial",
+         "parentRevision": 0,
+         "parentHash": "@auto:current_hash",
+         "stateUuid": "@auto:state_uuid",
+         "authorityEpoch": 0,
+         "approvalRef": "app-g1a.json",
+         "approvalHash": "@auto:approval_hash:app-g1a.json",
+         "stopRef": {
+          "operationId": "op-c1:stop",
+          "kind": "cutover_stop",
+          "parentRevision": "0",
+          "parentHash": "@auto:current_hash",
+          "revision": 1,
+          "hash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "epoch": 0,
+          "stopEpoch": 1
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "action": {
+     "interface": "recoverScan",
+     "params": {
+      "projectDir": "@auto:project_dir"
+     }
+    }
+   },
+   "input_hash": "0aeb6bb1468f1ae1fee1ed944fa9f0a0d7e4edb50046ed8425293a95e0871b63",
+   "expected_exit": "blocked",
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "blocked",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "blocked",
+      "message": "ref 标量类型错型 blocked"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "journal.operation_ref_shape",
+      "message": "ref 形状闸（P2）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-006-6/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-007",
+   "invariant_id": "INV-01-003",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 5B③：preparing 的 candidatePath=123（非字符串）——旧码裸 TypeError，改为 blocked 分类",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "journal_raw",
+       "entries": [
+        {
+         "operationId": "op-c1",
+         "status": "preparing",
+         "principal": "host",
+         "callerSessionId": "host-initial",
+         "parentRevision": 0,
+         "parentHash": "@auto:current_hash",
+         "stateUuid": "@auto:state_uuid",
+         "authorityEpoch": 0,
+         "approvalRef": "app-g1a.json",
+         "approvalHash": "@auto:approval_hash:app-g1a.json",
+         "stopRef": {
+          "operationId": "op-c1:stop",
+          "kind": "cutover_stop",
+          "parentRevision": 0,
+          "parentHash": "@auto:current_hash",
+          "revision": 1,
+          "hash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "epoch": 0,
+          "stopEpoch": 1
+         },
+         "candidatePath": 123,
+         "candidateRef": {
+          "operationId": "op-c1:confirm",
+          "kind": "cutover_confirm",
+          "parentRevision": 1,
+          "parentHash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "revision": 2,
+          "hash": "2222222222222222222222222222222222222222222222222222222222222222",
+          "epoch": 0,
+          "stopEpoch": 1
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "action": {
+     "interface": "recoverScan",
+     "params": {
+      "projectDir": "@auto:project_dir"
+     }
+    }
+   },
+   "input_hash": "214cfdfd58f8ef116f6c6c0a4e14a3c41cd688ee0cfc316884e4d308664a9191",
+   "expected_exit": "blocked",
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "blocked",
+    "assertions": [
+     {
+      "path": "$.result.status",
+      "op": "eq",
+      "value": "blocked",
+      "message": "非字符串 candidatePath 分类 blocked"
+     },
+     {
+      "path": "$.result.reasons.1.code",
+      "op": "eq",
+      "value": "candidate_path_type",
+      "message": "类型闸 reason（reasons.0=anchor_catchup）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-007-6/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-010",
+   "invariant_id": "INV-01-011",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 5B①：recovering 的 confirmedRef 携第六键 stopEpoch——五键闭集外即 blocked",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "journal_raw",
+       "entries": [
+        {
+         "operationId": "op-r1",
+         "status": "recovering",
+         "principal": "host",
+         "callerSessionId": "host",
+         "parentRevision": 0,
+         "parentHash": "@auto:current_hash",
+         "stateUuid": "@auto:state_uuid",
+         "authorityEpoch": 1,
+         "approvalRef": "app-fw.json",
+         "approvalHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+         "confirmedRef": {
+          "operationId": "op-c1",
+          "candidateHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "revision": 1,
+          "hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "epoch": 1,
+          "stopEpoch": 1
+         },
+         "recoveryRef": {
+          "operationId": "op-r1:recover",
+          "kind": "recoverForward",
+          "parentRevision": 0,
+          "parentHash": "@auto:current_hash",
+          "revision": 1,
+          "hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "epoch": 1,
+          "stopEpoch": 1
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "action": {
+     "interface": "recoverScan",
+     "params": {
+      "projectDir": "@auto:project_dir"
+     }
+    }
+   },
+   "input_hash": "d6cb9b0768f5418c73ade2a2f6b7be8817613588beacef4fd6c9297c859d21e1",
+   "expected_exit": "blocked",
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "blocked",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "blocked",
+      "message": "ConfirmedRef 第六键 blocked"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "journal.operation_ref_shape",
+      "message": "五键闭集闸（P3）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-010-2/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-016",
+   "invariant_id": "INV-03-010",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 5B④/P7：authority.json=null——snapshot 吞噬改 fail-closed 分类，损坏面仍保留可审计快照（delta null 需无推进证据）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "corrupt_authority",
+       "patch": {
+        "current_hash": "c4c749c55380f710fceed6339038dc54944799d3dc7c10a0d6fd92250ebb896c"
+       }
+      },
+      {
+       "op": "build_candidate",
+       "kind": "authority_offline_rebuild"
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "apply_interface",
+       "params": {
+        "candidatePath": "@cand:path",
+        "candidateHash": "@cand:hash",
+        "principal": "host",
+        "approvalRef": "app-apply.json",
+        "approvalHash": "@auto:approval_hash:app-apply.json",
+        "expectedRevision": "@scan:baseStateRevision",
+        "operationId": "op-apply-1"
+       }
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/authority.json",
+       "text": "null"
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@apply:base",
+      "operationId": "op-apply-1"
+     }
+    }
+   },
+   "input_hash": "ef0bacf5080ff89dab1f9a220a4911941018c489d4320662667c834b5101a985",
+   "expected_exit": "blocked",
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "blocked",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "blocked",
+      "message": "null authority 六字段 blocked（非裸 TypeError、非 snapshot_error 吞噬）"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "authority.offline_epoch",
+      "message": "损坏面 fail closed"
+     },
+     {
+      "path": "$.before.exists",
+      "op": "eq",
+      "value": true,
+      "message": "修复后损坏权威面仍保留可审计快照"
+     },
+     {
+      "path": "$.before.snapshot_error",
+      "op": "absent",
+      "value": true,
+      "message": "无未分类 snapshot_error"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "ne",
+      "value": 1,
+      "message": "无版本推进（不可测面恒非 1）"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-016-23/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-016",
+   "invariant_id": "INV-03-010",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 N-4 补全：仅 highwater current_revision/current_hash 推进、authority/revision 不变——deltaOk null 证据闸必须判 unproven（highwater_hash 全量比对）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "corrupt_authority",
+       "patch": {
+        "current_hash": "c4c749c55380f710fceed6339038dc54944799d3dc7c10a0d6fd92250ebb896c"
+       }
+      },
+      {
+       "op": "build_candidate",
+       "kind": "authority_offline_rebuild"
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "apply_interface",
+       "params": {
+        "candidatePath": "@cand:path",
+        "candidateHash": "@cand:hash",
+        "principal": "host",
+        "approvalRef": "app-apply.json",
+        "approvalHash": "@auto:approval_hash:app-apply.json",
+        "expectedRevision": "@scan:baseStateRevision",
+        "operationId": "op-apply-1"
+       }
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/authority.json",
+       "text": "null"
+      }
+     ],
+     "post_steps": [
+      {
+       "op": "tamper_highwater",
+       "revisionOffset": 1
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@apply:base",
+      "operationId": "op-apply-1"
+     }
+    }
+   },
+   "input_hash": "32522e542a0a9f20cf0fc68597bf6ef872f1ff66c2e498e99179a3b179014610",
+   "expected_exit": "blocked",
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "blocked",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "blocked",
+      "message": "损坏权威面动作仍 blocked"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "authority.offline_epoch",
+      "message": "损坏面 fail closed"
+     },
+     {
+      "path": "$.before.exists",
+      "op": "eq",
+      "value": true,
+      "message": "P7 修复后 before 保留可审计快照"
+     },
+     {
+      "path": "$.after.exists",
+      "op": "eq",
+      "value": true,
+      "message": "after 同样可审计"
+     },
+     {
+      "path": "$.delta_null_evidence",
+      "op": "eq",
+      "value": "unproven",
+      "message": "仅 highwater 推进＝推进证据在场＝不得判 proven_no_advance（highwater_hash 前后全量比对）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "ne",
+      "value": 1,
+      "message": "null 不可测（authority 损坏），显式证据断言承载判定"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-016-24/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-038",
+   "invariant_id": "INV-02-008",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 5B③：confirming 的 candidatePath 携 zzz/../evil.json——旧码仅 preparing/prepared 查 '..'，confirming 原样带出；全状态同闸后 blocked",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "journal_raw",
+       "entries": [
+        {
+         "operationId": "op-c1",
+         "status": "confirming",
+         "principal": "host",
+         "callerSessionId": "host-initial",
+         "parentRevision": 0,
+         "parentHash": "@auto:current_hash",
+         "stateUuid": "@auto:state_uuid",
+         "authorityEpoch": 0,
+         "approvalRef": "app-g1a.json",
+         "approvalHash": "@auto:approval_hash:app-g1a.json",
+         "stopRef": {
+          "operationId": "op-c1:stop",
+          "kind": "cutover_stop",
+          "parentRevision": 0,
+          "parentHash": "@auto:current_hash",
+          "revision": 1,
+          "hash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "epoch": 0,
+          "stopEpoch": 1
+         },
+         "confirmApprovalRef": "app-g1b.json",
+         "confirmApprovalHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+         "candidatePath": "@auto:project_dir/.zcode/runtime/candidates/op-c1.json",
+         "candidateRef": {
+          "operationId": "op-c1:confirm",
+          "kind": "cutover_confirm",
+          "parentRevision": 1,
+          "parentHash": "1111111111111111111111111111111111111111111111111111111111111111",
+          "revision": 2,
+          "hash": "2222222222222222222222222222222222222222222222222222222222222222",
+          "epoch": 0,
+          "stopEpoch": 1
+         }
+        }
+       ]
+      },
+      {
+       "op": "journal_dotdot_path",
+       "operationId": "op-c1",
+       "via": "zzz/../",
+       "leaf": "evil.json"
+      }
+     ]
+    },
+    "action": {
+     "interface": "recoverScan",
+     "params": {
+      "projectDir": "@auto:project_dir"
+     }
+    }
+   },
+   "input_hash": "3b00f67bf107c2e2210250e4c7a3f389501cfeb9062488e7e04b8d024090ce32",
+   "expected_exit": "blocked",
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "blocked",
+    "assertions": [
+     {
+      "path": "$.result.status",
+      "op": "eq",
+      "value": "blocked",
+      "message": "confirming 穿越旁路 blocked"
+     },
+     {
+      "path": "$.result.reasons.1.code",
+      "op": "eq",
+      "value": "candidate_path_escape",
+      "message": "词法 '..' 闸 reason（reasons.0=anchor_catchup）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-038-3/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-041",
+   "invariant_id": "INV-03-007",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 N-3：marker 核验读取/parse IO 面（fault@marker_verify）——exit3，不得吞成 replay.marker_unverified",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "corrupt_authority",
+       "patch": {
+        "current_hash": "c4c749c55380f710fceed6339038dc54944799d3dc7c10a0d6fd92250ebb896c"
+       }
+      },
+      {
+       "op": "build_candidate",
+       "kind": "authority_offline_rebuild"
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "apply_interface",
+       "params": {
+        "candidatePath": "@cand:path",
+        "candidateHash": "@cand:hash",
+        "principal": "host",
+        "approvalRef": "app-apply.json",
+        "approvalHash": "@auto:approval_hash:app-apply.json",
+        "expectedRevision": "@scan:baseStateRevision",
+        "operationId": "op-apply-1"
+       }
+      },
+      {
+       "op": "forge_ops_marker",
+       "revision": "@auto:current_revision",
+       "forged_hash": true
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@apply:base",
+      "operationId": "op-apply-1"
+     }
+    },
+    "fault": {
+     "phase": "marker_verify"
+    }
+   },
+   "input_hash": "b879d8a41e811eb2786cf8275d80d4ba29b0c97c4cb0e850d736fbd9e88ff11f",
+   "expected_exit": 3,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "io_fault",
+      "message": "IO 注入分类"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "replay.marker_verify",
+      "message": "marker 核验 IO 面（N-3）"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 3,
+      "message": "exitCode=3"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "无半状态"
+     },
+     {
+      "path": "$.deltas.revision_files",
+      "op": "eq",
+      "value": 0,
+      "message": "current 不前进"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-041-4/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-041",
+   "invariant_id": "INV-03-007",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 N-3 补全：marker store 文件为真实畸形 JSON（非 fault 注入）——readFile/JSON.parse 真实失败必须 io_load_failed exit3，不得吞成 blocked@ops_store.corrupt",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "corrupt_authority",
+       "patch": {
+        "current_hash": "c4c749c55380f710fceed6339038dc54944799d3dc7c10a0d6fd92250ebb896c"
+       }
+      },
+      {
+       "op": "build_candidate",
+       "kind": "authority_offline_rebuild"
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "apply_interface",
+       "params": {
+        "candidatePath": "@cand:path",
+        "candidateHash": "@cand:hash",
+        "principal": "host",
+        "approvalRef": "app-apply.json",
+        "approvalHash": "@auto:approval_hash:app-apply.json",
+        "expectedRevision": "@scan:baseStateRevision",
+        "operationId": "op-apply-1"
+       }
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/recover-ops.json",
+       "text": "{oops-not-json"
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@apply:base",
+      "operationId": "op-apply-1"
+     }
+    },
+    "fault": null
+   },
+   "input_hash": "a4e4b9ecd3644bf31d50dd8ceb52b8a696db23c50c9696c2960408fb64c127e9",
+   "expected_exit": 3,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "io_load_failed",
+      "message": "畸形 JSON＝真实 parse 失败＝exit3"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 3,
+      "message": "exitCode=3"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "ops_store.parse",
+      "message": "stage=ops_store.parse"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-041-5/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-041",
+   "invariant_id": "INV-03-007",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 N-3 补全：marker 命中交叉核验时 revision 文件为真实畸形 JSON——readFile/JSON.parse 真实失败必须 io_load_failed exit3，不得吞成 replay.marker_unverified",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "corrupt_authority",
+       "patch": {
+        "current_hash": "c4c749c55380f710fceed6339038dc54944799d3dc7c10a0d6fd92250ebb896c"
+       }
+      },
+      {
+       "op": "build_candidate",
+       "kind": "authority_offline_rebuild"
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "apply_interface",
+       "params": {
+        "candidatePath": "@cand:path",
+        "candidateHash": "@cand:hash",
+        "principal": "host",
+        "approvalRef": "app-apply.json",
+        "approvalHash": "@auto:approval_hash:app-apply.json",
+        "expectedRevision": "@scan:baseStateRevision",
+        "operationId": "op-apply-1"
+       }
+      },
+      {
+       "op": "forge_ops_marker",
+       "revision": "@auto:current_revision",
+       "forged_hash": false
+      },
+      {
+       "op": "corrupt_revision_file",
+       "revision": "@auto:current_revision",
+       "text": "{corrupt-revision"
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@apply:base",
+      "operationId": "op-apply-1"
+     }
+    },
+    "fault": null
+   },
+   "input_hash": "2fcf2a8e3edeb4c3585666f8dcd66558fc50f3e30a1c652ecc36cd4e44d0527c",
+   "expected_exit": 3,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "io_load_failed",
+      "message": "revision 文件畸形＝真实 parse 失败＝exit3"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 3,
+      "message": "exitCode=3"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "revision.parse",
+      "message": "stage=revision.parse（动作早期 layerLoadRevisionFile 真实 parse 失败先于 marker 核验）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-041-6/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-041",
+   "invariant_id": "INV-03-007",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 R2-C1：marker 交叉核验 revision 文件存在性探测遇到 0o000 state 目录（真实 EACCES）——探测必须分类 io_load_failed exit3，不得把保留错误吞成「版本文件缺失」业务交叉核验拒绝",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "corrupt_authority",
+       "patch": {
+        "current_hash": "c4c749c55380f710fceed6339038dc54944799d3dc7c10a0d6fd92250ebb896c"
+       }
+      },
+      {
+       "op": "build_candidate",
+       "kind": "authority_offline_rebuild"
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "forge_ops_marker",
+       "revision": 2,
+       "candidate_hash_ref": "@cand:hash",
+       "request_hash_ref": "@computed:apply_req"
+      },
+      {
+       "op": "corrupt_authority",
+       "patch": {
+        "state_uuid": "chmoddir-probe",
+        "record_revision": null
+       }
+      },
+      {
+       "op": "chmod_path",
+       "rel": "state/chmoddir-probe",
+       "mode": 0
+      }
+     ],
+     "post_steps": [
+      {
+       "op": "chmod_path",
+       "rel": "state/chmoddir-probe",
+       "mode": 448
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@scan:baseStateRevision",
+      "operationId": "op-apply-1"
+     }
+    }
+   },
+   "input_hash": "81af147e9aea46dac5c120c0cd9ff1fba15048a48b70ca0437b7b974fb7c2f34",
+   "expected_exit": 3,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "io_load_failed",
+      "message": "存在性探测的保留错误（EACCES）＝真实 IO 失败＝exit3"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 3,
+      "message": "exitCode=3"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "replay.marker_evidence.probe",
+      "message": "stage=replay.marker_evidence.probe（verifyOpsMarkerEvidence 存在性探测分类）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-041-7/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-041",
+   "invariant_id": "INV-03-007",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 R2-C6：authority 文件为真实畸形 JSON（非 fault 注入）——与 marker(#5)/revision(#6) 成三面闭合，readFile/JSON.parse 真实失败必须 io_load_failed exit3@authority.parse",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      },
+      {
+       "op": "corrupt_authority",
+       "patch": {
+        "current_hash": "c4c749c55380f710fceed6339038dc54944799d3dc7c10a0d6fd92250ebb896c"
+       }
+      },
+      {
+       "op": "build_candidate",
+       "kind": "authority_offline_rebuild"
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/authority.json",
+       "text": "{corrupt-authority"
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@scan:baseStateRevision",
+      "operationId": "op-apply-1"
+     }
+    }
+   },
+   "input_hash": "2b6016ae4657772180f2c7111fbc59a02bbce3754bab430d128ad1bfc017eadb",
+   "expected_exit": 3,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "io_load_failed",
+      "message": "authority 畸形＝真实 parse 失败＝exit3"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 3,
+      "message": "exitCode=3"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "authority.parse",
+      "message": "stage=authority.parse（scanMini 首个 authority 读面）"
+     },
+     {
+      "path": "$.delta_null_evidence",
+      "op": "eq",
+      "value": "proven_no_advance",
+      "message": "authority 不可读但前后快照字节级无推进（authority_hash/revision_files/highwater_hash 相等）——delta null 以 N-4 证据闸判 proven_no_advance"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-041-8/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-042",
+   "invariant_id": "INV-02-008",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 5B②：buildCandidate 未声明参数 overridePath=null——invalid_argument（非裸 TypeError，非 extra_arg/snapshot 类）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      }
+     ]
+    },
+    "action": {
+     "interface": "buildCandidate",
+     "params": {
+      "sourceRevision": {
+       "projectDir": "@auto:project_dir",
+       "stateUuid": "@auto:state_uuid",
+       "revision": "@auto:current_revision",
+       "hash": "@auto:current_hash",
+       "kind": "current_source"
+      },
+      "overridePath": null
+     }
+    }
+   },
+   "input_hash": "74ca2e6e59bdc9f161920870a01c1b5293bed4d83a18033c6f746a9d6f4c24d5",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "invalid_argument",
+      "message": "未知参数统一 invalid_argument（§3.8 兼容映射）"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "buildCandidate.args",
+      "message": "args 面分类"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 1,
+      "message": "exitCode=1"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零写入"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-042-4/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-042",
+   "invariant_id": "INV-02-008",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 5B②：buildCandidate 未声明参数 overridePath=123——invalid_argument（非裸 TypeError，非 extra_arg/snapshot 类）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      }
+     ]
+    },
+    "action": {
+     "interface": "buildCandidate",
+     "params": {
+      "sourceRevision": {
+       "projectDir": "@auto:project_dir",
+       "stateUuid": "@auto:state_uuid",
+       "revision": "@auto:current_revision",
+       "hash": "@auto:current_hash",
+       "kind": "current_source"
+      },
+      "overridePath": 123
+     }
+    }
+   },
+   "input_hash": "8c103226213bbfd53ffc0d1a39ebd87114e2bce5d5ef223de69f45cf4ce0ada7",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "invalid_argument",
+      "message": "未知参数统一 invalid_argument（§3.8 兼容映射）"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "buildCandidate.args",
+      "message": "args 面分类"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 1,
+      "message": "exitCode=1"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零写入"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-042-5/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-042",
+   "invariant_id": "INV-02-008",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 5B②：buildCandidate 未声明参数 overridePath=true——invalid_argument（非裸 TypeError，非 extra_arg/snapshot 类）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      }
+     ]
+    },
+    "action": {
+     "interface": "buildCandidate",
+     "params": {
+      "sourceRevision": {
+       "projectDir": "@auto:project_dir",
+       "stateUuid": "@auto:state_uuid",
+       "revision": "@auto:current_revision",
+       "hash": "@auto:current_hash",
+       "kind": "current_source"
+      },
+      "overridePath": true
+     }
+    }
+   },
+   "input_hash": "3303ba923b85b7525d1a31d9f4618c7a4989e91345c01747bad7604f362b6fe2",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "invalid_argument",
+      "message": "未知参数统一 invalid_argument（§3.8 兼容映射）"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "buildCandidate.args",
+      "message": "args 面分类"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 1,
+      "message": "exitCode=1"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零写入"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-042-6/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-042",
+   "invariant_id": "INV-02-008",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 5B②：buildCandidate 未声明参数 overridePath={}——invalid_argument（非裸 TypeError，非 extra_arg/snapshot 类）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      }
+     ]
+    },
+    "action": {
+     "interface": "buildCandidate",
+     "params": {
+      "sourceRevision": {
+       "projectDir": "@auto:project_dir",
+       "stateUuid": "@auto:state_uuid",
+       "revision": "@auto:current_revision",
+       "hash": "@auto:current_hash",
+       "kind": "current_source"
+      },
+      "overridePath": {}
+     }
+    }
+   },
+   "input_hash": "0ad233947b6e077a2671bc2061e69f39cb048e1b7eee021be105d6782a16b93d",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "invalid_argument",
+      "message": "未知参数统一 invalid_argument（§3.8 兼容映射）"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "buildCandidate.args",
+      "message": "args 面分类"
+     },
+     {
+      "path": "$.error.exitCode",
+      "op": "eq",
+      "value": 1,
+      "message": "exitCode=1"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零写入"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-042-7/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-042",
+   "invariant_id": "INV-02-008",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 R2-C4：applyApproved 顶层 fault——未编码三元组位置，兼容映射三元组化后 invalid_argument（旧码按键名全局误映射 snapshot_parameter_denied）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "build_candidate",
+       "kind": "current_source"
+      },
+      {
+       "op": "approval",
+       "file": "app-apply.json",
+       "doc": {
+        "approvalId": "apr-op-apply-1",
+        "projectId": "proj-rt1c",
+        "operationId": "op-apply-1",
+        "kind": "applyApproved",
+        "allowedCallers": [
+         {
+          "principal": "host",
+          "callerSessionId": null
+         }
+        ],
+        "baseRecordRevision": "@auto:record_revision",
+        "baseStateRevision": "@scan:baseStateRevision"
+       }
+      }
+     ]
+    },
+    "action": {
+     "interface": "applyApproved",
+     "params": {
+      "candidatePath": "@cand:path",
+      "candidateHash": "@cand:hash",
+      "principal": "host",
+      "approvalRef": "app-apply.json",
+      "approvalHash": "@auto:approval_hash:app-apply.json",
+      "expectedRevision": "@scan:baseStateRevision",
+      "operationId": "op-apply-1",
+      "fault": "x"
+     }
+    }
+   },
+   "input_hash": "517bb6f7b011560e2d464174ee7e2c7c6fcad08b2c687fe2d19510fe277c0ddf",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "invalid_argument",
+      "message": "未编码位置＝invalid_argument"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "applyApproved.args",
+      "message": "stage=applyApproved.args"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-042-8/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-042",
+   "invariant_id": "INV-02-008",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 R2-C4：recoverScan 顶层 fault——未编码三元组位置，invalid_argument（旧码按键名全局误映射）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      }
+     ]
+    },
+    "action": {
+     "interface": "recoverScan",
+     "params": {
+      "projectDir": "@auto:project_dir",
+      "fault": "x"
+     }
+    }
+   },
+   "input_hash": "7ef7784f53890523dd7cb15bd839574722392876c6f5024c0a7cc10d5f1959c9",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "invalid_argument",
+      "message": "未编码位置＝invalid_argument"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "recoverScan.args",
+      "message": "stage=recoverScan.args"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-042-9/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-042",
+   "invariant_id": "INV-02-008",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 R2-C4：buildCandidate 顶层 extra——未编码三元组位置，invalid_argument（旧码按键名全局误映射 extra_arg）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      },
+      {
+       "op": "seed",
+       "patch": {}
+      }
+     ]
+    },
+    "action": {
+     "interface": "buildCandidate",
+     "params": {
+      "sourceRevision": {
+       "projectDir": "@auto:project_dir",
+       "stateUuid": "@auto:state_uuid",
+       "revision": "@auto:current_revision",
+       "hash": "@auto:current_hash",
+       "kind": "current_source"
+      },
+      "extra": "x"
+     }
+    }
+   },
+   "input_hash": "8835906d22498b555de22bc34cc032daf185c6b35149bc2969a6376a07f8dcb3",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "invalid_argument",
+      "message": "未编码位置＝invalid_argument"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "buildCandidate.args",
+      "message": "stage=buildCandidate.args"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-042-10/observed.json"
+    ]
+   }
+  },
+  {
+   "fixture_id": "F-R-042",
+   "invariant_id": "INV-02-008",
+   "mode": "runtime",
+   "simulated": true,
+   "input": {
+    "scenario": "RT1C2 R2-C4：sourceRevision 嵌套层 extra——未编码三元组位置（嵌套 extra），invalid_argument（旧码按键名全局误映射 extra_arg）",
+    "setup": {
+     "steps": [
+      {
+       "op": "genesis",
+       "descriptor": {
+        "session_uuid": "sess-ctrl",
+        "role": "controller",
+        "started_at": "@now-iso"
+       }
+      }
+     ]
+    },
+    "action": {
+     "interface": "buildCandidate",
+     "params": {
+      "sourceRevision": {
+       "projectDir": "@auto:project_dir",
+       "stateUuid": "su-x",
+       "revision": 0,
+       "hash": "0000000000000000000000000000000000000000000000000000000000000000",
+       "kind": "current_source",
+       "extra": "x"
+      }
+     }
+    }
+   },
+   "input_hash": "be1f9ec5ceb0808c69b2164a8760a3c615f4be47918df18cc46f6ae7cfea6fcb",
+   "expected_exit": 1,
+   "expected_state": {
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied",
+    "assertions": [
+     {
+      "path": "$.error.keys",
+      "op": "eq",
+      "value": [
+       "code",
+       "exitCode",
+       "message",
+       "operationId",
+       "retryable",
+       "stage"
+      ],
+      "message": "RunStoreError 六字段闭集"
+     },
+     {
+      "path": "$.error.code",
+      "op": "eq",
+      "value": "invalid_argument",
+      "message": "未编码位置＝invalid_argument"
+     },
+     {
+      "path": "$.error.stage",
+      "op": "eq",
+      "value": "buildCandidate.sourceRevision",
+      "message": "stage=buildCandidate.sourceRevision（嵌套层）"
+     },
+     {
+      "path": "$.deltas.revision",
+      "op": "eq",
+      "value": 0,
+      "message": "零增量"
+     }
+    ],
+    "evidence": [
+     "runs/F-R-042-11/observed.json"
     ]
    }
   }
