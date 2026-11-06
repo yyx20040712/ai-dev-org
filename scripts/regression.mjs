@@ -28,7 +28,10 @@
  *   R18'=resource-sampler 自检接入（W5b 批：spawn resource-sampler.mjs --self-test 断言
  *       exit 0＋汇总形态 `self-test 汇总：过 X/skip Y/全 Z` 且 X+Y=Z、total>=70——skip
  *       不计 pass 的报告保真面）。
- * 现役项=R4/R7/R8/R10/R12/R13/R14/R15/R16/R17/R18 十一项（W5a 补 R12/R16/R17 头注随动；W5b 补 R18）。
+ *   R19'=run-recover 恢复自检接入（RT1C·Task 1C——spawn run-recover.mjs --self-test 断言 exit 0＋
+ *       汇总形态 fixtures=42/vectors/failed=0/skip_ids=0 与矩阵 token；裸 --self-test 依赖脚本内默认
+ *       fixture 绝对路径，恢复/并发测试只在 /tmp/rt1c-executor-* 隔离目录执行）。
+ * 现役项=R4/R7/R8/R10/R12/R13/R14/R15/R16/R17/R18/R19 十二项（W5a 补 R12/R16/R17 头注随动；W5b 补 R18；RT1C 补 R19）。
  * 用法：node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <账本目录>]
  *       [--ledger <账本路径>] [--keep-tmp]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
@@ -61,7 +64,7 @@ try {
   throw e
 }
 const keepTmp = argv.includes('--keep-tmp')
-const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16', 'R17', 'R18'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批；R17=W5a α/β 门禁自检；R18=W5b sampler 接入）
+const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16', 'R17', 'R18', 'R19'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批；R17=W5a α/β 门禁自检；R18=W5b sampler 接入；R19=RT1C 恢复自检接入）
 if (only && only.some((id) => !KNOWN_ITEMS.includes(id))) {
   console.error(`[用法错] 未知回归项：${only.filter((id) => !KNOWN_ITEMS.includes(id)).join(',')}（现役项=${KNOWN_ITEMS.join('/')}——派发器族项已随 2026-10-03 清理批次删除，详见 git 历史）`)
   process.exit(1)
@@ -887,6 +890,26 @@ if (want('R18')) {
   const ok18 = r.status === 0 && m !== null && Number(m[1]) + Number(m[2]) === Number(m[3]) && Number(m[3]) >= 70
   record('R18', ok18, `sampler 自检:exit=${r.status}/汇总=${m ? `过${m[1]}/skip${m[2]}/全${m[3]}` : '形态不符'}${!ok18 ? `（输出尾：${out.slice(-200)}）` : ''}`)
 }
+
+
+// ═══ RT1C R19：run-recover 恢复自检接入（spawn run-recover.mjs --self-test 断言 exit 0＋
+//     汇总形态 `self-test 汇总：fixtures=42 vectors=<实数> failed=0 skip_ids=0` 与首行矩阵 token——
+//     fixtures 按 distinct fixture_id 计数；独立隔离 temp-root=/tmp/rt1c-executor-selftest 由脚本内
+//     默认值承载（裸 --self-test，不携带 --fixtures/--temp-root）；spawn 看护与 R17/R18 同款
+//     300s/SIGKILL/64MiB；R-META 与 KNOWN_ITEMS 双载同步由下方漏载断言承载） ═══
+if (want('R19')) {
+  const recoverScript = join(SCRIPTS, 'run-recover.mjs') // 本块脚本字串唯一承载点（R12/R13 同款）
+  const r19Run = (args) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 300_000, killSignal: 'SIGKILL', maxBuffer: 64 * 1024 * 1024 })
+  const r = r19Run([recoverScript, '--self-test'])
+  const out = (r.stdout || '') + (r.stderr || '')
+  const fx = /fixtures=(\d+)/.exec(out)
+  const vec = /vectors=(\d+)/.exec(out)
+  const failed = /failed=(\d+)/.exec(out)
+  const skip = /skip_ids=(\d+)/.exec(out)
+  const ok19 = r.status === 0 && fx !== null && Number(fx[1]) === 42 && vec !== null && failed !== null && Number(failed[1]) === 0 && skip !== null && Number(skip[1]) === 0 && out.includes('matrix scan_classification=PASS')
+  record('R19', ok19, `run-recover 自检:exit=${r.status}/fixtures=${fx ? fx[1] : '?'}/vectors=${vec ? vec[1] : '?'}/failed=${failed ? failed[1] : '?'}/skip_ids=${skip ? skip[1] : '?'}${!ok19 ? `（输出尾：${out.slice(-200)}）` : ''}`)
+}
+
 
 // ── 应跑项漏载断言（W5a/D-9）：results 的 id 集与应跑集（考虑 --only 过滤）恰等——
 //    漏载即 FAIL，防静默 9/9 式回归面收缩。 ──
