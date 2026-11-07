@@ -28,6 +28,7 @@
 | 上游枚举值（sonnet 等）静默回退宿主=假绑定，禁用（负面清单⑤） | 同上批实测 | log-triage ③ 声明 vs 实际路由核对 |
 | `tools: []`（空数组）=泄漏全工具面而非无工具；无工具岗须显式清单或 `tools: Read`+协议墙 | 子代理绑定批 | 新代理档案部署时核对工具面快照 |
 | 代理档案=会话启动快照，无热加载——改代理档案对在跑会话不生效，须新会话验证 | 批（设立会话内不可派发先例） | 改档后首场派发核对（RESIDUALS gate1-d1-firstdispatch 形态） |
+| 宿主 hooks 配置=会话启动时装载：会话中后挂/改 `~/.zcode/cli/config.json` 对在跑会话不生效；挂载后启动的会话（含 headless `zcode -p`）正常触发。config 件 hooks 须 `enabled: true` 方运行；`PreToolUse` matcher=对工具名的大小写敏感正则（Agent 别名 Task）；exit 0=放行、exit 2=阻断且 stderr 原因透传派发方。stdin 载荷契约实测：`tool_name`+`tool_input.subagent_type`（camelCase 双形态并存；description/prompt 同在 tool_input）——org-dispatch hook 五候选字段覆盖成立 | hook live fire（INFRA1 探针零触发实证+INFRA1-LF 三段 live fire：探针落盘/allow 放行/deny 阻断·2026-11-07·zcode 0.17.1） | 宿主升级后 headless 重跑三段 live fire（探针→allow→deny）；改 hooks 配置须新会话验证；headless 面 `cli/log/*.jsonl` 无 hook 执行记录——以行为级证据（探针落盘/阻断透传）为准 |
 | 宿主供应商注册表=双文件形态：新增供应商只落 `~/.zcode/v2/provider_config.json`（providerConfigRules.providerRules——providerId/providerName/config.access.apiKey/config.api.baseUrl/config.personalModelIds），旧 `~/.zcode/v2/config.json` provider 段不再收新条目——`readHostConfig` 双注册表合并（`mergeHostRegistries` 纯函数：旧件打底+新件映射覆盖同 id，映射形态与旧件消费面同构） | kimi-third 改绑批实证（新条目=本机件 kimi-third 所指宿主条目〔2026-10-31 P2 取缔批后本机件键=699·此处历史叙述保留原称·账本 w4-cfg-p2〕，仅落 provider_config.json，条目名/前缀实值住本机件；单读旧件=validate「无该前缀条目」必败） | 异机/宿主升级后跑 `org-config validate`+`--self-test`（双注册表向量）+`deploy-check`；宿主注册表形态再变=本册追加修订记（历史条目禁改写） |
 
 ## 3. 观测面（metadata/日志形态）
