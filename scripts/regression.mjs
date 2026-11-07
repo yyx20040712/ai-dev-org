@@ -2,15 +2,15 @@
  * 技能自包含回归（ai-dev-org——06 §5 的内化执行件；R 清单单源=本脚本 --only
  * 可选项集合，此处不复写清单——evolve-E2 b5 指针化）。
  * 2026-10-03 清理批次（用户裁决「彻底删除死代码和文档」）：派发器族回归项
- * 随 ds-call-v2.mjs/scripts/roles 物理删除而删（R1 语义抽样/R2 golden 自比对/
+ * 随旧派发器与 scripts/roles 物理删除而删（R1 语义抽样/R2 golden 自比对/
  * R5 mock 全链演练/R11 干涸窗+同族负例/R9 scrub 受控复制对账/R10③vecDs
  * 纯函数向量/R10④B1 registry 错误面向量）——详见 git 历史（dispatch-retire
  * 批前提交）。现役项：
- *   R4'=流水与账本字段完整性（流水现役写入者=glm-look；历史派发器行按
+ *   R4'=流水与账本字段完整性（流水现役写入者=look 脚本；历史派发器行按
  *       08 §3 旧版本类跳过不改写；账本=主控补记单源 02 §9）；
  *   R7'=账本 schema 指针正向校验（A3——SKILL/snippet 禁内联字段清单）；
  *   R8'=三脚本自检套件聚合（org-config/deploy-check/log-triage）；
- *   R10'=glm-look 回归面（结构断言+splitEndpoint 向量+本地 mock 双通道往返
+ *   R10'=look 回归面（结构断言+splitEndpoint 向量+本地 mock 双通道往返
  *       +null 守卫——evolve 批 b1 承载）；
  *   R13'=门禁前移回归面（check-taskbook T13 词面扫描＋T14 防漏网——L22 批：①隔离自检
  *       子进程 ②strict 通过态 ③表格漏网红态 ④词表缺失装载错）；
@@ -78,13 +78,13 @@ const record = (id, pass, detail) => { results.push({ id, pass, detail }); conso
 const node = () => [process.execPath]
 
 // ═══ R4'：流水与账本字段完整性 ═══
-// 流水行分类（2026-10-03 清理批次后口径）：channel+dispatcher_version=glm-look
-// 现役行（按 GLM_REQUIRED 校验）；channel 无 dispatcher_version=外来 legacy 行；
+// 流水行分类（2026-10-03 清理批次后口径）：channel+dispatcher_version=look
+// 现役行（按 LOOK_REQUIRED 校验）；channel 无 dispatcher_version=外来 legacy 行；
 // 无 channel 有 dispatcher_version=历史派发器行（按 08 §3 旧版本类跳过——
-// 历史行禁改写，ds-call-v2 已删除不再产新行）；两者皆无=极早期 legacy 行
+// 历史行禁改写，旧派发器已删除不再产新行）；两者皆无=极早期 legacy 行
 // （最小三字段校验）。
 if (want('R4')) {
-  const GLM_REQUIRED = {
+  const LOOK_REQUIRED = {
     attempt: ['ts', 'runId', 'event', 'source', 'model', 'attempt', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'],
     ok: ['ts', 'runId', 'event', 'source', 'model', 'usage', 'latencyMs', 'finish', 'finish_class', 'truncated', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'],
     fail: ['ts', 'runId', 'event', 'source', 'model', 'error', 'statusCode', 'role_id', 'role_version', 'role_sig', 'dispatcher_version', 'org_config_hash'],
@@ -161,9 +161,9 @@ if (want('R4')) {
       if (lh !== null) seenHashes.add(lh)
       let e; try { e = JSON.parse(l) } catch { bad++; causes.push('bad_json'); badRowHashes.push(lh); continue }
       if (opts.skipIf && opts.skipIf(e)) { skipped++; continue }
-      // glm-look 对齐行=channel+dispatcher_version 双标记（selfiter glm-look-schema）
+      // look 对齐行=channel+dispatcher_version 双标记（selfiter look-schema 批）
       if (e.channel !== undefined && e.dispatcher_version !== undefined) {
-        const gr = GLM_REQUIRED[e.event]
+        const gr = LOOK_REQUIRED[e.event]
         if (!gr) { unknown++; bad++; causes.push('unknown_event'); badRowHashes.push(lh); continue }
         for (const k of gr) if (e[k] === undefined) { bad++; break }
         kinds[e.event] = (kinds[e.event] || 0) + 1
@@ -187,7 +187,7 @@ if (want('R4')) {
         continue
       }
       // 返工 N1：账本侧未知事件计数自增（基线既有计数缺口随批消解——原仅流水侧
-      // GLM 分支计数，账本词表外事件行 detail「含未知事件N」恒 0）；判定语义不变。
+      // LOOK 分支计数，账本词表外事件行 detail「含未知事件N」恒 0）；判定语义不变。
       for (const k of req) if (e[k] === undefined) { bad++; if (req.includes('__unknown_event__')) { unknown++; causes.push('unknown_event') } else causes.push('missing_' + k); badRowHashes.push(lh); break }
       if (e.event) kinds[e.event] = (kinds[e.event] || 0) + 1
     }
@@ -197,9 +197,9 @@ if (want('R4')) {
   const a = checkLines('流水', LOG_PATH, ['ts', 'runId', 'event'], 100)
   // 校验域真空显式呈现（k1-W1/d1-W3 返工：原「全跳过=FAIL」守卫按清理批次申报软化
   // ——派发器删除后低频写入窗口下尾行全历史=常态非假绿；真空态如实标注，不静默）
-  if (a.kinds && !Object.keys(a.kinds).length) a.detail += '；⚠校验域真空：尾行全为历史/外来行（现役 glm-look 行零——低频写入窗口常态，非校验失效）'
+  if (a.kinds && !Object.keys(a.kinds).length) a.detail += '；⚠校验域真空：尾行全为历史/外来行（现役 look 行零——低频写入窗口常态，非校验失效）'
   // 2026-10-03 清理批次：流水 cfg 哈希一致性子核对退役——原语义=高频派发行
-  // 的「换环境按旧供应商事实硬闯」防线；派发器删除后流水仅剩低频 glm-look
+  // 的「换环境按旧供应商事实硬闯」防线；派发器删除后流水仅剩低频 look
   // 写入（旧行哈希=写入时点事实，配置变更后必然滞后=假红面）。现役配置漂移
   // 观测=health-scan cfg 漂移 WARN+账本行 cfg_hash 主控补记即时值（02 §9）。
   a.detail += '；cfg哈希子核对=退役（清理批次——低频写入面假红，观测移交 health-scan）'
@@ -221,7 +221,7 @@ if (want('R4')) {
     } finally { rmSync(fx4, { recursive: true, force: true }) }
   } catch (e) { layerDet = `三层断言:✗(${e.message})` }
   const ledgerReq = (e) => {
-    if (!['ok', 'switch', 'exhaust', ...MANUAL_EVENTS].includes(e.event)) return ['__unknown_event__'] // 账本侧未知 event 计坏行（终轮 A'-Kimi：防新增记账事件未同步 schema 即弱校验通过）
+    if (!['ok', 'switch', 'exhaust', ...MANUAL_EVENTS].includes(e.event)) return ['__unknown_event__'] // 账本侧未知 event 计坏行（终轮 A' 返工：防新增记账事件未同步 schema 即弱校验通过）
     if (MANUAL_EVENTS.has(e.event)) return LEDGER_REQUIRED // 主控人工补记
     const base = e.event === 'ok' ? [...LEDGER_REQUIRED, 'usage'] : LEDGER_REQUIRED
     const v2 = [...base, ...(LEDGER_V2[e.event] || [])]
@@ -318,7 +318,7 @@ if (want('R4')) {
   record('R4', passA && b.pass && layerOk && exc.ok && r4v2Ok, `${a.detail}；${b.detail}；${layerDet}；${excDet}；R4v2向量:${r4v2PassN}/${r4v2Total}过${r4v2Red.length ? '，红集=' + r4v2Red.join(',') : ''}`)
 }
 
-// ═══ R7：账本 schema 指针正向校验（A3——SKILL.md/snippet 禁内联字段清单；v1.6 批 kimi-W1） ═══
+// ═══ R7：账本 schema 指针正向校验（A3——SKILL.md/snippet 禁内联字段清单；v1.6 批 W1） ═══
 if (want('R7')) {
   let ok = true; const det = []
   const targets = [
@@ -359,16 +359,16 @@ if (want('R8')) {
   record('R8', okAll, det.join(' '))
 }
 
-// ═══ R10：glm-look 回归面（evolve 批 E1 2026-09-16——R10 归属 b1，P-4 预裁决；
+// ═══ R10：look 回归面（evolve 批 E1 2026-09-16——R10 归属 b1，P-4 预裁决；
 //         2026-10-03 清理批次：③vecDs 纯函数向量与④B1 registry 错误面向量随
-//         ds-call-v2/registry 删除而删，详见 git 历史） ═══
-//   ①结构断言：glm-look.mjs 非注释行无 fetch( 调用形态+存在 node:http(s) import
+//         旧派发器/registry 删除而删，详见 git 历史） ═══
+//   ①结构断言：被检 look 脚本非注释行无 fetch( 调用形态+存在 node:http(s) import
 //     （注释剥离口径钉死：先剥 /*…*/ 块注释再跳过 // 整行注释；行内尾注不剔——
 //      代码半行仍在非注释行内受检）；
-//   ③纯函数向量（splitEndpoint——glm-look 自有导出）；
-//   ②本地 mock 双通道往返：起 node:http 本地 server 拟真双形（glm=/anthropic
-//     /v1/messages anthropic 形、ds=/deepseek /chat/completions openai 形各一轮），
-//     子进程驱动 glm-look，env 重定向钩子 GLM_LOOK_HOST_CONFIG/GLM_LOOK_LOG_DIR
+//   ③纯函数向量（splitEndpoint——look 脚本自有导出）；
+//   ②本地 mock 双通道往返：起 node:http 本地 server 拟真双形（anthropic 形=/anthropic
+//     /v1/messages anthropic 形、/chat/completions openai 形各一轮），
+//     子进程驱动 look 脚本，env 重定向钩子 HOST_CONFIG/LOG_DIR 实名见 ② 块 spawn 实参
 //     （内部测试设施，缺省行为不变）隔离宿主配置与真实流水落点——零真实外呼、
 //     零真实落账；断言 stdout 正文+流水 attempt/ok 行（ok 行含 truncated 派生布尔）；
 //   ⑤null 守卫（宿主 provider null 条目→降级行+跳过其余源+exit 5）。
@@ -398,12 +398,12 @@ if (want('R10')) {
     if (fetchHit.length || !hasHttpImport) ok = false
     det.push(`①结构断言:非注释行fetch命中=${fetchHit.length}${fetchHit.length ? `「${fetchHit[0].trim().slice(0, 50)}」` : ''} node:http(s)import=${hasHttpImport ? '✓' : '✗'}`)
   }
-  // ③ 纯函数向量（splitEndpoint——glm-look 自有；红态函数未导出→FAIL 不崩）
+  // ③ 纯函数向量（splitEndpoint——look 脚本自有；红态函数未导出→FAIL 不崩）
   const r10tmp = mkdtempSync(join(tmpdir(), 'r10-'))
   const vecUrl = (f) => pathToFileURL(join(SCRIPTS, f)).href
-  const vecGlm = join(r10tmp, 'vec-glm.mjs')
-  writeFileSync(vecGlm, `import * as glmLook from ${JSON.stringify(vecUrl('glm-look.mjs'))}
-const { splitEndpoint } = glmLook
+  const vecProbe = join(r10tmp, 'vec-probe.mjs')
+  writeFileSync(vecProbe, `import * as lookMod from ${JSON.stringify(vecUrl('glm-look.mjs'))}
+const { splitEndpoint } = lookMod
 let fails = 0
 const t = (n, c) => { console.log((c ? 'PASS ' : 'FAIL ') + n); if (!c) fails++ }
 if (typeof splitEndpoint !== 'function') { console.log('FAIL splitEndpoint 未导出（b1 待实现）'); process.exit(1) }
@@ -414,11 +414,11 @@ t('http 显式端口 3000', splitEndpoint('http://h:3000/x').port === 3000)
 console.log(fails === 0 ? 'R10VEC-ALL-PASS' : 'R10VEC-FAILS:' + fails)
 process.exit(fails === 0 ? 0 : 1)
 `, 'utf8')
-  const rGlm = r10Spawn([vecGlm])
-  const vecOk = rGlm.status === 0 && (rGlm.stdout || '').includes('R10VEC-ALL-PASS')
+  const rVec = r10Spawn([vecProbe])
+  const vecOk = rVec.status === 0 && (rVec.stdout || '').includes('R10VEC-ALL-PASS')
   if (!vecOk) ok = false
   const vecFail = (r) => `FAIL(exit=${r.status} 「${((r.stdout || '') + '\n' + (r.stderr || '')).split('\n').filter((l) => l.startsWith('FAIL')).slice(0, 2).join('|')}」)`
-  det.push(`③向量:splitEndpoint=${vecOk ? '全过' : vecFail(rGlm)}`)
+  det.push(`③向量:splitEndpoint=${vecOk ? '全过' : vecFail(rVec)}`)
   // ② 本地 mock 双通道往返（b1 传输层+env 钩子就位才跑——红态跳过防触真实宿主源发现）
   if (vecOk) {
     const { createServer } = await import('node:http')
@@ -428,18 +428,18 @@ process.exit(fails === 0 ? 0 : 1)
       req.on('data', (c) => chunks.push(c))
       req.on('end', () => {
         // failover 批（2026-10-13）⑧向量：/anthropic-dead 恒 401（次序在通道甄别前
-        // ——该路径含 /anthropic 子串，glm 通道源发现会命中它）
+        // ——该路径含 /anthropic 子串，主通道源发现会命中它）
         if (req.url.includes('/anthropic-dead')) { res.writeHead(401, { 'content-type': 'application/json' }); res.end('{"error":"mock unauthorized"}'); return }
-        const glmForm = req.url.includes('/anthropic') // 通道甄别=org-config endpoint_contains 同串拟真
+        const antForm = req.url.includes('/anthropic') // 通道甄别=org-config endpoint_contains 同串拟真
         // selfiter 批（B5）拟真扩展：请求体带 stream:true → 应答 SSE 流（首字节早达
-        // 语义拟真；收割器/同构断言经 glm-look 端到端走通）
+        // 语义拟真；收割器/同构断言经 look 脚本端到端走通）
         let streamReq = false
         try { streamReq = JSON.parse(Buffer.concat(chunks).toString('utf8')).stream === true } catch { /* 坏体走 JSON 路径 */ }
         if (streamReq) {
           res.writeHead(200, { 'content-type': 'text/event-stream' })
-          const sse = glmForm
+          const sse = antForm
             ? ['event: message_start\ndata: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
-               'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"MOCK-GLM-OK"}}',
+               'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"MOCK-ANT-OK"}}',
                'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}',
                'data: [DONE]']
             : ['data: {"choices":[{"delta":{"content":"MOCK-DS-OK"}}]}',
@@ -448,8 +448,8 @@ process.exit(fails === 0 ? 0 : 1)
           res.end(sse.join('\n\n') + '\n\n')
           return
         }
-        const body = glmForm
-          ? { content: [{ type: 'text', text: 'MOCK-GLM-OK' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }
+        const body = antForm
+          ? { content: [{ type: 'text', text: 'MOCK-ANT-OK' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }
           : { choices: [{ message: { content: 'MOCK-DS-OK' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify(body))
@@ -462,7 +462,7 @@ process.exit(fails === 0 ? 0 : 1)
     const hostCfgFile = join(r10tmp, 'host-config.json') // 拟真宿主配置（模型键/端点甄别子串与 org-config vision_channels 对齐）
     writeFileSync(hostCfgFile, JSON.stringify({
       provider: {
-        'mock-glm': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-mock-key-aaaaaaaaaaaaaaaaaaaa' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-ant': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-mock-key-aaaaaaaaaaaaaaaaaaaa' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
         'mock-ds': { options: { baseURL: `http://127.0.0.1:${port}/deepseek`, apiKey: 'r10-mock-key-bbbbbbbbbbbbbbbbbbbb' }, models: { 'deepseek-flash': { name: 'deepseek-flash' } } },
       },
     }), 'utf8')
@@ -478,23 +478,23 @@ process.exit(fails === 0 ? 0 : 1)
     const logFile = join(logDir, 'model-routing-log.jsonl')
     const logLines = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
     const chOf = (ch) => logLines.filter((e) => e.channel === ch)
-    // selfiter 批（glm-look-schema）断言扩面：mock 流水行=对齐 schema（ctx 五字段
+    // selfiter 批（look-schema）断言扩面：mock 流水行=对齐 schema（ctx 五字段
     // +attempt 序号+ok 行 finish_class/truncated）——红态=旧 logEvent 缺 ctx 字段
     const ctxOk = (e) => e.role_id === 'design-reviewer' && e.dispatcher_version !== undefined && e.org_config_hash !== undefined && e.role_version !== undefined && 'role_sig' in e
     const alignedOk = logLines.filter((e) => e.event === 'attempt').every((e) => typeof e.attempt === 'number' && ctxOk(e)) &&
       logLines.filter((e) => e.event === 'ok').every((e) => ctxOk(e) && typeof e.finish_class === 'string' && typeof e.truncated === 'boolean')
     const lookOk = (r, ch, text) => r.status === 0 && (r.stdout || '').includes(text) && chOf(ch).some((e) => e.event === 'attempt') && chOf(ch).some((e) => e.event === 'ok' && e.truncated === false) && alignedOk
-    const glmOk = lookOk(rg, 'glm-look', 'MOCK-GLM-OK')
+    const antOk = lookOk(rg, 'glm-look', 'MOCK-ANT-OK')
     const dsOk = lookOk(rd, 'ds-look', 'MOCK-DS-OK')
-    if (!glmOk || !dsOk) ok = false
+    if (!antOk || !dsOk) ok = false
     const lookFail = (r) => `✗(exit=${r.status} stderr尾=${(r.stderr || '').slice(-140).replace(/\n/g, ' ')})`
-    det.push(`②mock往返:glm=${glmOk ? `✓(exit=${rg.status} 正文+流水attempt/ok行)` : lookFail(rg)}/ds=${dsOk ? `✓(exit=${rd.status})` : lookFail(rd)}`)
-    // selfiter 批（evolve-glmlook-150-null）向量：宿主 provider null 条目→降级行
+    det.push(`②mock往返:ant=${antOk ? `✓(exit=${rg.status} 正文+流水attempt/ok行)` : lookFail(rg)}/ds=${dsOk ? `✓(exit=${rd.status})` : lookFail(rd)}`)
+    // selfiter 批（evolve null 守卫）向量：宿主 provider null 条件→降级行
     // +跳过其余源+exit 5（env 钩子隔离零外呼；红态=旧 discoverSources 裸取 TypeError 崩溃）
     const hostCfgNull = join(r10tmp, 'host-config-null.json')
-    writeFileSync(hostCfgNull, JSON.stringify({ provider: { dead: null, 'mock-glm': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-null-key-cccccccccccccccc' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } } } }), 'utf8')
+    writeFileSync(hostCfgNull, JSON.stringify({ provider: { dead: null, 'mock-ant': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-null-key-cccccccccccccccc' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } } } }), 'utf8')
     const rNull5 = r10Spawn([join(SCRIPTS, 'glm-look.mjs'), '--list-sources'], { env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgNull } })
-    const nullOk = rNull5.status === 5 && (rNull5.stderr || '').includes('[degraded]') && (rNull5.stdout || '').includes('mock-glm')
+    const nullOk = rNull5.status === 5 && (rNull5.stderr || '').includes('[degraded]') && (rNull5.stdout || '').includes('mock-ant')
     if (!nullOk) ok = false
     det.push(`⑤null守卫(mock发现面):${nullOk ? `✓(exit=5 降级行+其余源续列)` : `✗(exit=${rNull5.status} stderr尾=${(rNull5.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
     // vmware 迁移批（2026-10-13）向量：宿主真源路径（env 钩子缺席）readHostConfig 双注册表
@@ -518,53 +518,53 @@ process.exit(fails === 0 ? 0 : 1)
     const v2Ok = rV2.status === 0 && (rV2.stdout || '').includes('mock-v2-ds') && (rV2.stdout || '').includes('deepseek-flash')
     if (!v2Ok) ok = false
     det.push(`⑦v2-only真源发现:${v2Ok ? `✓(exit=0 ds 通道命中 v2 物化源)` : `✗(exit=${rV2.status} stdout尾=${(rV2.stdout || '').slice(-120).replace(/\n/g, ' ')})`}`)
-    // failover 批（2026-10-13）⑧向量：glm 双源——首源（pid 字典序 mock-glm-dead 排前）
-    // 恒 401、次源正常。期望=exit 0+正文 MOCK-GLM-OK+流水 fail(mock-glm-dead,401)+
-    // ok(mock-glm-live)。红态=旧码 sources[0] 立断 exit 1 无切换承载源。
+    // failover 批（2026-10-13）⑧向量：主通道双源——首源（pid 字典序 mock-ant-dead 排前）
+    // 恒 401、次源正常。期望=exit 0+正文 MOCK-ANT-OK+流水 fail(mock-ant-dead,401)+
+    // ok(mock-ant-live)。红态=旧码 sources[0] 立断 exit 1 无切换承载源。
     const hostCfgFailover = join(r10tmp, 'host-config-failover.json')
     writeFileSync(hostCfgFailover, JSON.stringify({
       provider: {
-        'mock-glm-dead': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-fo-key-eeeeeeeeeeeeeeeeee' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
-        'mock-glm-live': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-fo-key-ffffffffffffff' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-ant-dead': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-fo-key-eeeeeeeeeeeeeeeeee' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-ant-live': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-fo-key-ffffffffffffff' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
       },
     }), 'utf8')
     const rFo = await r10SpawnAsync([join(SCRIPTS, 'glm-look.mjs'), '--prompt', promptFile, imgFile, '--channel', 'glm', '-o', join(r10tmp, 'fo-report.md')], { env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgFailover, GLM_LOOK_LOG_DIR: logDir } })
     const foLogLines = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
-    const foOk = rFo.status === 0 && (rFo.stdout || '').includes('MOCK-GLM-OK') &&
-      foLogLines.some((e) => e.event === 'fail' && e.source === 'mock-glm-dead' && e.statusCode === 401) &&
-      foLogLines.some((e) => e.event === 'ok' && e.source === 'mock-glm-live')
+    const foOk = rFo.status === 0 && (rFo.stdout || '').includes('MOCK-ANT-OK') &&
+      foLogLines.some((e) => e.event === 'fail' && e.source === 'mock-ant-dead' && e.statusCode === 401) &&
+      foLogLines.some((e) => e.event === 'ok' && e.source === 'mock-ant-live')
     if (!foOk) ok = false
     det.push(`⑧源级切换承载源:${foOk ? `✓(exit=0 首源401→次源出活+流水双行)` : `✗(exit=${rFo.status} stderr尾=${(rFo.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
     // failover 批返工轮1（k1-W3/d1-W1 处置）：⑨全灭序列=双死源→exit 1+汇总行含
-    // 全部 pid（序=偏好序）；⑩首源成活不触次源=活源 pid 排前（字典序 mock-glm-a<
-    // mock-glm-z）→exit 0+ok 归 a+流水零行涉 z。红态=⑨循环尾汇总缺失或 exit≠1/
+    // 全部 pid（序=偏好序）；⑩首源成活不触次源=活源 pid 排前（字典序 mock-ant-a<
+    // mock-ant-z）→exit 0+ok 归 a+流水零行涉 z。红态=⑨循环尾汇总缺失或 exit≠1/
     // ⑩成活后误触次源。
     const hostCfgAllDead = join(r10tmp, 'host-config-alldead.json')
     writeFileSync(hostCfgAllDead, JSON.stringify({
       provider: {
-        'mock-glm-dead1': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-ad-key-1111111111111111' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
-        'mock-glm-dead2': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-ad-key-2222222222222222' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-ant-dead1': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-ad-key-1111111111111111' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-ant-dead2': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-ad-key-2222222222222222' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
       },
     }), 'utf8')
     const rAd = await r10SpawnAsync([join(SCRIPTS, 'glm-look.mjs'), '--prompt', promptFile, imgFile, '--channel', 'glm'], { env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgAllDead, GLM_LOOK_LOG_DIR: logDir } })
     const adLog = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
     const adOk = rAd.status === 1 &&
-      (rAd.stderr || '').includes('2 个源全穷尽（mock-glm-dead1 → mock-glm-dead2）') &&
-      adLog.filter((e) => e.event === 'fail' && (e.source === 'mock-glm-dead1' || e.source === 'mock-glm-dead2')).length === 2
+      (rAd.stderr || '').includes('2 个源全穷尽（mock-ant-dead1 → mock-ant-dead2）') &&
+      adLog.filter((e) => e.event === 'fail' && (e.source === 'mock-ant-dead1' || e.source === 'mock-ant-dead2')).length === 2
     if (!adOk) ok = false
     det.push(`⑨全源穷尽:${adOk ? `✓(exit=1 汇总行+双 fail 行)` : `✗(exit=${rAd.status} stderr尾=${(rAd.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
     const hostCfgLiveFirst = join(r10tmp, 'host-config-livefirst.json')
     writeFileSync(hostCfgLiveFirst, JSON.stringify({
       provider: {
-        'mock-glm-a': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-lf-key-3333333333333333' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
-        'mock-glm-z': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-lf-key-4444444444444444' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-ant-a': { options: { baseURL: `http://127.0.0.1:${port}/anthropic`, apiKey: 'r10-lf-key-3333333333333333' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
+        'mock-ant-z': { options: { baseURL: `http://127.0.0.1:${port}/anthropic-dead`, apiKey: 'r10-lf-key-4444444444444444' }, models: { 'GLM-5.3-Flash': { name: 'GLM-5.3-Flash' } } },
       },
     }), 'utf8')
     const rLf = await r10SpawnAsync([join(SCRIPTS, 'glm-look.mjs'), '--prompt', promptFile, imgFile, '--channel', 'glm'], { env: { ...process.env, GLM_LOOK_HOST_CONFIG: hostCfgLiveFirst, GLM_LOOK_LOG_DIR: logDir } })
     const lfLog = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean).map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
-    const lfOk = rLf.status === 0 && (rLf.stdout || '').includes('MOCK-GLM-OK') &&
-      lfLog.some((e) => e.event === 'ok' && e.source === 'mock-glm-a') &&
-      !lfLog.some((e) => e.source === 'mock-glm-z')
+    const lfOk = rLf.status === 0 && (rLf.stdout || '').includes('MOCK-ANT-OK') &&
+      lfLog.some((e) => e.event === 'ok' && e.source === 'mock-ant-a') &&
+      !lfLog.some((e) => e.source === 'mock-ant-z')
     if (!lfOk) ok = false
     det.push(`⑩首源成活不触次源:${lfOk ? `✓(exit=0 ok 归首源+次源零流水行)` : `✗(exit=${rLf.status} stderr尾=${(rLf.stderr || '').slice(-120).replace(/\n/g, ' ')})`}`)
     server.close()
@@ -573,7 +573,7 @@ process.exit(fails === 0 ? 0 : 1)
     det.push('②mock往返:跳过（splitEndpoint 未导出=b1 传输层未落，env 钩子未就位——跑则触真实宿主源发现）')
   }
   if (!keepTmp) rmSync(r10tmp, { recursive: true, force: true })
-  record('R10', ok, `glm-look 回归面——${det.join('；')}`)
+  record('R10', ok, `look 回归面——${det.join('；')}`)
 }
 
 // ═══ 词表执法器棘轮面（Y1 批建面；B3 批改＝①27 向量自检＋①-④子进程统一显式 off 态隔离（ORG_FLAGS_STATE 指向本块临时目录状态件，外部生产 on/off 不得渗入——B3 任务书 D-13）＋负例词运行时合成（D-9：扫描面零字面命中））；夹具全落 os.tmpdir() finally 清理，不写技能仓、不依赖账本 ═══

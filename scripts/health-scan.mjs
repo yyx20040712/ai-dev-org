@@ -33,7 +33,7 @@ const isDrillProject = (p) => !!p && normPath(p).startsWith(TMP_NORM)
 
 /** 主控人工补记事件词表（单源导出——regression R4 账本 schema 校验同集消费；
  *  v2.0.1 修复批 L14：原两文件逐字复制=新增事件类型漏改一侧即漂移）。 */
-export const MANUAL_EVENTS = new Set(['porting-delta', 'doc-health', 'ruling', 'constitution-overrun', 'escaped-defect', 'stopped']) // stopped=接续演练/被杀岗手记
+export const MANUAL_EVENTS = new Set(['porting-delta', 'doc-health', 'ruling', 'constitution-overrun', 'escaped-defect', 'stopped', 'fail']) // stopped=接续演练/被杀岗手记；fail=主控失败/超时记账事件·NOISE1 账本行 1202 首例收编·ORG-11 同族词表脱节闭合
 
 /**
  * 纯函数扫描核心（可注入 fixtures——B-1 要求的回归用例挂此）。

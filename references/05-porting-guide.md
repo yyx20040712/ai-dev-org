@@ -72,7 +72,7 @@ CI 骨架/门禁聚合入口/任务书模板（七段，惯称六段简报）/�
   [ ] node <技能根>/scripts/check-hardcode.mjs                   # 供应商 live 事实零硬编码
   [ ] node <技能根>/scripts/health-scan.mjs --self-test           # 扫描器自检全过（向量数以实时输出为准，正文不落数字——A3）
   [ ] node <技能根>/scripts/check-hardcode.mjs --self-test        # 扫描器自检全过（同上）
-  [ ] node <技能根>/scripts/regression.mjs --only R2,R4,R5        # 档案/记账/换源三面
+  [ ] node <技能根>/scripts/regression.mjs --only R4,R10,R12       # 记账/回归/词表三面（合法项单源=scripts/regression.mjs KNOWN_ITEMS；派发器族项 R1/R2/R5/R11/R9 已随 2026-10-03 清理批次删除）
 ```
 判据速查：**截断的审计报告不算合格审计**（health-scan ④ RED，见 02 §10）；
 **演练行不得参与待补登记判定**（源头写 `mocked:true`）；**声明必须有机检**

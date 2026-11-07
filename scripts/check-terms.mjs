@@ -584,7 +584,7 @@ export function classifyHist(hits, baseFiles) {
 // term-scan: off
 function selfTest() {
   const self = fileURLToPath(import.meta.url)
-  const run = (args) => spawnSync(process.execPath, [self, ...args], { encoding: 'utf8' }) // v2/v7 只读 CLI——继承外部 ORG_FLAGS_STATE（V-02 与 R12① 均显式 off 隔离）
+  // v2/v7 只读 CLI 六向量（v2/v3/v5/v6/v7/v8）与 R12①（regression 词表棘轮）均经 runEnv(..., offSt(d)) 显式 off 注入，不继承外部 ORG_FLAGS_STATE——旧继承环境的 run 助手已删（V-02 六红根因）
   const withRoot = (fn) => {
     const d = mkdtempSync(join(tmpdir(), 'terms-st-'))
     try { return fn(d) } finally { rmSync(d, { recursive: true, force: true }) }
@@ -639,14 +639,14 @@ function selfTest() {
   t('v2 plain 命中与明细格式（存量前缀＋禁用词→建议）', withRoot((d) => {
     mkBase(d, { 'SKILL.md': { 烤验: 1 } })
     writeFileSync(join(d, 'SKILL.md'), '这是烤验现场\n', 'utf8')
-    const r = run(['--root', d])
+    const r = runEnv(['--root', d], offSt(d))
     return r.status === 0 && r.stdout.includes('存量 SKILL.md:1 禁用词「烤验」→ 建议「强制检查」')
   }))
   t('v3 combo 守护逐例：不中=角色档案/代理档案/手册/默认档位/座位/档位；中=历史档案/单源册/事实册/默认档/一座/k1 座/承载座', withRoot((d) => {
     writeFileSync(join(d, 'SKILL.md'), ['角色档案', '代理档案', '手册', '默认档位', '座位', '档位', '历史档案', '单源册', '事实册', '默认档', '一座', 'k1 座', '承载座'].join('\n') + '\n', 'utf8')
     const u = selfTestLegacyUpdate(d)
     if (u.status !== 0 || !u.stdout.includes('基线已冻结：4 组 / 7 次（旧 0→新 4）')) return false
-    const r = run(['--root', d])
+    const r = runEnv(['--root', d], offSt(d))
     const per = {}
     for (const m of r.stdout.matchAll(/存量 SKILL\.md:(\d+) 禁用词「([^」]+)」/g)) per[m[1]] = m[2]
     return r.status === 0 && JSON.stringify(per) === JSON.stringify({ 7: '档案', 8: '册', 9: '册', 10: '档', 11: '座', 12: '座', 13: '座' })
@@ -659,20 +659,20 @@ function selfTest() {
   t('v5 规则二：修订序数与日期裁决各中一次＋普通正文不中', withRoot((d) => {
     writeFileSync(join(d, 'SKILL.md'), '修订二补记\n（2026-01-01 用户裁决：照旧）\n普通正文行\n', 'utf8')
     const u = selfTestLegacyUpdate(d)
-    const r = run(['--root', d])
+    const r = runEnv(['--root', d], offSt(d))
     return u.status === 0 && u.stdout.includes('基线已冻结：2 组 / 2 次（旧 0→新 2）') && r.status === 0
       && r.stdout.includes('存量 SKILL.md:1 禁用词「裁决史括注-修订序数」') && r.stdout.includes('存量 SKILL.md:2 禁用词「裁决史括注-日期裁决」') && !r.stdout.includes('SKILL.md:3')
   }))
   t('v6 棘轮通过态：基线=现态→过且汇总「新增 ×0」', withRoot((d) => {
     writeFileSync(join(d, 'SKILL.md'), '烤验现场\n', 'utf8')
     selfTestLegacyUpdate(d)
-    const r = run(['--root', d])
+    const r = runEnv(['--root', d], offSt(d))
     return r.status === 0 && r.stdout.includes('新增 ×0 次 / 存量 1 次 / 基线 1 组')
   }))
   t('v7 棘轮新增态：现态比基线多一组→红且汇总「新增 ×1」', withRoot((d) => {
     mkBase(d, { 'SKILL.md': { 烤验: 1 } })
     writeFileSync(join(d, 'SKILL.md'), '烤验现场\n回炉现场\n', 'utf8')
-    const r = run(['--root', d])
+    const r = runEnv(['--root', d], offSt(d))
     return r.status !== 0 && r.stdout.includes('新增 ×1 次 / 存量 1 次 / 基线 1 组')
   }))
   t('v8 --update 收缩态：基线 2 组现态 1 组→收缩重冻＋复跑过', withRoot((d) => {
@@ -680,7 +680,7 @@ function selfTest() {
     writeFileSync(join(d, 'SKILL.md'), '烤验现场\n', 'utf8')
     const u = selfTestLegacyUpdate(d)
     const files = u.status === 0 ? JSON.parse(readFileSync(join(d, 'scripts', '.golden', 'terms-baseline.json'), 'utf8')).files['SKILL.md'] : null
-    const r = run(['--root', d])
+    const r = runEnv(['--root', d], offSt(d))
     return u.status === 0 && u.stdout.includes('基线已冻结：1 组 / 1 次（旧 2→新 1）') && files && Object.keys(files).length === 1 && r.status === 0 && r.stdout.includes('基线 1 组')
   }))
   // ── v9–v24（B3 新面 16 向量；自带 on/off 状态件与最小 terms_scan 覆盖件）──
