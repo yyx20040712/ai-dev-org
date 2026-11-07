@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "updated": "2026-11-03",
-  "note": "逻辑矩阵：只写角色、provider 短名、档位、工具面、默认与回退序；真实 providerId/modelId/账号名不入库（由 org-config.local.json 的 agent_bindings 提供）。display 名不入库：providers.*.display 已删除，真实显示名以本机件 org-config.local.json 的 entry_name 为准。",
+  "updated": "2026-11-07",
+  "note": "逻辑矩阵：只写角色、provider 短名、档位、工具面与别名；真实 providerId/modelId/账号名不入库（由 org-config.local.json 的 agent_bindings 提供）。display 名不入库：真实显示名以本机件 org-config.local.json 的 entry_name 为准。出厂 default/fallback 顺序键已废除（INFRA1 批·账本 1126）：矩阵只是候选注册集，顺序唯一单源=org-config.local.json 的 role_fallbacks/agent_defaults（面板写面），矩阵禁承载排序意见。",
   "levels": [
     "low",
     "high",
@@ -50,16 +50,6 @@
         "zipoo",
         "ds"
       ],
-      "default": "glmflash",
-      "fallback": [
-        "glmflash",
-        "startplan",
-        "glm",
-        "699",
-        "yyx",
-        "zipoo",
-        "ds"
-      ],
       "tools": [
         "Read",
         "Glob",
@@ -73,16 +63,6 @@
       "title": "规划岗",
       "level": "max",
       "providers": [
-        "699",
-        "yyx",
-        "zipoo",
-        "glm",
-        "glmflash",
-        "startplan",
-        "ds"
-      ],
-      "default": "699",
-      "fallback": [
         "699",
         "yyx",
         "zipoo",
@@ -107,15 +87,6 @@
         "glmflash",
         "ds"
       ],
-      "default": "699",
-      "fallback": [
-        "699",
-        "yyx",
-        "zipoo",
-        "glm",
-        "glmflash",
-        "ds"
-      ],
       "tools": [
         "Read",
         "Glob",
@@ -132,16 +103,6 @@
       "title": "实现岗",
       "level": "high",
       "providers": [
-        "startplan",
-        "glmflash",
-        "glm",
-        "699",
-        "yyx",
-        "zipoo",
-        "ds"
-      ],
-      "default": "startplan",
-      "fallback": [
         "startplan",
         "glmflash",
         "glm",
@@ -174,16 +135,6 @@
         "glmflash",
         "startplan"
       ],
-      "default": "ds",
-      "fallback": [
-        "ds",
-        "699",
-        "yyx",
-        "zipoo",
-        "glm",
-        "glmflash",
-        "startplan"
-      ],
       "tools": [
         "Read"
       ],
@@ -201,16 +152,6 @@
         "glmflash",
         "startplan"
       ],
-      "default": "ds",
-      "fallback": [
-        "ds",
-        "699",
-        "yyx",
-        "zipoo",
-        "glm",
-        "glmflash",
-        "startplan"
-      ],
       "tools": [
         "Read"
       ],
@@ -220,16 +161,6 @@
       "title": "执行者审核一号",
       "level": "max",
       "providers": [
-        "699",
-        "ds",
-        "yyx",
-        "zipoo",
-        "glm",
-        "glmflash",
-        "startplan"
-      ],
-      "default": "699",
-      "fallback": [
         "699",
         "ds",
         "yyx",
@@ -256,16 +187,6 @@
         "glmflash",
         "startplan"
       ],
-      "default": "ds",
-      "fallback": [
-        "ds",
-        "699",
-        "yyx",
-        "zipoo",
-        "glm",
-        "glmflash",
-        "startplan"
-      ],
       "tools": [
         "Read",
         "Bash"
@@ -276,16 +197,6 @@
       "title": "裁决岗",
       "level": "max",
       "providers": [
-        "zipoo",
-        "699",
-        "yyx",
-        "glm",
-        "glmflash",
-        "startplan",
-        "ds"
-      ],
-      "default": "zipoo",
-      "fallback": [
         "zipoo",
         "699",
         "yyx",
@@ -306,13 +217,6 @@
       "title": "视觉岗",
       "level": "max",
       "providers": [
-        "glmflash",
-        "startplan",
-        "ds",
-        "699"
-      ],
-      "default": "glmflash",
-      "fallback": [
         "glmflash",
         "startplan",
         "ds",

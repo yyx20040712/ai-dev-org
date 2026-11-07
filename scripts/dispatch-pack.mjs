@@ -235,8 +235,8 @@ function selfTest() {
     const noRoute = write('no-route.md', okBody)
     const sum1 = (r, want) => sumOf(r) === `bytes=${Buffer.byteLength(okBody)} tokens=${Math.ceil(Buffer.byteLength(okBody) / 4)} limit=8192 repo_access=false route_check=${want}`
 
-    // 对账夹具：真实技能配置派生十岗 plan＋合成项目根（同 agent-slots 向量 53 形态；
-    // implreview-split 批 D-5：两新审核键各裸角色一行，第二审=S1 reviewer_second 派生对账）
+    // 对账夹具：真实技能配置派生十岗 plan＋合成项目根（同 agent-slots 向量 53 形态）；
+    // implreview-split D-5＋INFRA1 D-2：第二审=local role_fallbacks.implreview2 首元派生对账）
     const mergedNow = loadOrgConfig(SKILL_ROOT).merged
     const defaultsNow = mergedNow.agent_defaults
     const providerOf = (slot) => { const m = /^ops-([a-z0-9]+)-(.+)-([a-z]+)$/.exec(String(slot)); return m ? m[2] : '?' }
@@ -245,7 +245,7 @@ function selfTest() {
     const secondSlot = defaultsNow.implreview2
     const planText = (routeLine) => {
       const enOf = (r) => (R0_ENABLED.includes(r) ? '是' : '否')
-      const rowOf = (r) => `| ${r} | ${r === 'implreview2' ? secondSlot : defaultsNow[r]} | ${r === 'implreview2' ? 'S1 series_process.reviewer_second（常设第二审）' : '本机件 agent_defaults（S4）'} | ${enOf(r)} | 理由-${r} |`
+      const rowOf = (r) => `| ${r} | ${r === 'implreview2' ? secondSlot : defaultsNow[r]} | ${r === 'implreview2' ? '本机件 role_fallbacks.implreview2 首元（常设第二审·INFRA1 D-2）' : '本机件 agent_defaults（S4）'} | ${enOf(r)} | 理由-${r} |`
       return ['# 合成 dispatch-plan（dispatch-pack 自检夹具）', '', '## 1. 十岗实选表', '',
         '| 岗位 | 实际 slot | route_source | 启用 | 理由 |', '|---|---|---|---|---|',
         rowOf('research'), rowOf('planner'), rowOf('assembler'),
@@ -256,8 +256,7 @@ function selfTest() {
     }
     const planPath = write('plan.md', planText(routeNow))
     const proj = join(tmp, 'proj')
-    mkdirSync(join(proj, 'docs'), { recursive: true })
-    writeFileSync(join(proj, 'docs', 'agent-matrix.json'), JSON.stringify({ roles: {}, series_process: { reviewer_second: secondSlot } }))
+    mkdirSync(proj, { recursive: true }) // INFRA1 D-2：--project=org-config 项目目录（S1 矩阵随快照面退役不再必需）
 
     // 向量1：无 ROUTE 正例——exit 0＋摘要 tokens=ceil(bytes/4)＋route_check=SKIP
     const r1 = runPack(['--pack', noRoute])

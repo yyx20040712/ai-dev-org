@@ -103,7 +103,7 @@ validate）。自证法（变异红证同款，文件备份法还原）：临时
 从零到面板可用的完整序（每步判据内联；①-③ 细则=§1-§3）：
 
 1. 一键自检：`node scripts/deploy-check.mjs`——红项按行内指引处置。
-2. 首装：`node scripts/deploy-check.mjs --install`——本机件脚手架＋代理部署＋钩子。
+2. 首装：`node scripts/deploy-check.mjs --install`——散置脚手架已收编 `org-bootstrap.mjs`（INFRA1 D-3·幂等续配不重初始化；ready 且非显式请求=休眠零写）：本机件最小骨架＋代理部署＋钩子＋宿主事实派生；两态/续配/冻结迁移细目=`node scripts/org-bootstrap.mjs status|guide|resume|freeze`。
 3. 供应商对齐（模型绑定·用户裁决面）：按 §3 填 `org-config.local.json` 各源实值
    （uuid_prefix/entry_name/model_family；账户计划源=`account:` 前缀＋allowlist 清单）。
 4. 绑定渲染：本机件 `agent_bindings` 按岗填 `<provider>/<model>$<档位>` →

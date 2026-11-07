@@ -4,6 +4,8 @@
 > org-config 为唯一真相源——**三层装载**：默认件
 > `org-config.default.json`（通用/随包，个人事实为 TODO 占位）← 本机件
 > `org-config.local.json`（个人实值，gitignore 不随分享包）← 项目覆盖件
+> （INFRA1 批·账本 1126：顺序键 agent_defaults/role_fallbacks 唯一住本机件——
+> 默认件/项目覆盖件携带即配置错（validate/pick 拒）；顺序写者=org-panel 面板）
 > `<项目>/.zcode/org-config.json`（深合并语义：对象逐字段
 > 覆盖、未提及字段沿用下层、数组整体替换、显式 null=删除；规范化
 > 哈希=递归键排序+剔 null+紧凑序列化的 sha256 前 12 位，工具
@@ -126,8 +128,8 @@ references/07 §1 岗位终表＋双承载注记为准、冲突按 07 §1 执行
 - 主备源同端点不同配额的形态（第二配额备源）与异供应商备源形态均
   由 org-config providers 描述，状态机不区分对待。
 - **承载切换注记**：「派发/切换承载源」承载=绑定岗切换（主控改派另一绑定岗，
-  按矩阵回退序递进=备用位/第三备用位启用条件照 07 §1），switch/exhaust 事件
-  由主控补记账本（02 §9 单源）。
+  按 local `role_fallbacks` 声明序递进〔INFRA1 批：顺序单源=本机件，矩阵无序可回退〕＝
+  备用位/第三备用位启用条件照 07 §1），switch/exhaust 事件由主控补记账本（02 §9 单源）。
 - **payg 显式告警**：链首源或承载切换目标为
   `billing:"payg"`（套餐外按量）时，派发器 stderr 显式 `[payg]` 告警
   ——承载切换不放宽任务书与 DoD（本节铁律），但费用面必须留痕不静默。

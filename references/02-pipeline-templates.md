@@ -29,6 +29,7 @@
 > 8. [主控] 返工：按裁决逐项下发原实现岗；一轮一回审（定点 ADDRESSED+新破坏扫描）
 >            —— 返工有上限（WP R≤5/R≤3 续用原实现岗；SY ≤2 超限终止留人；
 >            ai-dev-org 新项目默认口径=本件 §9 适配注记）
+>            （返工开批前过一跳分类·D-7：破坏性/降面/范围/预算变化=用户裁决，禁静默推断）
 > 9. [主控] 终裁结项：亲验全绿（真退出码）→ final 报告 → 台账/registry 翻状态
 >            → 显式列文件提交（受锁面带 [locked-change] 尾注）
 > 10.[主控] push → CI 核查（消费 job 全绿；有触发延迟窗口的先等复查窗口）
@@ -225,7 +226,7 @@ AI 起草（限定可信源白名单——WP=国标+核心手册两类，标记�
 任务书、工单或对话开头写一行 `ROUTE: <role>-<provider>;...`。规则：
 
 - 前缀固定 `ROUTE:`（大小写不敏感）；多个岗位用 `;`、`,` 或空白分隔；一行写不完可换行，续行以两个空格缩进，解析时合并。
-- 每项格式 `<role>-<provider>`；未列出的岗位使用矩阵默认值；思考强度由岗位决定，不在 ROUTE 中写——改思考强度属于改矩阵，不属于单批切换。
+- 每项格式 `<role>-<provider>`；未列出的岗位走 local pick（`agent-slots.mjs pick <role>`——顺序单源=org-config.local.json·INFRA1 批，矩阵/项目覆盖件不承载顺序意见）；思考强度由岗位决定，不在 ROUTE 中写——改档位走面板，不属于单批切换。
 
 | 角色 | 可用 provider |
 |---|---|
@@ -245,19 +246,19 @@ vision 的 startplan 仅为文本应急候选（multimodal=false，实测不可�
 示例：
 
 - `ROUTE: research-zipoo;executor-ds`
-- `ROUTE: research-glmflash;planner-699;executor-glmflash;implreview1-699;implreview2-ds;adjudicator-zipoo;vision-glmflash`
-- `ROUTE: executor-glmflash;implreview1-699;adjudicator-699;vision-ds`
-- `ROUTE: tbreview-ds;planreview-ds;implreview1-699;implreview2-ds`
+- `ROUTE: research-glmflash;planner-yyx;executor-glm;implreview1-yyx;implreview2-ds;adjudicator-yyx;vision-glmflash`
+- `ROUTE: executor-glm;implreview1-yyx;adjudicator-yyx;vision-ds`
+- `ROUTE: tbreview-ds;planreview-ds;implreview1-yyx;implreview2-ds`
 - `ROUTE: vision-startplan`
 
-校验与拒绝：未知角色＝停止派发并列出合法角色（reviewer／diagnostics 等退役键同此拒绝）；角色不支持该 provider＝停止派发并列出该角色可用 provider；vision 选了非多模态模型＝停止派发（只允许 glmflash、ds、699；startplan 例外=文本应急候选——multimodal=false，不承载图像判读）；实现与审核/裁决同族＝告警，要求显式追加 `allow_same_family` 才继续（只能由用户在主控提问后确认，主控不得自行添加）；派发对象非矩阵登记的 ops-* 绑定代理（系统默认代理，如 general-purpose——跟随宿主无绑定）＝停止派发、按矩阵默认重派（实证裁决岗实证部例外——随宿主承载属设计形态）；同一角色出现两次＝取最后一次并在汇报中注明；ROUTE 行格式错误＝停止派发并给出正确示例。
+校验与拒绝：未知角色＝停止派发并列出合法角色（reviewer／diagnostics 等退役键同此拒绝）；角色不支持该 provider＝停止派发并列出该角色可用 provider；vision 选了非多模态模型＝停止派发（只允许 glmflash、ds、699；startplan 例外=文本应急候选——multimodal=false，不承载图像判读）；实现与审核/裁决同族＝告警，要求显式追加 `allow_same_family` 才继续（只能由用户在主控提问后确认，主控不得自行添加）；派发对象非矩阵登记的 ops-* 绑定代理（系统默认代理，如 general-purpose——跟随宿主无绑定）＝停止派发、按 local pick 重派（实证裁决岗实证部例外——随宿主承载属设计形态）；同一角色出现两次＝取最后一次并在汇报中注明；ROUTE 行格式错误＝停止派发并给出正确示例。
 
-优先级：`单批 ROUTE > 项目覆盖件 .zcode/org-config.json > 本机 org-config.local.json > 矩阵默认值`。单批 ROUTE 只影响当前批次；项目覆盖件只改 `default_slot`、不改代理档案能力；本机件改全局默认、影响所有项目；矩阵默认值是最后回退。
+优先级：`单批 ROUTE > 本机 org-config.local.json（pick 单源·面板写面）`。单批 ROUTE 只影响当前批次；本机件改全局默认、影响所有项目（顺序日常调整唯一写者=org-panel 面板）；项目覆盖件与矩阵不承载顺序意见（INFRA1 批·账本 1126——「未列岗走矩阵默认／项目覆盖顺序／最后回退」语义已废止，项目覆盖件携带顺序键即配置错）。
 
-记录：每次派发在变更与成本记录里写 JSON 一行——`{"role":"executor","slot":"ops-executor-glmflash-high","route_source":"prompt","fallback_from":null,"family":"glm","level":"high"}`；`log-triage` 用它核对声明与实际路由是否一致，不一致即告警。
+记录：每次派发在变更与成本记录里写 JSON 一行——`{"role":"executor","slot":"ops-executor-glm-high","route_source":"prompt","fallback_from":null,"family":"glm","level":"high"}`；（slot=同刻 pick 实值，例为 local 现值投影）；`log-triage` 用它核对声明与实际路由是否一致，不一致即告警。
 
-1. 派发前必跑 dispatch-check：对十岗 dispatch-plan、resolve 结果与拟派名单三方对账；陈旧 ROUTE 或启用集不符即停止派发。无 dispatch-plan 的单岗派发先跑 `node scripts/agent-slots.mjs pick <role>` 取活性槽名再派发。
-2. 快照语义：S1/S2/S3=出厂快照，S4=现役默认权威；出厂滞后=WARN，实际消费=FAIL；S2→S1 共有 default/fallback 子面单向派生，禁止反向写。
+1. 派发前必跑 dispatch-check：对十岗 dispatch-plan、resolve 结果与拟派名单三方对账；陈旧 ROUTE 或启用集不符即停止派发。无 dispatch-plan 的单岗派发先跑 `node scripts/agent-slots.mjs pick <role>`（或 `org-dispatch pick`）取活性槽名再派发。组合派发用 `node scripts/org-dispatch.mjs preflight --taskbook <md>`（四工具输入 sha256＋真 rc，零账本写）。
+2. 快照语义（INFRA1 D-2 起）：S1/S2/S3 不再承载顺序——矩阵只是候选注册集，顺序唯一单源=S4（org-config.local.json·面板写面）；原出厂互恰/S2→S1 派生检查面已随出厂排序概念废除退役；常设第二审=role_fallbacks.implreview2 首元派生。
 3. 批次任务书 ROUTE 变更须附十岗全量 before/after diff（含未变岗与常设第二审；B8 r8 为先例）。
 
 ### 8.2 切换语义与命令契约
@@ -265,19 +266,21 @@ vision 的 startplan 仅为文本应急候选（multimodal=false，实测不可�
 | 操作 | 命令 | 生效时间 | 是否需要新会话 |
 |---|---|---|---|
 | 单批换档 | 在提示词写 ROUTE | 下一批派发 | 否 |
-| 改项目默认 | `agent-slots select --project <dir> <role> <slot>` | 下一次派发 | 否 |
-| 改全局默认 | `agent-slots select <role> <slot>` | 下一次派发 | 否 |
-| 新增组合 | `agent-slots gen <role> <provider> <level>` | 生成后 | 是 |
+| 改全局默认/回退序 | org-panel 面板拖拽（原子写本机件两键，validate 不过即回滚） | 下一次派发 | 否 |
+| 改档位（thought level） | 面板 `/api/level`（写绑定值 `$tier`＋覆盖键） | 下一次派发 | 否 |
+| 新增组合 | 改矩阵条目＋`gen-agents` 再生成＋`agent_bindings` 补条目（07 §4「矩阵即数据」） | 生成后 | 是 |
 | 改代理档案工具面 | 改矩阵后重新生成 | 生成后 | 是 |
+
+（INFRA1 批：`select/gen/enable/disable/preset/sync` 写侧命令从未实现——实测命中即 `[未实现]` 提示 exit 1，`gen` 亦不例外（新增组合走矩阵即数据路径）；顺序写者唯一=面板；命令契约中的写侧项已除名，读侧命令不变。）
 
 原因：宿主在会话启动时读取代理档案快照，内容改动不热加载；换用另一个已存在的代理档案不受影响。
 
-命令契约（`node scripts/agent-slots.mjs`）：`list [--role <role>] [--json]`｜`show <slot>`｜`resolve --route "<route 串>" [--json]`｜`select [--project <dir>] <role> <slot>`｜`gen <role> <provider> <level> [--dry-run]`｜`enable|disable <slot>`｜`preset balanced|all-glm|all-kimi|ds-audit`｜`doctor [--json]`｜`sync`。
+命令契约（`node scripts/agent-slots.mjs`）：`list [--role <role>] [--json]`｜`show <slot>`｜`resolve --route "<route 串>" [--json]`｜`resolve --agent <旧名>`｜`pick <role> [--json]`｜`doctor [--project <dir>] [--json] [--degrade D7]`｜`dispatch-check --plan <plan.md> --route "<ROUTE>" [--project <dir>]`。（`select/gen/enable/disable/preset/sync` 写侧命令=未实现提示；顺序调整唯一入口=面板。）
 
-行为约束：`select` 只接受矩阵中已存在的 slot、不改 model/level；`gen` 生成新代理档案并更新矩阵、需要新会话验证、默认 `--dry-run` 先打印将写入的文件；`preset` 只批量 `select`、不改代理档案，`all-glm` 与 `all-kimi` 会让实现与审核同族、应用时必须告警；`doctor` 只读——发现名字与绑定不一致、provider 无法解析、vision 非多模态、默认同族时返回非零；`sync` 从矩阵生成代理档案与路由索引件、不反向写矩阵。
+行为约束：`pick` 只读取 local 首选（顺序来源门红=exit 3，禁矩阵/出厂代位）；`doctor` 只读——名字与绑定不一致、provider 无法解析、vision 非多模态、默认同族、顺序面不全时返回非零；`dispatch-check` 三方对账（ROUTE×resolve×拟派名单；常设第二审=local fallback 首元三方相等）。
 
 - `dispatch-check --plan <dispatch-plan.md> --route "<ROUTE>" [--project <dir>]`（三方对账，陈旧/启用集不符 exit 1，装载 exit 3）
-- `snapshots [--project <dir>] [--json]`（六比较只读，滞后 WARN/exit 0，互恰或派生 FAIL/exit 1，装载 exit 3）
+- （`snapshots` 子命令已随 INFRA1 D-2 快照面退役移除——S1/S2/S3 不再承载顺序，六比较/派生失去比较对象；历史语义见 git 历史）
 
 ### 8.3 调度模式
 

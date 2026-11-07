@@ -177,10 +177,14 @@ const deployedLevelOf = (slot) => {
   } catch { return '?'; }
 };
 
-/** 角色顺序态：单源=合并配置 role_fallbacks（本机件覆盖默认件）；池=agent_slots 该角色全档。 */
+/** 角色顺序态（INFRA1 D-7）：顺序单源=本机件 role_fallbacks（local 直读）；local 缺失或
+ *  序不全→显式 incomplete，禁 pool 补尾（旧 [...seq.filter, ...pool.filter] 假完整序已废）。 */
 function state() {
-  const { merged } = loadOrgConfig(SKILL);
-  const l = readLocal();
+  const { merged, hasLocal } = loadOrgConfig(SKILL);
+  let l = {};
+  let localMissing = false;
+  try { l = readLocal() } catch { l = {}; localMissing = true }
+  if (!hasLocal) localMissing = true;
   const matrix = MATRIX; // 矩阵进程级单次读盘（模块顶装载），state() 不重复读
   const bindings = l.agent_bindings || {};
   // B4 D-6：覆盖表（plain object 守卫）——level=desired（覆盖优先，否则出厂档）；
@@ -192,12 +196,14 @@ function state() {
     const pool = poolOf(role);
     const factoryLevel = def.level;
     const levelOverridden = Object.prototype.hasOwnProperty.call(overrides, role);
-    const deployedLevel = deployedLevelOf((merged.agent_defaults || {})[role]);
-    const seq = (merged.role_fallbacks || {})[role] || [];
-    const ordered = [...seq.filter((s) => pool.includes(s)), ...pool.filter((s) => !seq.includes(s))];
+    const deployedLevel = deployedLevelOf((l.agent_defaults || {})[role]); // R1·W1：seq/首选直读 local 层——残键不得补出假完整序
+    const seq = (l.role_fallbacks || {})[role] || [];
+    const projection = projectOrder(seq, pool, localMissing);
+    const ordered = projection.ordered;
     return {
       role,
       title: def.title,
+      incomplete: projection.incomplete,
       level: levelOverridden ? overrides[role] : factoryLevel,
       factoryLevel,
       levelOverridden,
@@ -250,6 +256,7 @@ function state() {
     },
     roles,
     roleGroups,
+    local_missing: localMissing ? 'incomplete' : 'ok',
   };
 }
 
@@ -425,6 +432,34 @@ function setLevel(role, level) {
   const job = writeChain.then(runJob, runJob);
   writeChain = job.catch(() => {});
   return job;
+}
+
+/** INFRA1 D-7：角色顺序投影（纯函数·零补尾）：seq=local role_fallbacks 现序×pool 候选池；缺失/序不全→显式 incomplete（旧 pool 补尾已废）。 */
+export function projectOrder(seq, pool, localMissing = false) {
+  const seqList = Array.isArray(seq) ? seq : []
+  const poolList = Array.isArray(pool) ? pool : []
+  const ordered = seqList.filter((x) => poolList.includes(x))
+  const appended = poolList.filter((x) => !seqList.includes(x)) // 旧补尾面——现仅用于零补尾断言
+  const incomplete = localMissing || seqList.length === 0 || ordered.length < seqList.length || appended.length > 0
+  return { ordered, appended, incomplete }
+}
+// ── --self-test（headless·先于 listen；夹具为纯合成入参，零真实 runtime 读，零后台进程）──
+if (process.argv.includes('--self-test')) {
+  let fails = 0
+  const t = (name, cond) => { console.log(`${cond ? 'PASS' : 'FAIL'} ${name}`); if (!cond) fails++ }
+  const pool = ['ops-executor-a-high', 'ops-executor-b-high', 'ops-executor-c-high'], miss = projectOrder(undefined, pool, true), partial = projectOrder(['ops-executor-b-high'], pool, false), full = projectOrder([...pool], pool, false)
+  t('local 缺失→零序 incomplete；序不全→零补尾；全序→complete', miss.incomplete && miss.ordered.length === 0 && partial.incomplete && partial.ordered.length === 1 && partial.appended.length === 2 && !full.incomplete && full.ordered.length === pool.length && full.appended.length === 0)
+  const seqs = [[], ['ops-executor-b-high'], [...pool]], projs = [miss, partial, full]
+  const implicitAppend = projs.reduce((n, pr, i) => n + pr.ordered.filter((x) => !seqs[i].includes(x)).length, 0)
+  console.log(`local_missing=${miss.incomplete ? 'incomplete' : 'ok'} incomplete_order=${partial.incomplete ? 'incomplete' : 'ok'} implicit_append=${implicitAppend}`)
+  // ── R1·W1 state 层来源墙向量：直读 local（残键不补假序）──
+  const seqOfLocal = (lc, role) => (lc && lc.role_fallbacks && typeof lc.role_fallbacks === 'object' && !Array.isArray(lc.role_fallbacks) ? lc.role_fallbacks[role] : undefined)
+  const projNoOrder = projectOrder(seqOfLocal({}, 'executor'), pool, false)
+  const localP2 = { role_fallbacks: { executor: ['ops-executor-a-high'] } }
+  const projP2 = projectOrder(seqOfLocal(localP2, 'executor'), pool, false)
+  const projR = projectOrder(seqOfLocal(localP2, 'executor'), ['ops-executor-a-high', 'ops-executor-b-high', 'ops-executor-c-high'], false)
+  t('来源墙：local 无 role_fallbacks → incomplete（残键不参与）；截断→ordered 只含 local 现值', projNoOrder.incomplete && projNoOrder.ordered.length === 0 && projP2.incomplete && JSON.stringify(projP2.ordered) === JSON.stringify(['ops-executor-a-high']) && projR.ordered.length === 1)
+  process.exit(fails === 0 ? 0 : 1)
 }
 
 const server = http.createServer((req, res) => {

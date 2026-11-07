@@ -97,17 +97,11 @@ export function loadMatrix(path = MATRIX_PATH) {
     if (!REQUIRED_LEVELS.includes(def.level)) throw new Error(`矩阵 roles.${role}.level=${JSON.stringify(def.level)} 非法——须为 ${REQUIRED_LEVELS.join('/')}`)
     if (!Array.isArray(def.providers) || !def.providers.length) throw new Error(`矩阵 roles.${role}.providers 须为非空数组`)
     for (const p of def.providers) if (!own(providers, p)) throw new Error(`矩阵 roles.${role}.providers 引用未声明 provider「${p}」`)
-    if (typeof def.default !== 'string' || !own(providers, def.default))
-      throw new Error(`矩阵 roles.${role}.default「${def.default}」不在 providers 内`)
-    if (!def.providers.includes(def.default)) throw new Error(`矩阵 roles.${role}.default「${def.default}」不在该角色 providers 内`)
-    if (!Array.isArray(def.fallback) || !def.fallback.length) throw new Error(`矩阵 roles.${role}.fallback 须为非空数组`)
-    if (def.fallback[0] !== def.default) throw new Error(`矩阵 roles.${role}.fallback 首元须为 default「${def.default}」（收到 ${JSON.stringify(def.fallback[0])}）`)
-    for (const p of def.fallback) {
-      if (!own(providers, p)) throw new Error(`矩阵 roles.${role}.fallback 引用未声明 provider「${p}」`)
-      // B1：回退序只能落在该角色自己的候选 provider 内（全局表内有≠该角色可用）
-      if (!def.providers.includes(p))
-        throw new Error(`矩阵 roles.${role}.fallback 引用「${p}」不在该角色 providers 内（${role} 可用：${def.providers.join(', ')}）`)
-    }
+    // INFRA1 批（D-2·账本 1126）：废除矩阵出厂排序面——roles.* 携带 default/fallback 即
+    // 装载拒（矩阵只保留注册/绑定生成面：providers 候选集、level 槽名、tools/readonly、
+    // aliases；顺序唯一单源=org-config.local.json，禁矩阵代位）。
+    for (const k of ['default', 'fallback'])
+      if (own(def, k)) throw new Error(`矩阵 roles.${role} 携带出厂顺序键「${k}」——矩阵禁承载排序面（账本 1126：顺序单源=org-config.local.json role_fallbacks/agent_defaults）`)
     if (!Array.isArray(def.tools) || !def.tools.length || def.tools.some((t) => typeof t !== 'string' || !t.trim()))
       throw new Error(`矩阵 roles.${role}.tools 须为非空字符串数组`)
     if (typeof def.readonly !== 'boolean') throw new Error(`矩阵 roles.${role}.readonly 须为布尔值`)
@@ -570,7 +564,7 @@ function selfTest() {
   const badCases = []
   const c1 = JSON.parse(JSON.stringify(base)); c1.roles.bogus = JSON.parse(JSON.stringify(c1.roles.research)); badCases.push(['未知角色', c1, 'bogus'])
   const c2 = JSON.parse(JSON.stringify(base)); c2.roles.executor.providers.push('ghost'); badCases.push(['未声明 provider', c2, 'ghost'])
-  const c3 = JSON.parse(JSON.stringify(base)); c3.roles.planner.default = 'ghost'; badCases.push(['default 不在 providers', c3, 'ghost'])
+  const c3 = JSON.parse(JSON.stringify(base)); Object.assign(c3.roles.planner, { default: 'ghost' }); badCases.push(['出厂顺序键 default 在场（INFRA1 D-2：矩阵禁承载排序面）', c3, 'default'])
   const c4 = JSON.parse(JSON.stringify(base)); c4.roles.vision.providers.push('glm'); badCases.push(['vision 含非多模态', c4, 'glm'])
   let badOk = true
   for (const [label, obj, needle] of badCases) {
@@ -660,12 +654,13 @@ function selfTest() {
       try { loadMatrix(p); return null } catch (e) { return e }
     } finally { rmSync(fx, { recursive: true, force: true }) }
   }
-  // 向量16（B1）：fallback 元素须属于该角色 providers（全局表内有≠该角色可用）
+  // 向量16（INFRA1 D-2 迁移）：矩阵 roles 携带 fallback 键即装载拒——原「fallback 元素
+  // 须属于该角色 providers」校验随出厂排序面废除而退役（期望迁移非删测：同一夹具改测在场拒收）。
   const c16 = JSON.parse(JSON.stringify(matrix))
-  c16.roles.vision.fallback = ['glmflash', 'glm']
+  Object.assign(c16.roles.vision, { fallback: ['glmflash', 'glm'] })
   const e16 = loadFail(c16)
-  t('向量16 vision.fallback 含角色外 provider「glm」→ loadMatrix 抛错并点名角色与 provider',
-    !!e16 && String(e16.message).includes('roles.vision.fallback') && String(e16.message).includes('「glm」'))
+  t('向量16 vision 携带出厂顺序键 fallback → loadMatrix 抛错并点名角色与键名（矩阵禁承载排序面）',
+    !!e16 && String(e16.message).includes('roles.vision') && String(e16.message).includes('「fallback」'))
   // 向量17（W-A R3）：generatedAt 必填且须为非空字符串——一参/显式 undefined/null/非字符串/
   //  空串/纯空白一律抛错并点名 generatedAt；不返回 null、不读时钟（Date 被替换为抛错实现后，
   //  仍须得到 generatedAt 校验错而非时钟错）
@@ -890,8 +885,6 @@ function selfTest() {
     title: '任务书装配岗',
     level: 'max',
     providers: ['699', 'yyx', 'zipoo'],
-    default: '699',
-    fallback: ['699', 'yyx', 'zipoo'],
     tools: ['Read', 'Glob', 'Grep', 'Write', 'Edit', 'Bash', 'BashOutput', 'KillShell'],
     readonly: false,
   }

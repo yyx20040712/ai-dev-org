@@ -19,19 +19,19 @@
  *     的 family||model_family 解析）+ 观察到的 profileId 未识别清单（不阻断）。
  * 用法：node scripts/log-triage.mjs [--date YYYY-MM-DD | --hours N] [--health] [--slots] [--self-test]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
- * 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8
- * 指针化；返工 r2 削 b8 残留碎片，本件各类退出均属总表既有类目）。
+ * 退出码口径单源=references/06 §5.8（此处不复写映射——evolve 批 b8 指针化；
+ * 各类退出均属总表既有类目）。
  * 纪律：finish 词表与供应商别名住 org-config（禁硬编码，A3/06 §0）；自然退出（HOST-node25 规避）。
- * 缺输入显式留痕（selfiter 批 evolve-l9-degrade 补还）：CLI 日志/派发器流水/
- *   metadata 目录缺失=stderr [info] 行点名后继续——info 级非降级（新机/未派发
- *   =正常态，与 check-hardcode 词表缺失降级 exit 5 分界：彼为扫描能力受损）。
+ * 缺输入显式留痕（evolve-l9-degrade）：CLI 日志/派发器流水/metadata 目录缺失=stderr [info] 点名后继续（info 级非降级；与 check-hardcode 词表缺失降级 exit 5 分界）。
  */
-import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync, writeFileSync, mkdirSync, copyFileSync, cpSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join, dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir, tmpdir } from 'node:os'
-import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile, UsageError, familyOf, parseHistoricalImplreviewSlot } from './org-config.mjs'
-import { ROLE_ORDER as SLOT_ROLE_ORDER, SLOT_NAME_RE } from './gen-agents.mjs' // 装配岗批 D-2：slot 维度两常量单源=gen-agents（单向 import 无环；与 agent-slots.mjs 同款复用）
+import { loadOrgConfig, cfgHash, cliFlag, readJsonlFile, UsageError, familyOf, parseHistoricalImplreviewSlot, readJson } from './org-config.mjs'
+import { ROLE_ORDER as SLOT_ROLE_ORDER, SLOT_NAME_RE, MATRIX_PATH, loadMatrix } from './gen-agents.mjs' // 装配岗批 D-2：slot 维度两常量单源=gen-agents（单向 import 无环；与 agent-slots.mjs 同款复用）
+import { orderGateProblems } from './org-bootstrap.mjs' // R1·B2：双审推荐与 pick 同门（完整谓词单源，直读 local——默认件/项目残键不得补席）
 
 const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CLI_LOG_DIR = join(homedir(), '.zcode', 'cli', 'log')
@@ -332,12 +332,18 @@ export function countRealFailures(exhaustLists) {
   }
   return { quota, window504, mockN }
 }
-export function recommendHealth(cnt, sh = {}) {
-  const K1 = sh.primary || '链首选源'
-  const K2 = sh.secondary || '备源'
-  if (cnt.quota > 0) return { rec: K2, why: `窗口内检出额度类失效 ×${cnt.quota}——切换承载源有效（备源=不同配额池）` }
-  if (cnt.window504 > 0) return { rec: `${K1}（不切换承载源）`, why: `窗口内检出 504 窗口类 ×${cnt.window504}——双源同端点共模切换承载源无效；处置=审包瘦身/流式化（批档 subagent-plan 05 §九纠偏②）` }
-  return { rec: K1, why: '窗口内双源零额度/窗口类失效——按链首选源' }
+// ── INFRA1 批（D-5·规范锚=本文件原「按链首选源」行）：双审两席只转述 implreview1/implreview2 同刻 pick（local 单源·账本 1122）；standing_pair 不再决定待位；额度/504 仅独立处置建议不改推荐槽。 ──
+export function dualReviewPick(cfg) {
+  const defaults = cfg && typeof cfg === 'object' && cfg.agent_defaults && typeof cfg.agent_defaults === 'object' ? cfg.agent_defaults : null
+  const a = defaults ? defaults.implreview1 : undefined
+  const b = defaults ? defaults.implreview2 : undefined
+  const ok = typeof a === 'string' && !!a && typeof b === 'string' && !!b
+  return { available: ok, implreview1: ok ? a : null, implreview2: ok ? b : null, reason: ok ? '' : 'local agent_defaults 顺序面不全（implreview1/implreview2 缺席）——显式 unavailable，不回退 standing_pair' }
+}
+export function healthAdvice(cnt) {
+  if (cnt.quota > 0) return { advice: '额度类失效', why: `窗口内检出额度类失效 ×${cnt.quota}——独立处置建议：换配额池/审包瘦身（不改变推荐槽；推荐槽=双审两席同刻 pick 转述）` }
+  if (cnt.window504 > 0) return { advice: '504 窗口类', why: `窗口内检出 504 窗口类 ×${cnt.window504}——独立处置建议：审包瘦身/流式化（不改变推荐槽；推荐槽=双审两席同刻 pick 转述）` }
+  return { advice: '无额度/窗口类失效', why: '窗口内双源零额度/窗口类失效——无独立处置建议（推荐槽=双审两席同刻 pick 转述）' }
 }
 
 // ── ③③ 静默回退检测：metadata 声明 vs 日志实际 ──
@@ -623,17 +629,23 @@ function run() {
       })
       return r.length === 1 && r[0].level === 'RED' && r[0].kind.includes('静默回退')
     })())
-    // ── B2 向量（k1default 批）：推荐方向源=standing_pair（原 dual_groups[0] 反向滞后面）──
-    t('B2 推荐读 standing_pair 首元（quota=0→primary=常设座）', (() => {
-      const subOf = { 'third-syn': 'ops-gate1-k1', ds: 'ops-gate1-d1' }
-      const recPair = ['third-syn', 'ds']
-      return recommendHealth({ quota: 0, window504: 0, mockN: 0 }, { primary: subOf[recPair[0]], secondary: subOf[recPair[1]] }).rec === 'ops-gate1-k1'
+    // ── INFRA1 D-5 向量：双审两席=同刻 pick 转述（standing_pair 改成非首选→输出仍=pick；
+    //    local 不完备→显式 unavailable，不静默回 standing_pair）──
+    t('INFRA1 D-5 双审转述：standing_pair 改成非首选而 local 不变 → dualReviewPick 仍=local 两席 pick（standing_pair 零参与）', (() => {
+      const cfg = { agent_defaults: { implreview1: 'ops-implreview1-yyx-max', implreview2: 'ops-implreview2-ds-max' }, source_health: { standing_pair: ['zipoo', 'deepseek'] } }
+      const d = dualReviewPick(cfg)
+      return d.available === true && d.implreview1 === 'ops-implreview1-yyx-max' && d.implreview2 === 'ops-implreview2-ds-max'
     })())
-    t('B2 standing_pair 缺省空对不崩（k1 预审 B-2：内建兜底文案承接）', (() => {
-      const sh = {}
-      const recPair = Array.isArray(sh.standing_pair) ? sh.standing_pair : []
-      const subOf = {}
-      return recPair.length === 0 && recommendHealth({ quota: 1, window504: 0, mockN: 0 }, { primary: subOf[recPair[0]], secondary: subOf[recPair[1]] }).rec === '备源'
+    t('INFRA1 D-5 local 不完备：缺 implreview2 → available=false＋显式 unavailable 措辞（不回退 standing_pair）', (() => {
+      const cfg = { agent_defaults: { implreview1: 'ops-implreview1-yyx-max' }, source_health: { standing_pair: ['699', 'deepseek'] } }
+      const d = dualReviewPick(cfg)
+      return d.available === false && d.implreview2 === null && d.reason.includes('unavailable') && d.reason.includes('不回退 standing_pair')
+    })())
+    t('INFRA1 D-5 独立处置建议：quota>0/504>0/零失效三态文案（均不改推荐槽）', (() => {
+      const a1 = healthAdvice({ quota: 2, window504: 0, mockN: 0 })
+      const a2 = healthAdvice({ quota: 0, window504: 1, mockN: 0 })
+      const a3 = healthAdvice({ quota: 0, window504: 0, mockN: 0 })
+      return a1.why.includes('不改变推荐槽') && a2.why.includes('不改变推荐槽') && a3.advice.includes('无额度') && !a1.why.includes('切换承载源有效') && !('rec' in a1)
     })())
     t('metadata 形态漂移 tripwire：model 键成对象→WARN 未识形态', detectSilentFallback({
       metas: [{ profileId: 'probe-drift', childSessionId: 's8', profileSnapshot: { model: { providerId: 'x', modelId: 'y' } } }],
@@ -670,9 +682,10 @@ function run() {
       { ts: '2026-09-16T09:00:00Z', runId: 'r1', event: 'exhaust', statusCode: 504, error: 'HTTP 504' },
     ]
     const accCnt = countRealFailures(harvestRouting(accRows, null).exhaust)
-    const accRec = recommendHealth(accCnt, { primary: 'k1', secondary: 'k2' })
+    const accAdv = healthAdvice(accCnt)
+    const accDual = dualReviewPick({ agent_defaults: { implreview1: 'ops-implreview1-yyx-max', implreview2: 'ops-implreview2-ds-max' } })
     t('验收断言：mock429×4 不计入（mockN=4/quota=0/window=1）', accCnt.mockN === 4 && accCnt.quota === 0 && accCnt.window504 === 1)
-    t('验收断言：推荐=k1 不切换承载源（当日实陷回归——原输出假推荐 k2）', accRec.rec.includes('k1') && accRec.rec.includes('不切换承载源'))
+    t('验收断言：独立处置建议=504 窗口类且不改推荐槽＋双审两席=pick 转述（当日实陷回归——原输出假推荐备源）', accAdv.advice.includes('504') && accAdv.why.includes('不改变推荐槽') && accDual.implreview1 === 'ops-implreview1-yyx-max' && accDual.implreview2 === 'ops-implreview2-ds-max')
     // 全角括号兜底回归（实陷：全角（mock）漏配）
     const fw = harvestRouting([{ ts: '2026-09-16T10:00:00Z', runId: 'fw', event: 'exhaust', statusCode: 429, error: 'HTTP 429 退避 3 次耗尽（mock）' }], null).exhaust
     t('全角（mock）兜底命中（不计入推荐）', Object.values(fw)[0][0].isMock === true)
@@ -810,6 +823,31 @@ function run() {
       return !!u && JSON.stringify(u) === JSON.stringify(['Explore', 'ops-auditor', 'ops-implreview-kimia-max', 'ops-probe']) &&
         parseHistoricalImplreviewSlot('ops-implreview-kimia-max')?.seat === '历史审核席' && parseHistoricalImplreviewSlot('ops-implreview-kimia-max')?.provider === 'kimia'
     })())
+    // ── R1·B2 对抗夹具负例（staging 真子进程）：default 残键补 local 缺失岗 → 双审推荐=
+    //    unavailable 而非残键席（一审实证红态：rc0 推荐 ds；完整谓词+直读 local 后拒绝） ──
+    {
+      const fxRoot = mkdtempSync(join(tmpdir(), 'infra1-executor-lt-'))
+      try {
+        const stage = join(fxRoot, 'stage')
+        mkdirSync(join(stage, 'scripts'), { recursive: true })
+        mkdirSync(join(stage, 'templates'), { recursive: true })
+        cpSync(join(SKILL_ROOT, 'scripts'), join(stage, 'scripts'), { recursive: true })
+        copyFileSync(MATRIX_PATH, join(stage, 'templates', 'agents.matrix.json'))
+        const d = readJson(join(SKILL_ROOT, 'org-config.default.json'))
+        const l = readJson(join(SKILL_ROOT, 'org-config.local.json'))
+        d.agent_defaults = { implreview1: 'ops-implreview1-699-max', implreview2: 'ops-implreview2-ds-max' } // 残键
+        d.role_fallbacks = l.role_fallbacks
+        delete l.agent_defaults.implreview2
+        delete l.role_fallbacks.implreview2
+        writeFileSync(join(stage, 'org-config.default.json'), JSON.stringify(d, null, 2) + '\n')
+        writeFileSync(join(stage, 'org-config.local.json'), JSON.stringify(l, null, 2) + '\n')
+        const r = spawnSync(process.execPath, [join(stage, 'scripts', 'log-triage.mjs'), '--hours', '1', '--health'], { encoding: 'utf8' })
+        const o = `${r.stdout || ''}${r.stderr || ''}`
+        t('R1·B2 负例：default 残键补 local 缺失岗 → 双审推荐=unavailable＋点名来源门（不回退默认件残键席）',
+          o.includes('implreview1=unavailable') && o.includes('implreview2=unavailable') &&
+          o.includes('顺序来源门') && !o.includes('implreview2=ops-implreview2-ds-max'))
+      } finally { rmSync(fxRoot, { recursive: true, force: true }) }
+    }
     console.log(stFails === 0 ? 'self-test 全过' : `self-test ${stFails} 项失败`)
     process.exitCode = stFails === 0 ? 0 : 1
   } else {
@@ -867,11 +905,25 @@ function run() {
       const cnt = countRealFailures(routing.exhaust)
       if (cnt.mockN) W(`   （另检出 mock 演练行 ×${cnt.mockN}——R5 切换承载源演练注入，不构成真实源健康信号）\n`)
       if (!Object.keys(routing.exhaust).length) W(`   （窗口内无 exhaust 事件）\n`)
-      const { rec, why } = recommendHealth(cnt, { primary: subOf[recPair[0]], secondary: subOf[recPair[1]] })
-      // 输出标签改「常设对=」（k1 预审 N-3：勿与 ⑥ 双源组语义混淆）；单元素/
-      // 超长形态如实呈现（二元契约执法在 health-scan 启动校验）
-      const spNote = recPair.length === 1 ? '——次席未配置' : (recPair.length > 2 ? `——长度${recPair.length}（二元契约面，取前两元；health-scan 启动校验应拦）` : '')
-      W(`\n>> 代码审查（岗）派发推荐：${rec}\n>> 依据：${why}（常设对=${recPair.join('↔') || '未配置'}${spNote}）\n`)
+      // R1·B2：双审推荐经顺序来源门（与 pick 同门·org-bootstrap.orderGateProblems 单源）——
+      // 直读 local 层对象（不读合并结果：默认件/项目残键不得补出假完整席）；门红=显式
+      // unavailable，不回退 standing_pair/默认件残键。
+      const localOrderPath = join(SKILL_ROOT, 'org-config.local.json')
+      let localOrderCfg = null
+      try { localOrderCfg = readJson(localOrderPath) } catch { localOrderCfg = null }
+      let dualSeats
+      try {
+        const orderGate = orderGateProblems({ matrix: loadMatrix(MATRIX_PATH), localCfg: localOrderCfg, hasLocal: localOrderCfg !== null, localPath: localOrderPath })
+        dualSeats = orderGate.length
+          ? { available: false, implreview1: null, implreview2: null, reason: `顺序来源门：${orderGate.join('；')}` }
+          : dualReviewPick(localOrderCfg)
+      } catch (e) {
+        dualSeats = { available: false, implreview1: null, implreview2: null, reason: `顺序来源门不可判（矩阵/本机件装载失败：${e.message}）` }
+      }
+      const adv = healthAdvice(cnt)
+      W(`\n>> 双审两席派发推荐（同刻 pick 转述·local 单源）：implreview1=${dualSeats.implreview1 ?? 'unavailable'} implreview2=${dualSeats.implreview2 ?? 'unavailable'}（standing_pair 不再决定待位·INFRA1 D-5）\n`)
+      if (!dualSeats.available) W(`>> [unavailable] ${dualSeats.reason}（不回退 standing_pair/默认件残键）\n`)
+      W(`>> 独立处置建议：${adv.advice}——${adv.why}\n`)
       // 2026-10-03 清理批次：R2 干涸窗呈现随派发器删除而删（写入者亡=标记永不再生；
       // 历史机制详见 git 历史+RESIDUALS r2-drywindow-livefire 行 closed）。
       // R3 ⑧ 常设双审对绑定实况核对（agent frontmatter model → uuid 前缀 → provider → model_family；

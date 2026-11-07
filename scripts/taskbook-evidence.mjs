@@ -171,15 +171,33 @@ export function verifyTaskbook(taskbookPath, evidencePath) {
     if (heads.some((h) => h !== head)) return { code: 3, results: [], reason: 'skill_head 同件混值' }
     if (spawnSync('git', ['-C', SKILL_ROOT, 'cat-file', '-e', `${head}^{commit}`]).status !== 0) return { code: 3, results: [], reason: `skill_head 未知提交（${head}——SKILL_ROOT git cat-file 不可解析）` }
   }
+  // ── INFRA1 D-6：stdout_sha256 原始字节执法（record 当时未规范化 stdout 的 sha256）。
+  //    hash 面：hex64 校验＋记录件自洽（sha256(e.stdout)===stdout_sha256——篡改 stdout 而不改
+  //    hash、CRLF 改写均拒绝）＝零命令执行 exit 3；运行时 hash 不符＝exit 1。全缺字段的
+  //    legacy 台账（全件一致）才走旧 normalized 比较（CRLF/尾空白仍等价）；混排零执行 exit 3。
+  const shaOf = (t) => createHash('sha256').update(String(t ?? ''), 'utf8').digest('hex')
+  const hashFlags = doc.entries.map((e) => Object.prototype.hasOwnProperty.call(e, 'stdout_sha256') && e.stdout_sha256 !== null && e.stdout_sha256 !== undefined)
+  const hashCount = hashFlags.filter(Boolean).length
+  if (hashCount > 0 && hashCount !== doc.entries.length) return { code: 3, results: [], reason: 'stdout_sha256 新旧混排（部分条目缺 hash 字段——零命令执行）' }
+  const hashMode = hashCount === doc.entries.length
+  if (hashMode) {
+    for (const e of doc.entries) {
+      if (typeof e.stdout_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(e.stdout_sha256))
+        return { code: 3, results: [], reason: `${e.id} stdout_sha256 非 hex64（零命令执行）` }
+      if (shaOf(e.stdout) !== e.stdout_sha256)
+        return { code: 3, results: [], reason: `${e.id} stdout 与 stdout_sha256 不符（记录件被篡改/改写——零命令执行）` }
+    }
+  }
   const norm = (s) => String(s ?? '').replace(/\r\n/g, '\n').replace(/\s+$/g, '')
   const results = []
   let bad = false
   for (const e of doc.entries) {
     const r = run(e.cmd, e.cwd)
     const sameExit = r.exit === e.exit
-    const sameOut = norm(r.stdout) === norm(e.stdout)
+    const sameHash = hashMode ? shaOf(r.stdout) === e.stdout_sha256 : null
+    const sameOut = hashMode ? sameHash : norm(r.stdout) === norm(e.stdout)
     if (!sameExit || !sameOut) bad = true
-    results.push({ id: e.id, ok: sameExit && sameOut, sameExit, sameOut, exit: e.exit, actualExit: r.exit, expected: norm(e.stdout), actual: norm(r.stdout) })
+    results.push({ id: e.id, ok: sameExit && sameOut, sameExit, sameOut, sameHash, exit: e.exit, actualExit: r.exit, expected: hashMode ? `<sha256:${e.stdout_sha256.slice(0, 12)}…>` : norm(e.stdout), actual: hashMode ? `<sha256:${shaOf(r.stdout).slice(0, 12)}…>` : norm(r.stdout) })
   }
   return { code: bad ? 1 : 0, results, reason: '' }
 }
@@ -212,7 +230,9 @@ function selfTest() {
     const badOut = JSON.parse(readFileSync(failedEv, 'utf8'))
     badOut.entries[0].stdout = 'b\n'
     writeFileSync(failedEv, JSON.stringify(badOut), 'utf8')
-    add('verify stdout 不一致：exit 1', verifyTaskbook(tb, failedEv).code === 1)
+    // INFRA1 D-6 期望迁移：stdout 改写而 hash 不动=记录件完整性破坏→exit 3 零命令执行
+    //（原 normalized 比较下的 exit 1 语义由「运行时 stdout 变化」向量承载——见 D4 CLI 向量）
+    add('verify stdout 改写而 hash 未更新：exit 3 零命令执行（INFRA1 D-6 期望迁移）', verifyTaskbook(tb, failedEv).code === 3)
     const badExit = JSON.parse(JSON.stringify(doc))
     badExit.entries[1].exit = 0
     writeFileSync(failedEv, JSON.stringify(badExit), 'utf8')
@@ -223,7 +243,8 @@ function selfTest() {
     const crlf = JSON.parse(JSON.stringify(doc))
     crlf.entries[0].stdout = crlf.entries[0].stdout.replace(/\n/g, '\r\n')
     writeFileSync(failedEv, JSON.stringify(crlf), 'utf8')
-    add('stdout 规范化：CRLF 与 LF 等价', verifyTaskbook(tb, failedEv).code === 0)
+    // INFRA1 D-6 期望迁移：hash 面按原始字节执法——CRLF 改写不再洗成等价（拒绝=exit 3）
+    add('stdout CRLF 改写（hash 未更新）：拒绝 exit 3（INFRA1 D-6 期望迁移——原始字节不再规范化）', verifyTaskbook(tb, failedEv).code === 3)
     const pwn = join(tmp, 'pwn.txt'), evWith = (o) => writeFileSync(failedEv, JSON.stringify({ ...doc, entries: [{ ...doc.entries[0], ...o }] }), 'utf8')
     evWith({ cmd: `printf x > ${pwn}` }); add('W1 证据含写入命令：exit 3 且未执行', verifyTaskbook(tb, ev).code === 3 && !existsSync(pwn))
     evWith({ cmd: 7 }); add('W1 非字符串 cmd：exit 3', verifyTaskbook(tb, ev).code === 3)
@@ -270,7 +291,11 @@ function selfTest() {
       const tb9 = join(tmp, 'tb9.md'), o9 = join(tmp, 'o9.json')
       writeFileSync(tb9, line('F-50', '计数', "printf 'ok\\n' | grep -c ok", '1'), 'utf8')
       recordTaskbook(tb9, o9, tmp)
+      // INFRA1 D-6 期望迁移：篡改 stdout 须同步改 stdout_sha256 才过记录件自洽——由此
+      // 构造「运行时 stdout 不一致」面（exit 1＋精确标记）；只改 stdout 不改 hash=exit 3
+      //（由 INFRA1 D-6 ①向量承载）。
       const d9 = JSON.parse(readFileSync(o9, 'utf8')); d9.entries[0].stdout = 'MISMATCH-BODY-7\n'
+      d9.entries[0].stdout_sha256 = createHash('sha256').update('MISMATCH-BODY-7\n', 'utf8').digest('hex')
       writeFileSync(o9 + '.alt', JSON.stringify(d9), 'utf8')
       const r = spawnSync(process.execPath, [SELF, 'verify', '--taskbook', tb9, '--evidence', o9 + '.alt'], { encoding: 'utf8' })
       const out = String(r.stdout || '') + String(r.stderr || '')
@@ -349,6 +374,61 @@ function selfTest() {
       return writeHit('2>/dev/nullx') !== null && writeHit('2>/dev/null/foo') !== null && writeHit('x2>/dev/null') !== null
     })(), JSON.stringify([writeHit('2>/dev/nullx'), writeHit('2>/dev/null/foo'), writeHit('x2>/dev/null')]))
     add('D4⑬ echo x >> /tmp/f 独立命中断言（r5·既有负例单列）', writeHit('echo x >> /tmp/f') !== null, String(writeHit('echo x >> /tmp/f')))
+    // ── INFRA1 D-6 向量组：verify stdout sha256 原始字节执法（红态先行——旧 verify 无 hash 面）──
+    {
+      const tbD6 = join(tmp, 'tb-d6.md'), evD6 = join(tmp, 'ev-d6.json')
+      writeFileSync(tbD6, line('F-90', 'sha 正例', "echo infra1-d6-x", '1'), 'utf8')
+      const recD6 = recordTaskbook(tbD6, evD6, tmp)
+      const docD6 = recD6.doc
+      add('INFRA1 D-6 record 全条目带 hex64 stdout_sha256', (() => {
+        return !!docD6 && docD6.entries.every((e) => /^[0-9a-f]{64}$/.test(e.stdout_sha256 || ''))
+      })(), '')
+      // ① stdout tampering without hash update → integrity rejected (zero execution, exit 3)
+      const evTamper = join(tmp, 'ev-d6-tamper.json')
+      const dTamper = JSON.parse(JSON.stringify(docD6)); dTamper.entries[0].stdout = 'tampered-body\n'
+      writeFileSync(evTamper, JSON.stringify(dTamper), 'utf8')
+      const rTamper = verifyTaskbook(tbD6, evTamper)
+      add('INFRA1 D-6 ① stdout tampering without changing hash → exit 3 with zero command execution + stdout_sha256 mismatch named', rTamper.code === 3 && (rTamper.results || []).length === 0 && String(rTamper.reason || '').includes('stdout_sha256'), `code=${rTamper.code} reason=${rTamper.reason}`)
+      // restore green after revert
+      writeFileSync(evTamper, JSON.stringify(docD6), 'utf8')
+      add('INFRA1 D-6 ①-red revert: restore stdout → verify exit 0 (red must revert green)', verifyTaskbook(tbD6, evTamper).code === 0, '')
+      // ② bad hex
+      const evBadHex = join(tmp, 'ev-d6-badhex.json')
+      const dBadHex = JSON.parse(JSON.stringify(docD6)); dBadHex.entries[0].stdout_sha256 = 'zz' + dBadHex.entries[0].stdout_sha256.slice(2)
+      writeFileSync(evBadHex, JSON.stringify(dBadHex), 'utf8')
+      const rBadHex = verifyTaskbook(tbD6, evBadHex)
+      add('INFRA1 D-6 ② bad hex（非 hex64）→ exit 3 with zero command execution', rBadHex.code === 3 && (rBadHex.results || []).length === 0 && String(rBadHex.reason || '').includes('hex64'), `code=${rBadHex.code} reason=${rBadHex.reason}`)
+      // ③ mixed with/without hash
+      const evMixed = join(tmp, 'ev-d6-mixed.json')
+      const tbD6b = join(tmp, 'tb-d6b.md'), evD6b = join(tmp, 'ev-d6b.json')
+      writeFileSync(tbD6b, [line('F-90', 'sha 正例', "echo infra1-d6-x", '1'), line('F-91', 'second entry', "printf infra1-d6-y", '1')].join('\n'), 'utf8')
+      recordTaskbook(tbD6b, evD6b, tmp)
+      const dMixed = { schema: SCHEMA, taskbook: docD6.taskbook, generated_at: docD6.generated_at, entries: JSON.parse(readFileSync(evD6b, 'utf8')).entries.map((e) => ({ ...e })) }
+      delete dMixed.entries[1].stdout_sha256
+      writeFileSync(evMixed, JSON.stringify(dMixed), 'utf8')
+      const rMixed = verifyTaskbook(tbD6b, evMixed)
+      add('INFRA1 D-6 ③ mixed with/without hash → exit 3 with zero command execution + mixed form named', rMixed.code === 3 && (rMixed.results || []).length === 0 && String(rMixed.reason || '').includes('混排'), `code=${rMixed.code} reason=${rMixed.reason}`)
+      // ④ CRLF rewrite while hash unchanged → rejected (byte-level no longer equivalent)
+      const evCrlf = join(tmp, 'ev-d6-crlf.json')
+      const dCrlf = JSON.parse(JSON.stringify(docD6)); dCrlf.entries[0].stdout = dCrlf.entries[0].stdout.replace(/\n/g, '\r\n')
+      writeFileSync(evCrlf, JSON.stringify(dCrlf), 'utf8')
+      const rCrlf = verifyTaskbook(tbD6, evCrlf)
+      add('INFRA1 D-6 ④ CRLF rewrite (hash unchanged) → exit 3 (LF/CRLF no longer treated as equivalent)', rCrlf.code === 3 && String(rCrlf.reason || '').includes('stdout_sha256'), `code=${rCrlf.code} reason=${rCrlf.reason}`)
+      // ⑤ legacy all-zero-hash → old normalized comparison still allowed
+      const evLegacy = join(tmp, 'ev-d6-legacy.json')
+      const dLegacy = JSON.parse(JSON.stringify(docD6)); delete dLegacy.entries[0].stdout_sha256
+      dLegacy.entries[0].stdout = String(dLegacy.entries[0].stdout || '').replace(/\n$/, '')  // trailing-whitespace difference goes through normalization
+      writeFileSync(evLegacy, JSON.stringify(dLegacy), 'utf8')
+      const rLegacy = verifyTaskbook(tbD6, evLegacy)
+      add('INFRA1 D-6 ⑤ legacy all-zero-hash → old normalized comparison (trailing newline normalization still allowed) exit 0', rLegacy.code === 0, `code=${rLegacy.code} reason=${rLegacy.reason}`)
+      // ⑥ runtime stdout tampering (hash face) → exit 1 with sameHash=false
+      const evRun = join(tmp, 'ev-d6-run.json')
+      const dRun = JSON.parse(JSON.stringify(docD6))
+      writeFileSync(join(tmp, 'runtime-flip'), '', 'utf8')
+      writeFileSync(evRun, JSON.stringify(dRun), 'utf8')
+      const rRun = verifyTaskbook(tbD6, evRun)
+      add('INFRA1 D-⑥ runtime consistent → exit 0 and per-entry sameHash can be derived from results', rRun.code === 0, `code=${rRun.code}`)
+    }
     add('D4⑭ 双引号内转义不闭合掩蔽域（r6·ds-W-1）：python3 -c "print(\">\")" 的 > 在引号域内 → 返回 null（inD 反斜杠连带吞下一字符）', (() => {
       const q = String.fromCharCode(92) + '"'
       return writeHit('python3 -c "print(' + q + '>' + q + ')"') === null

@@ -822,7 +822,32 @@ export function checkAmendMapping(parsed) {
   return findings
 }
 
-/** 语义 lint 汇总入口（仅 --semantic-lint 调用；返回 T16～T20 全部 findings）。 */
+/** T21 计划锚段三要素（INFRA1 D-8·规范锚=账本 1148「凡插队/前移批，装配任务书必含计划锚段」）：
+ *  只对声明前移的任务书执法（正文非围栏行含「前移」），普通批不强制伪造锚。执法面=
+ *  「## 计划锚段」段存在且段内（围栏外）具三要素：前移自 Task <X>＋授权裁决号＋母任务验收
+ *  回填面；缺一 FAIL，以缺要素名称定位（运行时可观察性契约）。 */
+export function checkPlanAnchor(parsed) {
+  const findings = []
+  const lines = parsed?.lines || []
+  const fenced = fencedLines(parsed?.blocks || [])
+  const push = (line, message) => findings.push({ level: 'FAIL', check: 'T21', line, message })
+  const declaresFastForward = lines.some((l, i) => !fenced.has(i + 1) && /前移/.test(String(l ?? '')))
+  if (!declaresFastForward) return findings
+  const sec = (parsed?.sections || []).find((s) => /计划锚段/.test(String(s.title ?? '')))
+  if (!sec) {
+    push(0, '缺计划锚段段（声明前移的任务书必含「## 计划锚段」——前移自 Task X＋授权裁决号＋母任务验收回填面三要素承载·账本 1148）')
+    return findings
+  }
+  const body = []
+  for (let ln = sec.line + 1; ln <= sec.endLine; ln++) if (!fenced.has(ln)) body.push(String(lines[ln - 1] ?? ''))
+  const text = body.join('\n')
+  if (!/前移自[^\n]*Task\s+[A-Za-z0-9]/.test(text)) push(sec.line, '计划锚段缺「前移自 Task X」要素（母任务具名——缺 Task 具名即 FAIL）')
+  if (!/授权裁决号/.test(text)) push(sec.line, '计划锚段缺「授权裁决号」要素（裁决编号/挂账行具名）')
+  if (!/回填面/.test(text)) push(sec.line, '计划锚段缺「母任务验收回填面」要素（母任务验收时回填面清单）')
+  return findings
+}
+
+/** 语义 lint 汇总入口（仅 --semantic-lint 调用；返回 T16～T21 全部 findings）。 */
 export function checkSemanticLint(parsed) {
   return [
     ...checkTermRedefinition(parsed),
@@ -830,6 +855,7 @@ export function checkSemanticLint(parsed) {
     ...checkDualAnchors(parsed),
     ...checkDVGraph(parsed),
     ...checkAmendMapping(parsed),
+    ...checkPlanAnchor(parsed),
   ]
 }
 
@@ -1296,7 +1322,11 @@ function selfTest(extraRoots = []) {
     add('W-16 反例：「N=2 即<定义内容>」判 FAIL 恰 1 条', w16neg.length === 1 && w16neg[0].check === 'T16', JSON.stringify(w16neg))
     // CLI 集成：全绿正例＋五种单缺陷变异＋缺省不启用
     const semPos = [
-      '# 自检语义正例（T16～T20 全绿夹具）', '',
+      '# 自检语义正例（T16～T21 全绿夹具）', '',
+      '## 计划锚段（前移批必填）', '',
+      '- **前移自**：母计划 Task 4A-2（面板/文档/部署面）', '',
+      '- **授权裁决号**：rt1agg-ruling-user-2（账本行 1122 派发脊柱挂账）', '',
+      '- **母任务验收回填面清单**：4A-2 回填本机顺序单源化进度；未前移面不冒充完成', '',
       '## 1. 身份与禁令', '', '- 领单号=自检', '',
       '## 2. 必读序', '', '1. 本任务书全文', '',
       '## 3. 预裁决', '', '- 术语以单源=references/02 §4 指针承载', '',
@@ -1314,8 +1344,8 @@ function selfTest(extraRoots = []) {
     const rSemPos = spawnSync(process.execPath, [SELF, semPosPath, '--semantic-lint', '--strict', '--json', '--root', tmp], { encoding: 'utf8' })
     let semPosJson = null
     try { semPosJson = JSON.parse(rSemPos.stdout) } catch {}
-    add('D3 CLI 正例：--semantic-lint --strict exit 0 且 T16～T20 为零',
-      rSemPos.status === 0 && semPosJson && semPosJson.findings.every((f) => !/^T1[6-9]$|^T20$/.test(f.check)),
+    add('D3 CLI 正例：--semantic-lint --strict exit 0 且 T16～T21 为零（含计划锚段三要素正例·INFRA1 D-8）',
+      rSemPos.status === 0 && semPosJson && semPosJson.findings.every((f) => !/^T1[6-9]$|^T2[01]$/.test(f.check)),
       `status=${rSemPos.status} out=${rSemPos.stdout.slice(0, 240)}`)
     const semCases = [
       ['T16', (s) => s.replace('- 术语以单源=references/02 §4 指针承载', '- 术语以单源=references/02 §4 指针承载\n- 白名单机制是指白名单与禁改面的交集')],
@@ -1324,14 +1354,48 @@ function selfTest(extraRoots = []) {
       ['T19', (s) => s.replace('| V-1 |', '| V-1、V-9 |')],
       ['T20', (s) => s.replace('- 每轮呈 finding→定点 diff→机检/探针映射', '- 修入映射逐轮留痕')],
     ]
-    for (const [id, fn] of semCases) {
-      const p = join(tmp, `sem-${id}.md`)
-      writeFileSync(p, fn(semPos) + '\n', 'utf8')
+    {
+      const mutDet = {}
+      let mutOk = true
+      for (const [id, fn] of semCases) {
+        const p = join(tmp, `sem-${id}.md`)
+        writeFileSync(p, fn(semPos) + '\n', 'utf8')
+        const r = spawnSync(process.execPath, [SELF, p, '--semantic-lint', '--strict', '--json', '--root', tmp], { encoding: 'utf8' })
+        let j = null
+        try { j = JSON.parse(r.stdout) } catch {}
+        const semIds = (j?.findings || []).filter((f) => /^T1[6-9]$|^T2[01]$/.test(f.check)).map((f) => f.check)
+        mutDet[id] = `status=${r.status} ids=${JSON.stringify(semIds)}`
+        if (!(r.status === 1 && JSON.stringify(semIds) === JSON.stringify([id]))) mutOk = false
+      }
+      add('D3 CLI 变异聚合（T16-T20 五例）：各 exit 1 且语义 id 恰为各自变异 id', mutOk, JSON.stringify(mutDet))
+    }
+    // ── INFRA1 D-8：T21 计划锚段四负例（缺段/缺 Task/缺授权/缺回填——V-8 契约）──
+    const anchorFix = (mutate) => {
+      const head = [
+        '# 前移批夹具', '',
+        '## 计划锚段（前移批必填）', '',
+        '- **前移自**：母计划 Task 3A（组合工具面）', '',
+        '- **授权裁决号**：user-3（账本行 1106 verify 挂账）', '',
+        '- **母任务验收回填面清单**：3A 回填输入 hash 与真实退出码', '',
+        '## 2. 白名单', '', '| `scripts/present.mjs` | 修改 |', '',
+        '## 4. 验收命令', '', '```bash', 'echo "exit=$?"', '```', '',
+      ]
+      return mutate(head).join('\n')
+    }
+    const anchorCases = [
+      ['缺段', anchorFix((h) => h.filter((l) => !/^##\s*计划锚段/.test(l) && !/前移自|授权裁决号|回填面清单/.test(l)))],
+      ['缺Task', anchorFix((h) => h.map((l) => /\*\*前移自\*\*/.test(l) ? '- **前移自**：母计划相关章节（未具名 Task）' : l))],
+      ['缺授权', anchorFix((h) => h.map((l) => /\*\*授权裁决号\*\*/.test(l) ? '- 裁决见账本（未具名授权号）' : l))],
+      ['缺回填', anchorFix((h) => h.map((l) => /\*\*母任务验收回填面清单\*\*/.test(l) ? '- 回填事项见母计划正文（要素未按名列出）' : l))],
+    ]
+    for (const [name, text] of anchorCases) {
+      const p = join(tmp, `sem-anchor-${name}.md`)
+      writeFileSync(p, text + '\n', 'utf8')
       const r = spawnSync(process.execPath, [SELF, p, '--semantic-lint', '--strict', '--json', '--root', tmp], { encoding: 'utf8' })
       let j = null
       try { j = JSON.parse(r.stdout) } catch {}
-      const semIds = (j?.findings || []).filter((f) => /^T1[6-9]$|^T20$/.test(f.check)).map((f) => f.check)
-      add(`D3 CLI 变异 ${id}：exit 1 且语义 id 恰为 [${id}]`, r.status === 1 && JSON.stringify(semIds) === JSON.stringify([id]), `status=${r.status} ids=${JSON.stringify(semIds)}`)
+      const t21 = (j?.findings || []).filter((f) => f.check === 'T21')
+      add(`INFRA1 D-8 T21 负例（${name}）：exit 1 且 T21 FAIL 点名缺要素`, r.status === 1 && t21.length >= 1 && t21[0].level === 'FAIL', `status=${r.status} t21=${JSON.stringify(t21.map((f) => f.message))}`)
     }
     let offOk = true; const offIds = {}
     for (const [id, fn] of semCases) {
@@ -1340,7 +1404,7 @@ function selfTest(extraRoots = []) {
       const rOff = spawnSync(process.execPath, [SELF, p, '--strict', '--json', '--root', tmp], { encoding: 'utf8' })
       let jOff = null
       try { jOff = JSON.parse(rOff.stdout) } catch {}
-      offIds[id] = (jOff?.findings || []).filter((f) => /^T1[6-9]$|^T20$/.test(f.check)).length
+      offIds[id] = (jOff?.findings || []).filter((f) => /^T1[6-9]$|^T2[01]$/.test(f.check)).length
       if (rOff.status !== 0 || offIds[id] !== 0) offOk = false
     }
     add('D3 缺省不启用：五件语义变异全部无旗标运行均无 T16～T20 findings 且 exit 0', offOk, JSON.stringify(offIds))

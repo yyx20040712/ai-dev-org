@@ -42,8 +42,10 @@ description: Use when 用户提出开发/实现/修复/重构/批次/开工/简�
 （02 §9）；glm-look（设计岗视觉外呼）=工具、不属岗位。
 
 ```
-node scripts/org-config.mjs [resolve|hash|validate|--self-test]
-node scripts/agent-slots.mjs list|show|resolve --route "<route 串>"|select|gen|enable|disable|preset|doctor|sync   # ROUTE 提示词路由与矩阵待位（写法单源=references/02 §8.1）
+node scripts/org-config.mjs [resolve|hash|validate|flags|--self-test]
+node scripts/org-bootstrap.mjs [status|freeze|guide|resume|install] [--project <dir>] [--dry-run]   # 两态引导（INFRA1 D-3）：ready 且非显式请求=休眠零写；needs_bootstrap/显式唤醒才写（最小骨架/补缺绑定/续配只补缺不改旧值）；freeze=顺序面冻结迁移（补 local 缺失键→剥默认件顺序键）；deploy-check --install 已委托本件
+node scripts/org-dispatch.mjs pick <role> [--json]｜preflight --taskbook <md> [--project <dir>] [--json]｜hook   # 派发组合面（INFRA1 D-4）：pick=seat+cfg_hash（主控粘账本）；preflight=dispatch-plan/check-taskbook/taskbook-evidence/pick 四工具组合（输入 sha256+真 rc，零账本写）；hook=PreToolUse Agent 匹配器（目标≠同刻 pick/载荷不明/配置不完备=exit 2 deny——宿主 stdin 契约实探确认后方可启用）
+node scripts/agent-slots.mjs list|show|resolve --route "<route 串>"|resolve --agent <旧名>|pick <role>|doctor|dispatch-check   # ROUTE 提示词路由与待位只读取值（写法单源=references/02 §8.1；select/gen/enable/disable/preset/sync=未实现写侧命令，命中即提示非零退出——顺序调整唯一入口=面板）
 node scripts/check-hardcode.mjs [--strict]   # .md 正文供应商 live 事实扫描（名单从 org-config 派生；缺省命中=RED 退出（hardcode_scan.strict 默认 true）；--warn=试点校准期显式降级）
 node scripts/check-anchors.mjs [--update|--strict]   # 08 §4 文档腐化体检机检化：NN §M 断锚+路径存在性+01/04 条目计数 vs doc-counts golden（WARN 试点校准期；计数失守=FAIL；--update=重冻结随批提交）
 node scripts/check-taskbook.mjs <任务书.md> [--root <dir>]... [--strict|--json|--self-test]   # 任务书派发前自检：路径存在性/行号越界与逐字核对/白名单与禁改互斥/命令脚本存在性/零命中判据与逐字块互斥/退出码契约/结构等（WARN 试点；FAIL 退 1）
@@ -52,14 +54,21 @@ node scripts/check-constitution-budget.mjs <AGENTS.md>   # ORG-SEG ≤600 非空
 node scripts/init-defenses.mjs --target <项目根> --stack <npm-verify|pnpm-pygates|generic> [--yes]   # 新项目首周防线脚手架（05 §4）
 node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <dir>]   # 自包含回归（R 清单单源=本脚本）
 node scripts/health-scan.mjs [--project <dir>] [--budget <alias>:<maxOutTokens>]   # 结项前健康扫描（RED=0 方可结项；告警分类单源=02 §10）
-node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊：cli/log+glm-look/历史派发流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量（Kimi 双源分列）/finish 终态派生；--health=源健康检查出双审两席派发推荐（额度类→切换承载源；504 窗口类→不切换承载源、瘦身重试）+常设双审对绑定同族核对（R3）+跨门岗对核对
+node scripts/log-triage.mjs [--date YYYY-MM-DD|--hours N] [--health]   # 观测面分诊：cli/log+glm-look/历史派发流水两账并呈——五类分诊/attempt 放大/静默回退检测（声明≠实际=RED）/岗×源用量/finish 终态派生；--health=双审两席同刻 pick 转述（implreview1/implreview2·local 单源，standing_pair 不再决定待位·INFRA1 D-5）＋额度/504 独立处置建议（不改变推荐槽）＋常设双审对绑定同族核对（R3）+跨门岗对核对
 node scripts/glm-look.mjs --prompt <判据.md> <图1.png> [图2…] [-o 报告.md] [--channel glm|ds]   # 设计岗外呼看图双通道（通道/模型/端点甄别=org-config vision_channels 分区+--list-sources；单次调用 20min 上限、非429的4xx立断、scrub 脱敏；max_tokens≥8000 自动倍升防推理段耗额假成功；三段流定式：glm 判读→ds 审核提异见→glm 终裁）
 node scripts/package-skill.mjs --out <空目录> [--self-test]   # 分享打包：git 跟踪面导出+分享面门禁（uuid/盘符路径/本机标识零命中）+MANIFEST——受赠机首跑与白名单=PACKAGING.md
 ```
 
+**插队/续修一跳分类（D-7·零计时零监测零静默推断）**：
+
+| 情形属性 | 处置 |
+|---|---|
+| 成熟非破坏续修（既有批次未清面、白名单内、无接口语义变化） | 停旧开新续修可否决——按原任务书续修面开新批，审核岗可否决并回退用户 |
+| 破坏性/降面/范围变化/预算变化 | 用户裁决——禁静默推断代裁，停手上报 |
+
 **单批路由 ROUTE（写法单源=references/02 §8.1）**：任务书/工单开头写一行
 `ROUTE: executor-glmflash;implreview1-699;implreview2-ds`——每项 `<role>-<provider>`、分号分隔，
-未列岗位走矩阵默认；解析与静态校验=`agent-slots.mjs resolve`；单批生效、不改矩阵。
+未列岗位走 local pick（`agent-slots.mjs pick`／`org-dispatch.mjs pick`——顺序单源=org-config.local.json，矩阵/项目覆盖件不承载顺序意见·INFRA1 批）；解析与静态校验=`agent-slots.mjs resolve`；单批生效、不改矩阵。
 **子代理绑定通道（06 §6 补遗＋07 §4 补遗；宿主语义细则单源=references/10 §2）**：绑定件=矩阵单源
 （templates/agents.matrix.json→gen-agents 生成 `~/.zcode/agents/ops-*.md`，指针=07 §4 补遗）。frontmatter model=`<provider>/<model-key>$<档位>`
 ——模板面存 `{{binding:岗}}` 占位、部署面=org-config 本机件 `agent_bindings` 渲染实值；`$` 后缀=显式思考
@@ -68,7 +77,7 @@ node scripts/package-skill.mjs --out <空目录> [--self-test]   # 分享打包�
 档位单源＝面板（`/api/level` 写序·持久面=org-config.local.json `agent_bindings` 的 `$tier`·写审计=技能仓 `.zcode/panel-write-audit.jsonl`·2026-11-05 用户裁决）；矩阵 `roles.<role>.level` 仅供岗位实例命名派生，不构成档位声明；岗位实例名尾部档位字样为历史命名；上游枚举值=假绑定禁用；空 tools=泄漏全工具面禁用；代理档案会话启动快照无热加载——改档须新会话验证＋`log-triage.mjs` 日志核对零回退。
 
 矩阵各岗绑定面全绑（绑定件=矩阵单源，指针=07 §4 补遗）：派发对象=矩阵登记的 ops-* 绑定代理——
-系统默认代理（general-purpose 等跟随宿主、无绑定）禁承载矩阵岗，误派即停、按矩阵默认重派并
+系统默认代理（general-purpose 等跟随宿主、无绑定）禁承载矩阵岗，误派即停、按 local pick 重派并
 账本留痕；唯一例外=实证裁决岗实证部（无绑定件·随宿主承载·意图档位声明＋账本 session:host-tier）。
 绑定纪律与 `$max` 档位约束全部设 model 字段的岗；改绑=用户裁决位。
 

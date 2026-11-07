@@ -1075,54 +1075,24 @@ if (isMain) {
 
   let installFailCount = 0
   if (argv.includes('--install')) {
-    console.log('[install] 首装模式——四动作：③a本机件脚手架（org-config.local.json，v2.1.0 三层化批）/ ④补缺失代理件 / ⑤hooksPath 未设时补设 / ③宿主事实派生项目覆盖件（护栏：不覆盖已存在件/不改 org-config.default.json 与宿主配置）')
-    // ③a 先行：本机件就位后，后续 loadOrgConfig 的合并结果才含本机实值
-    let lcLine = 'install-localconfig——跳过：默认件装载失败'
-    try {
-      lcLine = installLocalConfig(readJson(join(SKILL_ROOT, 'org-config.default.json')), join(SKILL_ROOT, 'org-config.local.json')).line
-    } catch (e) {
-      lcLine = `install-localconfig——跳过：默认件装载失败（${e.message}）——处置=核对 org-config.default.json 后复跑`
+    // INFRA1 批（D-3）：散置脚手架收编 org-bootstrap（单源）；本 CLI 面保留为委托入口。
+    // 四动作语义不变（③a本机件脚手架/④补缺失代理件/⑤hooksPath/③宿主事实派生），
+    // 护栏不变（不覆盖已存在件/不改 org-config.default.json 与宿主配置）。
+    console.log('[install] 首装模式——散置脚手架已收编 org-bootstrap（INFRA1 D-3·账本 1127 幂等续配）；四动作委托执行：③a本机件脚手架 / ④补缺失代理件 / ⑤hooksPath 未设时补设 / ③宿主事实派生项目覆盖件')
+    const bsPath = join(SKILL_ROOT, 'scripts', 'org-bootstrap.mjs')
+    if (!existsSync(bsPath)) {
+      console.log('[FAIL] install——org-bootstrap.mjs 缺件（委托单源不可达）：' + bsPath)
+      installFailCount++
+    } else {
+      const bs = spawnSync(process.execPath, [bsPath, 'install'], { cwd: SKILL_ROOT, encoding: 'utf8' })
+      for (const l of String(bs.stdout || '').split('\n')) if (l.trim()) console.log(l)
+      for (const l of String(bs.stderr || '').split('\n')) if (l.trim()) console.error(l)
+      if (bs.status !== 0) installFailCount++
     }
-    console.log(`[install] ${lcLine}`)
-    let tplBindings = {}
-    let tplOverrides = null
-    let tplLoadErr = null
-    try { const tplMerged = loadOrgConfig(SKILL_ROOT).merged; tplBindings = tplMerged.agent_bindings || {}; tplOverrides = tplMerged.thought_level_overrides ?? null } catch (e) { tplLoadErr = e.message /* 返工 W10a：真因分行呈现，不并入「缺绑定」误归因 */ }
-    if (tplLoadErr) console.log(`[warn] agent_bindings 装载失败（${tplLoadErr}）——下行如报「占位缺绑定」可能为误归因，先修本机件 JSON`)
-    console.log(`[install] ${installAgents(agentsDir, tplBindings, tplOverrides).line}`)
-    console.log(`[install] ${installHook()}`)
-    // g3 动作③（返工轮 1 R1/R2 重构错误处置——代码审查（岗）W2/W3）：三源分行归因——
-    // ① org-config 装载失败（默认件/覆盖件坏）→干净跳过（warn+指引，不裸崩
-    //    不硬停 install 其余动作；覆盖件=用户手改域，note 明示装后可自由改写）；
-    // ② 宿主配置装载失败→跳过+指引（现语义维持）；
-    // ③ installHostFacts 自包写盘段 try/catch——IO/回读抛错=FAIL 结果带真因，
-    //    [FAIL] 行计入阻断（exit 1），不再笼统误报「宿主配置装载失败」。
-    let hf
-    let oc = null
-    try {
-      oc = loadOrgConfig(SKILL_ROOT)
-    } catch (e) {
-      hf = { wrote: false, level: 'warn', line: `install-hostfacts——跳过：org-config 装载失败（${e.message}）——处置=修复或移除 .zcode/org-config.json（用户域件）/核对默认件后复跑；手工路径=DEPLOY §3` }
-    }
-    if (oc) {
-      let hostCfg = null
-      try {
-        hostCfg = readHostConfig()
-      } catch (e) {
-        hf = { wrote: false, level: 'warn', line: `install-hostfacts——跳过：宿主配置装载失败（${e.message}）——手工路径=DEPLOY §3` }
-      }
-      if (hostCfg) hf = installHostFacts(oc.merged, hostCfg, oc.overPath)
-      // 返工轮 2 R5（W1-r1，纵深防御——evolve-b6 同族）：readHostConfig 返
-      // falsy 的兜底（改述 g3-w1r1：宿主 config 内容为字面 null=合法 JSON，
-      // readJson 不抛错、readHostConfig 返 null——极端罕见但可达，非「不可达」；
-      // 缺席文件形态实装必抛 ENOENT 走上行 catch——补 else 消 hf 未定义暴露面，
-      // 非修活缺陷）
-      else
-        hf = { wrote: false, level: 'warn', line: `install-hostfacts——跳过：宿主配置不可读/缺席（readHostConfig 返回 ${hostCfg === null ? 'null' : typeof hostCfg}——理论形态，实装缺席必抛 ENOENT 由装载失败行承接）——手工路径=DEPLOY §3` }
-    }
-    if (hf.level === 'FAIL') installFailCount++
-    console.log(hf.level === 'FAIL' ? `[FAIL] ${hf.line}` : `[install] ${hf.line}`)
   }
+
+  // （INFRA1 D-3 起 --install 走 org-bootstrap 委托——旧四动作内联块已收编，
+  //  历史实现见 git 历史；以下 --sync-agents 与检查面不动。）
 
   // --sync-agents（P2）：显式重渲染模式——只做同步即退出（不与检查面混跑；
   // 与 --install 并列：同给时先执行 install 三动作再全量同步覆盖，各自语义不动）。

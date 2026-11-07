@@ -38,8 +38,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
 export const SKILL_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const DEFAULT_CFG = join(SKILL_ROOT, 'org-config.default.json')
-const LOCAL_CFG = join(SKILL_ROOT, 'org-config.local.json')
+export const DEFAULT_CFG = join(SKILL_ROOT, 'org-config.default.json')
+export const LOCAL_CFG = join(SKILL_ROOT, 'org-config.local.json')
 
 /** JSON 读取（剥 UTF-8 BOM——Windows 编辑器常见，审核链 ds-N2；语法错误带路径上下文）。
  *  返回值语义归档（g3-w1r1）：合法 JSON 字面 null → 返 null 非 throw——
@@ -501,6 +501,25 @@ export function validateLocalFacts(cfg) {
           errors.push(`thought_level_overrides.${role}=${JSON.stringify(lv)} 非法档位——仅允许 low|high|max`)
       }
   }
+  return errors
+}
+
+// ── INFRA1 批（D-1）：顺序来源墙——账本 1126「废除模型默认排序与出厂排序概念」。
+//    顺序键单源=org-config.local.json（面板写面）；default/project 携带顺序键=配置错
+//    （fail-closed），default 物理删除同样拒绝（不得改用矩阵）。纯函数供 validate 与
+//    agent-slots/org-bootstrap 共用（谓词单源，禁各自复写）。 ──
+export const ORDER_SOURCE_KEYS = ['agent_defaults', 'role_fallbacks']
+export const DEFAULT_ONLY_ORDER_KEYS = ['role_order_note']
+/** 来源墙判定：返回错误数组（空=通过）。layerCfg 为各层原始 JSON（非合并结果）。 */
+export function validateOrderSourceWall({ defaultCfg = null, projectCfg = null } = {}) {
+  const errors = []
+  const hit = (cfg, keys) => (cfg && typeof cfg === 'object' ? keys.filter((k) => Object.prototype.hasOwnProperty.call(cfg, k)) : [])
+  const defHit = hit(defaultCfg, [...ORDER_SOURCE_KEYS, ...DEFAULT_ONLY_ORDER_KEYS])
+  if (defHit.length)
+    errors.push(`org-config.default.json 携带顺序键 ${defHit.join('/')}——顺序单源=org-config.local.json（面板写面），默认件禁承载出厂排序（账本 1126）`)
+  const projHit = hit(projectCfg, ORDER_SOURCE_KEYS)
+  if (projHit.length)
+    errors.push(`项目覆盖件 .zcode/org-config.json 携带顺序键 ${projHit.join('/')}——顺序单源=org-config.local.json，项目覆盖件禁携带 agent_defaults/role_fallbacks`)
   return errors
 }
 
@@ -1154,6 +1173,19 @@ if (isMain) {
     t('RT1B authz：默认件 authorization_policy 分区闭集校验零错误', validateAuthorizationPolicy(readJson(DEFAULT_CFG)).length === 0)
     t('RT1B authz：分区缺失→错误行', validateAuthorizationPolicy({}).length === 1)
     t('RT1B authz：多余键/弱化安全不变量→错误行点名', (() => { const c = readJson(DEFAULT_CFG); const p = structuredClone(c.authorization_policy); p.bogus = 1; p.validity.revoked = 'allow'; const e = validateAuthorizationPolicy({ authorization_policy: p }); return e.some((m) => m.includes('bogus')) && e.some((m) => m.includes('validity.revoked')) })())
+    // INFRA1 批（D-1）来源墙向量：default/project 携带顺序键即拒；净层零错误
+    t('INFRA1 D-1 来源墙：default 携带 agent_defaults/role_fallbacks/role_order_note→逐键错误行', (() => {
+      const e = validateOrderSourceWall({ defaultCfg: { agent_defaults: {}, role_fallbacks: {}, role_order_note: 'x' }, projectCfg: null })
+      return e.length === 1 && e[0].includes('agent_defaults') && e[0].includes('role_fallbacks') && e[0].includes('role_order_note') && e[0].includes('org-config.local.json')
+    })())
+    t('INFRA1 D-1 来源墙：项目覆盖件携带 agent_defaults/role_fallbacks→错误行点名项目覆盖件', (() => {
+      const e = validateOrderSourceWall({ defaultCfg: {}, projectCfg: { agent_defaults: { executor: 'x' } } })
+      return e.length === 1 && e[0].includes('项目覆盖件') && e[0].includes('agent_defaults')
+    })())
+    t('INFRA1 D-1 来源墙：净层（default/project 均无顺序键）→零错误；role_order_note 仅禁 default 侧', (() => {
+      return validateOrderSourceWall({ defaultCfg: { providers: {} }, projectCfg: { providers: {} } }).length === 0
+        && validateOrderSourceWall({ defaultCfg: {}, projectCfg: { role_order_note: 'x' } }).length === 0
+    })())
     // localDateStr 通用向量（临时窗机制退役后仅存通用日期助手）
     t('localDateStr：本地日期补零（2026-01-05）', localDateStr(new Date(2026, 0, 5)) === '2026-01-05')
     t('localDateStr：月/日双位补零（2026-12-09）', localDateStr(new Date(2026, 11, 9)) === '2026-12-09')
@@ -1216,7 +1248,13 @@ if (isMain) {
   } else if (cmd === 'validate') {
     let errors
     try {
-      errors = [...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged), ...validateAgentSlots(merged), ...validateFlagsPartition(merged), ...validateAuthorizationPolicy(merged)]
+      // INFRA1 D-1 顺序来源墙：default/project 层原始件携带顺序键即拒（合并结果无法
+      // 定位来源层，故此处直接读层件；local 缺席由 validateAgentSlots 的合并面承接）。
+      const wallErrors = validateOrderSourceWall({
+        defaultCfg: readJson(DEFAULT_CFG),
+        projectCfg: hasOverride ? readJson(overPath) : null,
+      })
+      errors = [...wallErrors, ...validateProviders(merged), ...validateCrossGatePairs(merged), ...validateLocalFacts(merged), ...validateAgentSlots(merged), ...validateFlagsPartition(merged), ...validateAuthorizationPolicy(merged)]
     } catch (e) {
       console.error(`[fatal] validate 途中宿主配置装载失败: ${e.message}（06 §5.8 行 3=配置/装载错）`)
       process.exit(3)
