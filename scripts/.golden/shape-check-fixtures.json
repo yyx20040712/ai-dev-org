@@ -2,7 +2,16 @@
  "schema_version": "shape-check-fixtures/v1",
  "mutation_targets": [
   "exact_keys_skip",
-  "hash_recompute_skip"
+  "hash_recompute_skip",
+  "required_skip",
+  "additional_properties_skip",
+  "oneof_weaken",
+  "anyof_weaken",
+  "allof_weaken",
+  "not_weaken",
+  "if_then_weaken",
+  "ref_fail_open",
+  "cache_cross_content"
  ],
  "vectors": [
   {
@@ -2379,6 +2388,4327 @@
     "exitCode": 1
    },
    "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-OPREF-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "OperationRef",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "operationId": "op-1",
+      "kind": "cutover_stop",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "revision": 1,
+      "hash": "abababababababababababababababababababababababababababababababab",
+      "epoch": 0,
+      "stopEpoch": 0
+     },
+     "rt": "OperationRef:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-OPREF-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "OperationRef",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "operationId": "op-1",
+      "kind": "cutover_stop",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "revision": 1,
+      "epoch": 0,
+      "stopEpoch": 0
+     },
+     "rt": "OperationRef:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": "required_skip"
+  },
+  {
+   "fixture_id": "SC-SFS-OPREF-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "OperationRef",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "operationId": "op-1",
+      "kind": "cutover_stop",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "revision": 1,
+      "hash": "abababababababababababababababababababababababababababababababab",
+      "epoch": 0,
+      "stopEpoch": 0
+     },
+     "identity": true,
+     "rt": "OperationRef:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-OPREF-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "OperationRef",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "narrow_pattern",
+       "key": "hash"
+      }
+     },
+     "value": {
+      "operationId": "op-1",
+      "kind": "cutover_stop",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "revision": 1,
+      "hash": "abababababababababababababababababababababababababababababababab",
+      "epoch": 0,
+      "stopEpoch": 0
+     },
+     "rt": "OperationRef:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CREF-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ConfirmedRef",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "operationId": "op-1",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "revision": 1,
+      "hash": "abababababababababababababababababababababababababababababababab",
+      "epoch": 0
+     },
+     "rt": "ConfirmedRef:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CREF-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ConfirmedRef",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "operationId": "op-1",
+      "candidateHash": "zz",
+      "revision": 1,
+      "hash": "abababababababababababababababababababababababababababababababab",
+      "epoch": 0
+     },
+     "rt": "ConfirmedRef:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CREF-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ConfirmedRef",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "operationId": "op-1",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "revision": 1,
+      "hash": "abababababababababababababababababababababababababababababababab",
+      "epoch": 0
+     },
+     "identity": true,
+     "rt": "ConfirmedRef:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CREF-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ConfirmedRef",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "narrow_pattern",
+       "key": "hash"
+      }
+     },
+     "value": {
+      "operationId": "op-1",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "revision": 1,
+      "hash": "abababababababababababababababababababababababababababababababab",
+      "epoch": 0
+     },
+     "rt": "ConfirmedRef:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-ABAP-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "AbandonApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "abortEvidenceRef": "ev-1.json",
+      "abortEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "AbandonApproval:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-ABAP-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "AbandonApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "abortEvidenceRef": "ev-1.json",
+      "abortEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "statement": "x"
+     },
+     "rt": "AbandonApproval:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-ABAP-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "AbandonApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "abortEvidenceRef": "ev-1.json",
+      "abortEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "identity": true,
+     "rt": "AbandonApproval:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-ABAP-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "AbandonApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "require_extra",
+       "key": "syntheticKey"
+      }
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "abortEvidenceRef": "ev-1.json",
+      "abortEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "AbandonApproval:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CFAP-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ConfirmApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "candidatePath": "candidates/op-1.json",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "targetAuthorityEpoch": 0,
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "ConfirmApproval:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CFAP-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ConfirmApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "candidatePath": "candidates/op-1.json",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "targetAuthorityEpoch": -1,
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "ConfirmApproval:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CFAP-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ConfirmApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "candidatePath": "candidates/op-1.json",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "targetAuthorityEpoch": 0,
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "identity": true,
+     "rt": "ConfirmApproval:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CFAP-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ConfirmApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "narrow_pattern",
+       "key": "candidateHash"
+      }
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "candidatePath": "candidates/op-1.json",
+      "candidateHash": "abababababababababababababababababababababababababababababababab",
+      "targetAuthorityEpoch": 0,
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "ConfirmApproval:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTAP-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "stateUuid": "su-x",
+      "authorityEpoch": 0,
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "controllerDescriptor": {
+       "session_uuid": "sess-ctrl",
+       "project_id": "proj-fs",
+       "kind": "rt1a",
+       "role": "controller",
+       "started_at": "2026-11-05T10:00:00Z",
+       "parent_session_id": null,
+       "resume_of": null,
+       "cfg_hash": "abababababababababababababababababababababababababababababababab",
+       "route_snapshot": {},
+       "binding_snapshot_ref": "route.json",
+       "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+      },
+      "assignedAt": "2026-11-05T10:00:00Z",
+      "controllerEvidenceRef": "ev-c.json",
+      "controllerEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "stopEvidenceRef": "ev-s.json",
+      "stopEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "CutoverApproval:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTAP-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "stateUuid": "su-x",
+      "authorityEpoch": 0,
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "controllerDescriptor": {
+       "session_uuid": "sess-ctrl",
+       "project_id": "proj-fs",
+       "kind": "rt1a",
+       "role": "controller",
+       "started_at": "2026-11-05T10:00:00Z",
+       "parent_session_id": null,
+       "resume_of": null,
+       "cfg_hash": "abababababababababababababababababababababababababababababababab",
+       "route_snapshot": {},
+       "binding_snapshot_ref": "route.json",
+       "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+      },
+      "assignedAt": "not-a-date",
+      "controllerEvidenceRef": "ev-c.json",
+      "controllerEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "stopEvidenceRef": "ev-s.json",
+      "stopEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "CutoverApproval:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTAP-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "stateUuid": "su-x",
+      "authorityEpoch": 0,
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "controllerDescriptor": {
+       "session_uuid": "sess-ctrl",
+       "project_id": "proj-fs",
+       "kind": "rt1a",
+       "role": "controller",
+       "started_at": "2026-11-05T10:00:00Z",
+       "parent_session_id": null,
+       "resume_of": null,
+       "cfg_hash": "abababababababababababababababababababababababababababababababab",
+       "route_snapshot": {},
+       "binding_snapshot_ref": "route.json",
+       "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+      },
+      "assignedAt": "2026-11-05T10:00:00Z",
+      "controllerEvidenceRef": "ev-c.json",
+      "controllerEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "stopEvidenceRef": "ev-s.json",
+      "stopEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "identity": true,
+     "rt": "CutoverApproval:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTAP-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "require_extra",
+       "key": "syntheticKey"
+      }
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "stateUuid": "su-x",
+      "authorityEpoch": 0,
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "controllerDescriptor": {
+       "session_uuid": "sess-ctrl",
+       "project_id": "proj-fs",
+       "kind": "rt1a",
+       "role": "controller",
+       "started_at": "2026-11-05T10:00:00Z",
+       "parent_session_id": null,
+       "resume_of": null,
+       "cfg_hash": "abababababababababababababababababababababababababababababababab",
+       "route_snapshot": {},
+       "binding_snapshot_ref": "route.json",
+       "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+      },
+      "assignedAt": "2026-11-05T10:00:00Z",
+      "controllerEvidenceRef": "ev-c.json",
+      "controllerEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "stopEvidenceRef": "ev-s.json",
+      "stopEvidenceHash": "abababababababababababababababababababababababababababababababab",
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "CutoverApproval:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-FRAP-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ForwardRecoveryApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "confirmedOperationId": "op-0",
+      "operationId": "op-1",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "targetAuthorityEpoch": 0,
+      "recoveryTimestamp": "2026-11-05T10:00:00Z",
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "ForwardRecoveryApproval:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-FRAP-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ForwardRecoveryApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "confirmedOperationId": "op-0",
+      "operationId": "op-1",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "targetAuthorityEpoch": 0,
+      "recoveryTimestamp": "2026-11-05T10:00:00Z",
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "controllerDescriptor": {
+       "session_uuid": "sess-ctrl",
+       "project_id": "proj-fs",
+       "kind": "rt1a",
+       "role": "controller",
+       "started_at": "2026-11-05T10:00:00Z",
+       "parent_session_id": null,
+       "resume_of": null,
+       "cfg_hash": "abababababababababababababababababababababababababababababababab",
+       "route_snapshot": {},
+       "binding_snapshot_ref": "route.json",
+       "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+      }
+     },
+     "rt": "ForwardRecoveryApproval:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-FRAP-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ForwardRecoveryApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "confirmedOperationId": "op-0",
+      "operationId": "op-1",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "targetAuthorityEpoch": 0,
+      "recoveryTimestamp": "2026-11-05T10:00:00Z",
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "identity": true,
+     "rt": "ForwardRecoveryApproval:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-FRAP-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "ForwardRecoveryApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "require_extra",
+       "key": "syntheticKey"
+      }
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "confirmedOperationId": "op-0",
+      "operationId": "op-1",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "targetAuthorityEpoch": 0,
+      "recoveryTimestamp": "2026-11-05T10:00:00Z",
+      "allowedCallers": [
+       {
+        "principal": "host",
+        "callerSessionId": null
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "ForwardRecoveryApproval:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTEN-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverEntry",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "operationId": "op-1",
+      "status": "stopping",
+      "principal": "host",
+      "callerSessionId": "host",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "stateUuid": "su-x",
+      "authorityEpoch": 0,
+      "approvalRef": "app-1.json",
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "stopRef": {
+       "operationId": "op-1",
+       "kind": "cutover_stop",
+       "parentRevision": 0,
+       "parentHash": "abababababababababababababababababababababababababababababababab",
+       "revision": 1,
+       "hash": "abababababababababababababababababababababababababababababababab",
+       "epoch": 0,
+       "stopEpoch": 0
+      },
+      "entryHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "CutoverEntry:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTEN-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverEntry",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "operationId": "op-1",
+      "status": "bogus",
+      "principal": "host",
+      "callerSessionId": "host",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "stateUuid": "su-x",
+      "authorityEpoch": 0,
+      "approvalRef": "app-1.json",
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "stopRef": {
+       "operationId": "op-1",
+       "kind": "cutover_stop",
+       "parentRevision": 0,
+       "parentHash": "abababababababababababababababababababababababababababababababab",
+       "revision": 1,
+       "hash": "abababababababababababababababababababababababababababababababab",
+       "epoch": 0,
+       "stopEpoch": 0
+      },
+      "entryHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "CutoverEntry:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTEN-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverEntry",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "operationId": "op-1",
+      "status": "stopping",
+      "principal": "host",
+      "callerSessionId": "host",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "stateUuid": "su-x",
+      "authorityEpoch": 0,
+      "approvalRef": "app-1.json",
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "stopRef": {
+       "operationId": "op-1",
+       "kind": "cutover_stop",
+       "parentRevision": 0,
+       "parentHash": "abababababababababababababababababababababababababababababababab",
+       "revision": 1,
+       "hash": "abababababababababababababababababababababababababababababababab",
+       "epoch": 0,
+       "stopEpoch": 0
+      },
+      "entryHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "identity": true,
+     "rt": "CutoverEntry:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTEN-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverEntry",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "require_extra",
+       "key": "syntheticKey"
+      }
+     },
+     "value": {
+      "operationId": "op-1",
+      "status": "stopping",
+      "principal": "host",
+      "callerSessionId": "host",
+      "parentRevision": 0,
+      "parentHash": "abababababababababababababababababababababababababababababababab",
+      "stateUuid": "su-x",
+      "authorityEpoch": 0,
+      "approvalRef": "app-1.json",
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "stopRef": {
+       "operationId": "op-1",
+       "kind": "cutover_stop",
+       "parentRevision": 0,
+       "parentHash": "abababababababababababababababababababababababababababababababab",
+       "revision": 1,
+       "hash": "abababababababababababababababababababababababababababababababab",
+       "epoch": 0,
+       "stopEpoch": 0
+      },
+      "entryHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "CutoverEntry:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTJ-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverJournal",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "schema": "cutover-journal/v1",
+      "generation": 0,
+      "previousHeadHash": "abababababababababababababababababababababababababababababababab",
+      "headHash": "abababababababababababababababababababababababababababababababab",
+      "entries": [
+       {
+        "operationId": "op-1",
+        "status": "stopping",
+        "principal": "host",
+        "callerSessionId": "host",
+        "parentRevision": 0,
+        "parentHash": "abababababababababababababababababababababababababababababababab",
+        "stateUuid": "su-x",
+        "authorityEpoch": 0,
+        "approvalRef": "app-1.json",
+        "approvalHash": "abababababababababababababababababababababababababababababababab",
+        "stopRef": {
+         "operationId": "op-1",
+         "kind": "cutover_stop",
+         "parentRevision": 0,
+         "parentHash": "abababababababababababababababababababababababababababababababab",
+         "revision": 1,
+         "hash": "abababababababababababababababababababababababababababababababab",
+         "epoch": 0,
+         "stopEpoch": 0
+        },
+        "entryHash": "abababababababababababababababababababababababababababababababab"
+       }
+      ]
+     },
+     "rt": "CutoverJournal:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTJ-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverJournal",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "schema": "cutover-journal/v1",
+      "generation": 0,
+      "previousHeadHash": "abababababababababababababababababababababababababababababababab",
+      "headHash": "abababababababababababababababababababababababababababababababab",
+      "entries": "x"
+     },
+     "rt": "CutoverJournal:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTJ-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverJournal",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "schema": "cutover-journal/v1",
+      "generation": 0,
+      "previousHeadHash": "abababababababababababababababababababababababababababababababab",
+      "headHash": "abababababababababababababababababababababababababababababababab",
+      "entries": [
+       {
+        "operationId": "op-1",
+        "status": "stopping",
+        "principal": "host",
+        "callerSessionId": "host",
+        "parentRevision": 0,
+        "parentHash": "abababababababababababababababababababababababababababababababab",
+        "stateUuid": "su-x",
+        "authorityEpoch": 0,
+        "approvalRef": "app-1.json",
+        "approvalHash": "abababababababababababababababababababababababababababababababab",
+        "stopRef": {
+         "operationId": "op-1",
+         "kind": "cutover_stop",
+         "parentRevision": 0,
+         "parentHash": "abababababababababababababababababababababababababababababababab",
+         "revision": 1,
+         "hash": "abababababababababababababababababababababababababababababababab",
+         "epoch": 0,
+         "stopEpoch": 0
+        },
+        "entryHash": "abababababababababababababababababababababababababababababababab"
+       }
+      ]
+     },
+     "identity": true,
+     "rt": "CutoverJournal:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTJ-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverJournal",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "require_extra",
+       "key": "syntheticKey"
+      }
+     },
+     "value": {
+      "schema": "cutover-journal/v1",
+      "generation": 0,
+      "previousHeadHash": "abababababababababababababababababababababababababababababababab",
+      "headHash": "abababababababababababababababababababababababababababababababab",
+      "entries": [
+       {
+        "operationId": "op-1",
+        "status": "stopping",
+        "principal": "host",
+        "callerSessionId": "host",
+        "parentRevision": 0,
+        "parentHash": "abababababababababababababababababababababababababababababababab",
+        "stateUuid": "su-x",
+        "authorityEpoch": 0,
+        "approvalRef": "app-1.json",
+        "approvalHash": "abababababababababababababababababababababababababababababababab",
+        "stopRef": {
+         "operationId": "op-1",
+         "kind": "cutover_stop",
+         "parentRevision": 0,
+         "parentHash": "abababababababababababababababababababababababababababababababab",
+         "revision": 1,
+         "hash": "abababababababababababababababababababababababababababababababab",
+         "epoch": 0,
+         "stopEpoch": 0
+        },
+        "entryHash": "abababababababababababababababababababababababababababababababab"
+       }
+      ]
+     },
+     "rt": "CutoverJournal:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTCD-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverCandidate",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "candidatePath": "candidates/op-1.json",
+      "candidateRef": {
+       "operationId": "op-1",
+       "kind": "cutover_stop",
+       "parentRevision": 0,
+       "parentHash": "abababababababababababababababababababababababababababababababab",
+       "revision": 1,
+       "hash": "abababababababababababababababababababababababababababababababab",
+       "epoch": 0,
+       "stopEpoch": 0
+      },
+      "state": {
+       "schema": "run-state/revision/v1",
+       "state_uuid": "su-x",
+       "revision": 1,
+       "owner_session_id": "sess-ctrl",
+       "parent_revision": 0,
+       "parent_hash": "abababababababababababababababababababababababababababababababab",
+       "self_hash": "abababababababababababababababababababababababababababababababab",
+       "active_run": null,
+       "queue": [],
+       "effects": [],
+       "authorization": {
+        "controller": {
+         "session_uuid": "sess-ctrl",
+         "assigned_at": "2026-11-05T10:00:00Z",
+         "released_at": null,
+         "evidence_ref": "ev-1.json",
+         "blocked": false
+        },
+        "controller_epoch": 1,
+        "stop_epoch": 0
+       },
+       "reviews": [],
+       "sessions": {
+        "sess-ctrl": {
+         "descriptor": {
+          "session_uuid": "sess-ctrl",
+          "project_id": "proj-fs",
+          "kind": "rt1a",
+          "role": "controller",
+          "started_at": "2026-11-05T10:00:00Z",
+          "parent_session_id": null,
+          "resume_of": null,
+          "cfg_hash": "abababababababababababababababababababababababababababababababab",
+          "route_snapshot": {},
+          "binding_snapshot_ref": "route.json",
+          "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+         },
+         "live_state": {
+          "revision": 0,
+          "lifecycle": "OPEN",
+          "work_outcome": "IN_PROGRESS",
+          "current_run": null,
+          "next_action": "n",
+          "waiting_user": {
+           "question": "q",
+           "options": [
+            "a"
+           ],
+           "waiting_since": "2026-11-05T10:00:00Z",
+           "blocked_items": [],
+           "resume_phase": "p"
+          },
+          "last_activity": "2026-11-05T10:00:00Z",
+          "heartbeat": "2026-11-05T10:00:00Z",
+          "attention_reasons": []
+         },
+         "closure_index": {
+          "closure_head_hash": "abababababababababababababababababababababababababababababababab",
+          "closure_count": 0,
+          "recent_entries": []
+         }
+        }
+       },
+       "pending_closures": {},
+       "applied_operations": [],
+       "pending_audit": 0
+      }
+     },
+     "rt": "CutoverCandidate:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTCD-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverCandidate",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "candidatePath": "candidates/op-1.json",
+      "candidateRef": {
+       "operationId": "op-1",
+       "kind": "cutover_stop",
+       "parentRevision": 0,
+       "parentHash": "abababababababababababababababababababababababababababababababab",
+       "revision": 1,
+       "hash": "abababababababababababababababababababababababababababababababab",
+       "epoch": 0,
+       "stopEpoch": 0
+      }
+     },
+     "rt": "CutoverCandidate:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTCD-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverCandidate",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "candidatePath": "candidates/op-1.json",
+      "candidateRef": {
+       "operationId": "op-1",
+       "kind": "cutover_stop",
+       "parentRevision": 0,
+       "parentHash": "abababababababababababababababababababababababababababababababab",
+       "revision": 1,
+       "hash": "abababababababababababababababababababababababababababababababab",
+       "epoch": 0,
+       "stopEpoch": 0
+      },
+      "state": {
+       "schema": "run-state/revision/v1",
+       "state_uuid": "su-x",
+       "revision": 1,
+       "owner_session_id": "sess-ctrl",
+       "parent_revision": 0,
+       "parent_hash": "abababababababababababababababababababababababababababababababab",
+       "self_hash": "abababababababababababababababababababababababababababababababab",
+       "active_run": null,
+       "queue": [],
+       "effects": [],
+       "authorization": {
+        "controller": {
+         "session_uuid": "sess-ctrl",
+         "assigned_at": "2026-11-05T10:00:00Z",
+         "released_at": null,
+         "evidence_ref": "ev-1.json",
+         "blocked": false
+        },
+        "controller_epoch": 1,
+        "stop_epoch": 0
+       },
+       "reviews": [],
+       "sessions": {
+        "sess-ctrl": {
+         "descriptor": {
+          "session_uuid": "sess-ctrl",
+          "project_id": "proj-fs",
+          "kind": "rt1a",
+          "role": "controller",
+          "started_at": "2026-11-05T10:00:00Z",
+          "parent_session_id": null,
+          "resume_of": null,
+          "cfg_hash": "abababababababababababababababababababababababababababababababab",
+          "route_snapshot": {},
+          "binding_snapshot_ref": "route.json",
+          "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+         },
+         "live_state": {
+          "revision": 0,
+          "lifecycle": "OPEN",
+          "work_outcome": "IN_PROGRESS",
+          "current_run": null,
+          "next_action": "n",
+          "waiting_user": {
+           "question": "q",
+           "options": [
+            "a"
+           ],
+           "waiting_since": "2026-11-05T10:00:00Z",
+           "blocked_items": [],
+           "resume_phase": "p"
+          },
+          "last_activity": "2026-11-05T10:00:00Z",
+          "heartbeat": "2026-11-05T10:00:00Z",
+          "attention_reasons": []
+         },
+         "closure_index": {
+          "closure_head_hash": "abababababababababababababababababababababababababababababababab",
+          "closure_count": 0,
+          "recent_entries": []
+         }
+        }
+       },
+       "pending_closures": {},
+       "applied_operations": [],
+       "pending_audit": 0
+      }
+     },
+     "identity": true,
+     "rt": "CutoverCandidate:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CTCD-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CutoverCandidate",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "require_extra",
+       "key": "syntheticKey"
+      }
+     },
+     "value": {
+      "candidatePath": "candidates/op-1.json",
+      "candidateRef": {
+       "operationId": "op-1",
+       "kind": "cutover_stop",
+       "parentRevision": 0,
+       "parentHash": "abababababababababababababababababababababababababababababababab",
+       "revision": 1,
+       "hash": "abababababababababababababababababababababababababababababababab",
+       "epoch": 0,
+       "stopEpoch": 0
+      },
+      "state": {
+       "schema": "run-state/revision/v1",
+       "state_uuid": "su-x",
+       "revision": 1,
+       "owner_session_id": "sess-ctrl",
+       "parent_revision": 0,
+       "parent_hash": "abababababababababababababababababababababababababababababababab",
+       "self_hash": "abababababababababababababababababababababababababababababababab",
+       "active_run": null,
+       "queue": [],
+       "effects": [],
+       "authorization": {
+        "controller": {
+         "session_uuid": "sess-ctrl",
+         "assigned_at": "2026-11-05T10:00:00Z",
+         "released_at": null,
+         "evidence_ref": "ev-1.json",
+         "blocked": false
+        },
+        "controller_epoch": 1,
+        "stop_epoch": 0
+       },
+       "reviews": [],
+       "sessions": {
+        "sess-ctrl": {
+         "descriptor": {
+          "session_uuid": "sess-ctrl",
+          "project_id": "proj-fs",
+          "kind": "rt1a",
+          "role": "controller",
+          "started_at": "2026-11-05T10:00:00Z",
+          "parent_session_id": null,
+          "resume_of": null,
+          "cfg_hash": "abababababababababababababababababababababababababababababababab",
+          "route_snapshot": {},
+          "binding_snapshot_ref": "route.json",
+          "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+         },
+         "live_state": {
+          "revision": 0,
+          "lifecycle": "OPEN",
+          "work_outcome": "IN_PROGRESS",
+          "current_run": null,
+          "next_action": "n",
+          "waiting_user": {
+           "question": "q",
+           "options": [
+            "a"
+           ],
+           "waiting_since": "2026-11-05T10:00:00Z",
+           "blocked_items": [],
+           "resume_phase": "p"
+          },
+          "last_activity": "2026-11-05T10:00:00Z",
+          "heartbeat": "2026-11-05T10:00:00Z",
+          "attention_reasons": []
+         },
+         "closure_index": {
+          "closure_head_hash": "abababababababababababababababababababababababababababababababab",
+          "closure_count": 0,
+          "recent_entries": []
+         }
+        }
+       },
+       "pending_closures": {},
+       "applied_operations": [],
+       "pending_audit": 0
+      }
+     },
+     "rt": "CutoverCandidate:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-REV-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "run-state.schema.json",
+      "def": "Revision",
+      "registry_docs": [
+       "cutover.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "schema": "run-state/revision/v1",
+      "state_uuid": "su-x",
+      "revision": 1,
+      "owner_session_id": "sess-ctrl",
+      "parent_revision": 0,
+      "parent_hash": "abababababababababababababababababababababababababababababababab",
+      "self_hash": "abababababababababababababababababababababababababababababababab",
+      "active_run": null,
+      "queue": [],
+      "effects": [],
+      "authorization": {
+       "controller": {
+        "session_uuid": "sess-ctrl",
+        "assigned_at": "2026-11-05T10:00:00Z",
+        "released_at": null,
+        "evidence_ref": "ev-1.json",
+        "blocked": false
+       },
+       "controller_epoch": 1,
+       "stop_epoch": 0
+      },
+      "reviews": [],
+      "sessions": {
+       "sess-ctrl": {
+        "descriptor": {
+         "session_uuid": "sess-ctrl",
+         "project_id": "proj-fs",
+         "kind": "rt1a",
+         "role": "controller",
+         "started_at": "2026-11-05T10:00:00Z",
+         "parent_session_id": null,
+         "resume_of": null,
+         "cfg_hash": "abababababababababababababababababababababababababababababababab",
+         "route_snapshot": {},
+         "binding_snapshot_ref": "route.json",
+         "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+        },
+        "live_state": {
+         "revision": 0,
+         "lifecycle": "OPEN",
+         "work_outcome": "IN_PROGRESS",
+         "current_run": null,
+         "next_action": "n",
+         "waiting_user": {
+          "question": "q",
+          "options": [
+           "a"
+          ],
+          "waiting_since": "2026-11-05T10:00:00Z",
+          "blocked_items": [],
+          "resume_phase": "p"
+         },
+         "last_activity": "2026-11-05T10:00:00Z",
+         "heartbeat": "2026-11-05T10:00:00Z",
+         "attention_reasons": []
+        },
+        "closure_index": {
+         "closure_head_hash": "abababababababababababababababababababababababababababababababab",
+         "closure_count": 0,
+         "recent_entries": []
+        }
+       }
+      },
+      "pending_closures": {},
+      "applied_operations": [],
+      "pending_audit": 0
+     },
+     "rt": "Revision:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-REV-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "run-state.schema.json",
+      "def": "Revision",
+      "registry_docs": [
+       "cutover.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "schema": "run-state/revision/v1",
+      "state_uuid": "su-x",
+      "revision": 1,
+      "owner_session_id": "sess-ctrl",
+      "parent_revision": 0,
+      "parent_hash": "abababababababababababababababababababababababababababababababab",
+      "self_hash": "abababababababababababababababababababababababababababababababab",
+      "active_run": null,
+      "queue": [],
+      "effects": [],
+      "authorization": {
+       "controller": {
+        "session_uuid": "sess-ctrl",
+        "assigned_at": "2026-11-05T10:00:00Z",
+        "released_at": null,
+        "evidence_ref": "ev-1.json",
+        "blocked": false
+       },
+       "controller_epoch": 1,
+       "stop_epoch": 0
+      },
+      "reviews": [],
+      "sessions": {
+       "sess-ctrl": {
+        "descriptor": {
+         "session_uuid": "sess-ctrl",
+         "project_id": "proj-fs",
+         "kind": "rt1a",
+         "role": "controller",
+         "started_at": "2026-11-05T10:00:00Z",
+         "parent_session_id": null,
+         "resume_of": null,
+         "cfg_hash": "abababababababababababababababababababababababababababababababab",
+         "route_snapshot": {},
+         "binding_snapshot_ref": "route.json",
+         "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+        },
+        "live_state": {
+         "revision": 0,
+         "lifecycle": "BOGUS",
+         "work_outcome": "IN_PROGRESS",
+         "current_run": null,
+         "next_action": "n",
+         "waiting_user": {
+          "question": "q",
+          "options": [
+           "a"
+          ],
+          "waiting_since": "2026-11-05T10:00:00Z",
+          "blocked_items": [],
+          "resume_phase": "p"
+         },
+         "last_activity": "2026-11-05T10:00:00Z",
+         "heartbeat": "2026-11-05T10:00:00Z",
+         "attention_reasons": []
+        },
+        "closure_index": {
+         "closure_head_hash": "abababababababababababababababababababababababababababababababab",
+         "closure_count": 0,
+         "recent_entries": []
+        }
+       }
+      },
+      "pending_closures": {},
+      "applied_operations": [],
+      "pending_audit": 0
+     },
+     "rt": "Revision:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-REV-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "run-state.schema.json",
+      "def": "Revision",
+      "registry_docs": [
+       "cutover.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "schema": "run-state/revision/v1",
+      "state_uuid": "su-x",
+      "revision": 1,
+      "owner_session_id": "sess-ctrl",
+      "parent_revision": 0,
+      "parent_hash": "abababababababababababababababababababababababababababababababab",
+      "self_hash": "abababababababababababababababababababababababababababababababab",
+      "active_run": null,
+      "queue": [],
+      "effects": [],
+      "authorization": {
+       "controller": {
+        "session_uuid": "sess-ctrl",
+        "assigned_at": "2026-11-05T10:00:00Z",
+        "released_at": null,
+        "evidence_ref": "ev-1.json",
+        "blocked": false
+       },
+       "controller_epoch": 1,
+       "stop_epoch": 0
+      },
+      "reviews": [],
+      "sessions": {
+       "sess-ctrl": {
+        "descriptor": {
+         "session_uuid": "sess-ctrl",
+         "project_id": "proj-fs",
+         "kind": "rt1a",
+         "role": "controller",
+         "started_at": "2026-11-05T10:00:00Z",
+         "parent_session_id": null,
+         "resume_of": null,
+         "cfg_hash": "abababababababababababababababababababababababababababababababab",
+         "route_snapshot": {},
+         "binding_snapshot_ref": "route.json",
+         "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+        },
+        "live_state": {
+         "revision": 0,
+         "lifecycle": "OPEN",
+         "work_outcome": "IN_PROGRESS",
+         "current_run": null,
+         "next_action": "n",
+         "waiting_user": {
+          "question": "q",
+          "options": [
+           "a"
+          ],
+          "waiting_since": "2026-11-05T10:00:00Z",
+          "blocked_items": [],
+          "resume_phase": "p"
+         },
+         "last_activity": "2026-11-05T10:00:00Z",
+         "heartbeat": "2026-11-05T10:00:00Z",
+         "attention_reasons": []
+        },
+        "closure_index": {
+         "closure_head_hash": "abababababababababababababababababababababababababababababababab",
+         "closure_count": 0,
+         "recent_entries": []
+        }
+       }
+      },
+      "pending_closures": {},
+      "applied_operations": [],
+      "pending_audit": 0
+     },
+     "identity": true,
+     "rt": "Revision:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-REV-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "run-state.schema.json",
+      "def": "Revision",
+      "registry_docs": [
+       "cutover.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "require_extra",
+       "key": "syntheticKey"
+      }
+     },
+     "value": {
+      "schema": "run-state/revision/v1",
+      "state_uuid": "su-x",
+      "revision": 1,
+      "owner_session_id": "sess-ctrl",
+      "parent_revision": 0,
+      "parent_hash": "abababababababababababababababababababababababababababababababab",
+      "self_hash": "abababababababababababababababababababababababababababababababab",
+      "active_run": null,
+      "queue": [],
+      "effects": [],
+      "authorization": {
+       "controller": {
+        "session_uuid": "sess-ctrl",
+        "assigned_at": "2026-11-05T10:00:00Z",
+        "released_at": null,
+        "evidence_ref": "ev-1.json",
+        "blocked": false
+       },
+       "controller_epoch": 1,
+       "stop_epoch": 0
+      },
+      "reviews": [],
+      "sessions": {
+       "sess-ctrl": {
+        "descriptor": {
+         "session_uuid": "sess-ctrl",
+         "project_id": "proj-fs",
+         "kind": "rt1a",
+         "role": "controller",
+         "started_at": "2026-11-05T10:00:00Z",
+         "parent_session_id": null,
+         "resume_of": null,
+         "cfg_hash": "abababababababababababababababababababababababababababababababab",
+         "route_snapshot": {},
+         "binding_snapshot_ref": "route.json",
+         "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+        },
+        "live_state": {
+         "revision": 0,
+         "lifecycle": "OPEN",
+         "work_outcome": "IN_PROGRESS",
+         "current_run": null,
+         "next_action": "n",
+         "waiting_user": {
+          "question": "q",
+          "options": [
+           "a"
+          ],
+          "waiting_since": "2026-11-05T10:00:00Z",
+          "blocked_items": [],
+          "resume_phase": "p"
+         },
+         "last_activity": "2026-11-05T10:00:00Z",
+         "heartbeat": "2026-11-05T10:00:00Z",
+         "attention_reasons": []
+        },
+        "closure_index": {
+         "closure_head_hash": "abababababababababababababababababababababababababababababababab",
+         "closure_count": 0,
+         "recent_entries": []
+        }
+       }
+      },
+      "pending_closures": {},
+      "applied_operations": [],
+      "pending_audit": 0
+     },
+     "rt": "Revision:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SEVT-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "SessionEvent",
+      "registry_docs": []
+     },
+     "value": {
+      "event_id": "evt-1",
+      "session_uuid": "sess-ctrl",
+      "kind": "inbox_message",
+      "evidence_ref": "ev-1.json",
+      "payload": {},
+      "created_at": "2026-11-05T10:00:00Z",
+      "status": "recorded"
+     },
+     "rt": "SessionEvent:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SEVT-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "SessionEvent",
+      "registry_docs": []
+     },
+     "value": {
+      "event_id": "evt-1",
+      "session_uuid": "sess-ctrl",
+      "kind": "inbox_message",
+      "evidence_ref": "ev-1.json",
+      "payload": {},
+      "created_at": "2026-11-05T10:00:00Z",
+      "status": "recorded",
+      "extra": 1
+     },
+     "rt": "SessionEvent:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": "additional_properties_skip"
+  },
+  {
+   "fixture_id": "SC-SFS-SEVT-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "SessionEvent",
+      "registry_docs": []
+     },
+     "value": {
+      "event_id": "evt-1",
+      "session_uuid": "sess-ctrl",
+      "kind": "inbox_message",
+      "evidence_ref": "ev-1.json",
+      "payload": {},
+      "created_at": "2026-11-05T10:00:00Z",
+      "status": "recorded"
+     },
+     "identity": true,
+     "rt": "SessionEvent:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SEVT-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "SessionEvent",
+      "registry_docs": [],
+      "def_mutation": {
+       "op": "drop_property_closed",
+       "key": "status"
+      }
+     },
+     "value": {
+      "event_id": "evt-1",
+      "session_uuid": "sess-ctrl",
+      "kind": "inbox_message",
+      "evidence_ref": "ev-1.json",
+      "payload": {},
+      "created_at": "2026-11-05T10:00:00Z",
+      "status": "recorded"
+     },
+     "rt": "SessionEvent:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-RAP-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "RecoveryApproval",
+      "registry_docs": []
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "kind": "applyApproved",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "baseRecordRevision": 0,
+      "baseStateRevision": 0
+     },
+     "rt": "RecoveryApproval:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-RAP-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "RecoveryApproval",
+      "registry_docs": []
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "kind": "applyApproved",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "RecoveryApproval:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-RAP-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "RecoveryApproval",
+      "registry_docs": []
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "kind": "applyApproved",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "baseRecordRevision": 0,
+      "baseStateRevision": 0
+     },
+     "identity": true,
+     "rt": "RecoveryApproval:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-RAP-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "RecoveryApproval",
+      "registry_docs": [],
+      "def_mutation": {
+       "op": "shrink_enum",
+       "key": "kind"
+      }
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "kind": "applyApproved",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "baseRecordRevision": 0,
+      "baseStateRevision": 0
+     },
+     "rt": "RecoveryApproval:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SDES-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "SessionDescriptor",
+      "registry_docs": []
+     },
+     "value": {
+      "session_uuid": "sess-ctrl",
+      "project_id": "proj-fs",
+      "kind": "rt1a",
+      "role": "controller",
+      "started_at": "2026-11-05T10:00:00Z",
+      "parent_session_id": null,
+      "resume_of": null,
+      "cfg_hash": "abababababababababababababababababababababababababababababababab",
+      "route_snapshot": {},
+      "binding_snapshot_ref": "route.json",
+      "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "SessionDescriptor:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SDES-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "SessionDescriptor",
+      "registry_docs": []
+     },
+     "value": {
+      "session_uuid": "sess-ctrl",
+      "project_id": "proj-fs",
+      "kind": "rt1a",
+      "role": "bogus",
+      "started_at": "2026-11-05T10:00:00Z",
+      "parent_session_id": null,
+      "resume_of": null,
+      "cfg_hash": "abababababababababababababababababababababababababababababababab",
+      "route_snapshot": {},
+      "binding_snapshot_ref": "route.json",
+      "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "SessionDescriptor:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SDES-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "SessionDescriptor",
+      "registry_docs": []
+     },
+     "value": {
+      "session_uuid": "sess-ctrl",
+      "project_id": "proj-fs",
+      "kind": "rt1a",
+      "role": "controller",
+      "started_at": "2026-11-05T10:00:00Z",
+      "parent_session_id": null,
+      "resume_of": null,
+      "cfg_hash": "abababababababababababababababababababababababababababababababab",
+      "route_snapshot": {},
+      "binding_snapshot_ref": "route.json",
+      "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+     },
+     "identity": true,
+     "rt": "SessionDescriptor:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SDES-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "session.schema.json",
+      "def": "SessionDescriptor",
+      "registry_docs": [],
+      "def_mutation": {
+       "op": "shrink_enum",
+       "key": "role"
+      }
+     },
+     "value": {
+      "session_uuid": "sess-ctrl",
+      "project_id": "proj-fs",
+      "kind": "rt1a",
+      "role": "controller",
+      "started_at": "2026-11-05T10:00:00Z",
+      "parent_session_id": null,
+      "resume_of": null,
+      "cfg_hash": "abababababababababababababababababababababababababababababababab",
+      "route_snapshot": {},
+      "binding_snapshot_ref": "route.json",
+      "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+     },
+     "rt": "SessionDescriptor:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SWAP-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "SafeWriteApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "kind": "safeWrite",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "operationId": "op-1"
+     },
+     "rt": "SafeWriteApproval:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SWAP-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "SafeWriteApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "kind": "safeWrite",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "operationId": "op-1",
+      "statement": "x"
+     },
+     "rt": "SafeWriteApproval:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SWAP-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "SafeWriteApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "kind": "safeWrite",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "operationId": "op-1"
+     },
+     "identity": true,
+     "rt": "SafeWriteApproval:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-SWAP-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "SafeWriteApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "narrow_pattern",
+       "key": "approvalHash"
+      }
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "kind": "safeWrite",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "operationId": "op-1"
+     },
+     "rt": "SafeWriteApproval:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CRA-001",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CheckpointRebaseApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "kind": "checkpointRebase",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "baseRecordRevision": 0,
+      "baseStateRevision": 0
+     },
+     "rt": "CheckpointRebaseApproval:valid"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CRA-002",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CheckpointRebaseApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "kind": "checkpointRebase",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "baseRecordRevision": 0,
+      "baseStateRevision": 0,
+      "controllerDescriptor": {
+       "session_uuid": "sess-ctrl",
+       "project_id": "proj-fs",
+       "kind": "rt1a",
+       "role": "controller",
+       "started_at": "2026-11-05T10:00:00Z",
+       "parent_session_id": null,
+       "resume_of": null,
+       "cfg_hash": "abababababababababababababababababababababababababababababababab",
+       "route_snapshot": {},
+       "binding_snapshot_ref": "route.json",
+       "binding_snapshot_hash": "abababababababababababababababababababababababababababababababab"
+      }
+     },
+     "rt": "CheckpointRebaseApproval:invalid"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CRA-003",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CheckpointRebaseApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ]
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "kind": "checkpointRebase",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "baseRecordRevision": 0,
+      "baseStateRevision": 0
+     },
+     "identity": true,
+     "rt": "CheckpointRebaseApproval:cache"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-CRA-004",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema_doc": "cutover.schema.json",
+      "def": "CheckpointRebaseApproval",
+      "registry_docs": [
+       "run-state.schema.json",
+       "session.schema.json"
+      ],
+      "def_mutation": {
+       "op": "require_extra",
+       "key": "syntheticKey"
+      }
+     },
+     "value": {
+      "approvalId": "apr-1",
+      "projectId": "proj-fs",
+      "operationId": "op-1",
+      "kind": "checkpointRebase",
+      "allowedCallers": [
+       {
+        "principal": "session",
+        "callerSessionId": "sess-ctrl"
+       }
+      ],
+      "approvalHash": "abababababababababababababababababababababababababababababababab",
+      "baseRecordRevision": 0,
+      "baseStateRevision": 0
+     },
+     "rt": "CheckpointRebaseApproval:mutated"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G01",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "string",
+         "foo": 1
+        }
+       }
+      },
+      "def": "T"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G02",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "A": {
+         "$ref": "run-state.schema.json#/$defs/Revision"
+        }
+       }
+      },
+      "def": "A",
+      "registry": {}
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": "ref_fail_open"
+  },
+  {
+   "fixture_id": "SC-SFS-G03",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "$ref": "#/definitions/X"
+        }
+       }
+      },
+      "def": "T"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": "ref_fail_open"
+  },
+  {
+   "fixture_id": "SC-SFS-G04",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "A": {
+         "$ref": "#/$defs/B"
+        },
+        "B": {
+         "$ref": "#/$defs/A"
+        }
+       }
+      },
+      "def": "A"
+     },
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": "ref_fail_open"
+  },
+  {
+   "fixture_id": "SC-SFS-G05",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "Node": {
+         "type": "object",
+         "properties": {
+          "v": {
+           "type": "string"
+          },
+          "child": {
+           "$ref": "#/$defs/Node"
+          }
+         },
+         "required": [
+          "v"
+         ],
+         "additionalProperties": false
+        }
+       }
+      },
+      "def": "Node"
+     },
+     "value": {
+      "v": "x",
+      "child": {
+       "v": "y"
+      }
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G06",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "string",
+         "format": "date-time"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "not-a-date"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G07",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "string",
+         "format": "date-time"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "2026-11-05 10:00:00"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G08",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "def": "T"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G09",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": [],
+      "def": "T"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G10",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "string"
+        }
+       }
+      },
+      "def": "T",
+      "registry": {
+       "a.json": "x"
+      }
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G11",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "object",
+         "properties": {},
+         "additionalProperties": {
+          "type": "integer"
+         }
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": {
+      "a": "x"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G12",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "object",
+         "properties": {},
+         "additionalProperties": {
+          "type": "integer"
+         }
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": {
+      "a": 1
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G13",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": [
+          "string",
+          "null"
+         ]
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": 5
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G14",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "object",
+         "if": {
+          "properties": {
+           "k": {
+            "const": "x"
+           }
+          },
+          "required": [
+           "k"
+          ]
+         },
+         "then": {
+          "required": [
+           "y"
+          ]
+         }
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": {
+      "k": "x"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": "if_then_weaken"
+  },
+  {
+   "fixture_id": "SC-SFS-G15",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "oneOf": [
+          {
+           "type": "string"
+          },
+          {
+           "enum": [
+            "a"
+           ]
+          }
+         ]
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "a"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": "oneof_weaken"
+  },
+  {
+   "fixture_id": "SC-SFS-G16",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "anyOf": [
+          {
+           "type": "string"
+          },
+          {
+           "type": "boolean"
+          }
+         ]
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": 5
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": "anyof_weaken"
+  },
+  {
+   "fixture_id": "SC-SFS-G17",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "allOf": [
+          {
+           "type": "string"
+          },
+          {
+           "minLength": 3
+          }
+         ]
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "ab"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": "allof_weaken"
+  },
+  {
+   "fixture_id": "SC-SFS-G18",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "not": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": "not_weaken"
+  },
+  {
+   "fixture_id": "SC-SFS-G19",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "const": "a"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "b"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G20",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "enum": [
+          "a",
+          "b"
+         ]
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "c"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G21",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "probe": "cross_content",
+     "a": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "string",
+         "minLength": 1
+        }
+       }
+      },
+      "def": "T"
+     },
+     "b": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "integer"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": 5
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": "cache_cross_content"
+  },
+  {
+   "fixture_id": "SC-SFS-G22",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "integer"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": 9007199254740992
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G23",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "array",
+         "items": {
+          "type": "string"
+         },
+         "minItems": 2
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": [
+      "a"
+     ]
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G24",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {}
+       }
+      },
+      "def": "T"
+     },
+     "value": [
+      1,
+      "x",
+      null
+     ]
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G25",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": false
+       }
+      },
+      "def": "T"
+     },
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G26",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "description": "metadata-only"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": 7
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G27",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "boolean"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G28",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "null"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G29",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "number"
+        }
+       }
+      },
+      "def": "T"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G30",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "string",
+         "maximum": 5
+        }
+       }
+      },
+      "def": "T"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G31",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "string",
+         "format": "email"
+        }
+       }
+      },
+      "def": "T"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-G32",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "object",
+         "properties": "not-an-object"
+        }
+       }
+      },
+      "def": "T"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "declare",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H01",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "toString": {
+        "$": "string"
+       }
+      },
+      "required": [
+       "toString"
+      ]
+     },
+     "value": {}
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H02",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "constructor": {
+        "$": "string"
+       }
+      },
+      "required": [
+       "constructor"
+      ]
+     },
+     "value": {}
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H03",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "__proto__": {
+        "$": "string"
+       }
+      },
+      "required": [
+       "__proto__"
+      ]
+     },
+     "value": {}
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H04",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "exactKeys",
+     "options": {
+      "fields": {
+       "toString": {
+        "$": "string"
+       }
+      },
+      "required": [
+       "toString"
+      ]
+     },
+     "value": {
+      "toString": "own"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H05",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "object",
+         "properties": {
+          "a": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "b"
+         ],
+         "additionalProperties": {
+          "type": "integer"
+         }
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": {
+      "a": "x",
+      "b": 5
+     }
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H06",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "object",
+         "properties": {
+          "a": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "b"
+         ],
+         "additionalProperties": {
+          "type": "integer"
+         }
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": {
+      "a": "x",
+      "b": "bad"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H07",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "type": "object",
+         "properties": {
+          "a": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "b"
+         ],
+         "additionalProperties": {
+          "type": "integer"
+         }
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": {
+      "a": "x"
+     }
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H08",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "A": {
+         "$ref": "#/$defs/B"
+        },
+        "B": {
+         "$ref": "#/$defs/A"
+        },
+        "T": {
+         "oneOf": [
+          {
+           "$ref": "#/$defs/A"
+          },
+          {
+           "type": "string"
+          }
+         ]
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "x"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape_declaration",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H09",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "format": "date-time"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": 5
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H10",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "format": "date-time"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "2026-11-05 10:00:00"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H11",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "enum": [
+          "a",
+          "b"
+         ],
+         "const": "b"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "a"
+    }
+   },
+   "expected": {
+    "polarity": "negative",
+    "phase": "check",
+    "code": "invalid_shape",
+    "exitCode": 1
+   },
+   "mutation_tag": null
+  },
+  {
+   "fixture_id": "SC-SFS-H12",
+   "mechanism": "shapeFromSchema",
+   "input": {
+    "call": {
+     "fn": "shapeFromSchema",
+     "options": {
+      "schema": {
+       "$defs": {
+        "T": {
+         "enum": [
+          "a",
+          "b"
+         ],
+         "const": "b"
+        }
+       }
+      },
+      "def": "T"
+     },
+     "value": "b"
+    }
+   },
+   "expected": {
+    "polarity": "positive",
+    "phase": "check"
+   },
+   "mutation_tag": null
   }
+ ],
+ "rt1agg_roundtrip_defs": {
+  "cutover": [
+   "AbandonApproval",
+   "ConfirmApproval",
+   "ConfirmedRef",
+   "CutoverApproval",
+   "CutoverCandidate",
+   "CutoverEntry",
+   "CutoverJournal",
+   "ForwardRecoveryApproval",
+   "OperationRef"
+  ],
+  "external": [
+   "Revision",
+   "SessionEvent",
+   "RecoveryApproval",
+   "SessionDescriptor"
+  ],
+  "new": [
+   "SafeWriteApproval",
+   "CheckpointRebaseApproval"
+  ]
+ },
+ "rt1agg_added": [
+  "SC-SFS-ABAP-001",
+  "SC-SFS-ABAP-002",
+  "SC-SFS-ABAP-003",
+  "SC-SFS-ABAP-004",
+  "SC-SFS-CFAP-001",
+  "SC-SFS-CFAP-002",
+  "SC-SFS-CFAP-003",
+  "SC-SFS-CFAP-004",
+  "SC-SFS-CRA-001",
+  "SC-SFS-CRA-002",
+  "SC-SFS-CRA-003",
+  "SC-SFS-CRA-004",
+  "SC-SFS-CREF-001",
+  "SC-SFS-CREF-002",
+  "SC-SFS-CREF-003",
+  "SC-SFS-CREF-004",
+  "SC-SFS-CTAP-001",
+  "SC-SFS-CTAP-002",
+  "SC-SFS-CTAP-003",
+  "SC-SFS-CTAP-004",
+  "SC-SFS-CTCD-001",
+  "SC-SFS-CTCD-002",
+  "SC-SFS-CTCD-003",
+  "SC-SFS-CTCD-004",
+  "SC-SFS-CTEN-001",
+  "SC-SFS-CTEN-002",
+  "SC-SFS-CTEN-003",
+  "SC-SFS-CTEN-004",
+  "SC-SFS-CTJ-001",
+  "SC-SFS-CTJ-002",
+  "SC-SFS-CTJ-003",
+  "SC-SFS-CTJ-004",
+  "SC-SFS-FRAP-001",
+  "SC-SFS-FRAP-002",
+  "SC-SFS-FRAP-003",
+  "SC-SFS-FRAP-004",
+  "SC-SFS-G01",
+  "SC-SFS-G02",
+  "SC-SFS-G03",
+  "SC-SFS-G04",
+  "SC-SFS-G05",
+  "SC-SFS-G06",
+  "SC-SFS-G07",
+  "SC-SFS-G08",
+  "SC-SFS-G09",
+  "SC-SFS-G10",
+  "SC-SFS-G11",
+  "SC-SFS-G12",
+  "SC-SFS-G13",
+  "SC-SFS-G14",
+  "SC-SFS-G15",
+  "SC-SFS-G16",
+  "SC-SFS-G17",
+  "SC-SFS-G18",
+  "SC-SFS-G19",
+  "SC-SFS-G20",
+  "SC-SFS-G21",
+  "SC-SFS-G22",
+  "SC-SFS-G23",
+  "SC-SFS-G24",
+  "SC-SFS-G25",
+  "SC-SFS-G26",
+  "SC-SFS-G27",
+  "SC-SFS-G28",
+  "SC-SFS-G29",
+  "SC-SFS-G30",
+  "SC-SFS-G31",
+  "SC-SFS-G32",
+  "SC-SFS-H01",
+  "SC-SFS-H02",
+  "SC-SFS-H03",
+  "SC-SFS-H04",
+  "SC-SFS-H05",
+  "SC-SFS-H06",
+  "SC-SFS-H07",
+  "SC-SFS-H08",
+  "SC-SFS-H09",
+  "SC-SFS-H10",
+  "SC-SFS-H11",
+  "SC-SFS-H12",
+  "SC-SFS-OPREF-001",
+  "SC-SFS-OPREF-002",
+  "SC-SFS-OPREF-003",
+  "SC-SFS-OPREF-004",
+  "SC-SFS-RAP-001",
+  "SC-SFS-RAP-002",
+  "SC-SFS-RAP-003",
+  "SC-SFS-RAP-004",
+  "SC-SFS-REV-001",
+  "SC-SFS-REV-002",
+  "SC-SFS-REV-003",
+  "SC-SFS-REV-004",
+  "SC-SFS-SDES-001",
+  "SC-SFS-SDES-002",
+  "SC-SFS-SDES-003",
+  "SC-SFS-SDES-004",
+  "SC-SFS-SEVT-001",
+  "SC-SFS-SEVT-002",
+  "SC-SFS-SEVT-003",
+  "SC-SFS-SEVT-004",
+  "SC-SFS-SWAP-001",
+  "SC-SFS-SWAP-002",
+  "SC-SFS-SWAP-003",
+  "SC-SFS-SWAP-004"
  ]
 }

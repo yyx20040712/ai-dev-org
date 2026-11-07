@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // shape-check.mjs — RT1C2 declarative shape library. Zero-dependency fail-closed runtime
 // production code (not a test stand-in) consumed by the migrated run-recover read points.
-// Surface: exactly eleven symbols, arity 1. Rejection taxonomy (RunStoreError six fields,
+// RT1AGG adds shapeFromSchema (schema->Shape compiler, sync/pure/fail-closed): exactly
+// twelve symbols, arity 1. Rejection taxonomy (RunStoreError six fields,
 // retryable=false): declarator config -> invalid_shape_declaration exit=1 stage=shape.declare;
 // gate argument errors -> invalid_argument exit=1; shape failure default invalid_shape (code
 // overridable) exit=1; read/parse + realpath IO -> io_load_failed exit=3; hash default
@@ -60,8 +61,8 @@ export function object(options) {
   const requiredFrozen = Object.freeze([...required]);
   return mkShape("object", { fields: frozen, required: requiredFrozen }, (value, p) => {
     if (value === null || typeof value !== "object" || Array.isArray(value)) shapeFail("invalid_shape", "shape.check", null, p + " must be a non-null non-array object (got " + typeOf(value) + ")");
-    for (const k of requiredFrozen) if (!(k in value)) shapeFail("invalid_shape", "shape.check", null, p + " is missing required key " + JSON.stringify(k));
-    for (const [k, sub] of Object.entries(frozen)) if (k in value) sub.check(value[k], p + "." + k);
+    for (const k of requiredFrozen) if (!Object.hasOwn(value, k)) shapeFail("invalid_shape", "shape.check", null, p + " is missing required key " + JSON.stringify(k)); // R1/B4: own-property only — prototype keys never satisfy required
+    for (const [k, sub] of Object.entries(frozen)) if (Object.hasOwn(value, k)) sub.check(value[k], p + "." + k);
     return true;
   });
 }
@@ -142,6 +143,349 @@ function enumShape(options) {
   });
 }
 export { enumShape as enum };
+// ------------------------------------------------- schema -> Shape compiler (RT1AGG)
+// shapeFromSchema: synchronous, pure, fail-closed draft-07 subset compiler. Zero file or
+// network I/O; the caller hands over parsed schema documents. Compile/declare/ref errors
+// throw invalid_shape_declaration @ shape.declare; value failures follow the library
+// taxonomy (invalid_shape @ shape.check). Content-addressed process cache: same def +
+// same transitive content returns the SAME frozen Shape; different content never hits.
+const SCHEMA_METADATA_KEYS = new Set(["description", "$schema", "$defs"]);
+const SCHEMA_TYPE_NAMES = new Set(["object", "array", "string", "integer", "boolean", "null"]);
+const SCHEMA_ROOT_KEY = "cutover.schema.json"; // the root schema binds itself under this basename
+const SCHEMA_SHAPE_CACHE = new Map();
+const schemaCompileError = (message) => { throw new RunStoreError({ code: "invalid_shape_declaration", exitCode: 1, stage: "shape.declare", operationId: null, message: "shapeFromSchema: " + message }); };
+// R1/N1: composite branches swallow VALUE-LEVEL failures only; declaration-class errors
+// (lazy ref resolution: circular/missing/non-Shape) propagate out of oneOf/anyOf/not/elsewhere
+const isValueLevelFailure = (e) => e instanceof RunStoreError && e.code === "invalid_shape" && e.stage === "shape.check";
+const anyShape = () => mkShape("schemaAny", {}, () => true);
+const neverShape = mkShape("schemaNever", {}, (v, p) => { shapeFail("invalid_shape", "shape.check", null, p + " is rejected by the boolean false schema"); });
+const dateTimeShape = mkShape("schemaDateTime", {}, (v, p) => {
+  // used WITH a type sibling: strings must parse finite; other types defer to the type part
+  if (typeof v === "string" && !Number.isFinite(Date.parse(v))) shapeFail("invalid_shape", "shape.check", null, p + " must be a date-time string with a finite Date.parse value (got " + JSON.stringify(v) + ")");
+  return true;
+});
+const strictDateTimeShape = mkShape("schemaStrictDateTime", {}, (v, p) => {
+  // R1/N2: format:date-time WITHOUT a type sibling is string-only (non-strings reject)
+  if (typeof v !== "string" || !Number.isFinite(Date.parse(v))) shapeFail("invalid_shape", "shape.check", null, p + " must be a date-time string with a finite Date.parse value (got " + typeOf(v) + ")");
+  return true;
+});
+const objectOnly = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+const conditionalObject = (inner) => mkShape("schemaObjectIf", { inner }, (v, p) => (objectOnly(v) ? inner.check(v, p) : true));
+const conditionalString = (inner) => mkShape("schemaStringIf", { inner }, (v, p) => (typeof v === "string" ? inner.check(v, p) : true));
+const conditionalArray = (inner) => mkShape("schemaArrayIf", { inner }, (v, p) => (Array.isArray(v) ? inner.check(v, p) : true));
+function unionShape(members) {
+  const frozen = Object.freeze([...members]);
+  return mkShape("schemaUnion", { members: frozen }, (v, p) => {
+    for (const m of frozen) {
+      let ok = true;
+      try { m.check(v, p); } catch (e) { if (!isValueLevelFailure(e)) throw e; ok = false; }
+      if (ok) return true;
+    }
+    shapeFail("invalid_shape", "shape.check", null, p + " must match one of the declared types");
+  });
+}
+function allOfShape(branches, label) {
+  const frozen = Object.freeze([...branches]);
+  return mkShape("schemaAllOf", { branches: frozen }, (v, p) => {
+    for (const b of frozen) b.check(v, p);
+    return true;
+  });
+}
+function oneOfShape(branches) {
+  const frozen = Object.freeze([...branches]);
+  return mkShape("schemaOneOf", { branches: frozen }, (v, p) => {
+    let passes = 0;
+    for (const b of frozen) {
+      try { b.check(v, p); passes += 1; } catch (e) { if (!isValueLevelFailure(e)) throw e; }
+    }
+    if (passes !== 1) shapeFail("invalid_shape", "shape.check", null, p + " must match exactly one oneOf branch (matched " + passes + ")");
+    return true;
+  });
+}
+function anyOfShape(branches) {
+  const frozen = Object.freeze([...branches]);
+  return mkShape("schemaAnyOf", { branches: frozen }, (v, p) => {
+    for (const b of frozen) {
+      let ok = true;
+      try { b.check(v, p); } catch (e) { if (!isValueLevelFailure(e)) throw e; ok = false; }
+      if (ok) return true;
+    }
+    shapeFail("invalid_shape", "shape.check", null, p + " must match at least one anyOf branch");
+  });
+}
+function notShape(branch) {
+  return mkShape("schemaNot", { branch }, (v, p) => {
+    let ok = true;
+    try { branch.check(v, p); } catch (e) { if (!isValueLevelFailure(e)) throw e; ok = false; }
+    if (ok) shapeFail("invalid_shape", "shape.check", null, p + " must NOT match the declared not-schema");
+    return true;
+  });
+}
+function ifThenElseShape(ifShape, thenShape, elseShape) {
+  const spec = Object.freeze({ if: ifShape, then: thenShape, else: elseShape ?? null });
+  return mkShape("schemaIfThenElse", spec, (v, p) => {
+    let matched = true;
+    try { ifShape.check(v, p); } catch (e) { if (!isValueLevelFailure(e)) throw e; matched = false; }
+    if (matched) thenShape.check(v, p);
+    else if (elseShape) elseShape.check(v, p);
+    return true;
+  });
+}
+function mapShape(fields, required, addlShape) {
+  const frozen = frozenFields(fields);
+  const requiredFrozen = Object.freeze([...required]);
+  return mkShape("schemaMap", { fields: frozen, required: requiredFrozen, additional: addlShape }, (v, p) => {
+    if (!objectOnly(v)) shapeFail("invalid_shape", "shape.check", null, p + " must be a non-null non-array object (got " + typeOf(v) + ")");
+    // R1/B4+B5: own-property semantics; required keys not declared in properties are
+    // presence-only AND validated by the additionalProperties schema (draft-07)
+    for (const k of requiredFrozen) if (!Object.hasOwn(v, k)) shapeFail("invalid_shape", "shape.check", null, p + " is missing required key " + JSON.stringify(k));
+    for (const [k, sub] of Object.entries(frozen)) if (Object.hasOwn(v, k)) sub.check(v[k], p + "." + k);
+    for (const k of Object.keys(v)) if (!Object.hasOwn(frozen, k)) addlShape.check(v[k], p + "." + k);
+    return true;
+  });
+}
+export function shapeFromSchema(options) {
+  const o = optionsGate(options, ["schema", "def", "registry"], "shapeFromSchema");
+  if (o.schema === null || typeof o.schema !== "object" || Array.isArray(o.schema)) schemaCompileError("schema must be a non-null non-array object");
+  if (typeof o.def !== "string" || o.def.length === 0) schemaCompileError("def must be a non-empty string");
+  const registryRaw = o.registry === undefined ? {} : o.registry;
+  if (registryRaw === null || typeof registryRaw !== "object" || Array.isArray(registryRaw)) schemaCompileError("registry must be a non-null non-array object");
+  for (const [k, v] of Object.entries(registryRaw)) {
+    if (typeof k !== "string" || k.length === 0 || k.includes("/") || k.includes("\\") || k !== path.basename(k)) schemaCompileError("registry key must be a plain schema basename: " + JSON.stringify(k));
+    if (v === null || typeof v !== "object" || Array.isArray(v)) schemaCompileError("registry entry must be a schema object: " + k);
+  }
+  // purity: compile over private clones; later caller mutations cannot alter compiled Shapes
+  let schema, registry;
+  try { schema = structuredClone(o.schema); registry = structuredClone(registryRaw); }
+  catch (error) { schemaCompileError("inputs are not cloneable: " + String(error?.message ?? error)); }
+  let digest;
+  try { digest = sha256hex(canonicalJSON({ def: o.def, schema, registry })); }
+  catch (error) { schemaCompileError("content digest failed: " + String(error?.message ?? error)); }
+  const cacheKey = o.def + "\u0000" + digest;
+  if (SCHEMA_SHAPE_CACHE.has(cacheKey)) return SCHEMA_SHAPE_CACHE.get(cacheKey);
+  // document set: registry basenames are authoritative as-is; the root document sits at the
+  // reserved "__root__" key and — when the registry does not already provide the cutover
+  // basename — additionally binds itself there, closing the run-state -> cutover back-loop
+  // inside one compile (ruling: the root schema binds itself as cutover.schema.json).
+  const ROOT_DOC_KEY = "__root__";
+  const docs = { [ROOT_DOC_KEY]: schema };
+  for (const [k, v] of Object.entries(registry)) docs[k] = v;
+  const rootBindsCutover = !Object.prototype.hasOwnProperty.call(docs, SCHEMA_ROOT_KEY);
+  if (rootBindsCutover) docs[SCHEMA_ROOT_KEY] = schema;
+  const defsOfDoc = (docKey, refText) => {
+    const doc = docs[docKey];
+    const defs = doc && objectOnly(doc) && objectOnly(doc.$defs) ? doc.$defs : null;
+    if (!defs) schemaCompileError("document has no $defs for $ref " + refText);
+    return defs;
+  };
+  const parseRef = (refText, ownerDocKey) => {
+    if (typeof refText !== "string" || refText.length === 0) schemaCompileError("$ref must be a non-empty string");
+    const m = /^([^#]*)#\/\$defs\/([A-Za-z0-9_.-]+)$/.exec(refText);
+    if (!m) schemaCompileError("unsupported $ref form (only [<doc>]#/$defs/<name>): " + refText);
+    const [, file, name] = m;
+    let docKey;
+    if (file === "") docKey = ownerDocKey;
+    else if (file === SCHEMA_ROOT_KEY && rootBindsCutover) docKey = ROOT_DOC_KEY;
+    else docKey = file;
+    if (!(docKey in docs)) schemaCompileError("$ref names a document absent from the registry: " + refText);
+    return { docKey, name };
+  };
+  const compiled = {};        // def name -> Shape (live registry for lazy refs)
+  const compiledOwner = {};   // def name -> owning docKey (ambiguity guard)
+  const queue = [];
+  const enqueueDef = (docKey, name, refText) => {
+    const defs = defsOfDoc(docKey, refText);
+    if (!(name in defs)) schemaCompileError("unresolvable $ref " + refText + " (no $defs entry " + name + ")");
+    const target = defs[name];
+    if (target !== true && target !== false && (target === null || typeof target !== "object" || Array.isArray(target))) schemaCompileError("$ref target is not a schema: " + refText);
+    if (compiledOwner[name] === undefined) { compiledOwner[name] = docKey; queue.push([docKey, name]); }
+    else if (compiledOwner[name] !== docKey) schemaCompileError("ambiguous def name across documents: " + name);
+    return name;
+  };
+  const isSafeCount = (v) => isSafeInt(v) && v >= 0;
+  const compileNode = (node, docKey, where) => {
+    if (node === true) return anyShape();
+    if (node === false) return neverShape;
+    if (!objectOnly(node)) schemaCompileError("schema node must be an object or boolean at " + where);
+    let refShapeOut = null;
+    const typeParts = [];
+    let objectPart = null, arrayPart = null, stringPart = null, integerMin = undefined;
+    let enumPart = null, constPart = null, formatPart = null;
+    const branches = {};
+    for (const key of Object.keys(node)) {
+      if (SCHEMA_METADATA_KEYS.has(key)) continue;
+      const w = where + "/" + key;
+      switch (key) {
+        case "$ref": {
+          if (Object.keys(node).some((k2) => k2 !== "$ref" && !SCHEMA_METADATA_KEYS.has(k2))) schemaCompileError("$ref must stand alone (siblings rejected) at " + where);
+          const { docKey: targetDoc, name } = parseRef(node.$ref, docKey);
+          enqueueDef(targetDoc, name, node.$ref);
+          refShapeOut = ref({ name, registry: compiled });
+          break;
+        }
+        case "type": {
+          const t = node.type;
+          const names = Array.isArray(t) ? t : [t];
+          if (names.length === 0) schemaCompileError("type must not be empty at " + w);
+          for (const n2 of names) {
+            if (typeof n2 !== "string" || !SCHEMA_TYPE_NAMES.has(n2)) schemaCompileError("unsupported type value " + JSON.stringify(String(n2)) + " at " + w);
+          }
+          typeParts.push(names);
+          break;
+        }
+        case "properties": {
+          if (!objectOnly(node.properties)) schemaCompileError("properties must be an object at " + w);
+          break;
+        }
+        case "required": {
+          if (!Array.isArray(node.required) || node.required.some((k2) => typeof k2 !== "string")) schemaCompileError("required must be an array of strings at " + w);
+          break;
+        }
+        case "additionalProperties": break;
+        case "items": break;
+        case "minItems": if (!isSafeCount(node.minItems)) schemaCompileError("minItems must be a safe non-negative integer at " + w); break;
+        case "maxItems": if (!isSafeCount(node.maxItems)) schemaCompileError("maxItems must be a safe non-negative integer at " + w); break;
+        case "minLength": if (!isSafeCount(node.minLength)) schemaCompileError("minLength must be a safe non-negative integer at " + w); break;
+        case "maxLength": if (!isSafeCount(node.maxLength)) schemaCompileError("maxLength must be a safe non-negative integer at " + w); break;
+        case "pattern": {
+          if (typeof node.pattern !== "string") schemaCompileError("pattern must be a string at " + w);
+          try { new RegExp(node.pattern); } catch (error) { schemaCompileError("pattern does not compile at " + w + ": " + String(error?.message ?? error)); }
+          break;
+        }
+        case "minimum": if (typeof node.minimum !== "number" || !Number.isFinite(node.minimum)) schemaCompileError("minimum must be a finite number at " + w); break;
+        case "enum": {
+          if (!Array.isArray(node.enum) || node.enum.length === 0) schemaCompileError("enum must be a non-empty array at " + w);
+          if (node.enum.some((x) => typeof x !== "string")) schemaCompileError("enum entries must be strings (non-string enums unsupported) at " + w);
+          enumPart = enumShape({ values: node.enum });
+          break;
+        }
+        case "const": {
+          if (typeof node.const !== "string") schemaCompileError("const must be a string (non-string const unsupported) at " + w);
+          constPart = enumShape({ values: [node.const] }); // R1/N2: enum AND const apply conjunctively when both present
+          break;
+        }
+        case "format": {
+          if (node.format !== "date-time") schemaCompileError("unsupported format " + JSON.stringify(String(node.format)) + " at " + w + " (only date-time)");
+          formatPart = dateTimeShape; // N2 tightening applied in the parts assembly below
+          break;
+        }
+        case "oneOf": case "anyOf": case "allOf": {
+          if (!Array.isArray(node[key]) || node[key].length === 0) schemaCompileError(key + " must be a non-empty array at " + w);
+          branches[key] = node[key].map((sub, i2) => compileNode(sub, docKey, w + "[" + i2 + "]"));
+          break;
+        }
+        case "not": branches.not = compileNode(node.not, docKey, w); break;
+        case "if": break;
+        case "then": break;
+        case "else": break;
+        default: schemaCompileError("unsupported schema keyword " + JSON.stringify(key) + " at " + w);
+      }
+    }
+    // if/then/else pairing (else optional; lone then/else rejected)
+    if (("if" in node) || ("then" in node) || ("else" in node)) {
+      if (!("if" in node) || !("then" in node)) schemaCompileError("if/then must appear together at " + where);
+      if (("else" in node) && !("then" in node)) schemaCompileError("else without then rejected at " + where);
+      branches.ifThenElse = ifThenElseShape(compileNode(node.if, docKey, where + "/if"), compileNode(node.then, docKey, where + "/then"), "else" in node ? compileNode(node.else, docKey, where + "/else") : null);
+    }
+    // object semantics
+    const hasObjectKeys = ("properties" in node) || ("required" in node) || ("additionalProperties" in node);
+    const declaredType = typeParts.length === 0 ? null : (typeParts[0].length === 1 ? typeParts[0][0] : null);
+    const wantsObject = hasObjectKeys || declaredType === "object";
+    const wantsArray = declaredType === "array" || ("items" in node) || ("minItems" in node) || ("maxItems" in node);
+    const wantsString = declaredType === "string" || ("minLength" in node) || ("maxLength" in node) || ("pattern" in node);
+    const wantsInteger = declaredType === "integer" || ("minimum" in node);
+    if (("minimum" in node) && declaredType !== "integer") schemaCompileError("minimum is only supported for type integer at " + where);
+    if (("minLength" in node) || ("maxLength" in node) || ("pattern" in node)) {
+      if (declaredType !== null && declaredType !== "string") schemaCompileError("string keywords outside a string type at " + where);
+    }
+    if (("items" in node) || ("minItems" in node) || ("maxItems" in node)) {
+      if (declaredType !== null && declaredType !== "array") schemaCompileError("array keywords outside an array type at " + where);
+    }
+    if (hasObjectKeys && declaredType !== null && declaredType !== "object") schemaCompileError("object keywords outside an object type at " + where);
+    if (wantsObject) {
+      const propFields = Object.create(null); // R2/N: null-prototype field map — schema-declared keys can never collide with Object.prototype members
+      for (const [pk, pnode] of Object.entries(node.properties ?? {})) propFields[pk] = compileNode(pnode, docKey, where + "/properties/" + pk);
+      const required = node.required ?? [];
+      const propNames = new Set(Object.keys(node.properties ?? {}));
+      // draft-07 presence-only semantics: a required key without a properties entry is
+      // checked for presence with an unconstrained value; under additionalProperties:false
+      // such a key would be simultaneously required and forbidden — rejected at declare.
+      for (const rk of required) {
+        if (!propNames.has(rk)) {
+          if (node.additionalProperties === false) schemaCompileError("required key not declared in properties under a closed set at " + where + ": " + JSON.stringify(rk));
+          // R1/B5: under additionalProperties:schema the key stays a presence-only extra
+          // (the addl schema validates it inside mapShape); under an open object it stays
+          // a presence-only any field
+          if (node.additionalProperties === undefined) propFields[rk] = anyShape();
+        }
+      }
+      let inner;
+      if (node.additionalProperties === false) inner = exactKeys({ fields: propFields, required });
+      else if (node.additionalProperties !== undefined) inner = mapShape(propFields, required, compileNode(node.additionalProperties, docKey, where + "/additionalProperties"));
+      else inner = object({ fields: propFields, required });
+      objectPart = declaredType === "object" ? inner : conditionalObject(inner);
+    }
+    if (wantsArray) {
+      const items = compileNode(node.items ?? true, docKey, where + "/items");
+      const min = node.minItems ?? 0;
+      const max = node.maxItems ?? undefined ?? null;
+      const inner = array({ items, min, max });
+      arrayPart = declaredType === "array" ? inner : conditionalArray(inner);
+    }
+    if (wantsString) {
+      const min = node.minLength ?? 0;
+      const max = node.maxLength !== undefined ? node.maxLength : null;
+      if (max !== null && max < min) schemaCompileError("maxLength below minLength at " + where);
+      const pattern = node.pattern !== undefined ? new RegExp(node.pattern) : null;
+      const inner = string({ min, max, pattern });
+      stringPart = declaredType === "string" ? inner : conditionalString(inner);
+    }
+    if (wantsInteger) integerMin = node.minimum ?? null;
+    const typeShapeOut = (() => {
+      if (typeParts.length === 0) return null;
+      const perUnion = typeParts[0].map((tname) => {
+        if (tname === "object") return mkShape("schemaTypeObject", {}, (v, p) => { if (!objectOnly(v)) shapeFail("invalid_shape", "shape.check", null, p + " must be a non-null non-array object (got " + typeOf(v) + ")"); return true; });
+        if (tname === "array") return mkShape("schemaTypeArray", {}, (v, p) => { if (!Array.isArray(v)) shapeFail("invalid_shape", "shape.check", null, p + " must be an array (got " + typeOf(v) + ")"); return true; });
+        if (tname === "string") return mkShape("schemaTypeString", {}, (v, p) => { if (typeof v !== "string") shapeFail("invalid_shape", "shape.check", null, p + " must be a string (got " + typeOf(v) + ")"); return true; });
+        if (tname === "integer") return mkShape("schemaTypeInteger", {}, (v, p) => { if (typeof v !== "number" || !Number.isInteger(v)) shapeFail("invalid_shape", "shape.check", null, p + " must be an integer (got " + typeOf(v) + ")"); return true; }); // R1/B6: Number.isInteger parity — the safe-int bound was an unauthorized extra rejection face
+        if (tname === "boolean") return mkShape("schemaTypeBoolean", {}, (v, p) => { if (typeof v !== "boolean") shapeFail("invalid_shape", "shape.check", null, p + " must be a boolean (got " + typeOf(v) + ")"); return true; });
+        return mkShape("schemaTypeNull", {}, (v, p) => { if (v !== null) shapeFail("invalid_shape", "shape.check", null, p + " must be null (got " + typeOf(v) + ")"); return true; });
+      });
+      return perUnion.length === 1 ? perUnion[0] : unionShape(perUnion);
+    })();
+    const integerShapeOut = integerMin !== undefined ? mkShape("schemaIntegerMin", { min: integerMin }, (v, p) => {
+      if (typeof v !== "number" || !Number.isInteger(v)) shapeFail("invalid_shape", "shape.check", null, p + " must be an integer (got " + typeOf(v) + ")"); // R1/B6: plain Number.isInteger
+      if (v < integerMin) shapeFail("invalid_shape", "shape.check", null, p + " is below min " + integerMin);
+      return true;
+    }) : null;
+    // R1/N2: date-time without a type sibling tightens to string-only
+    const formatPartResolved = formatPart !== null && typeShapeOut === null ? strictDateTimeShape : formatPart;
+    const parts = [refShapeOut, typeShapeOut, objectPart, arrayPart, stringPart, integerShapeOut, enumPart, constPart, formatPartResolved,
+      branches.allOf ? allOfShape(branches.allOf, where) : null,
+      branches.oneOf ? oneOfShape(branches.oneOf) : null,
+      branches.anyOf ? anyOfShape(branches.anyOf) : null,
+      branches.not ? notShape(branches.not) : null,
+      branches.ifThenElse ?? null,
+    ].filter((x) => x !== null && x !== undefined);
+    if (parts.length === 0) return anyShape();
+    if (parts.length === 1) return parts[0];
+    return allOfShape(parts, where);
+  };
+  // resolve the requested def from the root document, then compile the transitive closure
+  enqueueDef(ROOT_DOC_KEY, o.def, o.def + " (requested def)");
+  const shapes = {};
+  while (queue.length > 0) {
+    const [docKey, name] = queue.shift();
+    if (shapes[name] !== undefined) continue;
+    const defs = defsOfDoc(docKey, name);
+    shapes[name] = compileNode(defs[name], docKey, "$defs/" + name);
+    compiled[name] = shapes[name];
+  }
+  Object.freeze(compiled);
+  const result = compiled[o.def];
+  SCHEMA_SHAPE_CACHE.set(cacheKey, result);
+  return result;
+}
 export function ref(options) {
   const o = optionsGate(options, ["name", "registry"], "ref");
   if (!("name" in o) || typeof o.name !== "string" || o.name.length === 0) declareError("ref.name must be a non-empty string");
@@ -186,8 +530,8 @@ export function exactKeys(options) {
   return mkShape("exactKeys", { fields: frozen, required: requiredFrozen }, (value, p) => {
     if (value === null || typeof value !== "object" || Array.isArray(value)) shapeFail("invalid_shape", "shape.check", null, p + " must be a non-null non-array object (got " + typeOf(value) + ")");
     for (const k of Object.keys(value)) if (!fieldKeys.has(k)) shapeFail("invalid_shape", "shape.check", null, p + " carries a key outside the declared closed set: " + JSON.stringify(k));
-    for (const k of requiredFrozen) if (!(k in value)) shapeFail("invalid_shape", "shape.check", null, p + " is missing required key " + JSON.stringify(k));
-    for (const [k, sub] of Object.entries(frozen)) if (k in value) sub.check(value[k], p + "." + k);
+    for (const k of requiredFrozen) if (!Object.hasOwn(value, k)) shapeFail("invalid_shape", "shape.check", null, p + " is missing required key " + JSON.stringify(k)); // R1/B4: own-property only
+    for (const [k, sub] of Object.entries(frozen)) if (Object.hasOwn(value, k)) sub.check(value[k], p + "." + k);
     return true;
   });
 }
@@ -445,7 +789,7 @@ async function runSelfTest({ fixturesPath, tempRoot }) {
   if (doc.schema_version !== "shape-check-fixtures/v1" || !Array.isArray(doc.mutation_targets) || !Array.isArray(doc.vectors)) {
     console.error("shape-check: fixtures schema mismatch (schema_version/mutation_targets/vectors)"); return 3;
   }
-  const MECHS = new Set(["object", "array", "string", "integer", "hex64", "enum", "ref", "exactKeys", "readShape", "verifyHash", "withinRoot"]);
+  const MECHS = new Set(["object", "array", "string", "integer", "hex64", "enum", "ref", "exactKeys", "readShape", "verifyHash", "withinRoot", "shapeFromSchema"]);
   const DECLARATORS = new Set(["object", "array", "string", "integer", "hex64", "enum", "ref", "exactKeys"]);
   for (const v of doc.vectors) {
     const keys = Object.keys(v);
@@ -467,12 +811,72 @@ async function runSelfTest({ fixturesPath, tempRoot }) {
     uncloneable: { value: { fn: () => 1 } },
     bigintvalue: { value: { n: 10n } },
   };
+  // RT1AGG: the real runtime schema documents feed shapeFromSchema vectors. The compiler
+  // itself performs zero file I/O — the harness parses and hands the docs over explicitly.
+  const RUNTIME_SCHEMA_DOCS = {};
+  try {
+    for (const name of ["cutover.schema.json", "run-state.schema.json", "session.schema.json"]) {
+      RUNTIME_SCHEMA_DOCS[name] = JSON.parse(await fsp.readFile(path.join(SCRIPT_DIR, "..", "templates", "runtime", name), "utf-8"));
+    }
+  } catch (error) {
+    console.error("shape-check: runtime schema docs unavailable for shapeFromSchema vectors: " + String(error?.message ?? error));
+    return 3;
+  }
+  // resolve fixture markers {schema_doc, def, registry_docs, def_mutation} into the real
+  // shapeFromSchema options; the harness owns the mutation of the schema clone
+  const resolveSchemaOptions = (callOptions) => {
+    const o = { ...callOptions };
+    let schema;
+    if (o.schema !== undefined) {
+      schema = structuredClone(o.schema); // inline schema (generic compile-face vectors)
+    } else {
+      const rootName = o.schema_doc ?? "cutover.schema.json";
+      if (!(rootName in RUNTIME_SCHEMA_DOCS)) throw new Error("unknown schema_doc " + rootName);
+      schema = structuredClone(RUNTIME_SCHEMA_DOCS[rootName]);
+    }
+    let registry;
+    if (o.registry !== undefined) {
+      registry = structuredClone(o.registry);
+    } else {
+      registry = {};
+      for (const name of o.registry_docs ?? []) {
+        if (!(name in RUNTIME_SCHEMA_DOCS)) throw new Error("unknown registry doc " + name);
+        if (name === (o.schema_doc ?? "cutover.schema.json") && o.schema === undefined) throw new Error("registry_docs must not repeat the root schema_doc (root binds itself)");
+        registry[name] = structuredClone(RUNTIME_SCHEMA_DOCS[name]);
+      }
+    }
+    if (o.def_mutation) {
+      const m = o.def_mutation;
+      const target = schema.$defs?.[o.def];
+      if (!target) throw new Error("def_mutation target def missing: " + o.def);
+      if (m.op === "require_extra") {
+        target.properties = { ...(target.properties ?? {}), [m.key]: {} };
+        target.required = [...(target.required ?? []), m.key];
+      } else if (m.op === "narrow_pattern") {
+        if (!target.properties?.[m.key]?.pattern) throw new Error("narrow_pattern needs a pattern property: " + m.key);
+        target.properties[m.key].pattern = "^zz-narrowed$";
+      } else if (m.op === "shrink_enum") {
+        if (!target.properties?.[m.key]?.enum) throw new Error("shrink_enum needs an enum property: " + m.key);
+        target.properties[m.key].enum = ["__none__"];
+      } else if (m.op === "drop_property_closed") {
+        if (!(m.key in (target.properties ?? {}))) throw new Error("drop_property_closed needs the property: " + m.key);
+        delete target.properties[m.key];
+        if (Array.isArray(target.required)) target.required = target.required.filter((k) => k !== m.key);
+      } else {
+        throw new Error("unknown def_mutation op " + m.op);
+      }
+    }
+    return { schema, def: o.def, registry };
+  };
   const runRoot = path.join(tempRoot, "run");
   await fsp.mkdir(runRoot, { recursive: true });
   let failed = 0;
   let skipped = 0;
-  const groups = { declarators: { ok: true, n: 0 }, read: { ok: true, n: 0 }, hash: { ok: true, n: 0 }, path: { ok: true, n: 0 }, errors: { ok: true, n: 0 } };
+  const groups = { declarators: { ok: true, n: 0 }, read: { ok: true, n: 0 }, hash: { ok: true, n: 0 }, path: { ok: true, n: 0 }, errors: { ok: true, n: 0 }, schema: { ok: true, n: 0 } };
   const seenErrorSurfaces = [];
+  const rtGroups = {};      // def -> {valid,invalid,cache,mutated} each true only while passing
+  let cacheProbeOk = true;  // identity + cross-content probes
+  const passedIds = new Set();
   for (const v of doc.vectors) {
     const sandboxDir = path.join(runRoot, v.fixture_id);
     if (v.input.sandbox) await materializeSandbox(sandboxDir, v.input.sandbox);
@@ -494,10 +898,35 @@ async function runSelfTest({ fixturesPath, tempRoot }) {
           fnOptions.shape = compileDsl(fnOptions.shape);
         }
       }
-      const fns = { object, array, string, integer, hex64, enum: enumShape, ref, exactKeys, readShape, verifyHash, withinRoot };
+      if (call.fn === "shapeFromSchema" && call.probe !== "cross_content") {
+        fnOptions = resolveSchemaOptions(fnOptions);
+      }
+      const fns = { object, array, string, integer, hex64, enum: enumShape, ref, exactKeys, readShape, verifyHash, withinRoot, shapeFromSchema };
       const fn = fns[call.fn];
       if (!fn) throw new Error("unknown fn " + call.fn);
-      if (DECLARATORS.has(call.fn)) {
+      if (call.fn === "shapeFromSchema" && call.probe === "cross_content") {
+        // cache poisoning probe: different content, same def — no stale Shape reuse either way
+        const sA = shapeFromSchema(resolveSchemaOptions(call.a));
+        const sB = shapeFromSchema(resolveSchemaOptions(call.b));
+        if (sA === sB) throw new Error("cross-content cache probe: same Shape for different schema content");
+        let aAccepted = true;
+        try { sA.check(call.value, "$"); } catch { aAccepted = false; }
+        if (aAccepted) throw new Error("cross-content cache probe: stale shape accepted a value valid only under the other content");
+        let bAccepted = true;
+        try { sB.check(call.value, "$"); } catch { bAccepted = false; }
+        if (!bAccepted) throw new Error("cross-content cache probe: fresh shape rejected its own valid value");
+        actual = { ok: true };
+      } else if (call.fn === "shapeFromSchema") {
+        const shape = fn(fnOptions);
+        if (call.identity === true) {
+          const again = fn(resolveSchemaOptions(call.options)); // same content -> same digest -> same Shape
+          if (again !== shape) throw new Error("shapeFromSchema cache identity probe: recompile returned a different Shape");
+        }
+        actual = { ok: true };
+        if (call.value !== undefined && v.expected.phase === "check") {
+          for (let i = 0; i < repeat; i += 1) shape.check(call.value, "$");
+        }
+      } else if (DECLARATORS.has(call.fn)) {
         // compiled options already ARE the Shape; invalid ones go through fn() so the
         // declaration error surfaces from the function body
         const shape = fnOptions !== null && typeof fnOptions === "object" && fnOptions.$$shape === "rt1c2.shape/v1" ? fnOptions : fn(fnOptions);
@@ -540,14 +969,36 @@ async function runSelfTest({ fixturesPath, tempRoot }) {
     const ok = exp.polarity === "positive"
       ? actual.ok === true && (exp.returns === undefined || JSON.stringify(actual.returns) === JSON.stringify(wantReturns))
       : actual.ok === false && actual.error.code === exp.code && actual.error.exitCode === exp.exitCode;
-    const group = DECLARATORS.has(call.fn) ? "declarators" : call.fn === "readShape" ? "read" : call.fn === "verifyHash" ? "hash" : "path";
+    const group = DECLARATORS.has(call.fn) ? "declarators" : call.fn === "readShape" ? "read" : call.fn === "verifyHash" ? "hash" : call.fn === "shapeFromSchema" ? "schema" : "path";
     groups[group].n += 1;
+    if (ok) passedIds.add(v.fixture_id);
     if (!ok) { failed += 1; groups[group].ok = false; }
+    if (call.fn === "shapeFromSchema") {
+      if (call.rt) {
+        const d = call.rt.split(":")[0];
+        const kind = call.rt.split(":")[1];
+        rtGroups[d] = rtGroups[d] ?? {};
+        rtGroups[d][kind] = ok && (rtGroups[d][kind] ?? true);
+      }
+      if (call.probe === "cross_content" || call.identity === true) cacheProbeOk = cacheProbeOk && ok;
+    }
     const expView = exp.polarity === "positive" ? { polarity: "positive" } : { polarity: "negative", code: exp.code, exitCode: exp.exitCode };
     console.log(`${ok ? "PASS" : "FAIL"} ${v.fixture_id} mechanism=${v.mechanism} expected=${JSON.stringify(expView)} actual=${JSON.stringify(actual.ok ? { ok: true } : { ok: false, error: actual.error })} exitCode=${actual.ok ? 0 : actual.error.exitCode} mutation_tag=${v.mutation_tag}`);
   }
   if (seenErrorSurfaces.length === 0) groups.errors.ok = false;
   console.log(`shape_declarators=${groups.declarators.ok && groups.declarators.n > 0 ? "PASS" : "FAIL"} shape_read=${groups.read.ok && groups.read.n > 0 ? "PASS" : "FAIL"} shape_hash=${groups.hash.ok && groups.hash.n > 0 ? "PASS" : "FAIL"} shape_path=${groups.path.ok && groups.path.n > 0 ? "PASS" : "FAIL"} shape_errors=${groups.errors.ok ? "PASS" : "FAIL"} failed=${failed} skip=${skipped}`);
+  // RT1AGG aggregates: roundtrip 4-group coverage per target def, cache determinism, and
+  // expected-rejection (RED) evidence for mutated defs — all counted from this run only
+  const rtLists = doc.rt1agg_roundtrip_defs ?? {};
+  const allDefs = [...(rtLists.cutover ?? []), ...(rtLists.external ?? []), ...(rtLists.new ?? [])];
+  const kindsNeeded = ["valid", "invalid", "cache", "mutated"];
+  const defsOk = allDefs.filter((d) => rtGroups[d] && kindsNeeded.every((k) => rtGroups[d][k] === true));
+  const addedIds = new Set(doc.rt1agg_added ?? []);
+  const oldTotal = doc.vectors.filter((x) => !addedIds.has(x.fixture_id)).length;
+  const oldPassed = doc.vectors.filter((x) => !addedIds.has(x.fixture_id) && passedIds.has(x.fixture_id)).length;
+  const newTotal = doc.vectors.filter((x) => addedIds.has(x.fixture_id)).length;
+  const mutatedAllRed = Object.values(rtGroups).every((g) => g.mutated !== false);
+  console.log(`shape_schema=${groups.schema.ok && groups.schema.n > 0 ? "PASS" : "FAIL"} defs_roundtrip=${defsOk.length}/${allDefs.length} def_names=${allDefs.join("/")} external_named=${(rtLists.external ?? []).join("/")} new_named=${(rtLists.new ?? []).join("/")} old_vectors=${oldPassed}/${oldTotal} new_vectors=${newTotal} cache_determinism=${cacheProbeOk ? "PASS" : "FAIL"} schema_mutations=${mutatedAllRed ? "RED" : "GREEN"}`);
   return failed === 0 && skipped === 0 && Object.values(groups).every((g) => g.ok) ? 0 : 1;
 }
 

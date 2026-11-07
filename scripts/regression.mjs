@@ -31,7 +31,10 @@
  *   R19'=run-recover 恢复自检接入（RT1C·Task 1C——spawn run-recover.mjs --self-test 断言 exit 0＋
  *       汇总形态 fixtures=42/vectors/failed=0/skip_ids=0 与矩阵 token；裸 --self-test 依赖脚本内默认
  *       fixture 绝对路径，恢复/并发测试只在 /tmp/rt1c-executor-* 隔离目录执行）。
- * 现役项=R4/R7/R8/R10/R12/R13/R14/R15/R16/R17/R18/R19 十二项（W5a 补 R12/R16/R17 头注随动；W5b 补 R18；RT1C 补 R19）。
+ * 现役项=R4/R7/R8/R10/R12/R13/R14/R15/R16/R17/R18/R19/R22 十三项（W5a 补 R12/R16/R17 头注随动；W5b 补 R18；RT1C 补 R19；RT1AGG 补 R22）。
+ *   R22=run-store 自检接入（RT1AGG——spawn run-store.mjs --self-test 断言 exit 0＋汇总形态
+ *       ids=52/vectors=<实数>/failed=0 与 state/crash/command 矩阵 token；裸 --self-test 默认
+ *       fixtures 绝对路径与 /tmp/rt1a-executor-selftest 隔离域承载，不携带 --fixtures/--temp-root）。
  * 用法：node scripts/regression.mjs [--only R4,R7,R8,R10] [--project <账本目录>]
  *       [--ledger <账本路径>] [--keep-tmp]
  *       （flag 取值一律空格分隔，--x=y 等号形态=用法错拒收——cliFlag 单源立场）
@@ -64,7 +67,7 @@ try {
   throw e
 }
 const keepTmp = argv.includes('--keep-tmp')
-const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16', 'R17', 'R18', 'R19'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批；R17=W5a α/β 门禁自检；R18=W5b sampler 接入；R19=RT1C 恢复自检接入）
+const KNOWN_ITEMS = ['R4', 'R7', 'R8', 'R10', 'R12', 'R13', 'R14', 'R15', 'R16', 'R17', 'R18', 'R19', 'R22'] // --only 合法项清单（与下方各 want 块双载——删项须同步两处；派发器族项 R1/R2/R5/R11/R9 已随清理批次删除；R16=B6 文档生成批；R17=W5a α/β 门禁自检；R18=W5b sampler 接入；R19=RT1C 恢复自检接入；R22=RT1AGG run-store 自检接入）
 if (only && only.some((id) => !KNOWN_ITEMS.includes(id))) {
   console.error(`[用法错] 未知回归项：${only.filter((id) => !KNOWN_ITEMS.includes(id)).join(',')}（现役项=${KNOWN_ITEMS.join('/')}——派发器族项已随 2026-10-03 清理批次删除，详见 git 历史）`)
   process.exit(1)
@@ -908,6 +911,34 @@ if (want('R19')) {
   const skip = /skip_ids=(\d+)/.exec(out)
   const ok19 = r.status === 0 && fx !== null && Number(fx[1]) === 42 && vec !== null && failed !== null && Number(failed[1]) === 0 && skip !== null && Number(skip[1]) === 0 && out.includes('matrix scan_classification=PASS')
   record('R19', ok19, `run-recover 自检:exit=${r.status}/fixtures=${fx ? fx[1] : '?'}/vectors=${vec ? vec[1] : '?'}/failed=${failed ? failed[1] : '?'}/skip_ids=${skip ? skip[1] : '?'}${!ok19 ? `（输出尾：${out.slice(-200)}）` : ''}`)
+}
+
+
+// ═══ RT1AGG R22：run-store 自检接入（spawn run-store.mjs --self-test 断言 exit 0＋
+//     汇总形态 `self-test 汇总：ids=52 vectors=<脚本从终态 fixtures 实测的N> failed=0` 与
+//     state_matrix=168/168、crash_matrix=117/117、command_matrix=PASS；ids 按 distinct
+//     fixture_id 计数；裸 --self-test 不携带 --fixtures/--temp-root（脚本内默认绝对路径与
+//     /tmp/rt1a-executor-selftest 隔离域承载）；spawn 看护与 R19 同款 300s/SIGKILL/64MiB；
+//     RT1C 批界「regression 不得出现 run-store self-test 并轨」自 rt1agg-ruling-user-1 起取代） ═══
+if (want('R22')) {
+  const storeScript = join(SCRIPTS, 'run-store.mjs') // 本块脚本字串唯一承载点（R19 同款）
+  const r22Run = (args) => spawnSync(node()[0], args, { encoding: 'utf8', cwd: SKILL_ROOT, timeout: 300_000, killSignal: 'SIGKILL', maxBuffer: 64 * 1024 * 1024 })
+  const r = r22Run([storeScript, '--self-test'])
+  const out = (r.stdout || '') + (r.stderr || '')
+  const ids = /ids=(\d+)/.exec(out)
+  const vec = /vectors=(\d+)/.exec(out)
+  const failed = /failed=(\d+)/.exec(out)
+  const stateM = /state_matrix=(\d+\/\d+)/.exec(out)
+  const crashM = /crash_matrix=(\d+\/\d+)/.exec(out)
+  // R1/W3：从终态 fixtures 独立复算 vectors 数并断言与自检输出相等（防汇总虚报）
+  let fixturesVectors = null
+  try {
+    const fxDoc = JSON.parse(readFileSync(join(SCRIPTS, '.golden', 'run-store-fixtures.json'), 'utf8'))
+    if (Array.isArray(fxDoc.vectors)) fixturesVectors = fxDoc.vectors.length
+  } catch { fixturesVectors = null }
+  const recountOk = fixturesVectors !== null && vec !== null && Number(vec[1]) === fixturesVectors
+  const ok22 = r.status === 0 && ids !== null && Number(ids[1]) === 52 && vec !== null && failed !== null && Number(failed[1]) === 0 && recountOk && out.includes('state_matrix=168/168') && out.includes('crash_matrix=117/117') && out.includes('command_matrix=PASS')
+  record('R22', ok22, `run-store 自检:exit=${r.status}/ids=${ids ? ids[1] : '?'}/vectors=${vec ? vec[1] : '?'}/fixtures_recount=${fixturesVectors ?? '?'}/failed=${failed ? failed[1] : '?'}/state=${stateM ? stateM[1] : '?'}/crash=${crashM ? crashM[1] : '?'}${!ok22 ? `（输出尾：${out.slice(-200)}）` : ''}`)
 }
 
 

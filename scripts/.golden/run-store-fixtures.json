@@ -8562,6 +8562,4360 @@
    "invariant_id": "INV-02-004",
    "mode": "runtime",
    "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "SessionEvent 闭集外键被拒（W-1 授权严格面负例）",
+      "op": "eq",
+      "path": "$.classification",
+      "value": "denied"
+     },
+     {
+      "message": "invalid_event 错误码",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "invalid_event"
+     },
+     {
+      "message": "RunStoreError 六字段齐全",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "无新增 revision",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 0
+     }
+    ],
+    "evidence": [
+     "runs/F-S-017/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-017",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "w1-closed-set",
+       "operationId": "op-sfs-evt",
+       "payload": {
+        "approvalRef": "app-ev1.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-sfs",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded",
+         "extra_key": 1
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      }
+     ]
+    },
+    "scenario": "RT1AGG W-1 严格面负例：controller 路径 SessionEvent 闭集外键遭 def 拒绝"
+   },
+   "input_hash": "df4cbee932ab3cd4e9d2d12d2d42ae79897e5da0fc91c5b68297811d61207eaf",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "SessionEvent created_at 非有限 Date.parse 值被拒（W-1 授权严格面负例）",
+      "op": "eq",
+      "path": "$.classification",
+      "value": "denied"
+     },
+     {
+      "message": "invalid_event 错误码",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "invalid_event"
+     },
+     {
+      "message": "RunStoreError 六字段齐全",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "无新增 revision",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 0
+     }
+    ],
+    "evidence": [
+     "runs/F-S-017/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-017",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "w1-value-shape",
+       "operationId": "op-sfs-evt",
+       "payload": {
+        "approvalRef": "app-ev1.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-sfs",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "not-a-date",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      }
+     ]
+    },
+    "scenario": "RT1AGG W-1 严格面负例：controller 路径 SessionEvent created_at 非有限 Date.parse 遭 def 拒绝"
+   },
+   "input_hash": "7e62fe5658e714b97cc5186baa8e513d83f0a17b08d2ad81c8a8e48c872f7d27",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "首次同审批请求成功",
+      "op": "eq",
+      "path": "$.extras.calls.0.outcome",
+      "value": "passed"
+     },
+     {
+      "message": "同 ref 换审批重放拒绝",
+      "op": "eq",
+      "path": "$.extras.calls.1.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "request_hash_conflict 错误码",
+      "op": "eq",
+      "path": "$.extras.calls.1.code",
+      "value": "request_hash_conflict"
+     },
+     {
+      "message": "RunStoreError 六字段齐全",
+      "op": "eq",
+      "path": "$.extras.calls.1.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "重放零新增 revision（首次成功恰一次）",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 1
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_unchanged",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_count",
+      "value": 2
+     }
+    ],
+    "evidence": [
+     "runs/F-S-043a/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 1,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-043a",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_first_ok",
+       "operationId": "op-n2",
+       "payload": {
+        "approvalRef": "app-n2.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-n2",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "kind": "approval",
+       "file": "app-n2.json",
+       "doc": {
+        "approvalId": "apr-n2-swapped",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "principal": "session",
+          "callerSessionId": "sess-ctrl"
+         }
+        ]
+       }
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_swapped_conflict",
+       "operationId": "op-n2",
+       "payload": {
+        "approvalRef": "app-n2.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-n2",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG N2 负例：同 operationId＋同 ref 换内容不同审批（各自 approvalHash 合法）重放必须 request_hash_conflict",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-n2-a",
+        "kind": "safeWrite",
+        "projectId": "proj-fs"
+       },
+       "file": "app-n2.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "5ea2f59b2f7466b3f278d00d034565771048e7039f02bb2dc56a9793344a4d52",
+   "mode": "runtime",
+   "simulated": true,
+   "invariant_id": "rt1a-invariants"
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.outcome",
+      "value": "passed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.code",
+      "value": "request_hash_conflict"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 1
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_unchanged",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_count",
+      "value": 3
+     }
+    ],
+    "evidence": [
+     "runs/F-S-024/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 1,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-024",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applyApproved",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_aa_first",
+       "operationId": "op-n2-aa",
+       "payload": {
+        "approvalRef": "app-n2-aa.json",
+        "evidenceRef": "ev-ap.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-recovery"
+      },
+      {
+       "kind": "approval",
+       "file": "app-n2-aa.json",
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-recovery",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-n2-aa-swapped",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "applyApproved",
+        "operationId": "op-n2-aa",
+        "projectId": "proj-fs"
+       }
+      },
+      {
+       "command": "applyApproved",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_aa_swapped",
+       "operationId": "op-n2-aa",
+       "payload": {
+        "approvalRef": "app-n2-aa.json",
+        "evidenceRef": "ev-ap.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-recovery"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B1 负例：applyApproved（五项式路径）同 operationId＋同 ref 换审批必须 request_hash_conflict（条目级绑定台账）",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "op": "seed_state",
+       "patch": {
+        "active_run": {
+         "run_uuid": "run-1",
+         "session_uuid": "sess-ctrl"
+        },
+        "sessions": {
+         "sess-recovery": {
+          "closure_index": {
+           "closure_count": 0,
+           "closure_head_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+           "recent_entries": []
+          },
+          "descriptor": {
+           "kind": "rt1a",
+           "role": "recovery",
+           "session_uuid": "sess-recovery",
+           "started_at": "2026-11-05T10:00:00Z"
+          },
+          "live_state": {
+           "attention_reasons": [],
+           "current_run": null,
+           "heartbeat": "2026-11-05T10:00:00Z",
+           "last_activity": "2026-11-05T10:00:00Z",
+           "lifecycle": "OPEN",
+           "next_action": "n",
+           "revision": 0,
+           "waiting_user": null,
+           "work_outcome": "IN_PROGRESS"
+          }
+         },
+         "sess-worker": {
+          "closure_index": {
+           "closure_count": 0,
+           "closure_head_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+           "recent_entries": []
+          },
+          "descriptor": {
+           "kind": "rt1a",
+           "role": "worker",
+           "session_uuid": "sess-worker",
+           "started_at": "2026-11-05T10:00:00Z"
+          },
+          "live_state": {
+           "attention_reasons": [],
+           "current_run": null,
+           "heartbeat": "2026-11-05T10:00:00Z",
+           "last_activity": "2026-11-05T10:00:00Z",
+           "lifecycle": "OPEN",
+           "next_action": "n",
+           "revision": 0,
+           "waiting_user": null,
+           "work_outcome": "IN_PROGRESS"
+          }
+         }
+        }
+       }
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-ap.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-recovery",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-n2-aa",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "applyApproved",
+        "operationId": "op-n2-aa",
+        "projectId": "proj-fs"
+       },
+       "file": "app-n2-aa.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "99339444f253070287ae204a2d87469fd0b4e5352ed8a84a6b00a26c8343573b",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.outcome",
+      "value": "passed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.outcome",
+      "value": "passed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.2.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.2.code",
+      "value": "request_hash_conflict"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 1
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.2.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_unchanged",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_count",
+      "value": 3
+     }
+    ],
+    "evidence": [
+     "runs/F-S-024/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 1,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-024",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applyApproved",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_aa_first",
+       "operationId": "op-n2-aa",
+       "payload": {
+        "approvalRef": "app-n2-aa.json",
+        "evidenceRef": "ev-ap.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-recovery"
+      },
+      {
+       "command": "applyApproved",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_legacy_same_replay",
+       "operationId": "op-n2-aa",
+       "payload": {
+        "approvalRef": "app-n2-aa.json",
+        "evidenceRef": "ev-ap.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-recovery"
+      },
+      {
+       "kind": "approval",
+       "file": "app-n2-aa.json",
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-recovery",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-n2-aa-swapped",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "applyApproved",
+        "operationId": "op-n2-aa",
+        "projectId": "proj-fs"
+       }
+      },
+      {
+       "command": "applyApproved",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_legacy_swapped",
+       "operationId": "op-n2-aa",
+       "payload": {
+        "approvalRef": "app-n2-aa.json",
+        "evidenceRef": "ev-ap.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-recovery"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B1 负例：legacy 五项式条目同审批重放幂等（delta=0）且换审批重放必须 request_hash_conflict",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "op": "seed_state",
+       "patch": {
+        "active_run": {
+         "run_uuid": "run-1",
+         "session_uuid": "sess-ctrl"
+        },
+        "sessions": {
+         "sess-recovery": {
+          "closure_index": {
+           "closure_count": 0,
+           "closure_head_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+           "recent_entries": []
+          },
+          "descriptor": {
+           "kind": "rt1a",
+           "role": "recovery",
+           "session_uuid": "sess-recovery",
+           "started_at": "2026-11-05T10:00:00Z"
+          },
+          "live_state": {
+           "attention_reasons": [],
+           "current_run": null,
+           "heartbeat": "2026-11-05T10:00:00Z",
+           "last_activity": "2026-11-05T10:00:00Z",
+           "lifecycle": "OPEN",
+           "next_action": "n",
+           "revision": 0,
+           "waiting_user": null,
+           "work_outcome": "IN_PROGRESS"
+          }
+         },
+         "sess-worker": {
+          "closure_index": {
+           "closure_count": 0,
+           "closure_head_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+           "recent_entries": []
+          },
+          "descriptor": {
+           "kind": "rt1a",
+           "role": "worker",
+           "session_uuid": "sess-worker",
+           "started_at": "2026-11-05T10:00:00Z"
+          },
+          "live_state": {
+           "attention_reasons": [],
+           "current_run": null,
+           "heartbeat": "2026-11-05T10:00:00Z",
+           "last_activity": "2026-11-05T10:00:00Z",
+           "lifecycle": "OPEN",
+           "next_action": "n",
+           "revision": 0,
+           "waiting_user": null,
+           "work_outcome": "IN_PROGRESS"
+          }
+         }
+        }
+       }
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-ap.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-recovery",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-n2-aa",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "applyApproved",
+        "operationId": "op-n2-aa",
+        "projectId": "proj-fs"
+       },
+       "file": "app-n2-aa.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "7bd77b11963a074826e9fee44a3dfd305894263cd9d479a6cb7f357962b10a92",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.outcome",
+      "value": "passed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.code",
+      "value": "request_hash_conflict"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 1
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_unchanged",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_count",
+      "value": 3
+     }
+    ],
+    "evidence": [
+     "runs/F-S-026/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 1,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-026",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "rebase",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_rb_first",
+       "operationId": "op-n2-rb",
+       "payload": {
+        "approvalRef": "app-n2-rb.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "kind": "approval",
+       "file": "app-n2-rb.json",
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-n2-rb-swapped",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "checkpointRebase",
+        "operationId": "op-n2-rb",
+        "projectId": "proj-fs"
+       }
+      },
+      {
+       "command": "rebase",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_rb_swapped",
+       "operationId": "op-n2-rb",
+       "payload": {
+        "approvalRef": "app-n2-rb.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B1 负例：rebase（五项式路径）同 operationId＋同 ref 换审批必须 request_hash_conflict（条目级绑定台账）",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "op": "seed_state",
+       "patch": {
+        "effects": [
+         {
+          "effect_id": "ef-k1",
+          "state": "done",
+          "token": {
+           "claimed_revision": "@auto:current_revision",
+           "controller_epoch": 1,
+           "effect_id": "ef-k1",
+           "operation_id": "op-seed-claim",
+           "session_uuid": "sess-ctrl",
+           "state_uuid": "@auto:state_uuid",
+           "stop_epoch": 0
+          }
+         }
+        ],
+        "queue": []
+       }
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "checkpoint-rebase",
+        "statement": "rework evidence"
+       },
+       "file": "ev-rb.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-n2-rb",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "checkpointRebase",
+        "operationId": "op-n2-rb",
+        "projectId": "proj-fs"
+       },
+       "file": "app-n2-rb.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "8cc4ce0e561222229c88cc090222d3e365960ec6d929a18a9529cc14800dab15",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.code",
+      "value": "request_hash_conflict"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_unchanged",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_count",
+      "value": 1
+     }
+    ],
+    "evidence": [
+     "runs/F-S-037/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-037",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "args": {
+        "command": "applySessionEvent",
+        "operationId": "op-n2-orp",
+        "revision": 1,
+        "style": "legacy_five_key",
+        "bind_approval": true
+       },
+       "fn": "make_orphan",
+       "kind": "direct_internal",
+       "name": "make_orphan_n2"
+      },
+      {
+       "kind": "approval",
+       "file": "app-n2-orp.json",
+       "doc": {
+        "approvalId": "apr-n2-orp-swapped",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       }
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_orp_swapped_claim",
+       "operationId": "op-n2-orp",
+       "payload": {
+        "approvalRef": "app-n2-orp.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-orp-n2",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B1 负例：orphan 补发布路径同 ref 换审批必须 request_hash_conflict 且孤儿不被消费",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-n2-orp",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-n2-orp.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "ab42eeb85b77b076f65ec32f6887fdac8a3efec49617703b10ab0145747a45f1",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": "blocked",
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "blocked"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "revision.shape"
+     }
+    ],
+    "evidence": [
+     "runs/F-S-003/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "blocked"
+   },
+   "fixture_id": "F-S-003",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_revision_missing_key",
+       "operationId": "op-kv-rev",
+       "payload": {
+        "approvalRef": "app-ev1.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-op-kv-rev",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-REVISION 手写必键闸——当前 revision 缺 reviews 必须 blocked/revision.shape",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/state/su-dcfa3adc55db/r-0.json",
+       "text": "{\"schema\":\"run-state/revision/v1\",\"state_uuid\":\"su-dcfa3adc55db\",\"revision\":0,\"owner_session_id\":\"sess-ctrl\",\"parent_revision\":-1,\"parent_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"self_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"active_run\":null,\"queue\":[],\"effects\":[],\"authorization\":{\"controller\":{\"session_uuid\":\"sess-ctrl\",\"assigned_at\":\"2026-11-05T10:00:00Z\",\"released_at\":null,\"evidence_ref\":\"ev-genesis.json\",\"blocked\":false},\"controller_epoch\":1,\"stop_epoch\":0},\"sessions\":{},\"pending_closures\":{},\"applied_operations\":[],\"pending_audit\":0}"
+      }
+     ]
+    }
+   },
+   "input_hash": "0c48e3e16260a5de902d82b74d0f86c2107137f4afe04df1cc30bab5e11b6f07",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_extra_key"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.shape"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-017/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-017",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "assignController",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_approval_extra_assign",
+       "operationId": "op-kx-a",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "descriptor": {
+         "kind": "rt1a",
+         "role": "controller",
+         "session_uuid": "sess-x",
+         "started_at": "2026-11-05T10:00:00Z"
+        },
+        "evidenceRef": "ev-x.json"
+       },
+       "principal": "host",
+       "sessionId": null
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-APPROVAL-ASSIGN 手写闭集——assignController 审批闭集外键必须 approval_extra_key",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "op": "seed_state",
+       "patch": {
+        "controller_block": true
+       }
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-x.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-x",
+        "projectId": "proj-fs",
+        "operationId": "op-kx-a",
+        "kind": "assignController",
+        "allowedCallers": [
+         {
+          "callerSessionId": null,
+          "principal": "host"
+         }
+        ],
+        "controllerDescriptor": {
+         "kind": "rt1a",
+         "role": "controller",
+         "session_uuid": "sess-x",
+         "started_at": "2026-11-05T10:00:00Z"
+        },
+        "zz_extra_key": 1
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "7014d6e78cd00012db3b9c4c7b36d6cff7b06cbd89b6c5b9d41e7454ae20561d",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_extra_key"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.shape"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-022/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-022",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "stop",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_approval_extra_safewrite",
+       "operationId": "op-kx-s",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "evidenceRef": "ev-x.json",
+        "reason": "r"
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-APPROVAL-SAFE-WRITE 手写闭集——safeWrite 审批闭集外键必须 approval_extra_key",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-x.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-x",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ],
+        "zz_extra_key": 1
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "fff826628385c94c8e0e545800bcc81803f05fb90b88bc52a0d3ed2d6b20ca53",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_extra_key"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.shape"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-024/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-024",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applyApproved",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_approval_extra_apply",
+       "operationId": "op-kx-p",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "evidenceRef": "ev-ap.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-recovery"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-APPROVAL-APPLY 手写闭集——applyApproved 审批闭集外键必须 approval_extra_key",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "op": "seed_state",
+       "patch": {
+        "active_run": {
+         "run_uuid": "run-1",
+         "session_uuid": "sess-ctrl"
+        },
+        "sessions": {
+         "sess-recovery": {
+          "closure_index": {
+           "closure_count": 0,
+           "closure_head_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+           "recent_entries": []
+          },
+          "descriptor": {
+           "kind": "rt1a",
+           "role": "recovery",
+           "session_uuid": "sess-recovery",
+           "started_at": "2026-11-05T10:00:00Z"
+          },
+          "live_state": {
+           "attention_reasons": [],
+           "current_run": null,
+           "heartbeat": "2026-11-05T10:00:00Z",
+           "last_activity": "2026-11-05T10:00:00Z",
+           "lifecycle": "OPEN",
+           "next_action": "n",
+           "revision": 0,
+           "waiting_user": null,
+           "work_outcome": "IN_PROGRESS"
+          }
+         },
+         "sess-worker": {
+          "closure_index": {
+           "closure_count": 0,
+           "closure_head_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+           "recent_entries": []
+          },
+          "descriptor": {
+           "kind": "rt1a",
+           "role": "worker",
+           "session_uuid": "sess-worker",
+           "started_at": "2026-11-05T10:00:00Z"
+          },
+          "live_state": {
+           "attention_reasons": [],
+           "current_run": null,
+           "heartbeat": "2026-11-05T10:00:00Z",
+           "last_activity": "2026-11-05T10:00:00Z",
+           "lifecycle": "OPEN",
+           "next_action": "n",
+           "revision": 0,
+           "waiting_user": null,
+           "work_outcome": "IN_PROGRESS"
+          }
+         }
+        }
+       }
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-ap.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-recovery",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-kx-p",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "applyApproved",
+        "operationId": "op-kx-p",
+        "projectId": "proj-fs",
+        "zz_extra_key": 1
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "a7c604af2cf6372f372e99fd4d1fdf8aaed9d9983ead4eb8946e1c4611006c2a",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_extra_key"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.shape"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-026/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-026",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "rebase",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_approval_extra_rebase",
+       "operationId": "op-kx-r",
+       "payload": {
+        "approvalRef": "app-x.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-APPROVAL-REBASE 手写闭集——checkpointRebase 审批闭集外键必须 approval_extra_key",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "op": "seed_state",
+       "patch": {
+        "effects": [
+         {
+          "effect_id": "ef-k1",
+          "state": "done",
+          "token": {
+           "claimed_revision": "@auto:current_revision",
+           "controller_epoch": 1,
+           "effect_id": "ef-k1",
+           "operation_id": "op-seed-claim",
+           "session_uuid": "sess-ctrl",
+           "state_uuid": "@auto:state_uuid",
+           "stop_epoch": 0
+          }
+         }
+        ],
+        "queue": []
+       }
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-x.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-kx-r",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "checkpointRebase",
+        "operationId": "op-kx-r",
+        "projectId": "proj-fs",
+        "zz_extra_key": 1
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "e22a5d6d1fcda91fbb2e736c90ac7897b7c891d592158b1c9fec67abd97406b3",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.classification",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_extra_key"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.shape"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-027/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-027",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "prepare",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_approval_extra_g1a",
+       "operationId": "op-kx-g",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "controllerDescriptor": {
+         "kind": "rt1a",
+         "role": "controller",
+         "session_uuid": "sess-ctrl",
+         "started_at": "2026-11-05T10:00:00Z"
+        },
+        "stopEvidenceRef": "ev-s.json"
+       },
+       "principal": "host",
+       "sessionId": null
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-APPROVAL-G1A 手写闭集——cutoverG1a 审批闭集外键必须 approval_extra_key（R4/W3：doc 带 controllerDescriptor(sess-other)，m8 旁路后落入 :1812 干净 approval_binding_mismatch，杜绝 unexpected 崩溃形态）",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-g.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "stop-evidence",
+        "statement": "rework evidence"
+       },
+       "file": "ev-s.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-kx-g",
+        "projectId": "proj-fs",
+        "operationId": "op-kx-g",
+        "kind": "cutoverG1a",
+        "allowedCallers": [
+         {
+          "callerSessionId": null,
+          "principal": "host"
+         }
+        ],
+        "zz_extra_key": 1,
+        "controllerDescriptor": {
+         "kind": "rt1a",
+         "role": "controller",
+         "session_uuid": "sess-other",
+         "started_at": "2026-11-05T10:00:00Z"
+        }
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "044d83fa0214464c85079b4d6b141434cfca788b078e21c3a7856e423c0dcee5",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_extra_key"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.shape"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-028/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-028",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "confirm",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_approval_extra_g1b",
+       "operationId": "op-kx-b",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "operationRef": {
+         "operationId": "op-kx-b",
+         "kind": "confirm",
+         "parentRevision": 0,
+         "parentHash": "abababababababababababababababababababababababababababababababab",
+         "revision": 1,
+         "hash": "abababababababababababababababababababababababababababababababab",
+         "epoch": 0,
+         "stopEpoch": 0
+        },
+        "candidateRef": "c/x.json"
+       },
+       "principal": "host",
+       "sessionId": null
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-APPROVAL-G1B 手写闭集——cutoverG1b 审批闭集外键必须 approval_extra_key",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-kx-b",
+        "projectId": "proj-fs",
+        "operationId": "op-kx-b",
+        "kind": "cutoverG1b",
+        "candidatePath": "c/x.json",
+        "candidateHash": "abababababababababababababababababababababababababababababababab",
+        "targetAuthorityEpoch": 0,
+        "allowedCallers": [
+         {
+          "callerSessionId": null,
+          "principal": "host"
+         }
+        ],
+        "zz_extra_key": 1
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "6d16beebd9eff5492cc8b38b7177e14591d156a89286b61946309326d46c966e",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_extra_key"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.shape"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-031/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-031",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "abandonPreparedCandidate",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_approval_extra_abandon",
+       "operationId": "op-kx-ab",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "abortEvidenceRef": "ev-ab.json",
+        "resumeOperation": {
+         "operationId": "op-kx-ab",
+         "kind": "resume",
+         "parentRevision": 0,
+         "parentHash": "abababababababababababababababababababababababababababababababab",
+         "revision": 1,
+         "hash": "abababababababababababababababababababababababababababababababab",
+         "epoch": 0,
+         "stopEpoch": 0
+        }
+       },
+       "principal": "host",
+       "sessionId": null
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-APPROVAL-ABANDON 手写闭集——cutoverAbandon 审批闭集外键必须 approval_extra_key",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "abort-evidence",
+        "statement": "rework evidence"
+       },
+       "file": "ev-ab.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-kx-ab",
+        "projectId": "proj-fs",
+        "operationId": "op-kx-ab",
+        "kind": "cutoverAbandon",
+        "candidateHash": "abababababababababababababababababababababababababababababababab",
+        "abortEvidenceRef": "ev-ab.json",
+        "abortEvidenceHash": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "allowedCallers": [
+         {
+          "callerSessionId": null,
+          "principal": "host"
+         }
+        ],
+        "zz_extra_key": 1
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "d261dcd774321d1602e9a07a3d4773aeef3aaae0cd063e9a180b50a902efebfd",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_extra_key"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.shape"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-035/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-035",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "recoverForward",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_approval_extra_recovery",
+       "operationId": "op-kx-rf",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "confirmedOperationId": "op-k0"
+       },
+       "principal": "host",
+       "sessionId": null
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-APPROVAL-RECOVERY 手写闭集——cutoverRecovery 审批闭集外键必须 approval_extra_key",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-kx-rf",
+        "projectId": "proj-fs",
+        "confirmedOperationId": "op-k0",
+        "operationId": "op-kx-rf",
+        "parentRevision": 0,
+        "parentHash": "abababababababababababababababababababababababababababababababab",
+        "targetAuthorityEpoch": 0,
+        "recoveryTimestamp": "2026-11-05T10:00:00Z",
+        "kind": "cutoverRecovery",
+        "allowedCallers": [
+         {
+          "callerSessionId": null,
+          "principal": "host"
+         }
+        ],
+        "zz_extra_key": 1
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "2c63bde379fcbbce943fc3af7d35307374ebc88e0939d761ea0b7b8e057cd6f1",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "invalid_approval_ref"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.resolve"
+     }
+    ],
+    "evidence": [
+     "runs/F-S-017/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-017",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "stop",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_resolveref_empty",
+       "operationId": "op-kx-e",
+       "payload": {
+        "approvalRef": "",
+        "evidenceRef": "ev-x.json",
+        "reason": "r"
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-RESOLVE-REF 手写入口闸——空串 approvalRef 必须 invalid_approval_ref/approval.resolve",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-x.json",
+       "op": "evidence"
+      }
+     ]
+    }
+   },
+   "input_hash": "a910c56fb9e144ebc97fa899f920b5e07dd5856c6fefeb51e13703c9ca40530a",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "invalid_receipt"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "reconcile"
+     }
+    ],
+    "evidence": [
+     "runs/F-S-M01/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-M01",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "reconcile",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_receipt_outcome",
+       "operationId": "op-kx-rc",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "evidenceRef": "ev-x.json",
+        "effectId": "ef-k1",
+        "receipt": {
+         "simulated": false,
+         "outcome": "zzz"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-RECEIPT 手写三值闸——receipt.outcome 非三值必须 invalid_receipt/reconcile",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "op": "seed_state",
+       "patch": {
+        "effects": [
+         {
+          "effect_id": "ef-k1",
+          "state": "unknown",
+          "token": {
+           "claimed_revision": "@auto:current_revision",
+           "controller_epoch": 1,
+           "effect_id": "ef-k1",
+           "operation_id": "op-seed-claim",
+           "session_uuid": "sess-ctrl",
+           "state_uuid": "@auto:state_uuid",
+           "stop_epoch": 0
+          }
+         }
+        ],
+        "queue": []
+       }
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-x.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-x",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "649dc936e77f17ff516341da78ac871f1ea3cca5b77a2405dd24a50f02ba5782",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "invalid_argument"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "args"
+     }
+    ],
+    "evidence": [
+     "runs/F-S-016/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-016",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_args_operationid",
+       "payload": {
+        "approvalRef": "app-ev1.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-kx",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-PRESERVED-ARG 非文档闸——缺 operationId 必须 invalid_argument/args",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      }
+     ]
+    }
+   },
+   "input_hash": "557223ab99d77aa748c14504636a191ef9258df83540394db0eb0e37e95eab09",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "invalid_argument"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "commitOperation"
+     }
+    ],
+    "evidence": [
+     "runs/F-S-036/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-036",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "kind": "commit_operation",
+       "name": "kill_opref_nonobject",
+       "operationRef": 42
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-PRESERVED-OPREF-ARG 非文档闸——非对象 operationRef 必须 invalid_argument/commitOperation",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      }
+     ]
+    }
+   },
+   "input_hash": "9e9dfcfe6cbb80e740cc3d2f3f96e2a9b4fe9ee53f2fd4056f9039c62ada842b",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "invalid_argument"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "recoverForward"
+     }
+    ],
+    "evidence": [
+     "runs/F-S-035/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-035",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "recoverForward",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_confirmedid_missing",
+       "operationId": "op-kx-c",
+       "payload": {
+        "approvalRef": "app-none.json"
+       },
+       "principal": "host",
+       "sessionId": null
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B3 kill：RS-PRESERVED-CONFIRMED-ID 非文档闸——缺 confirmedOperationId 必须 invalid_argument/recoverForward",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      }
+     ]
+    }
+   },
+   "input_hash": "b83972d5fb8b454fc2f618067347babc6eaf1a384632e1d56a1b254cfd246b92",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "invalid_event"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "applySessionEvent"
+     }
+    ],
+    "evidence": [
+     "runs/F-S-017/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-017",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "w1-minlength-event",
+       "operationId": "op-kx-ml",
+       "payload": {
+        "approvalRef": "app-ev1.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG N4 负例：SessionEvent 值形状——空串 event_id（minLength 1）必须 invalid_event",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      }
+     ]
+    }
+   },
+   "input_hash": "d2b7bb49160a13255c72a888df5da1ab520585977fa369d554f17e266ca53416",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_kind_mismatch"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.kind"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-022/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-022",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "stop",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "b2_order_kind_before_closed_set",
+       "operationId": "op-b2-ord",
+       "payload": {
+        "approvalRef": "app-b2.json",
+        "evidenceRef": "ev-x.json",
+        "reason": "r"
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG B2 order vector: multi-fault approval (wrong kind + closed-set extra key) must fire approval_kind_mismatch first (frozen order: kind precedes allowedKeys)",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "g",
+        "statement": "e"
+       },
+       "file": "ev-x.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-b2",
+        "projectId": "proj-fs",
+        "operationId": "op-b2-ord",
+        "kind": "cutoverG1a",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ],
+        "zz_extra_key": 1
+       },
+       "file": "app-b2.json",
+       "op": "approval"
+      }
+     ]
+    },
+    "input_hash": "",
+    "simulated": true
+   },
+   "input_hash": "b299870fedecc5d5fde17132fcefedb74464808fb64934f0e76cbe9c0274de91"
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.3.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.3.code",
+      "value": "request_hash_conflict"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.4.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.4.code",
+      "value": "request_hash_conflict"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.5.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.5.code",
+      "value": "request_hash_conflict"
+     }
+    ],
+    "evidence": [
+     "runs/F-S-043a/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 3,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-043a",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_proto_write_0",
+       "operationId": "toString",
+       "payload": {
+        "approvalRef": "app-r2p.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-r2p-0",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_proto_write_1",
+       "operationId": "constructor",
+       "payload": {
+        "approvalRef": "app-r2p.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-r2p-1",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_proto_write_2",
+       "operationId": "__proto__",
+       "payload": {
+        "approvalRef": "app-r2p.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-r2p-2",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "kind": "approval",
+       "file": "app-r2p.json",
+       "doc": {
+        "approvalId": "apr-r2p-swapped",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       }
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_proto_swapped_0",
+       "operationId": "toString",
+       "payload": {
+        "approvalRef": "app-r2p.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-toString",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_proto_swapped_1",
+       "operationId": "constructor",
+       "payload": {
+        "approvalRef": "app-r2p.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-constructor",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_proto_swapped_2",
+       "operationId": "__proto__",
+       "payload": {
+        "approvalRef": "app-r2p.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-__proto__",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R2 ruling 5: prototype-key operationIds (toString/constructor/__proto__) — swap replay must conflict on every key (hasOwn ledger lookups, no prototype misfire)",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-r2p",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-r2p.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "e86b005161f19c9ecfb528fb126f35fc3260f0d81040622b796899e277e03b54",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.classification",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_kind_mismatch"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "approval.kind"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-022/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-022",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "stop",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_kind_constructor",
+       "operationId": "op-r2-c",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "evidenceRef": "ev-x.json",
+        "reason": "r"
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R2 ruling 5: kind=constructor approval must hit the fallback closed set then fail the kind gate (approval_kind_mismatch), never a TypeError",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "r2 evidence"
+       },
+       "file": "ev-x.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-r2c",
+        "projectId": "proj-fs",
+        "kind": "constructor",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "7f1171e16452b2d4251bb6d8e8fb7963d70995d8a8565b0ae3646ea3c5072ad5",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 3,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.classification",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "io_load_failed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.exitCode",
+      "value": 3
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "request_approvals.parse"
+     }
+    ],
+    "evidence": [
+     "runs/F-S-043a/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-043a",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_corrupt_replay",
+       "operationId": "op-r2-l",
+       "payload": {
+        "approvalRef": "app-r2l.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-op-r2-l",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R2 ruling 1: corrupt request-approvals ledger (bad JSON) fails closed on replay — io_load_failed/exit3, never silent-empty fallback",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-r2l",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-r2l.json",
+       "op": "approval"
+      },
+      {
+       "op": "transact",
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "expect": "ok",
+       "name": "r2_corrupt_first",
+       "operationId": "op-r2-l",
+       "payload": {
+        "approvalRef": "app-r2l.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-op-r2-l",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/request-approvals.json",
+       "text": "{corrupt json"
+      }
+     ]
+    }
+   },
+   "input_hash": "10c4781b1da1bbe57b8a2623ee4ddad4437efb10db72a5f8546647d10143e036",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 3,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.classification",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "io_load_failed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.exitCode",
+      "value": 3
+     }
+    ],
+    "evidence": [
+     "runs/F-S-043a/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-043a",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_corrupt_write_blocked",
+       "operationId": "op-r2-w",
+       "payload": {
+        "approvalRef": "app-ev1.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-op-r2-w",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R2 ruling 1: a corrupt ledger blocks new writes (io_load_failed) instead of being overwritten with empty bindings",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-r2l",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-r2l.json",
+       "op": "approval"
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/request-approvals.json",
+       "text": "{\"schema\":\"request-approvals/v1\",\"bindings\":\"not-an-object\"}"
+      }
+     ]
+    }
+   },
+   "input_hash": "a42c0dff3f5b2ef6ea1b5bd0be89d5be0dfd87746c66b3276689bfc7a0efeb3e",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.outcome",
+      "value": "passed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.code",
+      "value": "request_hash_conflict"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.request_approval_ledger_keys",
+      "value": [
+       "op-r2-h"
+      ]
+     }
+    ],
+    "evidence": [
+     "runs/F-S-043a/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-043a",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_heal_same_replay",
+       "operationId": "op-r2-h",
+       "payload": {
+        "approvalRef": "app-r2h.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-op-r2-h",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "kind": "approval",
+       "file": "app-r2h.json",
+       "doc": {
+        "approvalId": "apr-r2h-swapped",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       }
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_heal_swapped",
+       "operationId": "op-r2-h",
+       "payload": {
+        "approvalRef": "app-r2h.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-op-r2-h",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R2 ruling 4(A) / 预裁十-3: two-step heal probe — same-approval replay over an emptied ledger heals the binding (ledger key observable), the subsequent swap conflicts against the healed record",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-r2h",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-r2h.json",
+       "op": "approval"
+      },
+      {
+       "op": "transact",
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "expect": "ok",
+       "name": "r2_heal_first",
+       "operationId": "op-r2-h",
+       "payload": {
+        "approvalRef": "app-r2h.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-op-r2-h",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/request-approvals.json",
+       "text": "{\"schema\":\"request-approvals/v1\",\"bindings\":{}}"
+      }
+     ]
+    }
+   },
+   "input_hash": "ef982e8769ea2f3c9390a828bb5ff0e9418a6c244bc93ae46d585752a877399a",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 0,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.outcome",
+      "value": "passed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 0
+     }
+    ],
+    "evidence": [
+     "runs/F-S-043a/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "passed"
+   },
+   "fixture_id": "F-S-043a",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "r2_proto_absent_record_replay",
+       "operationId": "toString",
+       "payload": {
+        "approvalRef": "app-r2t.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-r2t",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R2 ruling 5: prototype-key operationId with an ABSENT ledger record — the same-approval replay must stay idempotent (hasOwn lookup; a prototype lookup would misfire Object.prototype.toString as a record and conflict)",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-r2t",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-r2t.json",
+       "op": "approval"
+      },
+      {
+       "op": "transact",
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "expect": "ok",
+       "name": "r2_proto_absent_write",
+       "operationId": "toString",
+       "payload": {
+        "approvalRef": "app-r2t.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-r2t",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/request-approvals.json",
+       "text": "{\"schema\":\"request-approvals/v1\",\"bindings\":{}}"
+      }
+     ]
+    },
+    "input_hash": "",
+    "simulated": true
+   },
+   "input_hash": "9e137830dbc7fc9183a23ed748048865cd8921cd753f4b8f0b906298915c616d"
+  },
+  {
+   "expected_exit": 0,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.outcome",
+      "value": "passed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.keys_ok",
+      "value": true
+     }
+    ],
+    "evidence": [
+     "runs/F-S-034/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 1,
+    "terminal": "passed"
+   },
+   "fixture_id": "F-S-034",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "kind": "commit_operation",
+       "name": "r10_m17_null_kind_gate",
+       "operationRef": "@auto:resume_ref"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R2/预裁十-4 m17 kill: after abandon, app-g1a.json is overwritten with a prototype-kind (toString) doc carrying a valid hash; the resume rebuild loads the JOURNAL-recorded approvalRef through the NULL-expectedKind gate (:1695) — hasOwn resolves it to the fallback closed set and the resume publishes; the restored prototype lookup under m17 turns allowedKeys into a non-array and errors",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "g1a-evidence",
+        "statement": "controller evidence"
+       },
+       "file": "ev-g1a.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "stop-evidence",
+        "statement": "stop evidence"
+       },
+       "file": "ev-stop.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": null,
+          "principal": "host"
+         }
+        ],
+        "approvalId": "apr-g1a",
+        "assignedAt": "2026-11-05T10:00:00Z",
+        "authorityEpoch": "@auto:authority_epoch",
+        "controllerDescriptor": {
+         "kind": "rt1a",
+         "role": "controller",
+         "session_uuid": "sess-ctrl",
+         "started_at": "2026-11-05T10:00:00Z"
+        },
+        "controllerEvidenceHash": "@cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "controllerEvidenceRef": "ev-g1a.json",
+        "kind": "cutoverG1a",
+        "operationId": "op-r10-m17",
+        "parentHash": "@auto:parent_hash",
+        "parentRevision": "@auto:parent_revision",
+        "projectId": "proj-fs",
+        "stateUuid": "@auto:state_uuid",
+        "stopEvidenceHash": "@ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+        "stopEvidenceRef": "ev-stop.json"
+       },
+       "file": "app-g1a.json",
+       "op": "approval"
+      },
+      {
+       "command": "prepare",
+       "expect": "ok",
+       "expectedRevision": "@auto:current_revision",
+       "op": "transact",
+       "operationId": "op-r10-m17",
+       "payload": {
+        "approvalRef": "app-g1a.json",
+        "controllerDescriptor": {
+         "kind": "rt1a",
+         "role": "controller",
+         "session_uuid": "sess-ctrl",
+         "started_at": "2026-11-05T10:00:00Z"
+        },
+        "stopEvidenceRef": "ev-stop.json"
+       },
+       "principal": "host",
+       "sessionId": null
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "abort-evidence",
+        "statement": "abort"
+       },
+       "file": "ev-ab.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-ab",
+        "projectId": "proj-fs",
+        "operationId": "op-r10-m17",
+        "kind": "cutoverAbandon",
+        "candidateHash": "@auto:candidate_hash",
+        "allowedCallers": [
+         {
+          "callerSessionId": null,
+          "principal": "host"
+         }
+        ],
+        "abortEvidenceRef": "ev-ab.json",
+        "abortEvidenceHash": "@iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii"
+       },
+       "file": "app-ab.json",
+       "op": "approval"
+      },
+      {
+       "command": "abandonPreparedCandidate",
+       "expect": "ok",
+       "expectedRevision": "@auto:current_revision",
+       "op": "transact",
+       "operationId": "op-r10-m17",
+       "payload": {
+        "approvalRef": "app-ab.json",
+        "abortEvidenceRef": "ev-ab.json",
+        "resumeOperation": "@auto:resume_ref"
+       },
+       "principal": "host",
+       "sessionId": null
+      },
+      {
+       "doc": {
+        "approvalId": "apr-proto",
+        "projectId": "proj-fs",
+        "kind": "toString",
+        "allowedCallers": [
+         {
+          "callerSessionId": null,
+          "principal": "host"
+         }
+        ]
+       },
+       "file": "app-g1a.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "327f35416c70f04c6a5565d15f1ec6f77f981b5ffb50ba7b792b327773700764",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 0,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.code",
+      "value": "io_enospc"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.exitCode",
+      "value": 3
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.stage",
+      "value": "request_approvals_write"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.outcome",
+      "value": "passed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.delta",
+      "value": 0
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 1
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.request_approval_ledger_keys",
+      "value": [
+       "genesis-F-S-004",
+       "op-w7"
+      ]
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.applied_entries_count",
+      "value": 2
+     }
+    ],
+    "evidence": [
+     "runs/F-S-004/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 1,
+    "terminal": "passed"
+   },
+   "fixture_id": "F-S-004",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "kind": "seq",
+     "calls": [
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "operationId": "op-w7",
+       "payload": {
+        "approvalRef": "app-w7.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-w7",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl",
+       "name": "w7_enospc_write"
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "operationId": "op-w7",
+       "payload": {
+        "approvalRef": "app-w7.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-w7",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl",
+       "name": "w7_same_approval_replay"
+      }
+     ]
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R2/预裁十-6 W7 + R4/N: ENOSPC at the request_approvals_write ledger phase — revision already published (delta=1); the second SAME-approval replay stays idempotent and self-heals the ledger binding (hash-protected)",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-w7",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-w7.json",
+       "op": "approval"
+      }
+     ]
+    },
+    "fault": {
+     "mode": "ENOSPC",
+     "phase": "request_approvals_write"
+    }
+   },
+   "input_hash": "e6e0de77e7f16345b8f52e47f1ed6edf149cbbc655bdb90386393b8c4b741ef6",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 3,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.code",
+      "value": "io_enospc"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.exitCode",
+      "value": 3
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.stage",
+      "value": "request_approvals_write"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.1.delta",
+      "value": 1
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 1
+     }
+    ],
+    "evidence": [
+     "runs/F-S-037/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 1,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-037",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "args": {
+        "command": "applySessionEvent",
+        "operationId": "op-w4o",
+        "revision": 1,
+        "bind_approval": true
+       },
+       "fn": "make_orphan",
+       "kind": "direct_internal",
+       "name": "w4_make_orphan"
+      },
+      {
+       "command": "applySessionEvent",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "w4_orphan_claim",
+       "operationId": "op-w4o",
+       "payload": {
+        "approvalRef": "app-w4o.json",
+        "evidenceRef": "ev-1.json",
+        "event": {
+         "event_id": "evt-w4o",
+         "session_uuid": "sess-ctrl",
+         "kind": "inbox_message",
+         "evidence_ref": "ev-1.json",
+         "payload": {},
+         "created_at": "2026-11-05T10:00:00Z",
+         "status": "recorded"
+        }
+       },
+       "principal": "session",
+       "sessionId": "sess-ctrl"
+      }
+     ],
+     "kind": "seq"
+    },
+    "fault": {
+     "mode": "ENOSPC",
+     "phase": "request_approvals_write"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R4/W4: orphan-claim ledger write fault — the claim re-publishes the orphan (authority advanced, delta=1) and the adapter-threaded writeRequestApprovalBinding at the claim site fails ENOSPC fail-closed (io_enospc/exit3) after the advance",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-w4o",
+        "projectId": "proj-fs",
+        "kind": "safeWrite",
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-ctrl",
+          "principal": "session"
+         }
+        ]
+       },
+       "file": "app-w4o.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "a87d24912bb670c79f5ae77609df96441184ba4e7a592d4d14a6834f621c9814",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 3,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "array bindings = corrupt ledger, fail closed",
+      "op": "eq",
+      "path": "$.extras.calls.0.code",
+      "value": "io_load_failed"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.exitCode",
+      "value": 3
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.extras.calls.0.outcome",
+      "value": "denied"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 0
+     }
+    ],
+    "evidence": [
+     "runs/F-S-043a/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-043a",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "kind": "approval",
+       "file": "app-n2-aa.json",
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-recovery",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-n2-aa-swapped",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "applyApproved",
+        "operationId": "op-n2-aa",
+        "projectId": "proj-fs"
+       }
+      },
+      {
+       "command": "applyApproved",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "n2_aa_swapped",
+       "operationId": "op-n2-aa",
+       "payload": {
+        "approvalRef": "app-n2-aa.json",
+        "evidenceRef": "ev-ap.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-recovery"
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R5/B1: ledger bindings shaped as an ARRAY (not a map) — loadRequestApprovals must classify it exists-but-corrupt (io_load_failed/exit3 fail-closed), never as an empty ledger letting the five-key swap replay pass",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "op": "seed_state",
+       "patch": {
+        "active_run": {
+         "run_uuid": "run-1",
+         "session_uuid": "sess-ctrl"
+        },
+        "sessions": {
+         "sess-recovery": {
+          "closure_index": {
+           "closure_count": 0,
+           "closure_head_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+           "recent_entries": []
+          },
+          "descriptor": {
+           "kind": "rt1a",
+           "role": "recovery",
+           "session_uuid": "sess-recovery",
+           "started_at": "2026-11-05T10:00:00Z"
+          },
+          "live_state": {
+           "attention_reasons": [],
+           "current_run": null,
+           "heartbeat": "2026-11-05T10:00:00Z",
+           "last_activity": "2026-11-05T10:00:00Z",
+           "lifecycle": "OPEN",
+           "next_action": "n",
+           "revision": 0,
+           "waiting_user": null,
+           "work_outcome": "IN_PROGRESS"
+          }
+         },
+         "sess-worker": {
+          "closure_index": {
+           "closure_count": 0,
+           "closure_head_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+           "recent_entries": []
+          },
+          "descriptor": {
+           "kind": "rt1a",
+           "role": "worker",
+           "session_uuid": "sess-worker",
+           "started_at": "2026-11-05T10:00:00Z"
+          },
+          "live_state": {
+           "attention_reasons": [],
+           "current_run": null,
+           "heartbeat": "2026-11-05T10:00:00Z",
+           "last_activity": "2026-11-05T10:00:00Z",
+           "lifecycle": "OPEN",
+           "next_action": "n",
+           "revision": 0,
+           "waiting_user": null,
+           "work_outcome": "IN_PROGRESS"
+          }
+         }
+        }
+       }
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-ap.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "allowedCallers": [
+         {
+          "callerSessionId": "sess-recovery",
+          "principal": "session"
+         }
+        ],
+        "approvalId": "apr-n2-aa",
+        "baseRecordRevision": 1,
+        "baseStateRevision": 1,
+        "kind": "applyApproved",
+        "operationId": "op-n2-aa",
+        "projectId": "proj-fs"
+       },
+       "file": "app-n2-aa.json",
+       "op": "approval"
+      },
+      {
+       "command": "applyApproved",
+       "expectedRevision": "@auto:current_revision",
+       "name": "n2_aa_first",
+       "operationId": "op-n2-aa",
+       "payload": {
+        "approvalRef": "app-n2-aa.json",
+        "evidenceRef": "ev-ap.json"
+       },
+       "principal": "session",
+       "sessionId": "sess-recovery",
+       "op": "transact"
+      },
+      {
+       "op": "raw",
+       "file": ".zcode/runtime/request-approvals.json",
+       "text": "{\"schema\":\"request-approvals/v1\",\"bindings\":[]}"
+      }
+     ]
+    }
+   },
+   "input_hash": "119bc8276c716d257859f235595ea853e57286a3692dc567a6499403e622c805",
+   "mode": "runtime",
+   "simulated": true
+  },
+  {
+   "expected_exit": 1,
+   "expected_state": {
+    "assertions": [
+     {
+      "message": "clean denied, no TypeError",
+      "op": "eq",
+      "path": "$.classification",
+      "value": "denied"
+     },
+     {
+      "message": "six fields",
+      "op": "eq",
+      "path": "$.error.six_fields_ok",
+      "value": true
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.code",
+      "value": "approval_binding_mismatch"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.error.stage",
+      "value": "prepare.g1a"
+     },
+     {
+      "message": "",
+      "op": "eq",
+      "path": "$.revision.delta",
+      "value": 0
+     }
+    ],
+    "evidence": [
+     "runs/F-S-027/observed.json"
+    ],
+    "polarity": "negative",
+    "revision_delta": 0,
+    "terminal": "denied"
+   },
+   "fixture_id": "F-S-027",
+   "invariant_id": "rt1a-invariants",
+   "input": {
+    "action": {
+     "calls": [
+      {
+       "command": "prepare",
+       "expectedRevision": "@auto:current_revision",
+       "kind": "transact",
+       "name": "kill_approval_extra_g1a",
+       "operationId": "op-kx-g",
+       "payload": {
+        "approvalRef": "app-x.json",
+        "controllerDescriptor": {
+         "kind": "rt1a",
+         "role": "controller",
+         "session_uuid": "sess-ctrl",
+         "started_at": "2026-11-05T10:00:00Z"
+        },
+        "stopEvidenceRef": "ev-s.json"
+       },
+       "principal": "host",
+       "sessionId": null
+      }
+     ],
+     "kind": "seq"
+    },
+    "mode": "runtime",
+    "scenario": "RT1AGG R5/W1: cutoverG1a approval without controllerDescriptor while the prepare payload carries one — the :1812 guard must deny approval_binding_mismatch with six fields (was: reachable TypeError face on both trees per reviewer probes)",
+    "setup": {
+     "steps": [
+      {
+       "descriptor": {
+        "kind": "rt1a",
+        "role": "controller",
+        "session_uuid": "sess-ctrl",
+        "started_at": "2026-11-05T10:00:00Z"
+       },
+       "op": "genesis"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "generic",
+        "statement": "rework evidence"
+       },
+       "file": "ev-g.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "evidenceHash": "COMPUTE",
+        "kind": "stop-evidence",
+        "statement": "rework evidence"
+       },
+       "file": "ev-s.json",
+       "op": "evidence"
+      },
+      {
+       "doc": {
+        "approvalId": "apr-kx-g",
+        "projectId": "proj-fs",
+        "operationId": "op-kx-g",
+        "kind": "cutoverG1a",
+        "allowedCallers": [
+         {
+          "callerSessionId": null,
+          "principal": "host"
+         }
+        ]
+       },
+       "file": "app-x.json",
+       "op": "approval"
+      }
+     ]
+    }
+   },
+   "input_hash": "a115a175b41f328c7189d5f700c597ced6aac1bda01b164eced11bd10092c31a",
+   "mode": "runtime",
+   "simulated": true
   }
  ]
 }

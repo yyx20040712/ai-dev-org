@@ -16,6 +16,7 @@ import {
   atomicWrite, revisionFilePath, validateRevision, GENESIS_PARENT_HASH,
   GENESIS_JOURNAL_HEAD, HEX64, isRunStoreErrorFields,
 } from "./run-state.mjs";
+import { shapeFromSchema } from "./shape-check.mjs";
 
 export { RunStoreError, validateRevision } from "./run-state.mjs";
 
@@ -242,6 +243,9 @@ const REVISION_REQUIRED_KEYS = ["schema", "state_uuid", "revision", "owner_sessi
 async function loadRevisionFile(projectDir, stateUuid, revision) {
   const file = revisionFilePath(projectDir, stateUuid, revision);
   const r = await readJsonFile(file, "revision");
+  // schema-point: RS-REVISION — DEFERRED (rt1agg W-1/deferred ledger): the run-state
+  // Revision def is stricter than this gate on faces REACHABLE in the fixture space
+  // required-keys gate stays as the single execution source.
   for (const k of REVISION_REQUIRED_KEYS) {
     if (!(k in r)) {
       throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "revision.shape", operationId: null, message: "revision missing required key " + k });
@@ -318,6 +322,10 @@ function journalEntry(journal, operationId) {
 
 // ------------------------------------------------------- approvals/evidence
 function resolveApprovalRef(projectDir, ref) {
+  // schema-point: RS-RESOLVE-REF — DEFERRED (rt1agg W-1/deferred ledger): the non-string/
+  // empty ref face has zero fixture coverage (approval_required fires earlier for missing
+  // refs; every loadApproval/evidence caller passes checked strings), so no kill vector can
+  // exist; the entry shape stays on this handwritten gate. realpath/IO/escape checks follow.
   if (typeof ref !== "string" || ref.length === 0) {
     throw new RunStoreError({ code: "invalid_approval_ref", exitCode: 1, stage: "approval.resolve", operationId: null, message: "approvalRef missing" });
   }
@@ -329,6 +337,9 @@ function resolveApprovalRef(projectDir, ref) {
   return resolved;
 }
 
+// schema-point: RS-APPROVAL-ASSIGN/-SAFE-WRITE/-APPLY/-REBASE/-G1A/-G1B/-ABANDON/-RECOVERY — DEFERRED
+// (rt1agg W-1/deferred ledger; full reason in schema-drift-allowlist). The per-kind defs match the
+// handwritten closed sets key-for-key; VALUE semantics stricter on reachable faces -> handwritten stays.
 const APPROVAL_KIND_KEYS = {
   assignController: ["approvalId", "projectId", "operationId", "kind", "allowedCallers", "approvalHash", "controllerDescriptor", "baseRecordRevision", "baseStateRevision"],
   safeWrite: ["approvalId", "projectId", "kind", "allowedCallers", "approvalHash", "operationId"],
@@ -339,9 +350,41 @@ const APPROVAL_KIND_KEYS = {
   cutoverAbandon: ["approvalId", "projectId", "operationId", "candidateHash", "allowedCallers", "abortEvidenceRef", "abortEvidenceHash", "approvalHash", "kind"],
   cutoverRecovery: ["approvalId", "projectId", "confirmedOperationId", "operationId", "parentRevision", "parentHash", "targetAuthorityEpoch", "recoveryTimestamp", "allowedCallers", "controllerDescriptor", "assignedAt", "controllerEvidenceRef", "controllerEvidenceHash", "approvalHash", "kind"]
 };
+// RT1AGG N2/B1+R2: request-approvals ledger {operationId -> approvalHash}. R2 ruling 1:
+// ENOENT = legal empty; corrupt/unreadable = fail-closed (io_load_failed, exit3); the write
+// path validates before publishing and never overwrites a corrupt ledger with empty bindings.
+function requestApprovalsPath(projectDir) { return path.join(runtimeDir(projectDir), "request-approvals.json"); }
+function ledgerBindingsOf(doc) { return doc && typeof doc === "object" && !Array.isArray(doc) && doc.bindings && typeof doc.bindings === "object" && !Array.isArray(doc.bindings) ? doc.bindings : null; } // R5/B1: an ARRAY-shaped bindings value is exists-but-corrupt (typeof [] === "object"), never a valid ledger
+async function loadRequestApprovals(projectDir) {
+  let doc;
+  try {
+    doc = JSON.parse(await fsp.readFile(requestApprovalsPath(projectDir), "utf-8"));
+  } catch (error) {
+    if (error.code === "ENOENT") return {}; // no ledger yet = legal empty (ruling 1)
+    if (error instanceof RunStoreError) throw error;
+    throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: error.code === "ENOENT" ? "request_approvals.load" : "request_approvals.parse", operationId: null, message: "request-approvals ledger unreadable/unparseable: " + String(error?.message ?? error) });
+  }
+  const bindings = ledgerBindingsOf(doc);
+  if (bindings === null) throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "request_approvals.parse", operationId: null, message: "request-approvals ledger has no valid bindings object" });
+  return bindings;
+}
+async function writeRequestApprovalBinding(projectDir, operationId, approvalHash, adapter) {
+  if (typeof approvalHash !== "string") return;
+  const bindings = await loadRequestApprovals(projectDir); // corrupt -> fail-closed, never overwritten
+  const io = makeIo(adapter ?? FaultAdapter.disabled(), { write: "request_approvals_write", fsyncFile: "request_approvals_write", fsyncDir: "request_approvals_write", rename: "request_approvals_write" }); // 预裁十-6: injectable ledger-write phase
+  await atomicWrite(requestApprovalsPath(projectDir), canonicalJSON({ schema: "request-approvals/v1", bindings: { ...bindings, [operationId]: approvalHash } }), io);
+}
+const REQ_APPROVAL_SET = new Set(["assignController", "stop", "reconcile", "close", "sweep", "applySessionEvent", "applyApproved", "recoverForward", "rebase", "prepare", "confirm", "abandonPreparedCandidate"]);
+const N2_FROZEN_LAYER = new Set(["applyApproved", "rebase"]); // transact + mirror share it (run-recover.mjs:1709/:1797)
+function n2MirrorApprovalHashFor(command, approvalRef) {
+  return REQ_APPROVAL_SET.has(command) && typeof approvalRef === "string" && !N2_FROZEN_LAYER.has(command) ? "load" : undefined;
+}
 const APPROVAL_OPERATION_ID_REQUIRED = new Set(["assignController", "applyApproved", "checkpointRebase", "cutoverG1a", "cutoverG1b", "cutoverAbandon", "cutoverRecovery"]);
 
-async function loadApproval(projectDir, ref, expectedKind, operationId, caller) {
+// RT1AGG R1/B2: frozen order required->callers->hash->kind->allowedKeys->binding->caller, split into
+// loadApprovalDoc (read+prefix) + assertApprovalGate (suffix) on ONE cached document (no TOCTOU);
+// the composed loadApproval stays behavior-equivalent for every other caller.
+async function loadApprovalDoc(projectDir, ref, operationId) {
   const file = resolveApprovalRef(projectDir, ref);
   const base = approvalsDir(projectDir);
   let realFile;
@@ -371,10 +414,15 @@ async function loadApproval(projectDir, ref, expectedKind, operationId, caller) 
   if (recomputed !== doc.approvalHash) {
     throw new RunStoreError({ code: "approval_hash_mismatch", exitCode: 1, stage: "approval.hash", operationId, message: "approvalHash does not match recomputed content" });
   }
+  return doc;
+}
+function assertApprovalGate(doc, expectedKind, operationId, caller) {
   if (expectedKind && doc.kind !== expectedKind) {
     throw new RunStoreError({ code: "approval_kind_mismatch", exitCode: 1, stage: "approval.kind", operationId, message: "approval kind " + doc.kind + " != " + expectedKind });
   }
-  const allowedKeys = APPROVAL_KIND_KEYS[doc.kind] ?? ["approvalId", "projectId", "kind", "allowedCallers", "approvalHash", "operationId"];
+  // schema-point: RS-APPROVAL-* — deferred; the per-kind closed sets stay handwritten
+  // (see the deferred ledger note at APPROVAL_KIND_KEYS). Check order unchanged.
+  const allowedKeys = (Object.prototype.hasOwnProperty.call(APPROVAL_KIND_KEYS, doc.kind) ? APPROVAL_KIND_KEYS[doc.kind] : undefined) ?? ["approvalId", "projectId", "kind", "allowedCallers", "approvalHash", "operationId"]; // R2: hasOwn — prototype kinds (e.g. "constructor") hit the fallback, not TypeError
   for (const k of Object.keys(doc)) {
     if (!allowedKeys.includes(k)) {
       throw new RunStoreError({ code: "approval_extra_key", exitCode: 1, stage: "approval.shape", operationId, message: "approval key not in closed set for kind " + doc.kind + ": " + k });
@@ -393,6 +441,10 @@ async function loadApproval(projectDir, ref, expectedKind, operationId, caller) 
     }
   }
   return doc;
+}
+async function loadApproval(projectDir, ref, expectedKind, operationId, caller) {
+  const doc = await loadApprovalDoc(projectDir, ref, operationId);
+  return assertApprovalGate(doc, expectedKind, operationId, caller);
 }
 
 async function loadEvidence(projectDir, ref, operationId) {
@@ -628,13 +680,54 @@ function blankState(stateUuid, ownerSessionId) {
 
 const HEARTBEAT_EXPIRY_MS = 30 * 60 * 1000;
 
-function controllerActive(state) {
+// ------------------------------------------------ RT1AGG schema single source
+// schema-point: RS-SCHEMA-LOAD — lazy-first-use load of the three runtime schema docs, frozen
+// per-process cache (import performs no schema I/O). Missing file -> io_load_failed exit3
+// schema.load; bad JSON -> io_load_failed exit3 schema.parse; registry/compile failure ->
+// invalid_shape_declaration exit1 shape.declare. Strictness=preserved (non-migrated gates stay).
+const SCHEMA_FILES = ["cutover.schema.json", "run-state.schema.json", "session.schema.json"];
+let SCHEMA_SHAPES_CACHE = null;
+async function loadSchemaShapes() {
+  if (SCHEMA_SHAPES_CACHE) return SCHEMA_SHAPES_CACHE;
+  const RUNTIME_SCHEMA_DIR = path.resolve(SCRIPT_DIR, "..", "templates", "runtime");
+  const docs = {};
+  for (const name of SCHEMA_FILES) {
+    const file = path.join(RUNTIME_SCHEMA_DIR, name);
+    let text;
+    try {
+      text = await fsp.readFile(file, "utf-8");
+    } catch (error) {
+      throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "schema.load", operationId: null, message: "runtime schema unreadable " + file + ": " + error.code });
+    }
+    try {
+      docs[name] = JSON.parse(text);
+    } catch (error) {
+      throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "schema.parse", operationId: null, message: "runtime schema unparseable " + file + ": " + String(error?.message ?? error) });
+    }
+  }
+  const cutover = docs["cutover.schema.json"];
+  const registry = { "run-state.schema.json": docs["run-state.schema.json"], "session.schema.json": docs["session.schema.json"] };
+  const compile = (schema, def) => shapeFromSchema({ schema, def, registry });
+  const shapes = Object.freeze({
+    docs: Object.freeze(docs),
+    // schema-point: RS-OPREF — OperationRef closed set/scalars/non-negative ints/hex64
+    operationRef: compile(cutover, "OperationRef"),
+    // schema-point: RS-SESSION — SessionEvent seven-key closed set + value shapes
+    sessionEvent: compile(docs["session.schema.json"], "SessionEvent"),
+  });
+  SCHEMA_SHAPES_CACHE = shapes;
+  return shapes;
+}
+
+// RT1AGG J: heartbeat window vs an explicitly injected clock (harness fixed clock; production
+// entries resolve an explicit Date.now default) — the body holds no wall-clock read of its own.
+function controllerActive(state, clock) {
   const c = state.authorization.controller;
   if (c.session_uuid === null || c.released_at !== null || c.blocked === true) return false;
   const hb = state.sessions[c.session_uuid]?.live_state?.heartbeat;
   if (typeof hb === "string") {
     const t = Date.parse(hb);
-    if (Number.isFinite(t) && Date.now() - t > HEARTBEAT_EXPIRY_MS) return false;
+    if (Number.isFinite(t) && clock() - t > HEARTBEAT_EXPIRY_MS) return false;
   }
   return true;
 }
@@ -658,8 +751,15 @@ const COMMANDS = {
   abandonPreparedCandidate: { keys: ["approvalRef", "abortEvidenceRef", "resumeOperation"] },
 };
 
-function requestHashOf({ command, principal, sessionId, operationId, payload }) {
-  return sha256hex(canonicalJSON({ command, principal, sessionId, operationId, payload }));
+// RT1AGG N2: requestHash binds the verified approvalHash for approval-carrying commands
+// (sha256 of the six-key canonical JSON); approval-free commands keep the original
+// five-key formula with no null key. The approvalHash always comes from a document that
+// passed the full loadApproval validation earlier in the same transaction.
+function requestHashOf({ command, principal, sessionId, operationId, payload, approvalHash }) {
+  const doc = approvalHash === undefined
+    ? { command, principal, sessionId, operationId, payload }
+    : { command, principal, sessionId, operationId, payload, approvalHash };
+  return sha256hex(canonicalJSON(doc));
 }
 
 function encodeApplied(operationId, requestHash, revision, hash, recordRevision) {
@@ -769,13 +869,13 @@ function assertJournalNotFrozen(journal, operationId) {
 }
 
 // ------------------------------------------------------------- authorization
-function assertControllerWrite(state, params, { allowException2 = false } = {}) {
+function assertControllerWrite(state, params, { allowException2 = false } = {}, clock) {
   const c = state.authorization.controller;
-  const expired = !controllerActive(state) && c.session_uuid === params.sessionId;
+  const expired = !controllerActive(state, clock) && c.session_uuid === params.sessionId;
   if (params.principal === "session" && params.sessionId && params.sessionId === c.session_uuid && c.released_at === null && c.blocked === false && !expired) {
     return { mode: "controller" };
   }
-  if (allowException2 && (c.session_uuid === null || c.blocked === true || !controllerActive(state))) {
+  if (allowException2 && (c.session_uuid === null || c.blocked === true || !controllerActive(state, clock))) {
     return { mode: "exception2" };
   }
   if (c.blocked === true) {
@@ -796,23 +896,27 @@ export async function transact(params) {
 }
 
 // harness-only entry: identical to the public transact (same lock and checks)
-// with the test IO adapter threaded through; never part of the public signature
-async function performTransact(params, adapter) {
+// with the test IO adapter threaded through; never part of the public signature.
+// RT1AGG J: optional clock is harness-only too — the self-test threads a fixed
+// fixture clock so heartbeat windows are deterministic; absent clock = production.
+async function performTransact(params, adapter, clock) {
   const { projectDir, principal, sessionId, expectedRevision, operationId, command, payload } = params ?? {};
   const io = adapter instanceof FaultAdapter ? adapter : FaultAdapter.disabled();
+  // schema-point: RS-PRESERVED-ARG — generic operationId argument gate (non-document site; non-schema by design)
   if (typeof operationId !== "string" || operationId.length === 0) {
     throw new RunStoreError({ code: "invalid_argument", exitCode: 1, stage: "args", operationId: null, message: "operationId required" });
   }
   const owner = await acquireLock(projectDir, operationId, io);
   try {
-    return await transactLocked({ projectDir, principal, sessionId, expectedRevision, operationId, command, payload, adapter: io });
+    return await transactLocked({ projectDir, principal, sessionId, expectedRevision, operationId, command, payload, adapter: io, clock });
   } finally {
     await releaseLock(projectDir, owner);
   }
 }
 
 async function transactLocked(args) {
-  const { projectDir, principal, sessionId, expectedRevision, operationId, command, payload, adapter } = args;
+  const { projectDir, principal, sessionId, expectedRevision, operationId, command, payload, adapter, clock } = args;
+  const clockNow = clock ?? Date.now; // RT1AGG J: explicit production default
   const pload = payload ?? {};
   // payload key closed-set checks
   if (!Object.prototype.hasOwnProperty.call(COMMANDS, command)) {
@@ -844,8 +948,9 @@ async function transactLocked(args) {
     if (Array.isArray(v)) v.forEach((x, i) => floatGuard(x, pathStr + "[" + i + "]"));
     else if (v && typeof v === "object") for (const k of Object.keys(v)) floatGuard(v[k], pathStr + "." + k);
   };
+  // schema-point: RS-PRESERVED-FLOAT — recursive payload float gate (non-document site; non-schema by design)
   floatGuard(pload, "$.payload");
-  const REQ_APPROVAL = new Set(["assignController", "stop", "reconcile", "close", "sweep", "applySessionEvent", "applyApproved", "recoverForward", "rebase", "prepare", "confirm", "abandonPreparedCandidate"]);
+  const REQ_APPROVAL = REQ_APPROVAL_SET; // module-scope single definition (harness mirror shares it)
   const REQ_EVIDENCE = new Set(["assignController", "stop", "reconcile", "close", "sweep", "applySessionEvent", "applyApproved"]);
   if (REQ_APPROVAL.has(command) && typeof pload.approvalRef !== "string") {
     throw new RunStoreError({ code: "approval_required", exitCode: 1, stage: "command.payload", operationId, message: command + " requires approvalRef" });
@@ -853,7 +958,76 @@ async function transactLocked(args) {
   if (REQ_EVIDENCE.has(command) && typeof pload.evidenceRef !== "string") {
     throw new RunStoreError({ code: "evidence_required", exitCode: 1, stage: "command.payload", operationId, message: command + " requires evidenceRef" });
   }
-  const requestHash = requestHashOf({ command, principal, sessionId, operationId, payload: pload });
+  // RT1AGG N2 (R1/B1 mechanism ②): every approval-carrying request binds its verified
+  // approvalHash. Commands outside the frozen run-recover layer bind INSIDE the requestHash
+  // (six-key formula); applyApproved and rebase keep the five-key hash because the hash-
+  // frozen run-recover layer recomputes five-key replay bindings and markers
+  // (run-recover.mjs:1709/:1797/:2781) — for those two (and as a cross-check for every
+  // other replay) the binding is enforced ENTRY-LEVEL via the request-approvals ledger:
+  // {operationId -> approvalHash}, written at publish time and verified on every replay/
+  // orphan-claim match. A swapped approval at the same ref therefore conflicts on ALL
+  // paths (new write / legacy-form replay / orphan claim / applyApproved / rebase);
+  // entries fabricated without a ledger record (frozen run-recover offline paths) keep
+  // their legacy replay acceptance — residual risk recorded in the drift table.
+  // R1/B2: the approval document is loaded ONCE (read + required/callers/hash prefix) at
+  // the first point the hash is needed; kind/allowedKeys/binding/caller run as the gate
+  // suffix at each site's original position (frozen order preserved, single read, no TOCTOU).
+  let verifiedApproval = null;
+  let requestHash = null;
+  let requestApprovals = null;
+  const ensureRequestHash = async () => {
+    if (requestHash !== null) return requestHash;
+    if (REQ_APPROVAL.has(command) && typeof pload.approvalRef === "string") {
+      verifiedApproval = await loadApprovalDoc(projectDir, pload.approvalRef, operationId);
+      // R2 ruling 1: validate the ledger at the earliest hash point so a corrupt ledger
+      // blocks the write path BEFORE any revision is published (never overwritten)
+      requestApprovals = await loadRequestApprovals(projectDir);
+    }
+    const bindsApproval = verifiedApproval !== null && !N2_FROZEN_LAYER.has(command);
+    requestHash = requestHashOf({ command, principal, sessionId, operationId, payload: pload, approvalHash: bindsApproval ? verifiedApproval.approvalHash : undefined });
+    return requestHash;
+  };
+  const getApproval = () => verifiedApproval; // args snapshot safety: callers read the closure live
+  // RT1AGG R2 (ruling 3+5): replay/orphan paths run the FULL approval gate
+  // (kind/allowedKeys/binding/caller with the command's expected kind) before any
+  // idempotent return or orphan claim; the ledger record lookup uses hasOwn so
+  // prototype-key operationIds (toString/constructor/__proto__) never misfire.
+  const APPROVAL_EXPECTED_KIND = {
+    assignController: "assignController", stop: "safeWrite", reconcile: "safeWrite", close: "safeWrite",
+    sweep: "safeWrite", applySessionEvent: "safeWrite", applyApproved: "applyApproved",
+    recoverForward: "cutoverRecovery", rebase: "checkpointRebase", prepare: "cutoverG1a",
+    confirm: "cutoverG1b", abandonPreparedCandidate: "cutoverAbandon",
+  };
+  const assertApprovalBindingRecord = async (hashForm, adapter) => {
+    if (verifiedApproval === null) return;
+    // R2 ruling 3: the FULL approval gate (expectedKind/operationId/caller) runs before any
+    // idempotent return or orphan claim. Scope note (measured): applying the gate to FIVE-key
+    // legacy matches breaks frozen F-R-002 (its orphan replay carries the genesis approval —
+    // kind assignController vs applySessionEvent, caller host vs session — and pins the
+    // ungated republication). Five-key legacy matches therefore keep the frozen R1 behavior
+    // (prefix validation + ledger record check); SIX-key matches — where the hash itself
+    // binds the approval — run the full gate.
+    const isSixKeyMatch = !N2_FROZEN_LAYER.has(command) && hashForm === "six";
+    if (isSixKeyMatch) {
+      assertApprovalGate(verifiedApproval, APPROVAL_EXPECTED_KIND[command] ?? null, operationId, { principal, callerSessionId: sessionId ?? null });
+    }
+    const ledger = requestApprovals ?? await loadRequestApprovals(projectDir);
+    const recorded = Object.prototype.hasOwnProperty.call(ledger, operationId) ? ledger[operationId] : undefined;
+    if (recorded !== undefined) {
+      if (recorded !== verifiedApproval.approvalHash) {
+        throw new RunStoreError({ code: "request_hash_conflict", exitCode: 1, stage: "replay", operationId, message: "same operationId replayed against a different approval than the recorded binding" });
+      }
+      return;
+    }
+    // ruling 4 (option A): six-key hash matches carry the binding IN the hash — a successful
+    // six-key replay with no ledger record writes the record back (true self-heal). Five-key
+    // matches cannot self-heal (the hash binds nothing; healing would bind whatever approval
+    // is presented) — that gap is the recorded permanent residual in the N2 authorization table.
+    if (isSixKeyMatch) {
+      await writeRequestApprovalBinding(projectDir, operationId, verifiedApproval.approvalHash, adapter);
+    }
+  };
+  if (!REQ_APPROVAL.has(command)) requestHash = requestHashOf({ command, principal, sessionId, operationId, payload: pload });
 
   // load current world
   let authority = null;
@@ -872,7 +1046,14 @@ async function transactLocked(args) {
   if (state) {
     const applied = findApplied(state, operationId);
     if (applied) {
-      if (applied.requestHash === requestHash) {
+      // RT1AGG N2: entries written by this code carry the six-key hash; legacy/fabricated
+      // entries (pre-N2 revisions, run-recover offline claims) carry the five-key form and
+      // stay replayable via the migration-compat comparison. New entries never match the
+      // five-key digest, so the approval binding holds for everything this code writes.
+      const replayHash = await ensureRequestHash();
+      const legacyHash = verifiedApproval !== null && !N2_FROZEN_LAYER.has(command) ? requestHashOf({ command, principal, sessionId, operationId, payload: pload }) : replayHash;
+      if (applied.requestHash === replayHash || applied.requestHash === legacyHash) {
+        await assertApprovalBindingRecord(applied.requestHash === replayHash ? "six" : "five", adapter); // full gate + ledger binding (R2)
         return { revision: applied.revision, hash: applied.hash, recordRevision: applied.recordRevision };
       }
       throw new RunStoreError({ code: "request_hash_conflict", exitCode: 1, stage: "replay", operationId, message: "same operationId replayed with payload/requestHash" });
@@ -884,7 +1065,10 @@ async function transactLocked(args) {
       const orphan = await readJsonFile(orphanFile, "orphan");
       if (orphan && Array.isArray(orphan.applied_operations) && orphan.schema) {
       const orphanApplied = findApplied(orphan, operationId);
-      if (orphanApplied && orphanApplied.requestHash === requestHash) {
+      const orphanN2 = await ensureRequestHash();
+      const orphanLegacy = verifiedApproval !== null && !N2_FROZEN_LAYER.has(command) ? requestHashOf({ command, principal, sessionId, operationId, payload: pload }) : orphanN2;
+      if (orphanApplied && (orphanApplied.requestHash === orphanN2 || orphanApplied.requestHash === orphanLegacy)) {
+        await assertApprovalBindingRecord(orphanApplied.requestHash === orphanN2 ? "six" : "five", adapter); // full gate + ledger binding (R2)
         const hwIo = makeIo(adapter, { write: "highwater_write", fsyncFile: "highwater_write", fsyncDir: "highwater_write", rename: "highwater_write" });
         const hw2 = { ...highwater };
         hw2[authority.state_uuid] = { record_revision: authority.record_revision + 1, current_revision: orphan.revision, current_hash: orphan.self_hash };
@@ -896,6 +1080,7 @@ async function transactLocked(args) {
         if (reread.self_hash !== nextAuthority.current_hash) {
           throw new RunStoreError({ code: "io_readback", exitCode: 3, stage: "authority_readback", operationId, message: "orphan republication readback mismatch" });
         }
+        await writeRequestApprovalBinding(projectDir, operationId, verifiedApproval?.approvalHash, adapter); // R4/W4: orphan-claim ledger write threaded through the fault adapter (fires after the authority advance)
         return { revision: orphanApplied.revision, hash: orphanApplied.hash, recordRevision: nextAuthority.record_revision };
       }
       throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "orphan", operationId, message: "unpublished revision exists (orphan); only the original operation may claim it" });
@@ -933,7 +1118,9 @@ async function transactLocked(args) {
     if (command !== "assignController" || principal !== "host" || expected !== 0) {
       throw new RunStoreError({ code: "genesis_required", exitCode: 1, stage: "genesis", operationId, message: "empty project only accepts initial assignController(expectedRevision=0, principal=host)" });
     }
-    const approval = await loadApproval(projectDir, pload.approvalRef, "assignController", operationId, { principal: "host", callerSessionId: null });
+    await ensureRequestHash(); // lazy doc load at the original loadApproval position
+    const approval = getApproval();
+    assertApprovalGate(approval, "assignController", operationId, { principal: "host", callerSessionId: null });
     await loadEvidence(projectDir, pload.evidenceRef, operationId);
     const desc = pload.descriptor;
     if (desc.role !== "controller") {
@@ -947,8 +1134,9 @@ async function transactLocked(args) {
     registerSession(st.sessions, desc);
     st.authorization.controller = { session_uuid: desc.session_uuid, assigned_at: nowIso(), released_at: null, evidence_ref: pload.evidenceRef, blocked: false };
     st.authorization.controller_epoch = 1;
-    const commitHash = sha256hex(operationId + ":" + requestHash);
-    st.applied_operations.push(encodeApplied(operationId, requestHash, 0, commitHash, 0));
+    const genesisHash = await ensureRequestHash();
+    const commitHash = sha256hex(operationId + ":" + genesisHash);
+    st.applied_operations.push(encodeApplied(operationId, genesisHash, 0, commitHash, 0));
     authority = {
       record_revision: -1, epoch: 0, mode: "runtime", state_uuid: stateUuid,
       base_revision: 0, base_hash: GENESIS_PARENT_HASH, current_revision: 0, current_hash: "",
@@ -958,6 +1146,7 @@ async function transactLocked(args) {
     await publishRevision(projectDir, st, authority, {
       adapter, operationId, controllerOperationId: operationId,
     });
+    await writeRequestApprovalBinding(projectDir, operationId, verifiedApproval?.approvalHash, adapter);
     return { revision: 0, hash: commitHash, recordRevision: 0 };
   }
 
@@ -972,14 +1161,15 @@ async function transactLocked(args) {
   next.revision = state.revision + 1;
   next.owner_session_id = sessionId ?? state.authorization.controller.session_uuid ?? "host";
 
-  const result = await applyCommand({ projectDir, principal, sessionId, operationId, command, payload: pload, state: next, currentState: state, authority, journal, adapter, requestHash, currentRevision });
+  const result = await applyCommand({ projectDir, principal, sessionId, operationId, command, payload: pload, state: next, currentState: state, authority, journal, adapter, currentRevision, clock: clockNow, ensureRequestHash, getApproval });
   if (typeof result === "string") {
     const cur = await loadAuthority(projectDir);
     const curState = await loadRevisionFile(projectDir, cur.state_uuid, cur.current_revision);
     return { revision: curState.revision, hash: curState.self_hash, recordRevision: cur.record_revision };
   }
-  const commitHash = sha256hex(operationId + ":" + requestHash);
-  next.applied_operations.push(encodeApplied(operationId, requestHash, next.revision, commitHash, authority.record_revision + 1));
+  const writeHash = await ensureRequestHash();
+  const commitHash = sha256hex(operationId + ":" + writeHash);
+  next.applied_operations.push(encodeApplied(operationId, writeHash, next.revision, commitHash, authority.record_revision + 1));
   if (next.applied_operations.length > APPLIED_LIMIT) {
     throw new RunStoreError({ code: "blocked_capacity", exitCode: 1, stage: "capacity.applied", operationId, message: "applied_operations limit reached (256)" });
   }
@@ -988,13 +1178,17 @@ async function transactLocked(args) {
     baseRevision: result.baseRevision, baseHash: result.baseHash,
   });
   if (result.after) await result.after(next, nextAuthority);
+  // R2/预裁十-6 (W7): ledger write moved AFTER result.after — success-path behavior
+  // unchanged; the ledger no longer lands before command-level after-hooks, so a crash
+  // between them cannot leave a binding for a partially-completed command.
+  await writeRequestApprovalBinding(projectDir, operationId, verifiedApproval?.approvalHash, adapter);
   return { revision: next.revision, hash: commitHash, recordRevision: nextAuthority.record_revision };
 }
 
 // applyCommand mutates `state` (a clone of current) and returns
 // undefined | "NOOP" | {epoch?, stateUuid?, baseRevision?, baseHash?, after?}
 async function applyCommand(args) {
-  const { projectDir, principal, sessionId, operationId, command, payload, state, authority, journal, adapter, requestHash } = args;
+  const { projectDir, principal, sessionId, operationId, command, payload, state, authority, journal, adapter, clock, ensureRequestHash, getApproval } = args;
   const caller = { principal, callerSessionId: sessionId };
   switch (command) {
     case "assignController": {
@@ -1003,7 +1197,9 @@ async function applyCommand(args) {
       if (!controllerVacant) {
         throw new RunStoreError({ code: "controller_active", exitCode: 1, stage: "assignController", operationId, message: "ACTIVE controller exists; takeover requires vacancy/blocked/expired with approval" });
       }
-      const approval = await loadApproval(projectDir, payload.approvalRef, "assignController", operationId, caller);
+      await ensureRequestHash(); // lazy doc load at the original loadApproval position
+      const approval = getApproval();
+      assertApprovalGate(approval, "assignController", operationId, caller);
       await loadEvidence(projectDir, payload.evidenceRef, operationId);
       const desc = payload.descriptor;
       if (!desc || desc.role !== "controller") {
@@ -1034,11 +1230,13 @@ async function applyCommand(args) {
     case "stop": {
       let mode;
       try {
-        mode = assertControllerWrite(state, { principal, sessionId, operationId }, { allowException2: true });
+        mode = assertControllerWrite(state, { principal, sessionId, operationId }, { allowException2: true }, clock);
       } catch (e) {
         throw e;
       }
-      await loadApproval(projectDir, payload.approvalRef, "safeWrite", operationId, caller);
+      // RT1AGG N2: approval pre-loaded and bound into requestHash; caller residual keeps the old position
+      await ensureRequestHash(); // lazy doc load at the original loadApproval position
+      assertApprovalGate(getApproval(), "safeWrite", operationId, caller);
       await loadEvidence(projectDir, payload.evidenceRef, operationId);
       const beforeEpoch = state.authorization.stop_epoch;
       const changed = applyStopTransition(state, {});
@@ -1047,14 +1245,19 @@ async function applyCommand(args) {
       return {};
     }
     case "reconcile": {
-      assertControllerWrite(state, { principal, sessionId, operationId }, { allowException2: true });
-      await loadApproval(projectDir, payload.approvalRef, "safeWrite", operationId, caller);
+      assertControllerWrite(state, { principal, sessionId, operationId }, { allowException2: true }, clock);
+      // RT1AGG N2: approval pre-loaded and bound into requestHash; caller residual keeps the old position
+      await ensureRequestHash(); // lazy doc load at the original loadApproval position
+      assertApprovalGate(getApproval(), "safeWrite", operationId, caller);
       await loadEvidence(projectDir, payload.evidenceRef, operationId);
       if (!payload.receipt || payload.receipt.simulated !== false) {
         throw new RunStoreError({ code: "simulated_observation", exitCode: 1, stage: "reconcile", operationId, message: "only real runtime observations (simulated=false) may migrate authoritative effects" });
       }
       const eff = state.effects.find((e) => e.effect_id === payload.effectId);
       if (!eff) throw new RunStoreError({ code: "unknown_effect", exitCode: 1, stage: "reconcile", operationId, message: "effect not found" });
+      // schema-point: RS-RECEIPT — DEFERRED (rt1agg W-1/deferred ledger): the outcome
+      // three-value face is exactly equal to a Receipt def, but the reconcile command has
+      // the simulated/effect gates stay and the handwritten outcome list remains in force.
       const outcome = payload.receipt.outcome;
       if (!["done", "failed", "cancelled"].includes(outcome)) {
         throw new RunStoreError({ code: "invalid_receipt", exitCode: 1, stage: "reconcile", operationId, message: "receipt.outcome must be done/failed/cancelled" });
@@ -1076,7 +1279,9 @@ async function applyCommand(args) {
       if (unresolved > 0) {
         throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "close.unresolved", operationId, message: "unresolved effects block close" });
       }
-      await loadApproval(projectDir, payload.approvalRef, "safeWrite", operationId, caller);
+      // RT1AGG N2: approval pre-loaded and bound into requestHash; caller residual keeps the old position
+      await ensureRequestHash(); // lazy doc load at the original loadApproval position
+      assertApprovalGate(getApproval(), "safeWrite", operationId, caller);
       await loadEvidence(projectDir, payload.evidenceRef, operationId);
       const target = sessionId;
       const sess = state.sessions[target];
@@ -1093,7 +1298,9 @@ async function applyCommand(args) {
     }
     case "sweep": {
       const evDoc = await loadEvidence(projectDir, payload.heartbeatEvidence ?? payload.evidenceRef, operationId);
-      await loadApproval(projectDir, payload.approvalRef, "safeWrite", operationId, caller);
+      // RT1AGG N2: approval pre-loaded and bound into requestHash; caller residual keeps the old position
+      await ensureRequestHash(); // lazy doc load at the original loadApproval position
+      assertApprovalGate(getApproval(), "safeWrite", operationId, caller);
       await loadEvidence(projectDir, payload.evidenceRef, operationId);
       const expired = new Set(evDoc.expired ?? [evDoc.session_uuid].filter(Boolean));
       if (expired.size === 0) {
@@ -1129,7 +1336,7 @@ async function applyCommand(args) {
     case "applySessionEvent": {
       let isController = false;
       try {
-        const m = assertControllerWrite(state, { principal, sessionId, operationId });
+        const m = assertControllerWrite(state, { principal, sessionId, operationId }, undefined, clock);
         isController = m.mode === "controller";
       } catch (e) {
         if (e.code === "needs_controller_sweep") throw e;
@@ -1141,21 +1348,31 @@ async function applyCommand(args) {
         if (!ev || ev.kind !== "inbox_message" || ev.session_uuid !== sessionId) {
           throw new RunStoreError({ code: "worker_inbox_only", exitCode: 1, stage: "applySessionEvent", operationId, message: "worker may only write inbox events for its own session" });
         }
-        await loadApproval(projectDir, payload.approvalRef, "safeWrite", operationId, caller);
+        // RT1AGG N2: approval pre-loaded and bound into requestHash; caller residual keeps the old position
+        await ensureRequestHash(); // lazy doc load at the original loadApproval position
+        assertApprovalGate(getApproval(), "safeWrite", operationId, caller);
         await loadEvidence(projectDir, payload.evidenceRef, operationId);
         const inboxFile = path.join(runtimeDir(projectDir), "session-events.jsonl");
         await fsp.mkdir(path.dirname(inboxFile), { recursive: true });
         await fsp.appendFile(inboxFile, canonicalJSON(ev) + "\n", "utf-8");
         return {};
       }
-      await loadApproval(projectDir, payload.approvalRef, "safeWrite", operationId, caller);
+      // RT1AGG N2: approval pre-loaded and bound into requestHash; caller residual keeps the old position
+      await ensureRequestHash(); // lazy doc load at the original loadApproval position
+      assertApprovalGate(getApproval(), "safeWrite", operationId, caller);
       await loadEvidence(projectDir, payload.evidenceRef, operationId);
       const ev = payload.event;
-      const required = ["event_id", "session_uuid", "kind", "evidence_ref", "payload", "created_at", "status"];
-      for (const k of required) {
-        if (!ev || typeof ev !== "object" || !(k in ev)) {
-          throw new RunStoreError({ code: "invalid_event", exitCode: 1, stage: "applySessionEvent", operationId, message: "event missing key " + k });
+      // schema-point: RS-SESSION — the seven required keys and the additionalProperties
+      // closed set are owned by the session SessionEvent def (the handwritten key list is
+      // gone). worker path and the unknown_session check below stay untouched.
+      const shapes2 = await loadSchemaShapes();
+      try {
+        shapes2.sessionEvent.check(ev, "$");
+      } catch (error) {
+        if (error instanceof RunStoreError && error.code === "invalid_shape" && error.stage === "shape.check") {
+          throw new RunStoreError({ code: "invalid_event", exitCode: 1, stage: "applySessionEvent", operationId, message: "event rejected by the SessionEvent schema: " + error.message });
         }
+        throw error;
       }
       const target = state.sessions[ev.session_uuid];
       if (!target) throw new RunStoreError({ code: "unknown_session", exitCode: 1, stage: "applySessionEvent", operationId, message: "event target session not registered" });
@@ -1163,7 +1380,7 @@ async function applyCommand(args) {
       return {};
     }
     case "assign": {
-      assertControllerWrite(state, { principal, sessionId, operationId });
+      assertControllerWrite(state, { principal, sessionId, operationId }, undefined, clock);
       await loadEvidence(projectDir, payload.evidenceRef, operationId);
       if (state.active_run !== null && state.active_run !== undefined) {
         throw new RunStoreError({ code: "second_active_run", exitCode: 1, stage: "assign", operationId, message: "project keeps a single active run" });
@@ -1203,8 +1420,10 @@ async function applyCommand(args) {
     }
     case "applyApproved": {
       const { currentState } = args;
-      const caller2 = { principal, callerSessionId: sessionId };
-      const approval = await loadApproval(projectDir, payload.approvalRef, "applyApproved", operationId, caller2);
+      // RT1AGG N2: approval pre-loaded and bound into requestHash; caller residual keeps the old position
+      await ensureRequestHash(); // lazy doc load at the original loadApproval position
+      const approval = getApproval();
+      assertApprovalGate(approval, "applyApproved", operationId, { principal, callerSessionId: sessionId });
       await loadEvidence(projectDir, payload.evidenceRef, operationId);
       const sess = principal === "session" && sessionId ? state.sessions[sessionId] : null;
       if (sess && sess.descriptor.role === "worker") {
@@ -1214,7 +1433,7 @@ async function applyCommand(args) {
         throw new RunStoreError({ code: "approval_base_mismatch", exitCode: 1, stage: "applyApproved", operationId, message: "approval base record/state revision mismatch" });
       }
       const c = state.authorization.controller;
-      const active = controllerActive(state);
+      const active = controllerActive(state, clock);
       if (!active) {
         const desc = payload.controllerDescriptor;
         if (!desc || !approval.controllerDescriptor || desc.session_uuid !== approval.controllerDescriptor.session_uuid) {
@@ -1240,7 +1459,9 @@ async function applyCommand(args) {
     }
     case "rebase": {
       const { currentState } = args;
-      const approval = await loadApproval(projectDir, payload.approvalRef, "checkpointRebase", operationId, caller);
+      await ensureRequestHash(); // lazy doc load at the original loadApproval position
+      const approval = getApproval();
+      assertApprovalGate(approval, "checkpointRebase", operationId, caller);
       if (payload.evidenceRef) await loadEvidence(projectDir, payload.evidenceRef, operationId);
       if (approval.baseRecordRevision !== authority.record_revision || approval.baseStateRevision !== currentState.revision) {
         throw new RunStoreError({ code: "approval_base_mismatch", exitCode: 1, stage: "rebase", operationId, message: "rebase base mismatch" });
@@ -1373,8 +1594,6 @@ export async function readCurrent({ projectDir }) {
 }
 
 // ------------------------------------------------------------ commitOperation
-const OPREF_KEYS = ["operationId", "kind", "parentRevision", "parentHash", "revision", "hash", "epoch", "stopEpoch"];
-
 export async function commitOperation({ projectDir, operationRef }) {
   for (const k of Object.keys(arguments[0] ?? {})) {
     if (k !== "projectDir" && k !== "operationRef") {
@@ -1384,31 +1603,31 @@ export async function commitOperation({ projectDir, operationRef }) {
   return performCommitOperation({ projectDir, operationRef }, FaultAdapter.disabled());
 }
 
-// harness-only entry threading the test IO adapter; same lock and checks
-async function performCommitOperation({ projectDir, operationRef }, adapter) {
+// harness-only entry threading the test IO adapter; same lock and checks.
+// RT1AGG J: optional harness-only clock, mirroring performTransact.
+async function performCommitOperation({ projectDir, operationRef }, adapter, clock) {
+  // schema-point: RS-PRESERVED-OPREF-ARG — generic non-object argument gate (non-schema)
   if (!operationRef || typeof operationRef !== "object") {
     throw new RunStoreError({ code: "invalid_argument", exitCode: 1, stage: "commitOperation", operationId: null, message: "operationRef required" });
   }
-  const refKeys = Object.keys(operationRef);
-  for (const k of refKeys) {
-    if (!OPREF_KEYS.includes(k)) {
-      throw new RunStoreError({ code: "invalid_operation_ref", exitCode: 1, stage: "commitOperation", operationId: operationRef.operationId ?? null, message: "operationRef has extra key " + k });
+  // schema-point: RS-OPREF — the eight-key closed set, scalar fields, the four
+  // non-negative integers and the two hex64 fields are owned by the cutover
+  // OperationRef def (the OPREF_KEYS literal is gone). Every def failure maps to
+  // this site's single original error identity.
+  const shapes = await loadSchemaShapes();
+  try {
+    shapes.operationRef.check(operationRef, "$");
+  } catch (error) {
+    if (error instanceof RunStoreError && error.code === "invalid_shape" && error.stage === "shape.check") {
+      throw new RunStoreError({ code: "invalid_operation_ref", exitCode: 1, stage: "commitOperation", operationId: typeof operationRef?.operationId === "string" ? operationRef.operationId : null, message: "operationRef rejected by the OperationRef schema: " + error.message });
     }
+    throw error;
   }
-  for (const k of OPREF_KEYS) {
-    if (!(k in operationRef)) {
-      throw new RunStoreError({ code: "invalid_operation_ref", exitCode: 1, stage: "commitOperation", operationId: operationRef.operationId ?? null, message: "operationRef missing key " + k });
-    }
-  }
-  const { operationId, kind, parentRevision, parentHash, revision, hash, epoch, stopEpoch } = operationRef;
-  if (typeof operationId !== "string" || operationId.length === 0) throw new RunStoreError({ code: "invalid_operation_ref", exitCode: 1, stage: "commitOperation", operationId: null, message: "operationRef.operationId must be a non-empty string" });
-  if (!["cutover_stop", "confirm", "resume", "recoverForward"].includes(kind)) throw new RunStoreError({ code: "invalid_operation_ref", exitCode: 1, stage: "commitOperation", operationId, message: "operationRef.kind not registered" });
-  if (!Number.isInteger(parentRevision) || parentRevision < 0 || !Number.isInteger(revision) || revision < 0 || !Number.isInteger(epoch) || epoch < 0 || !Number.isInteger(stopEpoch) || stopEpoch < 0) throw new RunStoreError({ code: "invalid_operation_ref", exitCode: 1, stage: "commitOperation", operationId, message: "operationRef numeric fields must be non-negative integers" });
-  if (!HEX64.test(parentHash ?? "") || !HEX64.test(hash ?? "")) throw new RunStoreError({ code: "invalid_operation_ref", exitCode: 1, stage: "commitOperation", operationId, message: "operationRef hash fields must be 64-hex" });
+  const operationId = operationRef.operationId;
   const io = adapter instanceof FaultAdapter ? adapter : FaultAdapter.disabled();
   const owner = await acquireLock(projectDir, operationId, io);
   try {
-    return await commitOperationLocked({ projectDir, operationRef, adapter: io });
+    return await commitOperationLocked({ projectDir, operationRef, adapter: io, clock });
   } finally {
     await releaseLock(projectDir, owner);
   }
@@ -1416,7 +1635,8 @@ async function performCommitOperation({ projectDir, operationRef }, adapter) {
 
 const KIND_JOURNAL_STATUS = { cutover_stop: "stopping", confirm: "confirming", resume: "abandoned_no_resume", recoverForward: "recovering" };
 
-async function commitOperationLocked({ projectDir, operationRef, adapter = FaultAdapter.disabled(), preBuiltRevision }) {
+async function commitOperationLocked({ projectDir, operationRef, adapter = FaultAdapter.disabled(), preBuiltRevision, clock }) {
+  const clockNow = clock ?? Date.now; // RT1AGG J: explicit production default
   const ref = operationRef;
   const authority = await loadAuthority(projectDir);
   const journal = await loadJournal(projectDir);
@@ -1488,7 +1708,7 @@ async function commitOperationLocked({ projectDir, operationRef, adapter = Fault
         session_uuid: ctrl.session_uuid, assigned_at: g1aDoc.assignedAt, released_at: null,
         evidence_ref: g1aDoc.controllerEvidenceRef, blocked: false,
       };
-      const hadActive = controllerActive(baseState);
+      const hadActive = controllerActive(baseState, clockNow);
       if (!hadActive) next.authorization.controller_epoch = baseState.authorization.controller_epoch + 1;
       if (!next.sessions[ctrl.session_uuid]) registerSession(next.sessions, ctrl);
     }
@@ -1576,7 +1796,7 @@ function buildCandidateRefAndState({ state, stopRef, operationId, authority }) {
 }
 
 async function runPrepare(args) {
-  const { projectDir, principal, sessionId, operationId, payload, currentState, authority, journal, adapter } = args;
+  const { projectDir, principal, sessionId, operationId, payload, currentState, authority, journal, adapter, clock, ensureRequestHash, getApproval } = args;
   if (currentState.pending_audit > 0) {
     throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "prepare.pending_audit", operationId, message: "pending_audit non-zero blocks cutover" });
   }
@@ -1585,9 +1805,11 @@ async function runPrepare(args) {
     throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "prepare.unresolved", operationId, message: "unknown/unresolved effects block cutover" });
   }
   const caller = { principal, callerSessionId: sessionId ?? null };
-  const approval = await loadApproval(projectDir, payload.approvalRef, "cutoverG1a", operationId, caller);
+  await ensureRequestHash(); // lazy doc load at the original loadApproval position
+  const approval = getApproval();
+  assertApprovalGate(approval, "cutoverG1a", operationId, caller);
   await loadEvidence(projectDir, payload.stopEvidenceRef, operationId);
-  if (payload.controllerDescriptor && approval.controllerDescriptor.session_uuid !== payload.controllerDescriptor.session_uuid) {
+  if (payload.controllerDescriptor && (!approval.controllerDescriptor || approval.controllerDescriptor.session_uuid !== payload.controllerDescriptor.session_uuid)) { // R5/W1: a descriptor-less g1a approval denies six-field clean instead of crashing
     throw new RunStoreError({ code: "approval_binding_mismatch", exitCode: 1, stage: "prepare.g1a", operationId, message: "controllerDescriptor differs from G1a" });
   }
   const active = (journal?.entries ?? []).filter((e) => ["stopping", "preparing", "prepared", "confirming", "recovering"].includes(e.status) || (e.status === "abandoned" && !e.resumeRef));
@@ -1609,7 +1831,7 @@ async function runPrepare(args) {
       if (rebuilt.stopRef.hash !== existing.stopRef.hash) {
         throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "prepare.rebuild", operationId, message: "stopRef rebuild does not reproduce the journal hash" });
       }
-      await commitOperationLocked({ projectDir, operationRef: existing.stopRef, adapter, preBuiltRevision: rebuilt.stopState });
+      await commitOperationLocked({ projectDir, operationRef: existing.stopRef, adapter, preBuiltRevision: rebuilt.stopState, clock });
       const au2 = await loadAuthority(projectDir);
       const cand = buildCandidateRefAndState({ state: rebuilt.stopState, stopRef: existing.stopRef, operationId, authority: au2 });
       const ioCand = makeIo(adapter, { write: "journal_write", fsyncFile: "journal_write", fsyncDir: "journal_write", rename: "journal_write" });
@@ -1645,7 +1867,7 @@ async function runPrepare(args) {
   j.generation += 1;
   j.previousHeadHash = j.headHash;
   await writeJournal(projectDir, j, adapter);
-  await commitOperationLocked({ projectDir, operationRef: stopRef, adapter, preBuiltRevision: stopState });
+  await commitOperationLocked({ projectDir, operationRef: stopRef, adapter, preBuiltRevision: stopState, clock });
   const au2 = await loadAuthority(projectDir);
   const { candidateRef, candState } = buildCandidateRefAndState({ state: stopState, stopRef, operationId, authority: au2 });
   const candFile = path.join(candidatesDir(projectDir), operationId + ".json");
@@ -1668,9 +1890,11 @@ async function runPrepare(args) {
 }
 
 async function runConfirm(args) {
-  const { projectDir, principal, sessionId, operationId, payload, state, authority, journal, adapter } = args;
+  const { projectDir, principal, sessionId, operationId, payload, state, authority, journal, adapter, clock, ensureRequestHash, getApproval } = args;
   const caller = { principal, callerSessionId: sessionId ?? null };
-  const approval = await loadApproval(projectDir, payload.approvalRef, "cutoverG1b", operationId, caller);
+  await ensureRequestHash(); // lazy doc load at the original loadApproval position
+  const approval = getApproval();
+  assertApprovalGate(approval, "cutoverG1b", operationId, caller);
   const entry = journalEntry(journal, operationId);
   if (!entry || !["prepared", "confirming", "confirmed"].includes(entry.status)) {
     throw new RunStoreError({ code: "journal_state_mismatch", exitCode: 1, stage: "confirm", operationId, message: "confirm requires a prepared cutover" });
@@ -1722,7 +1946,7 @@ async function runConfirm(args) {
   j.previousHeadHash = j.headHash;
   await writeJournal(projectDir, j, adapter);
   const auNow = await loadAuthority(projectDir);
-  const result = await commitOperationLocked({ projectDir, operationRef: cand.candidateRef, preBuiltRevision: cand.state });
+  const result = await commitOperationLocked({ projectDir, operationRef: cand.candidateRef, preBuiltRevision: cand.state, clock });
   const confirmed = { ...confirming, status: "confirmed" };
   confirmed.entryHash = entryHashOf(confirmed);
   const j2 = structuredClone(j);
@@ -1740,9 +1964,11 @@ async function runConfirm(args) {
 }
 
 async function runAbandonPrepared(args) {
-  const { projectDir, principal, sessionId, operationId, payload, state, authority, journal, adapter } = args;
+  const { projectDir, principal, sessionId, operationId, payload, state, authority, journal, adapter, ensureRequestHash, getApproval } = args;
   const caller = { principal, callerSessionId: sessionId ?? null };
-  const approval = await loadApproval(projectDir, payload.approvalRef, "cutoverAbandon", operationId, caller);
+  await ensureRequestHash(); // lazy doc load at the original loadApproval position
+  const approval = getApproval();
+  assertApprovalGate(approval, "cutoverAbandon", operationId, caller);
   await loadEvidence(projectDir, payload.abortEvidenceRef, operationId);
   const entry = journalEntry(journal, operationId);
   if (!entry || entry.status !== "prepared") {
@@ -1790,7 +2016,7 @@ async function runAbandonPrepared(args) {
 }
 
 async function runResume(args) {
-  const { projectDir, principal, sessionId, operationId, payload, state, authority, journal, adapter } = args;
+  const { projectDir, principal, sessionId, operationId, payload, state, authority, journal, adapter, clock } = args;
   const allowed = ["operationRef", "resumeRef"];
   for (const k of Object.keys(payload ?? {})) {
     if (!allowed.includes(k)) {
@@ -1830,7 +2056,7 @@ async function runResume(args) {
   }
   // G1a approval and controllerDescriptor come from the journal only
   const approvalDoc = JSON.parse(await fsp.readFile(resolveApprovalRef(projectDir, entry.approvalRef), "utf-8"));
-  const result = await commitOperationLocked({ projectDir, operationRef: entry.resumeOperation });
+  const result = await commitOperationLocked({ projectDir, operationRef: entry.resumeOperation, clock });
   const j = structuredClone(journal);
   const done = { ...entry, resumeRef: entry.resumeOperation.hash };
   done.entryHash = entryHashOf(done);
@@ -1851,7 +2077,7 @@ function guessRoot(operationId) {
   return operationId.split(":")[0];
 }
 
-async function buildRecoveryState({ projectDir, currentState, authority, operationId, approval, adapter }) {
+async function buildRecoveryState({ projectDir, currentState, authority, operationId, approval, adapter, clock }) {
   const recState = structuredClone(currentState);
   recState.parent_revision = currentState.revision;
   recState.parent_hash = currentState.self_hash;
@@ -1859,7 +2085,7 @@ async function buildRecoveryState({ projectDir, currentState, authority, operati
   recState.authorization.stop_epoch = currentState.authorization.stop_epoch + 1;
   applyStopTransition(recState, { endedAt: approval.recoveryTimestamp, endReason: "recover_forward", workOutcome: "UNKNOWN" });
   recState.active_run = null;
-  const active = controllerActive(currentState);
+  const active = controllerActive(currentState, clock);
   if (!active && approval.controllerDescriptor) {
     recState.authorization.controller = {
       session_uuid: approval.controllerDescriptor.session_uuid,
@@ -1882,7 +2108,8 @@ async function buildRecoveryState({ projectDir, currentState, authority, operati
 }
 
 async function runRecoverForward(args) {
-  const { projectDir, principal, sessionId, operationId, payload, state, currentState, authority, journal, adapter } = args;
+  const { projectDir, principal, sessionId, operationId, payload, state, currentState, authority, journal, adapter, clock, ensureRequestHash, getApproval } = args;
+  // schema-point: RS-PRESERVED-CONFIRMED-ID — generic confirmedOperationId argument gate (non-document site; non-schema by design)
   if (!payload.confirmedOperationId) {
     throw new RunStoreError({ code: "invalid_argument", exitCode: 1, stage: "recoverForward", operationId, message: "confirmedOperationId is explicit and required" });
   }
@@ -1890,7 +2117,9 @@ async function runRecoverForward(args) {
     throw new RunStoreError({ code: "blocked", exitCode: 1, stage: "recoverForward.pending_audit", operationId, message: "pending_audit non-zero blocks recovery" });
   }
   const caller = { principal, callerSessionId: sessionId ?? null };
-  const approval = await loadApproval(projectDir, payload.approvalRef, "cutoverRecovery", operationId, caller);
+  await ensureRequestHash(); // lazy doc load at the original loadApproval position
+  const approval = getApproval();
+  assertApprovalGate(approval, "cutoverRecovery", operationId, caller);
   if (approval.confirmedOperationId !== payload.confirmedOperationId) {
     throw new RunStoreError({ code: "approval_binding_mismatch", exitCode: 1, stage: "recoverForward", operationId, message: "confirmedOperationId differs from approval" });
   }
@@ -1950,7 +2179,7 @@ async function runRecoverForward(args) {
   if (approval.parentRevision !== currentState.revision || approval.parentHash !== currentState.self_hash) {
     throw new RunStoreError({ code: "approval_binding_mismatch", exitCode: 1, stage: "recoverForward", operationId, message: "recovery approval parent mismatch" });
   }
-  const recState = await buildRecoveryState({ projectDir, currentState, authority, operationId, approval, adapter });
+  const recState = await buildRecoveryState({ projectDir, currentState, authority, operationId, approval, adapter, clock });
   const recoveryRef = {
     operationId: operationId + ":recover", kind: "recoverForward",
     parentRevision: currentState.revision, parentHash: currentState.self_hash,
@@ -1982,7 +2211,7 @@ async function runRecoverForward(args) {
   j.previousHeadHash = j.headHash;
   await writeJournal(projectDir, j, adapter);
   // phase 2: commitOperation(recoveryRef)
-  await commitOperationLocked({ projectDir, operationRef: recoveryRef, preBuiltRevision: recState });
+  await commitOperationLocked({ projectDir, operationRef: recoveryRef, preBuiltRevision: recState, clock });
   // phase 3: same-batch recovered + head recoveredBy
   const au2 = await loadAuthority(projectDir);
   const j2 = structuredClone(j);
@@ -2012,13 +2241,23 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_FIXTURES = path.join(SCRIPT_DIR, ".golden", "run-store-fixtures.json");
 const DEFAULT_TEMP_ROOT = "/tmp/rt1a-executor-selftest";
 const TEMP_PREFIX = "/tmp/rt1a-executor-";
+// R2/预裁十 (taskbook r8+ assumption 3): V-4 command 1's declared temp-root is explicitly
+// licensed — accept both the legacy guard prefix and the licensed post-J path.
+function tempRootAllowed(resolved) {
+  return resolved.startsWith(TEMP_PREFIX) || resolved === "/tmp/rt1agg-executor-postj-selftest";
+}
+// RT1AGG J: fixed fixture clock for the whole self-test chain. TS0-heartbeats
+// stay inside the 30-minute window; the 2020-01-01 expiry probes stay expired.
+// Production entries never read this — they resolve Date.now explicitly.
+const SELFTEST_CLOCK_MS = Date.parse(TS0) + 15 * 60 * 1000;
+const selftestClock = () => SELFTEST_CLOCK_MS;
 
 export async function guardTempRoot(tempRoot) {
   if (typeof tempRoot !== "string" || tempRoot.length === 0) {
     return { ok: false, reason: "empty" };
   }
   const resolved = path.resolve(tempRoot);
-  if (!resolved.startsWith(TEMP_PREFIX)) return { ok: false, reason: "prefix" };
+  if (!tempRootAllowed(resolved)) return { ok: false, reason: "prefix" };
   if (resolved.includes("..")) return { ok: false, reason: "traversal" };
   let real;
   try {
@@ -2036,12 +2275,12 @@ export async function guardTempRoot(tempRoot) {
         }
       }
       if (real !== probe) return { ok: false, reason: "symlink_escape" };
-      if (probe !== "/tmp" && !probe.startsWith(TEMP_PREFIX)) return { ok: false, reason: "ancestor_escape" };
+      if (probe !== "/tmp" && !tempRootAllowed(probe)) return { ok: false, reason: "ancestor_escape" };
       return { ok: true, reason: null, resolved };
     }
     throw error;
   }
-  if (real !== resolved && !real.startsWith(TEMP_PREFIX)) return { ok: false, reason: "symlink_escape" };
+  if (real !== resolved && !tempRootAllowed(real)) return { ok: false, reason: "symlink_escape" };
   return { ok: true, reason: null, resolved };
 }
 
@@ -2524,11 +2763,26 @@ async function callTransact(ctx, call, adapter) {
   let error = null;
   const beforeAuthority = await currentAuthorityOf(ctx).catch(() => null);
   try {
-    result = usePublic ? await transact(params) : await performTransact(params, adapter ?? FaultAdapter.disabled());
+    result = usePublic ? await transact(params) : await performTransact(params, adapter ?? FaultAdapter.disabled(), selftestClock);
   } catch (e) {
     error = e;
   }
-  const entry = { name: call.name ?? call.operationId, outcome: "passed", exitCode: 0, requestHash: requestHashOf({ command: call.command, principal: call.principal, sessionId: call.sessionId ?? null, operationId: call.operationId, payload }) };
+  // RT1AGG N2 harness mirror: recompute the six-key requestHash exactly like the store
+  // (read the approval doc's approvalHash field; for valid docs it equals the recomputed
+  // hash, and store-side rejections never reach the encoding comparison anyway)
+  // R1/W5: the mirror reuses the STORE binding decision (REQ_APPROVAL_SET + N2_FROZEN_LAYER
+  // via n2MirrorApprovalHashFor) — no second command list, no second carve-out copy
+  let mirrorApprovalHash;
+  let mirrorRequestHash = null;
+  if (typeof call.operationId !== "string") {
+    mirrorRequestHash = undefined; // the args gate rejects before any hashing; keep six-field parity off
+  }
+  if (mirrorRequestHash === null && n2MirrorApprovalHashFor(call.command, payload.approvalRef) !== undefined) {
+    try {
+      mirrorApprovalHash = JSON.parse(await fsp.readFile(resolveApprovalRef(ctx.projectDir, payload.approvalRef), "utf-8")).approvalHash;
+    } catch { mirrorApprovalHash = undefined; }
+  }
+  const entry = { name: call.name ?? call.operationId, outcome: "passed", exitCode: 0, requestHash: mirrorRequestHash === undefined ? null : requestHashOf({ command: call.command, principal: call.principal, sessionId: call.sessionId ?? null, operationId: call.operationId, payload, approvalHash: mirrorApprovalHash }) };
   const beforeRev = beforeAuthority ? beforeAuthority.current_revision : null;
   const beforeCtrlEpoch = null;
   if (error) {
@@ -2610,7 +2864,9 @@ async function callCommitOperation(ctx, ref, adapter, callName) {
   let result = null;
   let error = null;
   try {
-    result = await commitOperation({ projectDir: ctx.projectDir, operationRef: ref });
+    // RT1AGG J: harness-resolved refs thread the fixed fixture clock; the public
+    // commitOperation keeps its production default and argument gate.
+    result = await performCommitOperation({ projectDir: ctx.projectDir, operationRef: ref }, FaultAdapter.disabled(), selftestClock);
   } catch (e) {
     error = e;
   }
@@ -2897,7 +3153,18 @@ async function runDirectInternal(ctx, call) {
     next.revision = base.revision + 1;
     const resolver = await makeResolver(ctx);
     const payload = deepResolve(resumeCall?.payload ?? {}, resolver);
-    const rh = requestHashOf({ command: call.args?.command ?? resumeCall?.command ?? "applySessionEvent", principal: resumeCall?.principal ?? "session", sessionId: resumeCall?.sessionId ?? "sess-ctrl", operationId: call.args?.operationId, payload });
+    let orphanApprovalHash; // RT1AGG N2 mirror
+    if (typeof payload.approvalRef === "string") {
+      try { orphanApprovalHash = JSON.parse(await fsp.readFile(resolveApprovalRef(ctx.projectDir, payload.approvalRef), "utf-8")).approvalHash; } catch { orphanApprovalHash = undefined; }
+    }
+    // R1/B1: style="legacy_five_key" fabricates a pre-N2 five-key orphan entry;
+    // bind_approval additionally writes the request-approvals ledger record for it
+    const orphanOpId = call.args?.operationId;
+    const legacyStyle = call.args?.style === "legacy_five_key";
+    const rh = requestHashOf({ command: call.args?.command ?? resumeCall?.command ?? "applySessionEvent", principal: resumeCall?.principal ?? "session", sessionId: resumeCall?.sessionId ?? "sess-ctrl", operationId: orphanOpId, payload, approvalHash: legacyStyle ? undefined : orphanApprovalHash });
+    if (call.args?.bind_approval && typeof orphanApprovalHash === "string") { // R4/W4: bind_approval now also pre-writes the ledger record for SIX-key orphan fabrications (legacy five-key behavior unchanged); lets the orphan-claim fault vector isolate the post-advance claim-site write
+      await writeRequestApprovalBinding(ctx.projectDir, orphanOpId, orphanApprovalHash);
+    }
     const commitHash = sha256hex((call.args?.operationId ?? "op") + ":" + rh);
     next.applied_operations.push(encodeApplied(call.args?.operationId, rh, next.revision, commitHash, authority.record_revision + 1));
     next.self_hash = computeSelfHash(next);
@@ -2992,6 +3259,10 @@ async function runAction(ctx, action) {
         await runDirectInternal(ctx, call);
         const last = ctx.calls[ctx.calls.length - 1];
         if (call.name && last) ctx.extras[call.name] = last;
+      } else if (call.kind === "approval") {
+        // RT1AGG N2: mid-action approval rewrite at the SAME ref (harness-only;
+        // writeApprovalDoc recomputes a valid approvalHash for the new content)
+        await writeApprovalDocCtx(ctx.projectDir, call.file, call.doc ?? (({ kind: _k, file: _f, ...rest }) => rest)(call));
       }
     }
     return;
@@ -4018,7 +4289,7 @@ async function runAtomicProbe(ctx, action) {
 async function runCrashMatrix(ctx) {
   const fsPromisesExists = (p) => fsp.access(p).then(() => true).catch(() => false);
   const ops = ["transact", "cutover_stop", "confirm", "resume", "recoverForward"];
-  const phases = ["state_write", "state_fsync_file", "state_fsync_parent", "state_readback", "highwater_write", "authority_publish", "authority_readback"];
+  const phases = ["state_write", "state_fsync_file", "state_fsync_parent", "state_readback", "highwater_write", "authority_publish", "authority_readback"]; // 预裁十-6: request_approvals_write injection carried as a dedicated fault vector (adding an 8th phase grows the matrix to 132 cells and breaks frozen F-S-C01's pinned 117/117 — measured)
   const variants = ["first_fail", "same_ref", "wrong_ref"];
   let cells = 0;
   let passed = 0;
@@ -4045,7 +4316,7 @@ async function runCrashMatrix(ctx) {
             projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: 0,
             operationId: "op-crash", command: "applySessionEvent",
             payload: { event: { event_id: "evt-crash", session_uuid: "sess-ctrl", kind: "inbox_message", evidence_ref: "ev-1.json", payload: {}, created_at: TS0, status: "recorded" }, evidenceRef: "ev-1.json", approvalRef: "app-ev1.json" },
-          }, adapter);
+          }, adapter, selftestClock);
         } else if (op === "cutover_stop") {
           await genesisFor(subDir);
           await writeApprovalDocCtx(subDir, "app-g1a-crash.json", {
@@ -4067,17 +4338,17 @@ async function runCrashMatrix(ctx) {
           j.entries.push(entry);
           await writeJournal(subDir, j, FaultAdapter.disabled());
           ref = stopRef;
-          call = async (adapter) => performCommitOperation({ projectDir: subDir, operationRef: stopRef }, adapter).then(() => {}, async (e) => { throw e; });
+          call = async (adapter) => performCommitOperation({ projectDir: subDir, operationRef: stopRef }, adapter, selftestClock).then(() => {}, async (e) => { throw e; });
         } else if (op === "confirm") {
           await cutoverBaseFor(subDir, "op-crash", { upTo: "confirming" });
           const candFile = path.join(candidatesDir(subDir), "op-crash.json");
           ref = JSON.parse(await fsp.readFile(candFile, "utf-8")).candidateRef;
-          call = async (adapter) => performCommitOperation({ projectDir: subDir, operationRef: ref }, adapter);
+          call = async (adapter) => performCommitOperation({ projectDir: subDir, operationRef: ref }, adapter, selftestClock);
         } else if (op === "resume") {
           await cutoverBaseFor(subDir, "op-crash", { upTo: "abandoned" });
           const j = await loadJournal(subDir);
           ref = journalEntry(j, "op-crash").resumeOperation;
-          call = async (adapter) => performCommitOperation({ projectDir: subDir, operationRef: ref }, adapter);
+          call = async (adapter) => performCommitOperation({ projectDir: subDir, operationRef: ref }, adapter, selftestClock);
         } else {
           await cutoverBaseFor(subDir, "op-crash", { upTo: "confirmed" });
           const authority = await loadAuthority(subDir);
@@ -4101,7 +4372,7 @@ async function runCrashMatrix(ctx) {
           j2.entries.push(recovering);
           await writeJournal(subDir, j2, FaultAdapter.disabled());
           ref = recoveryRef;
-          call = async (adapter) => performCommitOperation({ projectDir: subDir, operationRef: recoveryRef }, adapter);
+          call = async (adapter) => performCommitOperation({ projectDir: subDir, operationRef: recoveryRef }, adapter, selftestClock);
         }
         // variant: first_fail — records real stage, splits revision-file delta vs
         // authority-pointer delta per phase (B-9' accounting)
@@ -4185,7 +4456,7 @@ async function runCrashMatrix(ctx) {
             });
           } else {
             const bad = { ...ref, hash: ("f".repeat(64) === ref.hash ? "0" : "f").repeat(64) };
-            await commitOperationLocked({ projectDir: subDir, operationRef: bad });
+            await commitOperationLocked({ projectDir: subDir, operationRef: bad, clock: selftestClock });
           }
         } catch {
           wrongOk = true;
@@ -4207,7 +4478,7 @@ async function runCrashMatrix(ctx) {
       await genesisFor(subDir);
       await writeEvidenceDocCtx(subDir, "ev-1.json", { kind: "generic", statement: "crash evidence" });
       await writeApprovalDocCtx(subDir, "app-ev1.json", { approvalId: "apr-ev1", projectId: "proj-fs", kind: "safeWrite", allowedCallers: [{ principal: "session", callerSessionId: "sess-ctrl" }] });
-      const tcall = (adapter) => performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: 0, operationId: "op-crash", command: "applySessionEvent", payload: { event: { event_id: "evt-c", session_uuid: "sess-ctrl", kind: "inbox_message", evidence_ref: "ev-1.json", payload: {}, created_at: TS0, status: "recorded" }, evidenceRef: "ev-1.json", approvalRef: "app-ev1.json" } }, adapter);
+      const tcall = (adapter) => performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: 0, operationId: "op-crash", command: "applySessionEvent", payload: { event: { event_id: "evt-c", session_uuid: "sess-ctrl", kind: "inbox_message", evidence_ref: "ev-1.json", payload: {}, created_at: TS0, status: "recorded" }, evidenceRef: "ev-1.json", approvalRef: "app-ev1.json" } }, adapter, selftestClock);
       cells += 1;
       let ok = false;
       try { await tcall(new FaultAdapter({ phase: "lock", once: true })); } catch (e) { ok = e.exitCode === 3; }
@@ -4223,7 +4494,7 @@ async function runCrashMatrix(ctx) {
       cells += 1;
       ok = false;
       try {
-        await performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: 1, operationId: "op-crash", command: "applySessionEvent", payload: { event: { event_id: "evt-c", session_uuid: "sess-ctrl", kind: "inbox_message", evidence_ref: "ev-1.json", payload: { mutated: true }, created_at: TS0, status: "recorded" }, evidenceRef: "ev-1.json", approvalRef: "app-ev1.json" } });
+        await performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: 1, operationId: "op-crash", command: "applySessionEvent", payload: { event: { event_id: "evt-c", session_uuid: "sess-ctrl", kind: "inbox_message", evidence_ref: "ev-1.json", payload: { mutated: true }, created_at: TS0, status: "recorded" }, evidenceRef: "ev-1.json", approvalRef: "app-ev1.json" } }, FaultAdapter.disabled(), selftestClock);
       } catch { ok = true; }
       if (ok) passed += 1;
       lines.push("extra/lock/wrong_ref " + (ok ? "PASS" : "FAIL"));
@@ -4239,7 +4510,7 @@ async function runCrashMatrix(ctx) {
       await writeEvidenceDocCtx(subDir, "ev-g1a.json", { kind: "g1a-evidence", statement: "controller evidence" });
       await writeEvidenceDocCtx(subDir, "ev-stop.json", { kind: "stop-evidence", statement: "stop evidence" });
       await writeApprovalDocCtx(subDir, "app-g1a-jw.json", { approvalId: "apr-g1a-jw", projectId: "proj-fs", operationId: "op-jw", kind: "cutoverG1a", parentRevision: st0.revision, parentHash: st0.self_hash, stateUuid: st0.state_uuid, authorityEpoch: a0.epoch, allowedCallers: [{ principal: "host", callerSessionId: null }], controllerDescriptor: makeDescriptor({ session_uuid: "sess-ctrl" }), assignedAt: TS0, controllerEvidenceRef: "ev-g1a.json", controllerEvidenceHash: "c".repeat(64), stopEvidenceRef: "ev-stop.json", stopEvidenceHash: "s".repeat(64) });
-      const pcall = (adapter) => performTransact({ projectDir: subDir, principal: "host", sessionId: null, expectedRevision: (a0.current_revision), operationId: "op-jw", command: "prepare", payload: { approvalRef: "app-g1a-jw.json", controllerDescriptor: makeDescriptor({ session_uuid: "sess-ctrl" }), stopEvidenceRef: "ev-stop.json" } }, adapter);
+      const pcall = (adapter) => performTransact({ projectDir: subDir, principal: "host", sessionId: null, expectedRevision: (a0.current_revision), operationId: "op-jw", command: "prepare", payload: { approvalRef: "app-g1a-jw.json", controllerDescriptor: makeDescriptor({ session_uuid: "sess-ctrl" }), stopEvidenceRef: "ev-stop.json" } }, adapter, selftestClock);
       cells += 1;
       let ok = false;
       try { await pcall(new FaultAdapter({ phase: "journal_write", once: true })); } catch (e) { ok = e.exitCode === 3; }
@@ -4263,7 +4534,7 @@ async function runCrashMatrix(ctx) {
       try {
         const j = await loadJournal(subDir);
         const bad = { ...journalEntry(j, "op-jw").stopRef, hash: "f".repeat(64) };
-        await performCommitOperation({ projectDir: subDir, operationRef: bad });
+        await performCommitOperation({ projectDir: subDir, operationRef: bad }, FaultAdapter.disabled(), selftestClock);
       } catch { ok = true; }
       if (ok) passed += 1;
       lines.push("extra/journal_write/wrong_ref " + (ok ? "PASS" : "FAIL"));
@@ -4283,7 +4554,7 @@ async function runCrashMatrix(ctx) {
       next.parent_hash = base.self_hash;
       next.revision = base.revision + 1;
       const evtShape = (m) => ({ event: { event_id: "evt-c", session_uuid: "sess-ctrl", kind: "inbox_message", evidence_ref: "ev-1.json", payload: m, created_at: TS0, status: "recorded" }, evidenceRef: "ev-1.json", approvalRef: "app-ev1.json" });
-      const rh = requestHashOf({ command: "applySessionEvent", principal: "session", sessionId: "sess-ctrl", operationId: "op-orp", payload: evtShape({}) });
+      const rh = requestHashOf({ command: "applySessionEvent", principal: "session", sessionId: "sess-ctrl", operationId: "op-orp", payload: evtShape({}), approvalHash: JSON.parse(await fsp.readFile(resolveApprovalRef(subDir, "app-ev1.json"), "utf-8")).approvalHash }); // RT1AGG N2 mirror
       const ch = sha256hex("op-orp:" + rh);
       next.applied_operations.push(encodeApplied("op-orp", rh, next.revision, ch, authority.record_revision + 1));
       next.self_hash = computeSelfHash(next);
@@ -4291,7 +4562,7 @@ async function runCrashMatrix(ctx) {
       const hw = await loadHighwaterOrEmpty(subDir);
       hw[next.state_uuid] = { record_revision: authority.record_revision + 1, current_revision: next.revision, current_hash: next.self_hash };
       await atomicWrite(highwaterPath(subDir), canonicalJSON(hw), makeIo(FaultAdapter.disabled(), {}));
-      const wcall = (operationId, payload) => performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: authority.current_revision, operationId, command: "applySessionEvent", payload }, FaultAdapter.disabled());
+      const wcall = (operationId, payload) => performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: authority.current_revision, operationId, command: "applySessionEvent", payload }, FaultAdapter.disabled(), selftestClock);
       const evt = (m) => evtShape(m);
       cells += 1;
       let ok = false;
@@ -4335,12 +4606,12 @@ async function runCrashMatrix(ctx) {
       const evt = { event: { event_id: "evt-c", session_uuid: "sess-ctrl", kind: "inbox_message", evidence_ref: "ev-1.json", payload: {}, created_at: TS0, status: "recorded" }, evidenceRef: "ev-1.json", approvalRef: "app-ev1.json" };
       cells += 1;
       let ok = false;
-      try { await performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: authority.current_revision, operationId: "op-f1", command: "applySessionEvent", payload: evt }, FaultAdapter.disabled()); } catch (e) { ok = (e.code ?? "").startsWith("blocked"); }
+      try { await performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: authority.current_revision, operationId: "op-f1", command: "applySessionEvent", payload: evt }, FaultAdapter.disabled(), selftestClock); } catch (e) { ok = (e.code ?? "").startsWith("blocked"); }
       if (ok) passed += 1;
       lines.push("extra/fork/ordinary_blocked " + (ok ? "PASS" : "FAIL"));
       cells += 1;
       ok = false;
-      try { await performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: authority.current_revision, operationId: "op-f2", command: "applySessionEvent", payload: evt }, FaultAdapter.disabled()); } catch (e) { ok = (e.code ?? "").startsWith("blocked"); }
+      try { await performTransact({ projectDir: subDir, principal: "session", sessionId: "sess-ctrl", expectedRevision: authority.current_revision, operationId: "op-f2", command: "applySessionEvent", payload: evt }, FaultAdapter.disabled(), selftestClock); } catch (e) { ok = (e.code ?? "").startsWith("blocked"); }
       if (ok) passed += 1;
       lines.push("extra/fork/second_blocked " + (ok ? "PASS" : "FAIL"));
       cells += 1;
@@ -4351,7 +4622,7 @@ async function runCrashMatrix(ctx) {
         j2.entries.push({ operationId: "op-fk", status: "stopping", principal: "host", callerSessionId: "host", parentRevision: base.revision, parentHash: base.self_hash, stateUuid: base.state_uuid, authorityEpoch: authority.epoch, approvalRef: "app-g1a.json", approvalHash: "a".repeat(64), stopRef: stop, entryHash: "" });
         j2.entries[0].entryHash = entryHashOf(j2.entries[0]);
         await writeJournal(subDir, j2, FaultAdapter.disabled());
-        await performCommitOperation({ projectDir: subDir, operationRef: stop });
+        await performCommitOperation({ projectDir: subDir, operationRef: stop }, FaultAdapter.disabled(), selftestClock);
       } catch (e) { ok = (e.code ?? "") !== ""; }
       if (ok) passed += 1;
       lines.push("extra/fork/orphan_claim_blocked " + (ok ? "PASS" : "FAIL"));
@@ -4704,6 +4975,9 @@ async function runFixture(fixture, runRoot) {
     };
   }
   const ctx = newCtx(runRoot, fixture);
+  // RT1AGG: family-tail vectors share a fixture_id; each vector starts from a clean
+  // project dir (a no-op for the original one-vector-per-id fixtures)
+  await fsp.rm(path.join(runRoot, fixture.fixture_id), { recursive: true, force: true });
   await fsp.mkdir(path.join(runRoot, fixture.fixture_id), { recursive: true });
   await fsp.mkdir(approvalsDir(ctx.projectDir), { recursive: true });
   // baseline evidence files shared by fixtures
@@ -4726,6 +5000,24 @@ async function runFixture(fixture, runRoot) {
   const observedPre = await snapshotObserved(ctx);
   await computeDerivedExtras(ctx, observedPre);
   if (ENHANCERS[fixture.fixture_id]) await ENHANCERS[fixture.fixture_id](ctx);
+  // R2/W: generic applied-entries extras for EVERY vector with a setup baseline (family
+  // tails under any fixture id get the same three fields the F-S-043a enhancer computes)
+  // R2/预裁十-3: ledger observability for the heal probe — record the binding keys after
+  // the action so the heal write-back is behaviorally observable and killable
+  try {
+    const ledgerDoc = JSON.parse(await fsp.readFile(requestApprovalsPath(ctx.projectDir), "utf-8"));
+    ctx.extras.request_approval_ledger_keys = Object.keys(ledgerDoc.bindings ?? {}).sort();
+  } catch { ctx.extras.request_approval_ledger_keys = null; }
+  if (ctx.setupApplied) {
+    try {
+      const stNow = await currentStateOf(ctx);
+      if (stNow) {
+        ctx.extras.applied_entries_count = stNow.applied_operations.length;
+        ctx.extras.applied_entries_unchanged = JSON.stringify(ctx.setupApplied) === JSON.stringify(stNow.applied_operations.slice(0, ctx.setupApplied.length));
+        ctx.extras.no_new_entry = stNow.applied_operations.length === ctx.setupApplied.length;
+      }
+    } catch { /* state read failure leaves the extras absent; assertions on them fail loudly */ }
+  }
   const observed = await snapshotObserved(ctx);
   await fsp.mkdir(path.join(runRoot, fixture.fixture_id, "runs"), { recursive: true });
   await fsp.writeFile(path.join(runRoot, fixture.fixture_id, "runs", "observed.json"), JSON.stringify(observed, null, 1), "utf-8");
@@ -4774,13 +5066,15 @@ async function runSelfTest({ fixturesPath, tempRoot }) {
     return { rc: 1 };
   }
   const results = [];
-  for (const v of vectors) {
+  for (let vectorIndex = 0; vectorIndex < vectors.length; vectorIndex += 1) {
+    const v = vectors[vectorIndex];
     let r;
     try {
       r = await runFixture(v, runRoot);
     } catch (error) {
       r = { fixtureId: v.fixture_id, ok: false, passedCount: 0, total: v.expected_state.assertions.length, failed: ["harness: " + error.message + " @ " + (error.stack?.split("\n")[1] ?? "").trim()], observed: null };
     }
+    r.vectorIndex = vectorIndex;
     results.push(r);
     console.log(v.fixture_id + " " + (r.ok ? "PASS" : "FAIL") +
       " expected_exit=" + v.expected_exit + " actual_classification=" + (r.observed?.classification ?? "n/a") +
@@ -4789,28 +5083,34 @@ async function runSelfTest({ fixturesPath, tempRoot }) {
       (r.ok ? "" : " failed_paths=" + r.failed.slice(0, 3).join(";")));
   }
   const failed = results.filter((r) => !r.ok);
-  const byId = Object.fromEntries(results.map((r) => [r.fixtureId, r]));
+  // R1/W4: stable result keys are fixtureId#vectorIndex; the idempotency summary tokens
+  // bind the ORIGINAL vector of each id explicitly (first occurrence in file order — the
+  // family-tail additions are appended after the original 52), and family tails get their
+  // own independent summary item below.
+  const byId = Object.fromEntries(results.map((r) => [r.fixtureId + "#" + r.vectorIndex, r]));
+  const originalOf = (id) => results.find((r) => r.fixtureId === id);
+  const familyTails = results.filter((r) => results.some((x) => x.fixtureId === r.fixtureId && x.vectorIndex < r.vectorIndex));
   // summary tokens (V-2/V-4/V-5/V-6)
-  const m01 = byId["F-S-M01"]?.observed?.matrix;
+  const m01 = originalOf("F-S-M01")?.observed?.matrix;
   const capIds = ["F-S-044", "F-S-045", "F-S-046", "F-S-047", "F-S-048"];
-  const capOk = capIds.filter((id) => byId[id]?.ok).length;
-  const replay = byId["F-S-043a"]?.observed;
-  const c01 = byId["F-S-C01"]?.observed?.crash;
-  const f15 = byId["F-S-015"]?.observed;
-  const f16 = byId["F-S-016"]?.observed;
-  const f22 = byId["F-S-022"]?.observed;
-  const f24 = byId["F-S-024"]?.observed;
-  const ok15 = byId["F-S-015"]?.ok === true;
-  const ok16 = byId["F-S-016"]?.ok === true;
-  const ok22 = byId["F-S-022"]?.ok === true;
-  const f36 = byId["F-S-036"]?.observed;
-  const f37 = byId["F-S-037"]?.observed;
-  const f33 = byId["F-S-033"]?.observed;
-  const f35 = byId["F-S-035"]?.observed;
+  const capOk = capIds.filter((id) => originalOf(id)?.ok).length;
+  const replay = originalOf("F-S-043a")?.observed;
+  const c01 = originalOf("F-S-C01")?.observed?.crash;
+  const f15 = originalOf("F-S-015")?.observed;
+  const f16 = originalOf("F-S-016")?.observed;
+  const f22 = originalOf("F-S-022")?.observed;
+  const f24 = originalOf("F-S-024")?.observed;
+  const ok15 = originalOf("F-S-015")?.ok === true;
+  const ok16 = originalOf("F-S-016")?.ok === true;
+  const ok22 = originalOf("F-S-022")?.ok === true;
+  const f36 = originalOf("F-S-036")?.observed;
+  const f37 = originalOf("F-S-037")?.observed;
+  const f33 = originalOf("F-S-033")?.observed;
+  const f35 = originalOf("F-S-035")?.observed;
   console.log("state_matrix=" + (m01?.passed ?? 0) + "/" + (m01?.cells ?? 0) +
     " capacity_matrix=" + capOk + "/5" +
     " transact_replay_delta=" + (replay?.revision?.delta ?? "n/a") +
-    " applied_operations_encoding=" + (replay?.extras?.applied_encoding_ok === true && byId["F-S-043a"]?.ok ? "PASS" : "FAIL"));
+    " applied_operations_encoding=" + (replay?.extras?.applied_encoding_ok === true && originalOf("F-S-043a")?.ok ? "PASS" : "FAIL"));
   console.log("crash_matrix_cells=" + (c01?.cells ?? 0) + " crash_matrix=" + (c01?.passed ?? 0) + "/" + (c01?.cells ?? 0) +
     " first_fail_exit_io=" + (c01?.first_fail_exit_io === true ? "PASS" : "FAIL") +
     " same_ref_idempotent=" + (c01?.same_ref_idempotent === true ? "PASS" : "FAIL") +
@@ -4824,18 +5124,23 @@ async function runSelfTest({ fixturesPath, tempRoot }) {
     " missing_approval=" + (f24?.extras?.missing_approval ?? "n/a") +
     " ordinary_writer_mode_epoch=" + (f15c[0]?.outcome === "denied" && f15c[1]?.outcome === "denied" ? "denied" : "n/a") +
     " protected_payload=" + (f15c.slice(0, 6).every((c) => c.outcome === "denied") ? "denied" : "n/a"));
-  console.log("cutover_stop=" + (byId["F-S-032"]?.ok ? "PASS" : "FAIL") +
-    " confirm=" + (byId["F-S-033"]?.ok ? "PASS" : "FAIL") +
-    " resume=" + (byId["F-S-034"]?.ok ? "PASS" : "FAIL") +
-    " recoverForward=" + (byId["F-S-035"]?.ok ? "PASS" : "FAIL") +
+  console.log("cutover_stop=" + (originalOf("F-S-032")?.ok ? "PASS" : "FAIL") +
+    " confirm=" + (originalOf("F-S-033")?.ok ? "PASS" : "FAIL") +
+    " resume=" + (originalOf("F-S-034")?.ok ? "PASS" : "FAIL") +
+    " recoverForward=" + (originalOf("F-S-035")?.ok ? "PASS" : "FAIL") +
     " recover_two_phase=" + (f35?.extras?.recover?.from_confirmed?.two_phase === true && f35?.extras?.recover?.from_recovered?.two_phase === true ? "PASS" : "FAIL") +
-    " abandon_states=" + (byId["F-S-029a"]?.ok && byId["F-S-029b"]?.ok && byId["F-S-031"]?.ok ? "PASS" : "FAIL") +
-    " abandoned_resume_completed_write=" + (byId["F-S-029b"]?.ok ? "PASS" : "FAIL") +
+    " abandon_states=" + (originalOf("F-S-029a")?.ok && originalOf("F-S-029b")?.ok && originalOf("F-S-031")?.ok ? "PASS" : "FAIL") +
+    " abandoned_resume_completed_write=" + (originalOf("F-S-029b")?.ok ? "PASS" : "FAIL") +
     " confirm_epoch_delta=1" + (f33?.extras?.confirm?.epoch_delta === 1 ? "" : "(FAIL)") +
     " recover_epoch_delta=1" + (f35?.extras?.recover?.from_confirmed?.epoch_delta === 1 ? "" : "(FAIL)") +
     " direct_call=" + (f36?.extras?.calls?.[0]?.outcome === "denied" ? "denied" : "n/a") +
     " orphan_replay_delta=" + (f37?.extras?.calls?.[2]?.outcome === "passed" && f37?.extras?.calls?.[1]?.outcome === "blocked" ? 0 : "n/a"));
-  console.log("self-test 汇总：fixtures=" + results.length + " failed=" + failed.length);
+  // RT1AGG: ids/vectors computed from results + distinct fixture_id (R22 asserts these);
+  // family-tail vectors (additions sharing a fixture_id) get an independent summary item.
+  const distinctIds = new Set(results.map((r) => r.fixtureId)).size;
+  console.log("self-test 汇总：ids=" + distinctIds + " vectors=" + results.length + " fixtures=" + results.length + " failed=" + failed.length);
+  const tailIds = familyTails.map((r) => r.fixtureId + "#" + r.vectorIndex + ":" + (r.ok ? "PASS" : "FAIL"));
+  console.log("family_tails=" + familyTails.length + (tailIds.length ? " " + tailIds.join(" ") : ""));
   console.log("run_root=" + runRoot);
   return { rc: failed.length === 0 ? 0 : 1, runRoot };
 }
