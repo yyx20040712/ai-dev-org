@@ -148,7 +148,7 @@ function makeIo(adapter, phaseMap) {
 }
 
 // ---------------------------------------------------------------------- lock
-async function acquireLock(projectDir, operationId, adapter) {
+export async function acquireLock(projectDir, operationId, adapter) {
   const lp = lockPath(projectDir);
   await fsp.mkdir(path.dirname(lp), { recursive: true });
   if (adapter instanceof FaultAdapter) adapter.fail("lock", "lock", operationId);
@@ -179,7 +179,7 @@ async function acquireLock(projectDir, operationId, adapter) {
   return ownerToken;
 }
 
-async function releaseLock(projectDir, ownerToken) {
+export async function releaseLock(projectDir, ownerToken) {
   if (!ownerToken) return;
   const lp = lockPath(projectDir);
   let text;
@@ -230,7 +230,7 @@ async function readJsonFile(file, stage) {
 
 const AUTHORITY_KEYS = ["record_revision", "epoch", "mode", "state_uuid", "base_revision", "base_hash", "current_revision", "current_hash", "controller_operation_id", "mode_change_approval_ref", "journal_generation", "journal_head_hash"];
 
-async function loadAuthority(projectDir) {
+export async function loadAuthority(projectDir) {
   const a = await readJsonFile(authorityPath(projectDir), "authority");
   for (const k of AUTHORITY_KEYS) {
     if (!(k in a)) throw new RunStoreError({ code: "authority_corrupt", exitCode: 3, stage: "authority.shape", operationId: null, message: "authority missing key " + k });
@@ -240,7 +240,7 @@ async function loadAuthority(projectDir) {
 
 const REVISION_REQUIRED_KEYS = ["schema", "state_uuid", "revision", "owner_session_id", "parent_revision", "parent_hash", "self_hash", "active_run", "queue", "effects", "authorization", "reviews", "sessions", "pending_closures", "applied_operations", "pending_audit"];
 
-async function loadRevisionFile(projectDir, stateUuid, revision) {
+export async function loadRevisionFile(projectDir, stateUuid, revision) {
   const file = revisionFilePath(projectDir, stateUuid, revision);
   const r = await readJsonFile(file, "revision");
   // schema-point: RS-REVISION — DEFERRED (rt1agg W-1/deferred ledger): the run-state
@@ -368,7 +368,7 @@ async function loadRequestApprovals(projectDir) {
   if (bindings === null) throw new RunStoreError({ code: "io_load_failed", exitCode: 3, stage: "request_approvals.parse", operationId: null, message: "request-approvals ledger has no valid bindings object" });
   return bindings;
 }
-async function writeRequestApprovalBinding(projectDir, operationId, approvalHash, adapter) {
+export async function writeRequestApprovalBinding(projectDir, operationId, approvalHash, adapter) {
   if (typeof approvalHash !== "string") return;
   const bindings = await loadRequestApprovals(projectDir); // corrupt -> fail-closed, never overwritten
   const io = makeIo(adapter ?? FaultAdapter.disabled(), { write: "request_approvals_write", fsyncFile: "request_approvals_write", fsyncDir: "request_approvals_write", rename: "request_approvals_write" }); // 预裁十-6: injectable ledger-write phase
@@ -384,7 +384,7 @@ const APPROVAL_OPERATION_ID_REQUIRED = new Set(["assignController", "applyApprov
 // RT1AGG R1/B2: frozen order required->callers->hash->kind->allowedKeys->binding->caller, split into
 // loadApprovalDoc (read+prefix) + assertApprovalGate (suffix) on ONE cached document (no TOCTOU);
 // the composed loadApproval stays behavior-equivalent for every other caller.
-async function loadApprovalDoc(projectDir, ref, operationId) {
+export async function loadApprovalDoc(projectDir, ref, operationId) {
   const file = resolveApprovalRef(projectDir, ref);
   const base = approvalsDir(projectDir);
   let realFile;
@@ -416,7 +416,7 @@ async function loadApprovalDoc(projectDir, ref, operationId) {
   }
   return doc;
 }
-function assertApprovalGate(doc, expectedKind, operationId, caller) {
+export function assertApprovalGate(doc, expectedKind, operationId, caller) {
   if (expectedKind && doc.kind !== expectedKind) {
     throw new RunStoreError({ code: "approval_kind_mismatch", exitCode: 1, stage: "approval.kind", operationId, message: "approval kind " + doc.kind + " != " + expectedKind });
   }
@@ -447,7 +447,7 @@ async function loadApproval(projectDir, ref, expectedKind, operationId, caller) 
   return assertApprovalGate(doc, expectedKind, operationId, caller);
 }
 
-async function loadEvidence(projectDir, ref, operationId) {
+export async function loadEvidence(projectDir, ref, operationId) {
   if (typeof ref !== "string" || ref.length === 0) {
     throw new RunStoreError({ code: "evidence_missing", exitCode: 1, stage: "evidence.resolve", operationId, message: "evidenceRef missing" });
   }
@@ -640,6 +640,43 @@ function applyStopTransition(state, opts = {}) {
   return changed;
 }
 
+// RT1D（r11 预裁九②/⑨）: archive-file existence probe and full closure-index uuid lookup
+async function closureArchiveExists(projectDir, sessionUuid) {
+  const file = path.join(projectDir, "docs", "evidence", "session-closures", sessionUuid + ".json");
+  try {
+    const st = await fsp.stat(file);
+    return { exists: true, isFile: st.isFile() };
+  } catch (error) {
+    if (error.code === "ENOENT") return { exists: false, isFile: false };
+    // ②（r12 预裁十②）: EACCES/EIO 等 IO 错误一律 fail-closed（不发布接管）
+    throw new RunStoreError({ code: "closure_archive_unreadable", exitCode: 1, stage: "assignController.takeover", operationId: null, message: "closure archive stat failed (" + error.code + ") for " + sessionUuid });
+  }
+}
+async function closureIndexedInFile(projectDir, sessionUuid) {
+  const file = path.join(projectDir, ".zcode", "closure-index.jsonl");
+  let text;
+  try {
+    text = await fsp.readFile(file, "utf-8");
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw new RunStoreError({ code: "closure_archive_unreadable", exitCode: 1, stage: "assignController.takeover", operationId: null, message: "closure index unreadable (" + error.code + ")" });
+  }
+  // ①（r13 预裁十一①）: 全行解析——匹配命中后仍扫完全部行；任一行解析错（无论位置，
+  // 含命中行之前/之后）一律 closure_archive_unreadable，不发布接管。
+  let hit = false;
+  for (const line of text.split("\n")) {
+    if (!line.trim()) continue;
+    let o;
+    try {
+      o = JSON.parse(line);
+    } catch (error) {
+      throw new RunStoreError({ code: "closure_archive_unreadable", exitCode: 1, stage: "assignController.takeover", operationId: null, message: "closure index line unparseable: " + String(error?.message ?? error).slice(0, 80) });
+    }
+    if (o && o.session_uuid === sessionUuid) hit = true;
+  }
+  return hit;
+}
+
 // --------------------------------------------------------- session registry
 function registerSession(sessions, descriptor) {
   sessions[descriptor.session_uuid] = {
@@ -721,7 +758,7 @@ async function loadSchemaShapes() {
 
 // RT1AGG J: heartbeat window vs an explicitly injected clock (harness fixed clock; production
 // entries resolve an explicit Date.now default) — the body holds no wall-clock read of its own.
-function controllerActive(state, clock) {
+export function controllerActive(state, clock) {
   const c = state.authorization.controller;
   if (c.session_uuid === null || c.released_at !== null || c.blocked === true) return false;
   const hb = state.sessions[c.session_uuid]?.live_state?.heartbeat;
@@ -755,7 +792,7 @@ const COMMANDS = {
 // (sha256 of the six-key canonical JSON); approval-free commands keep the original
 // five-key formula with no null key. The approvalHash always comes from a document that
 // passed the full loadApproval validation earlier in the same transaction.
-function requestHashOf({ command, principal, sessionId, operationId, payload, approvalHash }) {
+export function requestHashOf({ command, principal, sessionId, operationId, payload, approvalHash }) {
   const doc = approvalHash === undefined
     ? { command, principal, sessionId, operationId, payload }
     : { command, principal, sessionId, operationId, payload, approvalHash };
@@ -786,7 +823,7 @@ function findApplied(state, operationId) {
 }
 
 // ------------------------------------------------------------ publish chain
-async function publishRevision(projectDir, revision, authority, opts = {}) {
+export async function publishRevision(projectDir, revision, authority, opts = {}) {
   const adapter = opts.adapter ?? FaultAdapter.disabled();
   const stateFile = revisionFilePath(projectDir, revision.state_uuid, revision.revision);
   if (fs.existsSync(stateFile)) {
@@ -869,7 +906,7 @@ function assertJournalNotFrozen(journal, operationId) {
 }
 
 // ------------------------------------------------------------- authorization
-function assertControllerWrite(state, params, { allowException2 = false } = {}, clock) {
+export function assertControllerWrite(state, params, { allowException2 = false } = {}, clock) {
   const c = state.authorization.controller;
   const expired = !controllerActive(state, clock) && c.session_uuid === params.sessionId;
   if (params.principal === "session" && params.sessionId && params.sessionId === c.session_uuid && c.released_at === null && c.blocked === false && !expired) {
@@ -914,7 +951,7 @@ async function performTransact(params, adapter, clock) {
   }
 }
 
-async function transactLocked(args) {
+export async function transactLocked(args) {
   const { projectDir, principal, sessionId, expectedRevision, operationId, command, payload, adapter, clock } = args;
   const clockNow = clock ?? Date.now; // RT1AGG J: explicit production default
   const pload = payload ?? {};
@@ -1209,17 +1246,134 @@ async function applyCommand(args) {
         throw new RunStoreError({ code: "approval_binding_mismatch", exitCode: 1, stage: "assignController", operationId, message: "descriptor does not match approval controllerDescriptor" });
       }
       // stop-transition takeover
+      // RT1D 行为修①（r9 裁定八语义扩展）: the double-clear target is the active_run HOLDER
+      // session (including a non-controller worker) — capture the holder BEFORE
+      // applyStopTransition clears state.active_run.
+      const holderUuid = state.active_run !== null && state.active_run !== undefined ? state.active_run.session_uuid : null;
       applyStopTransition(state, { bumpStopEpoch: true, endReason: "controller_takeover", workOutcome: "UNKNOWN" });
+      if (holderUuid !== null && state.sessions[holderUuid]) {
+        const holder = state.sessions[holderUuid];
+        holder.live_state.current_run = null;
+        if (holderUuid !== c.session_uuid) {
+          // worker-held run taken over in the same transaction: terminalize the holder and
+          // stamp the stop-side closure with the takeover evidence (docs/14:305)
+          holder.live_state.lifecycle = "INTERRUPTED";
+          holder.live_state.work_outcome = "UNKNOWN";
+          const holderPending = state.pending_closures[holderUuid];
+          if (holderPending && holderPending.closure && holderPending.closure.evidence_ref === undefined) {
+            holderPending.closure.evidence_ref = payload.evidenceRef;
+          }
+          // RT1D 行为修③（r11 预裁九⑨）: the holder's closure enters the index anchor in the
+          // same transaction (a-branch two-state semantics: 已入索引=count 不变＋重锚替换；
+          // 首次入索引=count+1). "已入索引" = archive-file existence OR the full closure-index
+          // jsonl holds the uuid (not just recent_entries).
+          if (holderPending) {
+            // ⑤（r12 预裁十⑤）: holder 已入索引判定=a 分支同款两源——归档文件存在 OR 完整索引含 uuid
+            const holderArchive = await closureArchiveExists(projectDir, holderUuid);
+            const holderIndexed = (holderArchive.exists && holderArchive.isFile) || (await closureIndexedInFile(projectDir, holderUuid));
+            const hchash = sha256hex(canonicalJSON({ descriptor: holderPending.descriptor, closure: holderPending.closure, closure_revision: holderPending.closure_revision }));
+            const hidx = holder.closure_index;
+            const hentry = { entry_id: hchash, session_uuid: holderUuid, closure_hash: hchash, archived_at: nowIso(), prev_entry_hash: hidx.closure_head_hash };
+            const hat = hidx.recent_entries.findIndex((e) => e && e.session_uuid === holderUuid);
+            if (hat >= 0) hidx.recent_entries[hat] = hentry;
+            else { hidx.recent_entries.push(hentry); if (!holderIndexed) hidx.closure_count += 1; }
+            if (hidx.recent_entries.length > 10) hidx.recent_entries.splice(0, hidx.recent_entries.length - 10);
+            hidx.closure_head_hash = hchash;
+          }
+        }
+      }
       if (c.session_uuid !== null) {
         const old = state.sessions[c.session_uuid];
         if (old) {
+          // RT1D 行为修①: state.active_run is already cleared by applyStopTransition above;
+          // the old session's live_state.current_run is double-cleared in the same
+          // transaction (docs/14:305 不得留下「无 active run 但未关闭」的活跃会话).
+          old.live_state.current_run = null;
           old.live_state.lifecycle = "INTERRUPTED";
           old.live_state.work_outcome = "UNKNOWN";
-          state.pending_closures[c.session_uuid] = {
-            descriptor: old.descriptor,
-            closure: { ended_at: nowIso(), end_reason: "controller_takeover", work_outcome: "UNKNOWN", final_revision: state.revision, final_artifacts: [], unresolved: [], successor: desc.session_uuid },
-            closure_revision: state.revision,
-          };
+          const oldUuid = c.session_uuid;
+          const closureRevision = state.revision;
+          // RT1D 行为修②: the takeover closure carries evidence_ref (payload.evidenceRef);
+          // the stop-side closure write (applyStopTransition, :623~:631) stays unchanged.
+          const takeoverClosure = () => ({ ended_at: nowIso(), end_reason: "controller_takeover", work_outcome: "UNKNOWN", final_revision: state.revision, final_artifacts: [], unresolved: [], successor: desc.session_uuid, evidence_ref: payload.evidenceRef });
+          const closureIndex = old.closure_index;
+          const pendingEntry = state.pending_closures[oldUuid];
+          if (pendingEntry) {
+            // RT1D 行为修③(a)（r11 预裁九②）: a 覆盖前先核归档不存在——已归档的 pending
+            // 绝不覆盖（不可变归档），deny closure_archive_immutable；「已入索引」判定=
+            // 归档文件存在性 OR 完整索引 jsonl 含该 uuid（不只 recent_entries）。
+            const archiveExists = await closureArchiveExists(projectDir, oldUuid);
+            if (archiveExists.exists && archiveExists.isFile) {
+              throw new RunStoreError({ code: "closure_archive_immutable", exitCode: 1, stage: "assignController.takeover", operationId, message: "pending closure for " + oldUuid + " is already archived; the immutable archive is never overwritten" });
+            }
+            if (archiveExists.exists && !archiveExists.isFile) {
+              // ⑤（r14 预裁十二⑤）: 归档路径为目录 -> closure_archive_suspicious（fail-closed）
+              throw new RunStoreError({ code: "closure_archive_suspicious", exitCode: 1, stage: "assignController.takeover", operationId, message: "closure archive path for " + oldUuid + " is not a regular file" });
+            }
+            const oldArchive = await closureArchiveExists(projectDir, oldUuid);
+            const alreadyIndexed = (oldArchive.exists && oldArchive.isFile) || (await closureIndexedInFile(projectDir, oldUuid));
+            const closure = takeoverClosure();
+            state.pending_closures[oldUuid] = { descriptor: old.descriptor, closure, closure_revision: closureRevision };
+            const chash = sha256hex(canonicalJSON({ descriptor: old.descriptor, closure, closure_revision: closureRevision }));
+            const entry = { entry_id: chash, session_uuid: oldUuid, closure_hash: chash, archived_at: nowIso(), prev_entry_hash: closureIndex.closure_head_hash };
+            const at = closureIndex.recent_entries.findIndex((e) => e && e.session_uuid === oldUuid);
+            if (at >= 0) closureIndex.recent_entries[at] = entry;
+            else { closureIndex.recent_entries.push(entry); if (!alreadyIndexed) closureIndex.closure_count += 1; }
+            if (closureIndex.recent_entries.length > 10) closureIndex.recent_entries.splice(0, closureIndex.recent_entries.length - 10);
+            closureIndex.closure_head_hash = chash;
+          } else {
+            // RT1D 行为修③ b/c 判定四态化（R5-B-2/R6-W-1，fail-closed，接管事务锁内执行）：
+            // ① 归档件存在且完整（可读且读出 hash 与 recent_entries 对应 entry 相符，或
+            // recent 无记录时仅可读）→ b：不写新 closure，仅置 INTERRUPTED，head/count/recent
+            // 不动（不可变归档零破坏）；② ENOENT 且 recent 不含该 uuid → c：新增＋count＋1；
+            // ③ ENOENT 但 recent 含该 uuid → deny closure_archive_missing（docs/14:347）；
+            // ④ 非 ENOENT IO 错误/路径为目录/读出 hash 与 recent entry 不符 → deny
+            // closure_archive_suspicious（不静默走 c）.
+            const archiveFile = path.join(projectDir, "docs", "evidence", "session-closures", oldUuid + ".json");
+            const recentHas = closureIndex.recent_entries.some((e) => e && e.session_uuid === oldUuid);
+            let st = null;
+            try {
+              st = await fsp.stat(archiveFile);
+            } catch (error) {
+              if (error.code !== "ENOENT") {
+                throw new RunStoreError({ code: "closure_archive_suspicious", exitCode: 1, stage: "assignController.takeover", operationId, message: "closure archive IO error: " + error.code });
+              }
+            }
+            if (st) {
+              if (!st.isFile()) {
+                throw new RunStoreError({ code: "closure_archive_suspicious", exitCode: 1, stage: "assignController.takeover", operationId, message: "closure archive path is not a regular file" });
+              }
+              let body = null;
+              try {
+                body = JSON.parse(await fsp.readFile(archiveFile, "utf-8"));
+              } catch {
+                throw new RunStoreError({ code: "closure_archive_suspicious", exitCode: 1, stage: "assignController.takeover", operationId, message: "closure archive body is not JSON" });
+              }
+              if (recentHas) {
+                const entry = closureIndex.recent_entries.find((e) => e && e.session_uuid === oldUuid);
+                const got = sha256hex(canonicalJSON(body));
+                if (entry && entry.closure_hash !== got) {
+                  throw new RunStoreError({ code: "closure_archive_suspicious", exitCode: 1, stage: "assignController.takeover", operationId, message: "closure archive hash does not match the recent_entries record" });
+                }
+              }
+              // branch b: archived -> immutable history untouched, no second closure
+            } else if (recentHas) {
+              throw new RunStoreError({ code: "closure_archive_missing", exitCode: 1, stage: "assignController.takeover", operationId, message: "closure archive missing while closure_index holds a record for " + oldUuid });
+            } else {
+              // branch c: no existing closure at all -> new closure + count+1
+              const closure = takeoverClosure();
+              state.pending_closures[oldUuid] = { descriptor: old.descriptor, closure, closure_revision: closureRevision };
+              const chash = sha256hex(canonicalJSON({ descriptor: old.descriptor, closure, closure_revision: closureRevision }));
+              const entry = { entry_id: chash, session_uuid: oldUuid, closure_hash: chash, archived_at: nowIso(), prev_entry_hash: closureIndex.closure_head_hash };
+              closureIndex.recent_entries.push(entry);
+              if (closureIndex.recent_entries.length > 10) closureIndex.recent_entries.splice(0, closureIndex.recent_entries.length - 10);
+              closureIndex.closure_head_hash = chash;
+              closureIndex.closure_count += 1;
+            }
+          }
+          // RT1D 行为修④: the closure_index anchor and the pending_closures entry are placed
+          // in this same transaction per the three branches above (锚与 pending_closures
+          // 同事务对账一致，交 run-session 步③追平机制消费).
         }
       }
       state.authorization.controller = { session_uuid: desc.session_uuid, assigned_at: nowIso(), released_at: null, evidence_ref: payload.evidenceRef, blocked: false };
