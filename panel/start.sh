@@ -1,14 +1,57 @@
 #!/usr/bin/env bash
-# ai-dev-org 面板启动器（入仓参数化版）：面板服务不在跑则后台拉起，然后打开浏览器。
-# 端口=ORG_PANEL_PORT（默认 8787）；项目仓卡=ORG_PANEL_PROJECT=<项目仓绝对路径>（可选）。
-PORT="${ORG_PANEL_PORT:-8787}"
+# DevTroupe 面板启动器：服务未运行则后台拉起，确认就绪后打开页面。
+set -u
+
+PORT="${TROUPE_PANEL_PORT:-8787}"
 URL="http://127.0.0.1:${PORT}"
-DIR="$(cd "$(dirname "$0")" && pwd)"
-if ! curl -s -m 1 "$URL/api/ping" >/dev/null 2>&1; then
-  nohup node "$DIR/server.mjs" >>/tmp/ai-dev-org-panel.log 2>&1 &
-  for _ in $(seq 1 30); do
-    curl -s -m 1 "$URL/api/ping" >/dev/null 2>&1 && break
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG="${TROUPE_PANEL_LOG:-${TMPDIR:-/tmp}/dev-troupe-panel.log}"
+NODE="${TROUPE_NODE:-node}"
+
+for tool in curl grep nohup; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    printf 'DevTroupe 面板启动器缺少依赖：%s\n' "$tool" >&2
+    exit 1
+  fi
+done
+if ! command -v "$NODE" >/dev/null 2>&1; then
+  printf 'DevTroupe 面板启动器找不到 Node：%s\n' "$NODE" >&2
+  exit 1
+fi
+
+if [[ -n "${TROUPE_OPEN:-}" ]]; then
+  OPENER="$TROUPE_OPEN"
+elif command -v xdg-open >/dev/null 2>&1; then
+  OPENER="xdg-open"
+elif command -v open >/dev/null 2>&1; then
+  OPENER="open"
+else
+  printf 'DevTroupe 面板启动器找不到浏览器打开器（xdg-open 或 open）\n' >&2
+  exit 1
+fi
+if ! command -v "$OPENER" >/dev/null 2>&1; then
+  printf 'DevTroupe 面板启动器找不到浏览器打开器：%s\n' "$OPENER" >&2
+  exit 1
+fi
+
+panel_ready() {
+  curl -fsS -m 1 "$URL/" 2>/dev/null | grep -q 'DevTroupe 开发剧团'
+}
+
+if ! panel_ready; then
+  nohup "$NODE" "$DIR/../bin/troupe.mjs" panel --port "$PORT" >>"$LOG" 2>&1 &
+  for ((attempt = 0; attempt < 30; attempt += 1)); do
+    panel_ready && break
     sleep 0.3
   done
 fi
-xdg-open "$URL" >/dev/null 2>&1 || true
+
+if ! panel_ready; then
+  printf 'DevTroupe 面板未能启动，请检查日志：%s\n' "$LOG" >&2
+  exit 1
+fi
+
+if ! "$OPENER" "$URL" >/dev/null 2>&1; then
+  printf 'DevTroupe 面板已运行，但无法打开浏览器：%s\n' "$URL" >&2
+  exit 1
+fi

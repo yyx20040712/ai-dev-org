@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "quick-fix",
+  "title": "主控直接修复",
+  "description": "适用于目标和范围明确的小改动，由主控直接实现并验证，不创建子代理。",
+  "steps": [
+    {
+      "id": "implement",
+      "role": "controller",
+      "dependsOn": [],
+      "optional": false,
+      "when": "主控可以直接完成的小改动",
+      "acceptance": "相关修改、测试和最终 diff 均已检查，失败已修复或如实报告"
+    }
+  ]
+}

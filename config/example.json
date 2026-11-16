@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "slots": {
+    "primary": {
+      "model": "your-provider-id/your-model-id",
+      "multimodal": true,
+      "label": "Primary model"
+    },
+    "alternate": {
+      "model": "another-provider-id/another-model-id",
+      "multimodal": false,
+      "label": "Alternate model"
+    }
+  },
+  "roles": {
+    "research": { "level": "high", "slots": ["primary", "alternate"] },
+    "planner": { "level": "max", "slots": ["primary", "alternate"] },
+    "executor": { "level": "high", "slots": ["alternate", "primary"] },
+    "reviewer": { "level": "max", "slots": ["primary"] },
+    "vision": { "level": "max", "slots": ["primary"] }
+  }
+}

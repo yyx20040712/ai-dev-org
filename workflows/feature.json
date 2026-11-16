@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "feature",
+  "title": "按需特性开发",
+  "description": "根据任务不确定性组合调研、规划、实现和单次评审；可选步骤由主控判断，不形成固定审核链。",
+  "steps": [
+    {
+      "id": "research",
+      "role": "research",
+      "dependsOn": [],
+      "optional": true,
+      "when": "需求、代码现状或外部资料缺少必要事实",
+      "acceptance": "返回与决策相关的事实、来源和不确定项"
+    },
+    {
+      "id": "plan",
+      "role": "planner",
+      "dependsOn": ["research"],
+      "optional": true,
+      "when": "存在实质方案取舍、跨模块影响或较高回归风险",
+      "acceptance": "推荐包含实施顺序、影响文件、验证方式和主要风险"
+    },
+    {
+      "id": "implement",
+      "role": "executor",
+      "dependsOn": ["plan"],
+      "optional": false,
+      "when": "实现范围已经明确",
+      "acceptance": "代码、测试和最终 diff 已检查，实际结果和未解决事项已返回"
+    },
+    {
+      "id": "review",
+      "role": "reviewer",
+      "dependsOn": ["implement"],
+      "optional": true,
+      "when": "高风险逻辑、安全或数据迁移、争议结论，或用户明确要求",
+      "acceptance": "返回具体发现、影响和实际检查；PASS 或 FAIL 由主控核验后处理"
+    }
+  ]
+}

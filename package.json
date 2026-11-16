@@ -1,0 +1,30 @@
+{
+  "name": "dev-troupe",
+  "version": "6.1.0",
+  "private": true,
+  "description": "DevTroupe: a director-led ZCode plugin with five on-demand development roles and composable workflows.",
+  "type": "module",
+  "bin": {
+    "troupe": "./bin/troupe.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "verify": "npm test && node scripts/validate-plugin.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "config/",
+    "commands/",
+    "workflows/",
+    "templates/",
+    "panel/",
+    ".zcode-plugin/plugin.json",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "license": "UNLICENSED"
+}

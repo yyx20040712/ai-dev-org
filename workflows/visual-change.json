@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "visual-change",
+  "title": "视觉改动与验收",
+  "description": "先实现并生成真实渲染图，再由视觉角色按图像验收；没有图像时不允许凭空判定。",
+  "steps": [
+    {
+      "id": "implement",
+      "role": "executor",
+      "dependsOn": [],
+      "optional": false,
+      "when": "视觉改动目标和验收判据明确",
+      "acceptance": "实现、相关测试和最终 diff 已检查"
+    },
+    {
+      "id": "render",
+      "role": "controller",
+      "dependsOn": ["implement"],
+      "optional": false,
+      "when": "实现已具备可运行页面或渲染入口",
+      "acceptance": "已生成实际可读的页面截图或渲染图，并记录路径和验收判据"
+    },
+    {
+      "id": "vision",
+      "role": "vision",
+      "dependsOn": ["render"],
+      "optional": false,
+      "when": "已有真实渲染图且需要视觉验收",
+      "acceptance": "返回基于图像的区域化发现；没有图像时明确阻塞而不猜测"
+    }
+  ]
+}

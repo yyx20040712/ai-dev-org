@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "slots": {},
+  "roles": {
+    "research": { "level": "high", "slots": [] },
+    "planner": { "level": "max", "slots": [] },
+    "executor": { "level": "high", "slots": [] },
+    "reviewer": { "level": "max", "slots": [] },
+    "vision": { "level": "max", "slots": [] }
+  }
+}
