@@ -10,7 +10,6 @@ export const DEFAULT_CONFIG_PATH = path.join(PLUGIN_ROOT, 'config', 'default.jso
 
 const SLOT_ID = /^[a-z0-9][a-z0-9-]*$/;
 const SECRET_KEY = /(api[_-]?key|secret|password|authorization|access[_-]?token)/i;
-const LEGACY_LEVEL = /-(low|high|max)$/;
 
 function isObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -197,98 +196,14 @@ export function updateUserConfig({ configPath, mutate }) {
   return next;
 }
 
-function legacyParts(slotName, role) {
-  const prefix = `ops-${role}-`;
-  if (!slotName.startsWith(prefix) || !LEGACY_LEVEL.test(slotName)) return null;
-  const provider = slotName.slice(prefix.length).replace(LEGACY_LEVEL, '');
-  const level = slotName.match(LEGACY_LEVEL)[1];
-  return provider && level ? { provider, level } : null;
-}
-
-function migrationSlotId(slots, provider, model) {
-  if (!slots[provider] || slots[provider].model === model) return provider;
-  const modelName = model.split('/').pop().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'model';
-  const base = `${provider}-${modelName}`;
-  for (let index = 1; ; index += 1) {
-    const candidate = index === 1 ? base : `${base}-${index}`;
-    if (!slots[candidate] || slots[candidate].model === model) return candidate;
-  }
-}
-
-export function migrateLegacyConfig(legacyRoot) {
-  const root = path.resolve(legacyRoot);
-  const localPath = path.join(root, 'org-config.local.json');
-  if (!fs.existsSync(localPath)) fail(`旧配置不存在：${localPath}`, 'LEGACY_CONFIG_MISSING');
-  const defaults = readJson(path.join(root, 'org-config.default.json'), { optional: true }) ?? {};
-  const legacy = deepMerge(defaults, readJson(localPath));
-  const result = emptyConfig();
-  const warnings = [];
-  const roleSources = {
-    research: ['research'],
-    planner: ['planner'],
-    executor: ['executor'],
-    reviewer: ['implreview1', 'implreview2'],
-    vision: ['vision'],
-  };
-
-  for (const [role, sources] of Object.entries(roleSources)) {
-    const ordered = [];
-    for (const source of sources) {
-      const candidates = legacy.role_fallbacks?.[source] ?? [];
-      const first = legacy.agent_defaults?.[source];
-      for (const candidate of [first, ...candidates]) {
-        if (candidate && !ordered.some((item) => item.name === candidate)) ordered.push({ name: candidate, source });
-      }
-    }
-    const selected = [];
-    for (const candidate of ordered) {
-      const parts = legacyParts(candidate.name, candidate.source);
-      const binding = legacy.agent_bindings?.[candidate.name];
-      if (!parts || typeof binding !== 'string') {
-        warnings.push(`跳过缺少绑定的旧槽位 ${candidate.name}`);
-        continue;
-      }
-      if (role === 'vision' && legacy.providers?.[parts.provider]?.multimodal !== true) {
-        warnings.push(`视觉角色跳过非多模态槽位 ${parts.provider}`);
-        continue;
-      }
-      const model = binding.replace(/\$(low|high|max)$/, '');
-      const slotId = migrationSlotId(result.slots, parts.provider, model);
-      if (!result.slots[slotId] && slotId !== parts.provider) {
-        warnings.push(`同一来源的多个模型已拆分为独立槽位：${parts.provider} → ${slotId}`);
-      }
-      result.slots[slotId] ??= {
-        model,
-        multimodal: legacy.providers?.[parts.provider]?.multimodal === true,
-        label: `${legacy.providers?.[parts.provider]?.entry_name || parts.provider}${slotId === parts.provider ? '' : ` · ${model.split('/').pop()}`}`,
-      };
-      if (!selected.includes(slotId)) {
-        const level = legacy.agent_slots?.[candidate.name]?.level ?? parts.level;
-        if (selected.length === 0) result.roles[role].level = level;
-        else if (level !== result.roles[role].level) warnings.push(`角色 ${role} 的回退档位 ${level} 与首选 ${result.roles[role].level} 不同，统一保留首选档位`);
-        selected.push(slotId);
-      }
-    }
-    result.roles[role].slots = selected;
-  }
-  assertValidConfig(result);
-  return { config: result, warnings };
-}
-
-export function initConfig({ configPath, legacyRoot } = {}) {
+export function initConfig({ configPath } = {}) {
   const target = userConfigPath(configPath);
-  if (fs.existsSync(target)) return { configPath: target, existing: true, warnings: [] };
-  const migrated = legacyRoot ? migrateLegacyConfig(legacyRoot) : { config: emptyConfig(), warnings: [] };
+  if (fs.existsSync(target)) return { configPath: target, existing: true };
   try {
-    writeUserConfig(migrated.config, target, { createOnly: true });
+    writeUserConfig(emptyConfig(), target, { createOnly: true });
   } catch (error) {
-    if (error.code === 'CONFIG_EXISTS') return { configPath: target, existing: true, warnings: [] };
+    if (error.code === 'CONFIG_EXISTS') return { configPath: target, existing: true };
     throw error;
   }
-  return {
-    configPath: target,
-    existing: false,
-    warnings: migrated.warnings,
-    ...(legacyRoot ? { migratedFrom: path.resolve(legacyRoot) } : {}),
-  };
+  return { configPath: target, existing: false };
 }

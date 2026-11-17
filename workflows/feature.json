@@ -26,7 +26,7 @@
       "dependsOn": ["plan"],
       "optional": false,
       "when": "实现范围已经明确",
-      "acceptance": "代码、测试和最终 diff 已检查，实际结果和未解决事项已返回"
+      "acceptance": "代码、测试和最终 diff 已检查，受影响的活文档已同步，实际结果和未解决事项已返回"
     },
     {
       "id": "review",
@@ -34,7 +34,7 @@
       "dependsOn": ["implement"],
       "optional": true,
       "when": "高风险逻辑、安全或数据迁移、争议结论，或用户明确要求",
-      "acceptance": "返回具体发现、影响和实际检查；PASS 或 FAIL 由主控核验后处理"
+      "acceptance": "返回具体发现、影响和实际检查，文档与代码、测试和 diff 一致；PASS 或 FAIL 由主控核验后处理"
     }
   ]
 }

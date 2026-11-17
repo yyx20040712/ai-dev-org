@@ -10,7 +10,7 @@
       "dependsOn": [],
       "optional": false,
       "when": "视觉改动目标和验收判据明确",
-      "acceptance": "实现、相关测试和最终 diff 已检查"
+      "acceptance": "实现、相关测试和最终 diff 已检查，必要的活文档已同步"
     },
     {
       "id": "render",
@@ -26,7 +26,7 @@
       "dependsOn": ["render"],
       "optional": false,
       "when": "已有真实渲染图且需要视觉验收",
-      "acceptance": "返回基于图像的区域化发现；没有图像时明确阻塞而不猜测"
+      "acceptance": "返回基于真实渲染图的区域化发现，不凭 HTML 推断画面；没有图像时明确阻塞而不猜测"
     }
   ]
 }

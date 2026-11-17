@@ -10,15 +10,12 @@ const PLUGIN_ROOT = fileURLToPath(new URL('../', import.meta.url));
 const DEFAULT_TEMPLATES = path.join(PLUGIN_ROOT, 'templates', 'agents');
 const MANIFEST_NAME = '.dev-troupe.json';
 const MANAGED_AGENT = /^ops-(research|planner|executor|reviewer|vision)-.+\.md$/;
-const RETIRED_ROLE_AGENT = /^ops-(assembler|tbreview|planreview|implreview1|implreview2|adjudicator)-.+\.md$/;
-const LEGACY_LEVEL_AGENT = /^ops-(research|planner|executor|vision)-.+-(low|high|max)\.md$/;
-const isLegacyAgent = (name) => RETIRED_ROLE_AGENT.test(name) || LEGACY_LEVEL_AGENT.test(name);
 
 export function defaultAgentsDir() {
   return process.env.TROUPE_AGENTS_DIR || path.join(os.homedir(), '.zcode', 'agents');
 }
 
-export function renderAgent(route, template) {
+export function renderAgent(route, roleTemplate, resultTemplate) {
   const definition = ROLE_DEFS[route.role];
   const values = {
     role: route.role,
@@ -30,17 +27,18 @@ export function renderAgent(route, template) {
     color: definition.color,
     contract: JSON.stringify(definition.contract, null, 2),
   };
-  let body = template;
+  let body = `${roleTemplate.trim()}\n\n${resultTemplate.trim()}`;
   for (const [key, value] of Object.entries(values)) body = body.replaceAll(`{{${key}}}`, value);
   if (/\{\{[a-z]+\}\}/.test(body)) fail(`角色模板存在未知占位符：${route.role}`, 'INVALID_TEMPLATE');
-  return `---\nname: ${route.agent}\ndescription: ${definition.description}\ntools: ${values.tools}\ncolor: ${definition.color}\nmodel: ${route.model}\nthoughtLevel: ${route.level}\n---\n\n${body.trim()}\n`;
+  return `---\nname: ${route.agent}\ndescription: ${definition.description}\ntools: ${values.tools}\ncolor: ${definition.color}\nmodel: ${route.model}\nthoughtLevel: ${route.level}\n---\n\n${body}\n`;
 }
 
 export function expectedAgentDocuments(config, templateDir = DEFAULT_TEMPLATES) {
+  const resultTemplate = fs.readFileSync(path.join(templateDir, 'result.md'), 'utf8');
   const documents = new Map();
   for (const item of inventory(config)) {
     const template = fs.readFileSync(path.join(templateDir, `${item.role}.md`), 'utf8');
-    for (const route of item.routes) documents.set(`${route.agent}.md`, renderAgent(route, template));
+    for (const route of item.routes) documents.set(`${route.agent}.md`, renderAgent(route, template, resultTemplate));
   }
   return documents;
 }
@@ -75,7 +73,6 @@ function atomicWrite(file, content) {
 export function syncAgents({
   config,
   agentsDir = defaultAgentsDir(),
-  migrateLegacy = false,
   backupDir,
   templateDir = DEFAULT_TEMPLATES,
 } = {}) {
@@ -84,11 +81,7 @@ export function syncAgents({
   fs.mkdirSync(target, { recursive: true });
   const expected = expectedAgentDocuments(config, templateDir);
   const previousOwned = readOwnedManifest(target);
-  const stale = previousOwned.filter((name) => !expected.has(name) && MANAGED_AGENT.test(name) && fs.existsSync(path.join(target, name)));
-  const legacy = migrateLegacy
-    ? fs.readdirSync(target).filter((name) => isLegacyAgent(name) && !expected.has(name))
-    : [];
-  const remove = [...new Set([...stale, ...legacy])];
+  const remove = previousOwned.filter((name) => !expected.has(name) && MANAGED_AGENT.test(name) && fs.existsSync(path.join(target, name)));
   const changed = [...expected].filter(([name, content]) => !fs.existsSync(path.join(target, name)) || fs.readFileSync(path.join(target, name), 'utf8') !== content);
   const needBackup = changed.some(([name]) => fs.existsSync(path.join(target, name))) || remove.length > 0;
   const actualBackup = needBackup
@@ -155,10 +148,6 @@ export function doctorAgents(config, agentsDir = defaultAgentsDir()) {
     } catch (error) {
       issues.push(error.message);
     }
-  }
-  if (fs.existsSync(target)) {
-    const legacy = fs.readdirSync(target).filter((name) => isLegacyAgent(name) && !expected.has(name));
-    if (legacy.length) warnings.push(`发现 ${legacy.length} 份旧角色代理；确认配置后可运行 troupe sync --migrate-legacy`);
   }
   return { issues, warnings, expected: expected.size, agentsDir: target };
 }

@@ -8,7 +8,7 @@ const HELP = `DevTroupe 开发剧团 · 主控做导演，五岗按需上场
 
 用法：troupe <命令> [参数]
 
-  init [--from <旧技能目录>]   创建用户配置；可从旧技能迁移模型绑定
+  init                        创建空用户配置；已有配置不覆盖
   doctor                      检查配置与已生成代理（不调用远程模型）
   list                        列出五个角色及其模型顺序
   route <role>                输出一个角色的完整回退顺序
@@ -25,14 +25,13 @@ const HELP = `DevTroupe 开发剧团 · 主控做导演，五岗按需上场
   --no-project                 不读取项目覆盖
   --agents-dir <目录>          指定代理生成目录（默认 ~/.zcode/agents）
   --backup-dir <目录>          指定 sync 的覆盖备份目录
-  --migrate-legacy             sync 时备份并移除旧十岗代理
   --json                       输出 JSON
   --version                    输出插件版本
   --help                       显示本帮助
 `;
 
-const VALUE_FLAGS = new Set(['--config', '--project', '--agents-dir', '--backup-dir', '--from', '--port']);
-const BOOLEAN_FLAGS = new Set(['--json', '--no-project', '--migrate-legacy', '--help', '--version']);
+const VALUE_FLAGS = new Set(['--config', '--project', '--agents-dir', '--backup-dir', '--port']);
+const BOOLEAN_FLAGS = new Set(['--json', '--no-project', '--help', '--version']);
 
 function parseArgs(argv) {
   const options = { _: [] };
@@ -150,15 +149,12 @@ export async function runCli(argv, { stdout = process.stdout, stderr = process.s
     if (extra.length) throw new Error(`多余参数：${extra.join(' ')}`);
 
     if (command === 'init') {
-      if (role) throw new Error('init 不接受位置参数；旧技能目录请用 --from 指定');
-      const legacyRoot = options.from || null;
-      const result = initConfig({ configPath: options.config, legacyRoot });
-      if (!options.json) for (const warning of result.warnings) write(`警告：${warning}`);
+      if (role) throw new Error('init 不接受位置参数');
+      const result = initConfig({ configPath: options.config });
       write(options.json
         ? JSON.stringify(result, null, 2)
         : `${result.existing ? '配置已存在，未覆盖' : '配置已创建'}：${result.configPath}`);
-      if (!options.json && !result.existing && !result.migratedFrom) write('当前为空配置；请添加模型槽位和角色顺序后运行 troupe sync。');
-      if (!options.json && result.migratedFrom) write(`配置来源已保留，未改写原文件：${result.migratedFrom}`);
+      if (!options.json && !result.existing) write('当前为空配置；请添加模型槽位和角色顺序后运行 troupe sync。');
       return 0;
     }
 
@@ -194,7 +190,6 @@ export async function runCli(argv, { stdout = process.stdout, stderr = process.s
         config: loadFor(options).config,
         agentsDir: options['agents-dir'] || defaultAgentsDir(),
         backupDir: options['backup-dir'],
-        migrateLegacy: options['migrate-legacy'],
       });
       if (options.json) write(JSON.stringify(result, null, 2));
       else {

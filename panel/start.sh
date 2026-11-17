@@ -3,7 +3,26 @@
 set -u
 
 PORT="${TROUPE_PANEL_PORT:-8787}"
-URL="http://127.0.0.1:${PORT}"
+DESIGN="${TROUPE_PANEL_DESIGN:-editorial}"
+if [[ $# -gt 0 ]]; then
+  if [[ $# -ne 2 || "$1" != "--design" ]]; then
+    printf '用法：%s [--design editorial|instrument|blueprint]\n' "$0" >&2
+    exit 1
+  fi
+  DESIGN="$2"
+fi
+case "$DESIGN" in
+  editorial|instrument|blueprint) ;;
+  *)
+    printf 'DevTroupe 面板风格无效：%s（可选 editorial、instrument、blueprint）\n' "$DESIGN" >&2
+    exit 1
+    ;;
+esac
+BASE_URL="http://127.0.0.1:${PORT}"
+URL="$BASE_URL"
+if [[ "$DESIGN" != "editorial" ]]; then
+  URL="${BASE_URL}/?design=${DESIGN}"
+fi
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOG="${TROUPE_PANEL_LOG:-${TMPDIR:-/tmp}/dev-troupe-panel.log}"
 NODE="${TROUPE_NODE:-node}"
@@ -35,7 +54,7 @@ if ! command -v "$OPENER" >/dev/null 2>&1; then
 fi
 
 panel_ready() {
-  curl -fsS -m 1 "$URL/" 2>/dev/null | grep -q 'DevTroupe 开发剧团'
+  curl -fsS -m 1 "$BASE_URL/" 2>/dev/null | grep -q 'DevTroupe 开发剧团'
 }
 
 if ! panel_ready; then

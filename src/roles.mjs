@@ -3,8 +3,8 @@ export const LEVELS = Object.freeze(['low', 'high', 'max']);
 export const ROLE_DEFS = Object.freeze({
   research: {
     title: '调研',
-    description: '只读检索代码或资料，区分事实、来源与推断。',
-    tools: ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch'],
+    description: '检索代码或资料，可用本地命令和小实验核验，区分事实、来源与推断。',
+    tools: ['Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'Bash', 'Write', 'Edit'],
     color: 'cyan',
     contract: {
       summary: '一句话结论',
@@ -15,8 +15,8 @@ export const ROLE_DEFS = Object.freeze({
   },
   planner: {
     title: '规划',
-    description: '为复杂或高风险改动比较方案并给出可执行建议。',
-    tools: ['Read'],
+    description: '为复杂或高风险改动比较方案并给出可执行建议，可用检索和小实验验证判断。',
+    tools: ['Read', 'Glob', 'Grep', 'Bash', 'Write', 'Edit'],
     color: 'blue',
     contract: {
       recommendation: '推荐方案及理由',
@@ -41,8 +41,8 @@ export const ROLE_DEFS = Object.freeze({
   },
   reviewer: {
     title: '评审',
-    description: '按需独立检查正确性、回归风险和验证缺口，不修改实现。',
-    tools: ['Read', 'Bash'],
+    description: '按需独立检查正确性、回归风险和验证缺口，可运行最小复现，不修改实现。',
+    tools: ['Read', 'Glob', 'Grep', 'Bash', 'Write', 'Edit'],
     color: 'yellow',
     contract: {
       status: 'PASS | FAIL | BLOCKED',
@@ -52,8 +52,8 @@ export const ROLE_DEFS = Object.freeze({
   },
   vision: {
     title: '视觉',
-    description: '根据已渲染图像检查视觉结果，不猜测未提供的画面。',
-    tools: ['Read'],
+    description: '根据实际渲染图像检查视觉结果，可调用既有渲染入口，不猜测未提供的画面。',
+    tools: ['Read', 'Glob', 'Grep', 'Bash', 'Write', 'Edit'],
     color: 'magenta',
     contract: {
       status: 'PASS | FAIL | BLOCKED',
