@@ -210,7 +210,7 @@ node bin/troupe.mjs panel
 
 右侧采用类似文档导航窗格的双栏同显结构：窄栏使用竖排岗位名称负责选岗，宽栏始终显示当前岗位模型列表，选岗时两侧内容同步翻页。模型选项使用有顶面与侧壁的键帽层次。拖动路由手柄并在列表内松手可调整首选与回退顺序；只有拖入拖动时出现的底部独立灰色区域才会移除，拖到普通末位不会误删。界面不提供上移、下移、移除按钮；手柄聚焦后仍可用方向键排序、Delete 移除。操作步骤、路由细节、配置路径和同步说明统一收纳在右上角问号面板中，可再次点击或按 Esc 收起。配置写入只针对用户配置，不读取项目覆盖；视觉岗只列出多模态候选。重新生成代理会写入代理目录中的代理档案和 `.dev-troupe.json` 生成清单，并在覆盖或移除受管代理前备份原文件。同步结果显示 generated、written、removed 数量；同步后需新建会话。动画播放不会写配置，面板不调用远程模型，也不展示批次状态。由 agent 启动面板时应使用后台进程。
 
-桌面入口可调用插件内的 `panel/start.sh`。启动器在后台启动面板、确认页面就绪后打开系统浏览器；已有服务会复用。无参数时保持原端口行为。以下旧风格参数仅为兼容既有快捷方式保留，各参数对应的 URL 不同，但页面视觉与行为一致：
+桌面入口可调用插件内的 `panel/start.sh`（Linux/macOS，或已具备 Bash 环境的 Windows）或 `panel/start.bat`（Windows 原生，无需 Bash）。启动器在后台启动面板、确认页面就绪后打开系统浏览器；已有服务会复用。无参数时保持原端口行为。以下旧风格参数仅为兼容既有快捷方式保留，各参数对应的 URL 不同，但页面视觉与行为一致：
 
 ```bash
 panel/start.sh --design editorial
@@ -219,7 +219,9 @@ panel/start.sh --design blueprint
 TROUPE_PANEL_DESIGN=instrument panel/start.sh
 ```
 
-`--design` 优先于 `TROUPE_PANEL_DESIGN`，无效风格或参数会明确失败。启动器需要 Bash、Node、curl、grep、nohup，以及 Linux 的 `xdg-open` 或 macOS 的 `open`。可用 `TROUPE_PANEL_PORT` 指定端口，用 `TROUPE_OPEN` 指定打开器。测试时还可设置 `TROUPE_NODE` 和 `TROUPE_PANEL_LOG`。源码工作区的 editorial、instrument、blueprint 三个旧桌面快捷方式仍只指向当前工作区启动器，最终都打开同一个工作台。
+`--design` 优先于 `TROUPE_PANEL_DESIGN`，无效风格或参数会明确失败。`start.sh` 需要 Bash、Node、curl、grep、nohup，以及 Linux 的 `xdg-open` 或 macOS 的 `open`。可用 `TROUPE_PANEL_PORT` 指定端口，用 `TROUPE_OPEN` 指定打开器。测试时还可设置 `TROUPE_NODE` 和 `TROUPE_PANEL_LOG`。源码工作区的 editorial、instrument、blueprint 三个旧桌面快捷方式仍只指向当前工作区启动器，最终都打开同一个工作台。
+
+Windows 启动器 `panel/start.bat` 行为与 `start.sh` 一致：已有服务直接复用，未运行则最小化拉起并等待就绪，再打开默认浏览器；日志写入 `%TEMP%\dev-troupe-panel.log`。可选参数为端口号（默认 8787）。CLI 解析先取随包 `bin/troupe.mjs`（解压即可运行，无需安装插件），未找到时取 `%USERPROFILE%\.zcode\cli\plugins\cache` 下各市场中已安装的最高版本。启动器只依赖 Node 与 Windows 10+ 自带的 curl；自动化测试可设置 `DT_PANEL_NOBROWSER=1` 只拉起服务不打开浏览器。
 
 ## 开发验证
 
