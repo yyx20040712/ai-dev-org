@@ -54,7 +54,7 @@ if ! command -v "$OPENER" >/dev/null 2>&1; then
 fi
 
 panel_ready() {
-  curl -fsS -m 1 "$BASE_URL/" 2>/dev/null | grep -q 'DevTroupe 开发剧团'
+  curl -fsS -m 1 "$BASE_URL/" 2>/dev/null | grep -q 'data-zcode-design'
 }
 
 if ! panel_ready; then
