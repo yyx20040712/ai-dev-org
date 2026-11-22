@@ -1,6 +1,6 @@
 {
   "name": "dev-troupe",
-  "version": "7.1.1",
+  "version": "7.1.2",
   "private": true,
   "description": "DevTroupe is a lightweight software development collaboration plugin that uses engineering constraints to improve delivery quality, supports research, planning, implementation, review, and vision roles with structured results, provides automated verification, and offers composable workflows.",
   "type": "module",
