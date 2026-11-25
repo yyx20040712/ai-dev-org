@@ -4,7 +4,7 @@
     {
       "name": "dev-troupe",
       "source": ".",
-      "version": "7.1.2",
+      "version": "7.1.3",
       "description": "基于一系列工程约束提高工程交付质量的轻量软件开发协作插件，支持调研、规划、实现、评审和视觉五类角色协作，返回结构化结果，自动验证并支持可组装工作流。",
       "displayName": "DevTroupe 开发剧团",
       "displayName_i18n": {
